@@ -414,7 +414,7 @@ Preferences UI: presets ("Deadlines first", "Feelings first", "Balanced", with B
 - An append-only, reverse-chronological feed of every meaningful event: artifact created/edited/completed/archived, assignment changed, feeling or note added/changed, escalated/de-escalated, contact attempt logged, schedule entry added/moved/canceled, heads-up acknowledged, run started/finished (with per-item outcomes), shopping item added/+1/need soon/grabbed, vote cast/closed, payment marked, member joined/left, preference changed.
 - Filters: by member, by type, by tag.
 - Each entry deep-links to the artifact.
-- **[DECIDED]** Entries are generated server-side (database triggers), so the log is complete no matter which client made the change. Sensitive fields are never written to the log.
+- **[DECIDED]** Entries are generated server-side from the **domain events** every write returns, and saved in the same transaction as the change (Architecture §6.4). So the log is complete no matter which client made the change. Sensitive fields are never written to the log.
 - Retention: forever (it's tiny). Export as CSV from House → Settings.
 
 ---
