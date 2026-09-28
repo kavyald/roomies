@@ -1,6 +1,6 @@
 # Roomies — Architecture & System Design
 
-**Status:** v1 scope (2026-09-28): one items table, polls, runs, costs. DI structure unchanged.
+**Status:** v1 scope (2026-09-28): one items table, polls, runs, costs. Items point at their current run, and the activity table is the history. DI structure unchanged.
 **Companions:** [PRD.md](./PRD.md) · [FRONTEND.md](./FRONTEND.md) (visual design, UI, copy)
 
 > Same convention as the PRD: **[DECIDED]**, with *(owner)* marking the ones you answered directly. The design targets **one house, 2–8 users, built by one person, on free tiers**. The priorities are low cost, low ops, fast iteration, and making sure only house members can read house data.
@@ -311,7 +311,12 @@ items           (id, house_id,
                  last_done_at null, last_done_by null,      -- chores only
                  contact_id null,                           -- tasks only: "handled by"
                  done_at null, done_by null,                -- needs & tasks (chores use last_done_*)
+                 run_id null, run_kind null,                -- the run it's on RIGHT NOW (null = in the pool); history is in activity_events
                  created_by, created_at, updated_at, archived_at null)
+                 foreign key (run_id, run_kind) references runs (id, kind)
+                 check ((run_id is null) = (run_kind is null))
+                 check (run_kind is null or run_kind = 'batch' or category = 'task')   -- requests & visits hold tasks only
+                 check (run_id is null or (done_at is null and archived_at is null))  -- done/archived items aren't on a run
                  check (category = 'need'  or need_soon = false)
                  check (category = 'chore' or (repeat_days is null and last_done_at is null and last_done_by is null))
                  check (category = 'task'  or contact_id is null)
@@ -343,15 +348,8 @@ runs            (id, house_id, kind: batch|request|visit, title,
                  check (kind = 'request' or (sent_at is null and sent_via is null))
                  check (kind <> 'request' or when_at is null)
                  check (status <> 'sent' or sent_at is not null)
-run_items       (id, run_id, item_id,
-                 status: pending|done|moved|returned  default 'pending',
-                 moved_to_run_id null,                      -- where it went, when moved
-                 note null, resolved_by null, resolved_at null, added_by, added_at)
-                 check ((status = 'moved') = (moved_to_run_id is not null))
-                 check ((status = 'pending') = (resolved_at is null and resolved_by is null))
-                 unique (item_id) where status = 'pending'  -- one open run per item (pending rows only exist on open runs)
-                 -- one row per stint on a run; together they form the item's request/visit history
-                 -- domain rule: request & visit runs hold tasks only (error `tasks_only`, covered by a contract test)
+                 unique (id, kind)                          -- target for items' (run_id, run_kind) foreign key
+                 -- a run's contents = items where run_id = runs.id; what used to be on it = activity_events (§6.4)
 
 -- money --------------------------------------------------------------------------
 costs           (id, house_id, amount_cents, paid_by, note null,
@@ -360,15 +358,15 @@ costs           (id, house_id, amount_cents, paid_by, note null,
                  check (num_nonnulls(item_id, run_id) <= 1)
 
 -- infrastructure (unchanged) -----------------------------------------------------
-activity_events       (id bigserial, house_id, actor_id, kind, item_id null, poll_id null, run_id null, payload jsonb, created_at)
+activity_events       (see §6.4: typed subject columns, append-only; the source of all history)
 push_subscriptions    (id, user_id, endpoint, p256dh, auth, user_agent, created_at, last_ok_at)
 notification_prefs    (user_id, category, enabled)
 notifications_outbox  (id, user_id, house_id, category, title, body, url, send_after, sent_at, error)
 ```
 
-**8 app tables** (items, feelings, polls, poll_options, poll_votes, runs, run_items, costs) plus house, people, and infrastructure. Every table has `house_id` (directly or through its parent) and RLS via `is_member(house_id)` (§5.2).
+**7 app tables** (items, feelings, polls, poll_options, poll_votes, runs, costs) plus `activity_events` (history) and house, people, and infrastructure. Every table has `house_id` (directly or through its parent) and RLS via `is_member(house_id)` (§5.2).
 
-Indexes: `items(house_id, category) where archived_at is null`, `items(house_id, when_at) where when_at is not null`, `runs(house_id, status, when_at)`, `polls(house_id) where closed_at is null`, `costs(house_id, created_at)`, `activity_events(house_id, created_at desc)`, `notifications_outbox(sent_at) where sent_at is null`.
+Indexes: `items(house_id, category) where archived_at is null`, `items(house_id, when_at) where when_at is not null`, `items(run_id) where run_id is not null`, `runs(house_id, status, when_at)`, `polls(house_id) where closed_at is null`, `costs(house_id, created_at)`, `activity_events(house_id, created_at desc)`, `notifications_outbox(sent_at) where sent_at is null`.
 
 **Money** is integer cents. **Time** is `timestamptz` in UTC, and dates without a time are interpreted in the house timezone.
 
@@ -380,7 +378,7 @@ Plain, immutable, serializable objects, and **discriminated unions** so invalid 
 // ---- primitives ----
 type Id<K extends string> = string & { readonly __id: K }
 type UserId = Id<'user'>; type HouseId = Id<'house'>; type ItemId = Id<'item'>; type RoomId = Id<'room'>
-type ContactId = Id<'contact'>; type PollId = Id<'poll'>; type OptionId = Id<'option'>; type RunId = Id<'run'>; type RunItemId = Id<'run_item'>; type CostId = Id<'cost'>
+type ContactId = Id<'contact'>; type PollId = Id<'poll'>; type OptionId = Id<'option'>; type RunId = Id<'run'>; type CostId = Id<'cost'>; type ActionId = Id<'action'>
 type Instant = { readonly epochMs: number }
 type When = { date: LocalDate; time?: string }           // local to the house timezone
 type LocalDate = `${number}-${number}-${number}`
@@ -392,6 +390,7 @@ type Result<T, E extends string> = { ok: true; value: T } | { ok: false; error: 
 interface ItemBase {
   id: ItemId; houseId: HouseId; title: string; note?: string; roomId?: RoomId
   assignee?: UserId; when?: When; priority: 'low' | 'normal' | 'high' | 'urgent'
+  run?: { id: RunId; kind: Run['kind'] }               // the run it's on right now; undefined = in the pool
   createdBy: UserId; createdAt: Instant; archivedAt?: Instant
 }
 type Done = { at: Instant; by: UserId }
@@ -412,11 +411,8 @@ type Poll = { id: PollId; houseId: HouseId; question: string; itemId?: ItemId
   state: { open: true } | { open: false; closedAt: Instant; result: { winner: OptionId } | { tie: readonly OptionId[] } | { noVotes: true } } }
 
 // ---- runs ----
-type RunItem = { id: RunItemId; itemId: ItemId; addedBy: UserId; addedAt: Instant; note?: string
-  status: { at: 'pending' }
-        | { at: 'done' | 'returned'; by: UserId; on: Instant }
-        | { at: 'moved'; to: RunId; by: UserId; on: Instant } }
-type Run = { id: RunId; houseId: HouseId; title: string; runner: UserId; items: readonly RunItem[] } & (
+// a run's current contents are the items whose `run.id` points at it (loaded alongside); its history is RunStep[] (below)
+type Run = { id: RunId; houseId: HouseId; title: string; runner: UserId } & (
   | { kind: 'batch'; when?: When; state: { open: true } | { open: false; finishedAt: Instant } }
   | { kind: 'request'; contactId: ContactId
       state: { at: 'gathering' } | { at: 'sent'; sentAt: Instant; via: 'text' | 'email' | 'call' | 'portal' | 'in_person' } | { at: 'closed'; closedAt: Instant } }
@@ -427,34 +423,145 @@ type Run = { id: RunId; houseId: HouseId; title: string; runner: UserId; items: 
 type Cost = { id: CostId; houseId: HouseId; amount: Cents; paidBy: UserId; note?: string
   for?: { item: ItemId } | { run: RunId }; createdAt: Instant }
 
+// history of items on runs, read back from activity_events
+type RunStep = { at: Instant; by: UserId | null; itemId: ItemId; runId: RunId; note?: string
+  what: 'added' | 'done' | 'returned' | { movedTo: RunId } }
+
 type HouseSettings = { timezone: string; feelingWeights: FeelingWeights; inviteTtlDays: number }
 
 // ---- events (returned by domain functions, recorded by EventSink) ----
-type DomainEvent =
-  | { type: 'item.created' | 'item.edited' | 'item.archived'; itemId: ItemId; by: UserId }
-  | { type: 'item.done'; itemId: ItemId; by: UserId; viaRun?: RunId }
-  | { type: 'chore.done'; itemId: ItemId; by: UserId }
-  | { type: 'feeling.set'; itemId: ItemId; by: UserId; next: Feeling | null; previous: Feeling | null }
-  | { type: 'poll.created' | 'poll.voted'; pollId: PollId; by: UserId }
-  | { type: 'poll.option_added'; pollId: PollId; optionId: OptionId; by: UserId }
-  | { type: 'task.handled_by_changed'; itemId: ItemId; by: UserId; from: ContactId | null; to: ContactId | null }
-  | { type: 'poll.closed'; pollId: PollId; result: Poll['state'] }
-  | { type: 'run.started'; runId: RunId; by: UserId; count: number }
-  | { type: 'run.finished'; runId: RunId; done: number; returned: number }
-  | { type: 'request.sent'; runId: RunId; via: string; count: number }
-  | { type: 'run_items.moved'; from: RunId; to: RunId; itemIds: ItemId[]; note?: string }
-  | { type: 'run_items.returned'; from: RunId; itemIds: ItemId[]; note: string }
-  | { type: 'request.closed'; runId: RunId }
-  | { type: 'cost.added'; costId: CostId; by: UserId; amount: Cents }
-  | { type: 'settings.feeling_weights_changed'; by: UserId; from: FeelingWeights; to: FeelingWeights }
-  | { type: 'member.joined'; userId: UserId }
+type DomainEvent = { actionId: ActionId; by: UserId | null } & (      // by: null = Roomies (jobs)
+  // items
+  | { kind: 'item.created' | 'item.done' | 'item.reopened' | 'item.archived' | 'item.restored' | 'chore.done' | 'chore.undone'; itemId: ItemId; runId?: RunId }
+  | { kind: 'item.edited'; itemId: ItemId; changes: FieldChanges }
+  | { kind: 'item.assigned'; itemId: ItemId; memberId: UserId | null; changes: FieldChanges }
+  | { kind: 'item.handled_by_changed'; itemId: ItemId; contactId: ContactId | null; changes: FieldChanges }
+  // feelings
+  | { kind: 'feeling.set'; itemId: ItemId; changes: { previous: Feeling | null; next: Feeling } }
+  | { kind: 'feeling.removed'; itemId: ItemId; changes: { previous: Feeling } }
+  // polls
+  | { kind: 'poll.created' | 'poll.reopened' | 'poll.vote_withdrawn'; pollId: PollId; itemId?: ItemId }
+  | { kind: 'poll.option_added' | 'poll.voted'; pollId: PollId; optionId: OptionId; note?: string }
+  | { kind: 'poll.vote_changed' | 'poll.deadline_changed'; pollId: PollId; optionId?: OptionId; changes: FieldChanges }
+  | { kind: 'poll.closed'; pollId: PollId; optionId?: OptionId; payload: { result: 'winner' | 'tie' | 'no_votes' } }
+  // runs (one event per item; a bulk action shares one actionId)
+  | { kind: 'run.created' | 'request.closed'; runId: RunId; contactId?: ContactId }
+  | { kind: 'run.item_added' | 'run.item_done'; runId: RunId; itemId: ItemId }
+  | { kind: 'run.item_returned'; runId: RunId; itemId: ItemId; note: string }
+  | { kind: 'run.item_moved'; runId: RunId; toRunId: RunId; itemId: ItemId; note?: string }
+  | { kind: 'run.renamed' | 'run.date_set'; runId: RunId; changes: FieldChanges }
+  | { kind: 'run.point_person_changed'; runId: RunId; memberId: UserId; changes: FieldChanges }
+  | { kind: 'request.sent'; runId: RunId; contactId: ContactId; payload: { via: string; message: string } }
+  | { kind: 'run.finished'; runId: RunId; payload: { done: number; returned: number } }
+  // money
+  | { kind: 'cost.added' | 'cost.splitwise_copied'; costId: CostId; itemId?: ItemId; runId?: RunId; memberId?: UserId }
+  | { kind: 'cost.edited'; costId: CostId; changes: FieldChanges }
+  | { kind: 'cost.removed'; costId: CostId; note?: string }
+  // house, people, places
+  | { kind: 'house.created' }
+  | { kind: 'settings.feeling_weights_changed'; changes: FieldChanges }
+  | { kind: 'member.joined' | 'member.room_changed'; memberId: UserId; roomId?: RoomId; changes?: FieldChanges }
+  | { kind: 'member.role_changed' | 'member.moved_out' | 'member.removed'; memberId: UserId; note?: string; changes?: FieldChanges }
+  | { kind: 'invite.created' | 'invite.revoked'; payload: { expiresAt?: string; maxUses?: number } }
+  | { kind: 'contact.created' | 'contact.edited' | 'contact.removed'; contactId: ContactId; changes?: FieldChanges }
+  | { kind: 'room.added' | 'room.renamed' | 'room.archived'; roomId: RoomId; changes?: FieldChanges }
+)
+type FieldChanges = Record<string, [before: unknown, after: unknown]>
 ```
 
-### 6.4 Activity log implementation
+### 6.4 Activity log: the source of history **[DECIDED] (owner)**
 
-- Every use case returns **domain events** (§6.3), and `EventSink.record(events)` writes them to `activity_events` in the **same transaction** as the change. No triggers.
-- `activityRowFor(event)` is pure. A `feeling.set` event carries the previous feeling + note, which powers the "Earlier" list.
-- The actor comes from the use case's `actor` argument. A `system` actor (jobs) shows as "Roomies."
+Current state lives on the rows (`items.run_id`, `polls.closed_at`, …). **Everything that happened lives in `activity_events`:** item moves between runs, the Earlier feelings, poll votes, cost edits. Nothing else stores history.
+
+```sql
+create table activity_events (
+  id          bigserial primary key,                    -- also the order events happened in
+  house_id    uuid        not null references houses(id) on delete cascade,
+  at          timestamptz not null default now(),
+  actor_id    uuid        null references profiles(id), -- null = Roomies (jobs)
+  action_id   uuid        not null,                     -- one user action; a bulk move of 3 tasks = 3 rows, same action_id
+  kind        text        not null,                     -- catalog below
+
+  -- subjects: typed columns with foreign keys; which are set depends on kind
+  item_id     uuid null references items(id),
+  run_id      uuid null references runs(id),            -- the run it happened on (or moved FROM)
+  to_run_id   uuid null references runs(id),            -- moves only
+  poll_id     uuid null references polls(id),
+  option_id   uuid null references poll_options(id),
+  cost_id     uuid null references costs(id),
+  contact_id  uuid null references contacts(id),
+  member_id   uuid null references profiles(id),        -- the member affected, not the actor
+  room_id     uuid null references rooms(id),
+
+  note        text  null,                               -- the human note ("sending a plumber")
+  changes     jsonb null,                               -- field diffs {"when": [old, new]}; feeling previous/next
+  payload     jsonb not null default '{"v":1}',         -- versioned extras only; nothing queried lives here
+
+  check (kind in (/* the catalog below */)),
+  check (kind not like 'item.%'     or item_id is not null),
+  check (kind not like 'feeling.%'  or item_id is not null),
+  check (kind not like 'run.item_%' or (item_id is not null and run_id is not null)),
+  check ((kind = 'run.item_moved') = (to_run_id is not null)),
+  check (kind not like 'poll.%'     or poll_id is not null),
+  check (kind not like 'cost.%'     or cost_id is not null),
+  check (kind not like 'member.%'   or member_id is not null),
+  check (kind not like 'contact.%'  or contact_id is not null),
+  check (kind not like 'room.%'     or room_id is not null)
+);
+
+create index on activity_events (house_id, id desc);                                   -- Activity screen
+create index on activity_events (item_id, id)  where item_id  is not null;             -- item history, Earlier feelings
+create index on activity_events (run_id, id)   where run_id   is not null;             -- a run's story
+create index on activity_events (to_run_id)    where to_run_id is not null;
+create index on activity_events (poll_id, id)  where poll_id  is not null;
+create index on activity_events (action_id);                                           -- grouping bulk actions
+```
+
+**Rules**
+- **Append-only.** RLS lets members **read** their house's rows. There's no update/delete policy, and the app role has no `UPDATE`/`DELETE` grant. Undo writes a new event (`item.reopened`, `chore.undone`, `poll.reopened`). It never removes one.
+- **Written by `EventSink` in the same transaction** as the change. No triggers.
+- **One row per subject.** A bulk action writes one row per item, sharing an `action_id`. The Activity screen groups rows by `action_id` into one line ("Kavya moved 3 tasks to Landlord visit").
+- **Queried fields are columns, never `payload`.** `changes` holds field diffs (varying shape), and `payload` holds versioned extras (`{"v":1, …}`). Sizing: about 205 bytes/row with typed columns vs. about 300 with subjects in JSON, which works out to roughly **30 MB after ~5 years** for one house (T07 measures the real numbers).
+- **Deleted accounts** keep their rows. The profile is anonymized and shows as "Former roommate."
+- `activityRowFor(event)` is pure (it maps a `DomainEvent` to a row), and `activityLine(rows)` is pure (it groups by `action_id` and phrases the feed line).
+
+**Reading history back**
+
+```sql
+-- an item's path through runs
+select kind, run_id, to_run_id, note, actor_id, at from activity_events
+ where item_id = :item and kind like 'run.item_%' order by id;
+
+-- a run's story (open or finished): what came, what happened, where it went
+select kind, item_id, to_run_id, note, actor_id, at from activity_events
+ where run_id = :run or to_run_id = :run order by id;
+
+-- Earlier feelings on an item
+select changes, actor_id, at from activity_events
+ where item_id = :item and kind in ('feeling.set', 'feeling.removed') order by id desc;
+```
+
+**Event catalog.** Feed: ✓ shown, ◐ grouped, — recorded but hidden. Notify: who gets a push.
+
+| Family | Kinds | Subject columns | Feed | Notify |
+|---|---|---|---|---|
+| Items | `item.created` · `item.edited` · `item.done` · `item.reopened` · `item.archived` · `item.restored` | item (+ run if done on one), `changes` | ✓ | — |
+| | `item.assigned` | item, member, `changes` | ✓ | new assignee |
+| | `item.handled_by_changed` | item, contact, `changes` | ✓ | — |
+| | `chore.done` · `chore.undone` | item | ◐ · — | — |
+| Feelings | `feeling.set` · `feeling.removed` | item, `changes {previous, next}` | ✓ · — | assignee on 😰/😤 |
+| Polls | `poll.created` · `poll.closed` · `poll.reopened` · `poll.deadline_changed` | poll (+ item, winning option) | ✓ | everyone on created/closed |
+| | `poll.option_added` | poll, option, note | ✓ | people who already voted |
+| | `poll.voted` · `poll.vote_changed` · `poll.vote_withdrawn` | poll, option | ◐ · ◐ · — | — |
+| Runs | `run.created` · `run.renamed` · `run.date_set` · `run.point_person_changed` | run (+ contact, member), `changes` | ✓ | everyone on batch created ("Add anything?") and date set · new point person |
+| | `run.item_added` · `run.item_moved` · `run.item_returned` · `run.item_done` | item, run, to_run (moves), note | ◐ | point person on items moved into their visit |
+| | `request.sent` · `request.closed` · `run.finished` | run (+ contact) | ✓ | — |
+| Money | `cost.added` · `cost.edited` · `cost.removed` · `cost.splitwise_copied` | cost (+ item or run, member who paid) | ✓ · ✓ · ✓ · — | — |
+| House | `house.created` · `settings.feeling_weights_changed` · `invite.created` · `invite.revoked` | `changes` / `payload` | ✓ (invites: admins) | everyone on weights |
+| People | `member.joined` · `member.room_changed` · `member.role_changed` · `member.moved_out` · `member.removed` | member (+ room), note | ✓ | everyone on joined/left · that member on role |
+| Places | `contact.created` · `contact.edited` · `contact.removed` · `room.added` · `room.renamed` · `room.archived` | contact / room, `changes` | ✓ | — |
+
+**Not in this table:** failed invite or sign-in attempts (a service-role-only `security_events` table or logs), notification delivery (`notifications_outbox`), views, and computed priority.
 
 ---
 
@@ -485,19 +592,20 @@ type DomainEvent =
 | `addPollOption` | `(p: Poll, label, note?, by: UserId, id: OptionId) → Result<{ poll; events }, 'closed' \| 'duplicate_label' \| 'empty'>` | Any member, while open. Existing votes are untouched. |
 | `setHandledBy` | `(t: Task, contact: ContactId \| null, by) → { task; events }` | Via `editItem`. Only tasks accept a contact. |
 | `closePoll` | `(p: Poll, now) → { poll; events }` | Most votes wins, a tie → `{ tie }`, and no votes → `{ noVotes }` (D3) |
-| `startRun` / `startRequest` / `planVisit` | `(input, items: Item[], pendingElsewhere: ReadonlySet<ItemId>, by, now, id) → Result<{ run; events }, 'nothing_selected' \| 'already_on_a_run' \| 'done_item' \| 'tasks_only'>` | A request may start empty. A visit's date is optional. |
+| `startRun` / `startRequest` / `planVisit` | `(input, items: Item[], by, now, runId, actionId) → Result<{ run; items; events }, 'nothing_selected' \| 'already_on_a_run' \| 'done_item' \| 'tasks_only'>` | Sets `item.run` on each item. A request may start empty. A visit's date is optional. |
 | `addToRequest` | `(t: Task, open: Run[], by, now, newId) → { run; task; events }` | Joins the contact's gathering request, or starts one |
-| `addToRun` | `(r: Run, items: Item[], pendingElsewhere) → Result<{ run; events }, 'finished' \| 'already_on_a_run' \| 'request_sent' \| 'tasks_only'>` | A sent request is closed to additions |
+| `addToRun` | `(r: Run, items: Item[], by, now, actionId) → Result<{ items; events }, 'finished' \| 'already_on_a_run' \| 'request_sent' \| 'tasks_only'>` | A sent request is closed to additions |
 | `sendRequest` | `(r: Request, via, now) → Result<{ run; message: string; events }, 'not_gathering' \| 'empty'>` | Builds the numbered message and moves to `sent` |
-| `moveRunItems` | `(from: Run, to: Run, items: Item[], note?, by, now) → Result<{ from; to; tasks; events }, 'not_pending' \| 'target_closed' \| 'tasks_only'>` | Sets "Handled by" to the target's contact. Closes an emptied request. |
-| `returnToPool` | `(from: Run, itemIds, note, clearContact: boolean, by, now) → { run; items; events }` | |
-| `handToContact` | `(from: Run, itemIds, contact, note?, open: Run[], by, now, newId) → { from; to; tasks; events }` | `to` = the contact's gathering request (new if none) |
-| `markRunItemsDone` | `(r: Run, itemIds, by, now) → { run; effects: RunEffect[]; events }` | Effects as data: `{ markDone }` · `{ doChore }` |
-| `finishRun` | `(r: Batch \| Visit, now) → { run; effects; events }` | Pending items → `returned` with "Not done this time" |
+| `moveRunItems` | `(from: Run, to: Run, items: Item[], remainingOnFrom: number, note?, by, now, actionId) → Result<{ items; from; events }, 'not_on_run' \| 'target_closed' \| 'tasks_only'>` | Points each item at `to` (and sets "Handled by" to its contact). Closes `from` if it's a request left empty. |
+| `returnToPool` | `(from: Run, items: Item[], note, clearContact: boolean, remainingOnFrom, by, now, actionId) → { items; from; events }` | Clears `item.run` |
+| `handToContact` | `(from: Run, items: Task[], contact, gathering: Request \| null, note?, by, now, ids) → { to; items; from; events }` | `to` = the contact's gathering request (new if none) |
+| `markRunItemsDone` | `(r: Run, items: Item[], by, now, actionId) → { items; events }` | Done (or last done for chores) and clears `item.run` |
+| `finishRun` | `(r: Batch \| Visit, stillOn: Item[], now, actionId) → { run; items; events }` | Items still on it go back to the pool with "Not done this time" (one `run.item_returned` each) |
+| `runHistory` / `itemPath` | `(rows: ActivityRow[]) → RunStep[]` | Pure readers over the activity queries in §6.4 |
 | `addCost` | `(input: NewCost, by, now, id) → Result<{ cost; events }, 'not_positive'>` | |
 | `monthlySpend` | `(costs: Cost[], members: UserId[], month) → { total: Cents; perPerson: Cents }` | Equal split |
 | `validateInvite` | `(inv: Invite, tokenHash, now) → Result<Invite, 'invalid' \| 'expired' \| 'revoked' \| 'used_up'>` | |
-| `activityRowFor` / `notificationsFor` | `(e: DomainEvent, …) → ActivityRow \| null` / `→ OutboxMessage[]` | Quiet hours + prefs applied in `notificationsFor` |
+| `activityRowFor` / `activityLine` / `notificationsFor` | `(e: DomainEvent) → ActivityRow` / `(rows sharing an action_id) → FeedLine` / `(e, members, prefs, now, tz) → OutboxMessage[]` | Quiet hours + prefs applied in `notificationsFor` |
 
 **Use cases** (`lib/app/*.ts`). Each is built as `makeX(deps)`, then called as `(actor, input) → Promise<Result<Out, Err>>` in one `UnitOfWork` transaction.
 
@@ -513,7 +621,7 @@ type DomainEvent =
 | `sendRequest` | `{ runId, via }` | `{ run, message }` | `not_gathering`, `empty` | uow, clock |
 | `moveRunItems` / `returnToPool` / `handToContact` / `markRunItemsDone` | `{ fromRunId, itemIds, toRunId \| newVisit, note? }` / `{ runId, itemIds, note, clearContact }` / `{ runId, itemIds, contactId \| newContact, note? }` / `{ runId, itemIds }` | `Run[]` | `not_pending`, `target_closed`, `tasks_only` | uow, clock, ids |
 | `setVisitDate` | `{ runId, when \| null }` | `Run` | `not_a_visit` | uow |
-| `finishRun` | `{ runId, doneIds, spentCents? }` | `{ run, cost? }` | `finished`, `not_found` | uow, clock, ids |
+| `finishRun` | `{ runId, spentCents? }` | `{ run, cost? }` | `finished`, `not_found` | uow, clock, ids |
 | `addCost` | `{ amountCents, forItem? \| forRun?, note? }` | `Cost` | `not_positive` | uow, clock, ids |
 | `setupHouse` / `startInvite` / `acceptInvite` | as before | `House` / `void` / `Member` | as before | uow, clock, ids, auth, config |
 | **Jobs:** `runReminders`, `sendNotifications`, `closeDuePolls` | `{ now? }` | counts | none | uow, clock, push |
@@ -528,9 +636,10 @@ export const makeFinishRun = ({ uow, clock, ids }: Pick<AppDeps, 'uow' | 'clock'
       if (!run) return err('not_found')
       if (!run.state.open) return err('finished')
 
-      const now = clock.now()
-      const { run: finished, effects, events } = domain.finishRun(run, input.doneIds, now)   // pure
-      for (const e of effects) await repos.items.apply(e, now)                              // markDone / doChore / release
+      const now = clock.now(), actionId = ids.newId<'action'>()
+      const stillOn = await repos.items.onRun(run.id)
+      const { run: finished, items, events } = domain.finishRun(run, stillOn, now, actionId)  // pure
+      await repos.items.saveAll(items)                                                       // run_id cleared
       await repos.runs.save(finished)
 
       let cost: Cost | undefined
@@ -542,6 +651,21 @@ export const makeFinishRun = ({ uow, clock, ids }: Pick<AppDeps, 'uow' | 'clock'
       return ok({ run: finished, cost })
     })
 ```
+
+### 7.2c Moving items between runs
+
+```sql
+begin;
+  update items set run_id = :to_run, run_kind = :to_kind,
+                   contact_id = coalesce(:to_contact, contact_id)       -- requests/visits: "handled by" follows the run
+   where id = :item and run_id = :from_run;                             -- 0 rows → someone already moved it → `not_on_run`
+  insert into activity_events (house_id, actor_id, action_id, kind, item_id, run_id, to_run_id, note)
+  values (:house, :user, :action, 'run.item_moved', :item, :from_run, :to_run, :note);
+  -- if :from_run is a request and no items point at it anymore: update runs set status = 'closed' + 'request.closed' event
+commit;
+```
+
+**Back to the pool:** `run_id = null` + `run.item_returned` (with the note). **Done:** `run_id = null`, `done_at = now()` + `run.item_done`. **Finish:** every item still on the run gets `run_id = null` + its own `run.item_returned`, then the run is `finished`. **The database enforces "tasks only on requests and visits"** through `items.run_kind` (a composite foreign key + CHECK).
 
 ### 7.3 Scheduled jobs
 
@@ -567,7 +691,7 @@ Immediate notifications (assigned, 😰/😤, new poll, run started) come from t
 
 - The client subscribes to `postgres_changes` on house-scoped tables filtered by `house_id`. Supabase Realtime respects RLS.
 - On an event, the client invalidates the matching TanStack Query keys.
-- Conflicts: **last write wins** per field. Putting one item on two open runs is rejected by the partial unique index on `run_items(item_id) where status = 'pending'`. Saves use optimistic concurrency (`where updated_at = :loaded`) and map a lost race to `conflict`.
+- Conflicts: **last write wins** per field. An item can only be on one run because it has one `run_id`. Moves update `where id = :item and run_id = :from`, so a race updates 0 rows and returns `not_on_run`. Saves use optimistic concurrency (`where updated_at = :loaded`) and map a lost race to `conflict`.
 
 ### 7.6 Splitwise
 
@@ -701,3 +825,4 @@ iPhone UX specifics:
 | A14 | Activity log + notifications | Domain events recorded in the same transaction (transactional outbox). No triggers. | Owner (DI request) |
 | A15 | v1 storage | One `items` table (need / chore / task) with CHECKs. Polls, runs, costs, and feelings are their own tables. Detail tables come back per category only if one grows. | Owner (D18) |
 | A16 | v1 scope | Needs, chores, tasks, polls, runs, costs, feeling weights. Bills, belongings, rotations, outside-help stages, heads-ups, info, and email come later. | Owner (D13) |
+| A17 | History storage | `items.run_id` holds the current run. `activity_events` (typed subject columns, append-only, `action_id` grouping) is the only history store. `run_items` / `run_claims` dropped. | Owner |

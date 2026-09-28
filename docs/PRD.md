@@ -276,7 +276,8 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 ## 9. Activity log
 
 - A reverse-chronological record of every change: items added, edited, done, or archived; feelings; poll votes and results; runs started and finished; costs added; members joining; settings changed.
-- **[DECIDED]** Written in the same transaction as the change, so it's always complete (Architecture §6.4).
+- **[DECIDED]** Written in the same transaction as the change, so it's always complete.
+- **[DECIDED] (owner) It's the only place history lives.** An item's path through requests and visits, Earlier feelings, votes and cost edits are all read back from it. It's append-only: undo adds a new entry ("reopened") and never erases one. A bulk action (moving 3 tasks) shows as one line. Details and the full event list are in Architecture §6.4.
 
 ---
 
@@ -375,5 +376,6 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D22 | Recording a reply = bulk actions on tasks in a run: move to a visit/run, back to the pool with a note, hand to another contact, done. No reply form. | Owner |
 | D23 | Tasks on a visit leave the Home feed unless there's a feeling or the visit is within 3 days | Default |
 | D24 | No automatic "no reply" nudge in v1, only a "Sent N days ago" label | Default |
+| D25 | Items point at their current run. The activity log (typed columns, append-only) is the single store of history, including run moves. | Owner |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.

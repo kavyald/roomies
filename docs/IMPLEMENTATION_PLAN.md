@@ -213,8 +213,8 @@ flowchart TD
   *Done when:* A missing env var fails at startup with a clear message.
 - **T06 Ports + in-memory adapters**: `ports.ts` (UnitOfWork, Repos, EventSink, Clock, IdGenerator, HouseQueries, ChangeFeed, AuthGateway, Config) plus memory fakes, a fixed clock, sequential ids, and a reusable contract-test harness.  
   *Done when:* A sample use case runs end to end against the memory adapters in a test.
-- **T07 Base schema + RLS**: Migrations for houses (with settings), members, rooms, invites, profiles, contacts, activity_events, and notifications_outbox. `is_member` / `is_admin`, RLS on every table, and a CI check that fails if any table lacks RLS.  
-  *Done when:* RLS tests show a non-member reads nothing and a member reads only their house.
+- **T07 Base schema + RLS**: Migrations for houses (with settings), members, rooms, invites, profiles, contacts, `activity_events` (typed subject columns, per-kind CHECKs, indexes, no UPDATE/DELETE grant), and notifications_outbox. `is_member` / `is_admin`, RLS on every table, a CI check that fails if any table lacks RLS, and a sizing script (`pg_column_size` / `pg_total_relation_size` on sample events).  
+  *Done when:* RLS tests show a non-member reads nothing and a member reads only their house. An UPDATE on activity_events is refused, and the sizing script prints real bytes per event kind.
 - **T08 Postgres UnitOfWork adapter**: Kysely over the Supavisor transaction pooler with an `app_server` role. Each transaction runs `set local role authenticated` + the user's JWT claims. Includes the EventSink writer.  
   *Done when:* The same contract tests pass against memory and Postgres, and `auth.uid()` inside a transaction equals the actor.
 - **T09 Design tokens + UI kit**: Light/dark CSS tokens (base, elements, plum, tiers) and core components: Card, Button, Chip, Avatar, Sheet (Vaul), TabBar, ListRow, SegmentedControl, Toast, EmptyState.  
@@ -239,8 +239,8 @@ flowchart TD
 | T16 ⭑ | **Invites + join flow** | L | T14, T15 | T17 |
 | T17 ⭑ | **House tab: members, rooms, contacts** | M | T11, T16 | T22, T37 |
 
-- **T14 Activity log**: The `DomainEvent` union, the pure `activityRowFor`, EventSink wiring, and an Activity screen with keyset pagination.  
-  *Done when:* Any use case that returns events produces activity rows in the same transaction (rollback test included).
+- **T14 Activity log**: The `DomainEvent` union (catalog in Architecture §6.4), pure `activityRowFor` and `activityLine` (grouping by `action_id`), EventSink wiring, and the Activity screen with keyset pagination.  
+  *Done when:* Any use case that returns events produces activity rows in the same transaction (rollback test included), and a 3-task bulk move shows as one feed line.
 - **T15 House setup + rooms**: The `setupHouse` use case + `/setup/[token]`, seeding the apartment's rooms (Air, Fire, Water, Earth, Bathrooms 1–3, Fitness space, …) and default feeling weights, with the owner as admin. Blocked once a house exists.  
   *Done when:* The owner creates the house once, and a second attempt is rejected.
 - **T16 Invites + join flow**: Pure `validateInvite`, `startInvite` / `acceptInvite` use cases, admin create/revoke/expiry/use-limit UI, `/join/[token]` (name + email → code → "Which room is yours?"), and per-IP rate limits.  
@@ -297,8 +297,8 @@ flowchart TD
 
 - **T27 Polls**: `polls`, `poll_options`, `poll_votes`. Pure `createPoll` / `vote` / `closePoll` (most votes wins, a tie → "Tie"), the poll sheet, `addPollOption` (anyone, while open), "+ Poll about this" on items, standalone polls, and Open polls on Home.  
   *Done when:* "Which vacuum?" on a need and a standalone "House name?" both work, and a 2–2 result shows a tie.
-- **T28 Runs (batches) + item actions**: `runs` (kind + per-kind status), `run_items` (status + history, a partial unique index for one open run per item). Pure `startRun` / `addToRun` / `markRunItemsDone` / `moveRunItems` / `returnToPool` / `finishRun` (effects as data). Start a run from Needs, the run sheet with selection + bulk actions, "On X's run" badges, Runs in progress on Home, and item history.  
-  *Done when:* A run claims items and blocks a second claim. Selected items can be done, moved to another run, or put back with a note, and finishing returns the rest.
+- **T28 Runs (batches) + item actions**: `runs` (kind + per-kind status) and `items.run_id` / `run_kind` (current run, composite foreign key). History comes from `run.item_*` activity events, read back by pure `runHistory` / `itemPath`. Pure `startRun` / `addToRun` / `markRunItemsDone` / `moveRunItems` / `returnToPool` / `finishRun` (effects as data). Start a run from Needs, the run sheet with selection + bulk actions, "On X's run" badges, Runs in progress on Home, and item history.  
+  *Done when:* An item can only be on one run. Selected items can be done, moved to another run, or put back with a note, and finishing returns the rest.
 - **T29 Costs**: The `costs` table, `addCost`, Add cost on items, "Did you spend money?" on finishing a run, Open Splitwise copy, and Spent this month on House.  
   *Done when:* Finishing a grocery run with $42.50 records one cost on the run and updates Spent this month.
 - **T30 Requests & visits**: Request runs (gathering → sent → closed) and visit runs. `addToRequest` ("Add to Landlord list"), `sendRequest` (composed message + copy + mark as sent), `handToContact`, Move to a visit (new or existing, optional date), `setVisitDate`, the **New request or visit** entry point on Tasks (start a request for any contact, or plan a visit), Requests & visits on Tasks, the tasks-only rule, and the feed rule for tasks on a visit.  
