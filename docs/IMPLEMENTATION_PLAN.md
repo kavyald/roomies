@@ -27,8 +27,8 @@
 
 ## 2. Summary
 
-- **39 tasks** across **5 milestones**, about **50.5 working days** in total for one person.
-- **Critical path** (longest chain of dependencies, about **20 days**): T01 → T04 → T05 → T06 → T08 → T14 → T16 → T17 → T22 → T28 → T29 → T37 → T38 → T39.
+- **39 tasks** across **5 milestones**, about **53 working days** in total for one person.
+- **Critical path** (longest chain of dependencies, about **21.5 days**): T01 → T04 → T05 → T06 → T08 → T14 → T16 → T17 → T22 → T28 → T30 → T37 → T38 → T39.
 - Everything off the critical path can fill gaps, e.g. while waiting on a review or on a roommate to test.
 
 | Milestone | Tasks | Est. days | Exit criteria |
@@ -36,7 +36,7 @@
 | **M0 · Foundations** | T01–T13 (13) | 15.5 | The owner signs in on an iPhone and sees the empty app shell. A stranger's email gets no code. |
 | **M1 · House & members** | T14–T17 (4) | 7.5 | The house exists with its rooms and contacts, and all roommates have joined through invite links. |
 | **M2 · Items: needs, chores, tasks** | T18–T26 (9) | 10.5 | The house uses the needs list and chores for a week, and feelings re-rank the Home feed. |
-| **M3 · Polls, runs & calendar** | T27–T31 (5) | 8 | One grocery run (with a cost), one poll, and one super visit are completed. Dated things show on the calendar. |
+| **M3 · Polls, runs & calendar** | T27–T31 (5) | 10.5 | One grocery run (with a cost), one poll, and one super visit are completed. Dated things show on the calendar. |
 | **M4 · Notifications & launch** | T32–T39 (8) | 9 | Everyone gets reminders on their phone, and the house runs on production. |
 
 ---
@@ -82,9 +82,9 @@ flowchart TD
   end
   subgraph M3["M3 · Polls, runs & calendar"]
     T27["T27 Polls"]
-    T28["T28 Runs"]
+    T28["T28 Runs (batches) + item actions"]
     T29["T29 Costs"]
-    T30["T30 Plan a visit"]
+    T30["T30 Requests & visits"]
     T31["T31 Calendar + Coming up"]
   end
   subgraph M4["M4 · Notifications & launch"]
@@ -174,7 +174,7 @@ flowchart TD
   T38 --> T39
   T35 --> T39
   T12 --> T39
-  class T01,T04,T05,T06,T08,T14,T16,T17,T22,T28,T29,T37,T38,T39 crit;
+  class T01,T04,T05,T06,T08,T14,T16,T17,T22,T28,T30,T37,T38,T39 crit;
 ```
 
 ---
@@ -290,19 +290,19 @@ flowchart TD
 | ID | Task | Size | Depends on | Unblocks |
 |---|---|---|---|---|
 | T27 | **Polls** | M | T19, T14 | T35 |
-| T28 ⭑ | **Runs** | L | T20, T21, T22 | T29, T30, T31, T35 |
-| T29 ⭑ | **Costs** | M | T19, T28 | T37 |
-| T30 | **Plan a visit** | S | T28, T22 | T37 |
+| T28 ⭑ | **Runs (batches) + item actions** | L | T20, T21, T22 | T29, T30, T31, T35 |
+| T29 | **Costs** | M | T19, T28 | T37 |
+| T30 ⭑ | **Requests & visits** | L | T28, T22 | T37 |
 | T31 | **Calendar + Coming up** | M | T20, T22, T28 | T37 |
 
 - **T27 Polls**: `polls`, `poll_options`, `poll_votes`. Pure `createPoll` / `vote` / `closePoll` (most votes wins, a tie → "Tie"), the poll sheet, `addPollOption` (anyone, while open), "+ Poll about this" on items, standalone polls, and Open polls on Home.  
   *Done when:* "Which vacuum?" on a need and a standalone "House name?" both work, and a 2–2 result shows a tie.
-- **T28 Runs**: `runs`, `run_items`, `run_claims`. Pure `startRun` / `addToRun` / `finishRun` (effects as data), Start a run from Needs, the run sheet checklist, "On X's run" badges, and Runs in progress on Home.  
-  *Done when:* A run claims items, blocks a second claim, and on finish marks ticked items done and returns the rest.
+- **T28 Runs (batches) + item actions**: `runs` (kind + per-kind status), `run_items` (status + history, a partial unique index for one open run per item). Pure `startRun` / `addToRun` / `markRunItemsDone` / `moveRunItems` / `returnToPool` / `finishRun` (effects as data). Start a run from Needs, the run sheet with selection + bulk actions, "On X's run" badges, Runs in progress on Home, and item history.  
+  *Done when:* A run claims items and blocks a second claim. Selected items can be done, moved to another run, or put back with a note, and finishing returns the rest.
 - **T29 Costs**: The `costs` table, `addCost`, Add cost on items, "Did you spend money?" on finishing a run, Open Splitwise copy, and Spent this month on House.  
   *Done when:* Finishing a grocery run with $42.50 records one cost on the run and updates Spent this month.
-- **T30 Plan a visit**: From Tasks: pick a contact, pre-check tasks handled by them, set a date and time, and create a run with the contact.  
-  *Done when:* One super visit covers three tasks with one date, and wrapping it up returns unfinished tasks to the pool.
+- **T30 Requests & visits**: Request runs (gathering → sent → closed) and visit runs. `addToRequest` ("Add to Landlord list"), `sendRequest` (composed message + copy + mark as sent), `handToContact`, Move to a visit (new or existing, optional date), `setVisitDate`, the **New request or visit** entry point on Tasks (start a request for any contact, or plan a visit), Requests & visits on Tasks, the tasks-only rule, and the feed rule for tasks on a visit.  
+  *Done when:* Landlord list → sent → the reply is recorded by moving 2 tasks to a new visit and 1 back to the pool with a note. The request closes itself, and each task's history shows the path.
 - **T31 Calendar + Coming up**: The Coming up strip on Home (the next 7 days of dated tasks, needs, and runs) and the month calendar with a day list.  
   *Done when:* Dated items and runs show on the right days, and tapping one opens it.
 
@@ -349,7 +349,7 @@ A valid order that follows every dependency, front-loads the critical path, and 
 M0. T01 → T04 → T05 → T06 → T02 → T03 → T07 → T08 → T09 → T10 → T11 → T12 → T13
 M1. T14 → T15 → T16 → T17
 M2. T18 → T19 → T22 → T20 → T21 → T23 → T24 → T25 → T26
-M3. T28 → T29 → T27 → T30 → T31
+M3. T28 → T30 → T27 → T29 → T31
 M4. T37 → T32 → T33 → T34 → T38 → T35 → T39 → T36
 
 **Early-feedback checkpoints**

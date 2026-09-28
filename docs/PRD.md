@@ -26,7 +26,7 @@ Roomies is a shared, phone-first house hub built on **five concepts**:
 | **Chore** | Ongoing upkeep | Wipe the stove, clean Bathroom 3 about weekly |
 | **Task** | Anything one-off, optionally handled by someone outside the house | Fix the door latch, assemble the vacuum, radiator (super), set up for the party |
 | **Poll** | A question with options, about an item or on its own | Which vacuum? Keep it? House name? |
-| **Run** | A batch of needs and tasks someone takes on at once | Grocery run, Amazon order, super visit, party setup |
+| **Run** | A batch of items handled together: by a roommate (**batch**), asked of a contact (**request**), or taken on by a contact (**visit**) | Grocery run, landlord request, super visit, party setup |
 
 Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e.g. 😰 anxious) plus a note to any item. Feelings raise priority, so concerns are both *heard* and *acted on*. A **Home feed** ranks what needs attention, and a **calendar** shows anything with a date.
 
@@ -95,7 +95,7 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 | **Home** | **Coming up** (the next 7 days of dated items and runs; tap for the calendar), **Open polls**, **Runs in progress**, then the ranked **Needs attention** feed (*Mine / All*) |
 | **Needs** | The shared list of things to buy. *Needed soon* first. **Start a run** from here. |
 | **Chores** | Chores, sorted by what's due for a go, with "last done" |
-| **Tasks** | Tasks. Filters: *Mine / All / Outside help*. **Plan a visit** (a run with a contact) from here. |
+| **Tasks** | **Requests & visits** (unsent and sent requests, planned visits) with **+ New** (start a request or plan a visit), then tasks with filters *Mine / All / Outside help* |
 | **House** | **Settings** (feeling weights), rooms, contacts, roommates, invite link, activity log |
 
 A floating **"+"** opens a picker (Need / Chore / Task / Poll / Run) and then a short form. Only the title is required.
@@ -150,8 +150,9 @@ Every item has:
 - Anything done once: fix the latch, get renter's insurance, assemble the vacuum, set up for the party.
 - **Optional "Handled by":** pick a **contact** (super, landlord, provider) when someone outside the house needs to do it. The task shows "Handled by: Super," the contact's number (copy button), and appears under the *Outside help* filter.
   - **Setting it:** when adding the task, or **any time later** from the task's detail ("Needs outside help?" / "Change"). You can pick an existing contact, **add someone new** right there (name + optional phone, saved to Contacts), or switch back to "One of us." **[DECIDED] (owner)**
-  - Planning a visit also sets it on every task the visit covers.
-- **Visits:** when the super comes to fix several things, **Plan a visit** makes a **run** with the super as the contact and a date, covering those tasks (§6.5).
+  - Planning a visit or adding it to a contact's list also sets it.
+- **"Handled by" is who *should* handle it.** Whether they've actually taken it on is tracked by the **request** and **visit** it's on (§6.5): *on the landlord list · not sent* → *sent to landlord · 2 days ago* → *landlord visit · Thu 10:00* → *fixed*.
+- **"Add to Landlord list"** on a task with a contact puts it on that contact's unsent request (starting one if needed).
 - Tasks can have a date (shows on the calendar) and an assignee.
 
 ### 6.4 Polls
@@ -165,16 +166,45 @@ Every item has:
 - Open polls show on Home with how many people have voted.
 - Polls don't change other items. Acting on a result ("buy the Dyson," "return it") is a new task or need someone adds.
 
-### 6.5 Runs (batches)
+### 6.5 Runs: batches, requests & visits **[DECIDED] (owner)**
 
-- **A run is a batch of needs, tasks, and chores someone takes on at once.**
-  - **Grocery run:** start from Needs, select items (*Select all* / *Select Needed soon*).
-  - **Amazon order:** the same thing, with a date for delivery.
-  - **Super visit:** from Tasks, **Plan a visit**, pick the contact, the tasks, and a date.
-  - **Party setup:** + → Run, pick tasks and needs, and a date.
-- **While open**, covered items show **"On Kavya's run"** so nobody doubles up. An item can be on only one open run at a time.
-- **Finishing:** tick off what got done. Unticked items go back to the pool. Then **"Did you spend money?"** (amount, or skip) records one cost on the run (§6.6).
-- A run with a date shows in Coming up and on the calendar.
+A run is **a batch of items handled together**. There are three kinds:
+
+| Kind | What it means | Examples | Lifecycle |
+|---|---|---|---|
+| **Batch** | A roommate takes these on | Grocery run, Amazon order, party setup | open → finished |
+| **Request** | The house is asking a contact to take these on | "Landlord request": the leak, the window, the mold | **gathering** (anyone adds) → **sent** (waiting on a reply) → **closed** (everything on it has been sorted) |
+| **Visit** | A contact **has taken these on** | "Landlord visit · Thu 10:00," "Super visit · date TBD" | open (date optional) → finished |
+
+**Responsibility moves when a task moves from a request to a visit.** Before that, it's still on the house.
+
+**Requests**
+- **Starting one:** Tasks → Requests & visits → **+ New** → *Ask someone (request)* → pick a contact (or add someone new) and any tasks. It can start empty. Or tap "Add to Landlord list" on a task, or use "Hand to…" from another run.
+- **Gathering:** anyone can add tasks while it's unsent.
+- **Send request** builds a message (a numbered list with rooms and notes), which you copy and send by text, email, the portal, or in person. **Roomies never sends on your behalf.** "Mark as sent" records when and how.
+- **Waiting:** the request shows "Sent 2 days ago · waiting on 3." There's no automatic nudge in v1.
+
+**Recording the reply is just actions on the tasks. There's no special reply form.** In any run's sheet, select one or more tasks (or *Select all*) and:
+
+| Action | Use it when | What happens |
+|---|---|---|
+| **Move to a visit…** / **Move to…** | The landlord accepted ("sending a plumber Thu") | The tasks go to an existing visit or a **new visit** with that contact (date optional), with an optional note |
+| **Back to the pool…** | "That one's on you," or not done this time | The tasks leave the run with a **note**, and optionally "Handled by" switches back to *One of us* |
+| **Hand to…** | "Call a plumber yourselves" | "Handled by" changes to another contact (or someone new), and the tasks join that contact's unsent list |
+| **Done** / **Fixed** | It's already sorted | The tasks are marked done |
+
+- **Bulk by design:** one reply usually covers several tasks, so every action works on a selection.
+- **A request closes on its own** once nothing is left on it.
+- **History:** each task keeps a history of every request and visit it passed through, with the notes ("Sent to landlord by text → Moved to Landlord visit · Sending a plumber → Fixed").
+- The same actions work in batches and visits too (e.g. move an item from Wren's run to Saturday's run).
+
+**Visits and batches**
+- **Planning a visit** directly (when they've already agreed): Tasks → Requests & visits → **+ New** → *They've agreed (visit)*. It's also created by "Move to a visit → New visit."
+- **Requests and visits hold tasks only.** Needs and chores stay in batches.
+- **Finishing:** mark things done or fixed as you go, then **Finish**. Anything left goes back to the pool with the note "Not done this time."
+- **Batches** ask **"Did you spend money?"** on finish, which records one cost (§6.6).
+- While open, items show **"On Kavya's run"** or **"Sent to Landlord · 2 days ago"** so nobody doubles up. **An item can be on only one open run at a time.**
+- Runs with a date show in Coming up and on the calendar.
 
 ### 6.6 Money (costs)
 
@@ -232,7 +262,7 @@ clamped to 0–100
 
 Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (20–44), **Low** (< 20). Tapping it shows **"Why is this here?"**, the breakdown (e.g. "Due tomorrow +25, 😰 Maya +20").
 
-**What's in the feed:** tasks that aren't done. Chores past their rhythm, or with a feeling. Needs with a feeling or a needed-by date within 7 days. Polls and runs have their own sections on Home.
+**What's in the feed:** tasks that aren't done, **except tasks on a visit** (the contact has taken them on). Those come back only if someone shares a feeling or the visit is within 3 days. Chores past their rhythm, or with a feeling. Needs with a feeling or a needed-by date within 7 days. Polls and runs have their own sections on Home.
 
 ### 8.2 Settings: feeling weights **[DECIDED] (owner)**
 
@@ -341,5 +371,9 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D18 | Items are stored in one table with per-category columns (Architecture §6) | Owner |
 | D19 | "Handled by" can be set or changed on any task at any time, including adding a new contact inline | Owner |
 | D20 | Anyone can add poll options until the poll closes | Owner |
+| D21 | Runs have three kinds: batch, request (gathering → sent → closed), visit (contact has taken it on) | Owner |
+| D22 | Recording a reply = bulk actions on tasks in a run: move to a visit/run, back to the pool with a note, hand to another contact, done. No reply form. | Owner |
+| D23 | Tasks on a visit leave the Home feed unless there's a feeling or the visit is within 3 days | Default |
+| D24 | No automatic "no reply" nudge in v1, only a "Sent N days ago" label | Default |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.

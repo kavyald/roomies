@@ -377,7 +377,8 @@ input[type=date],input[type=time]{width:100%;font:inherit;font-size:16px;color:v
       <li><span>🗳</span><span><b>Polls</b>: vote on “Which vacuum?” (Home → Open polls), then close it. The closed lamp poll shows a tie.</span></li>
       <li><span>📞</span><span><b>Outside help</b>: open “Bathroom 2 fan,” tap <i>Needs outside help?</i>, pick the super (or add someone new).</span></li>
       <li><span>➕</span><span><b>Add a poll option</b> to “Which vacuum?” after it started. Voters can switch.</span></li>
-      <li><span>🔧</span><span><b>Plan a visit</b> (Tasks): the super, the radiator + fan, a time.</span></li>
+      <li><span>📨</span><span><b>Landlord request</b> (Tasks → Requests &amp; visits): it was sent 2 days ago. Record the reply by selecting tasks: <i>Move to a visit</i> (accepted), <i>Back to the pool</i> with a note (“that’s on you”), or <i>Hand to</i> someone else.</span></li>
+      <li><span>📝</span><span><b>Start a request</b>: Tasks → Requests &amp; visits → <b>+ New</b> → <i>Ask someone</i>. Pick the super, check the radiator, then <i>Send request</i>. (Or “Add to Super list” from the radiator itself.)</span></li>
       <li><span>⚖︎</span><span><b>Feeling weights</b> (House → Settings): set 😰 to +40 and watch the Home feed re-rank.</span></li>
       <li><span>💸</span><span><b>Add cost</b> on the vacuum once it’s bought. Tomatoes never ask.</span></li>
     </ul>
@@ -487,6 +488,8 @@ const S={
     {id:'t5',cat:'task',title:'Fix the fitness space door latch',room:'fitness',assignee:'s',when:{day:6},feelings:{j:{f:'meh',note:'I just prop it open, no rush.'}}},
     {id:'t6',cat:'task',title:'Get renter’s insurance',assignee:'k',when:{day:9}},
     {id:'t7',cat:'task',title:'Jo’s parents staying',room:'living2',assignee:'j',when:{day:3},note:'They’ll sleep downstairs. Keep the downstairs living room clear.'},
+    {id:'t9',cat:'task',title:'Window in Water won’t lock',room:'water',contact:'landlord',assignee:'w'},
+    {id:'t10',cat:'task',title:'Mold spot on the Bathroom 3 ceiling',room:'b3',contact:'landlord',feelings:{j:{f:'anxious',note:'It’s spreading.'}}},
     {id:'t8',cat:'task',title:'Clear the living room for Sam’s birthday',room:'living',when:{day:9,time:'17:00'}},
   ],
   polls:[
@@ -495,8 +498,9 @@ const S={
     {id:'p3',q:'Keep the standing lamp?',item:null,closes:null,by:'j',options:[{id:'o7',label:'Keep'},{id:'o8',label:'Return'}],votes:{s:'o7',w:'o8'},closed:{ago:1}},
   ],
   runs:[
-    {id:'r1',title:'Super visit',contact:'super',runner:'j',when:{day:2,time:'10:00'},items:[{id:'t3',done:false}],open:true},
-    {id:'r2',title:'Wren’s grocery run',runner:'w',when:{day:3,time:'11:00'},items:[{id:'n2',done:false},{id:'n5',done:false}],open:true},
+    {id:'r1',kind:'visit',title:'Super visit',contact:'super',runner:'j',when:{day:2,time:'10:00'},items:[{id:'t3',st:'pending'}],open:true},
+    {id:'r2',kind:'batch',title:'Wren’s grocery run',runner:'w',when:{day:3,time:'11:00'},items:[{id:'n2',st:'pending'},{id:'n5',st:'pending'}],open:true},
+    {id:'r3',kind:'request',title:'Landlord request',contact:'landlord',runner:'k',stage:'sent',sent:{ago:2,via:'Text'},items:[{id:'t1',st:'pending'},{id:'t9',st:'pending'},{id:'t10',st:'pending'}],open:true},
   ],
   costs:[
     {id:'k1',amount:86.40,by:'j',note:'Groceries',forRun:'r0',ago:5},
@@ -504,7 +508,7 @@ const S={
     {id:'k3',amount:48,by:'j',note:'Standing lamp',ago:12},
   ],
 };
-S.items.forEach(i=>{i.feelings=i.feelings||{};i.earlier=i.earlier||[];i.priority=i.priority||'normal'});
+S.items.forEach(i=>{i.feelings=i.feelings||{};i.earlier=i.earlier||[];i.history=i.history||[];i.priority=i.priority||'normal'});
 const item=id=>S.items.find(i=>i.id===id);
 const poll=id=>S.polls.find(p=>p.id===id);
 const run=id=>S.runs.find(r=>r.id===id);
@@ -512,8 +516,20 @@ const ME='k';
 
 /* ---------- derived ---------- */
 const openRuns=()=>S.runs.filter(r=>r.open);
-const runOf=id=>openRuns().find(r=>r.items.some(x=>x.id===id&&!x.done));
-const runLabel=r=>r.contact?`${contact(r.contact).name} visit`:r.title;
+const runOf=id=>openRuns().find(r=>r.items.some(x=>x.id===id&&x.st==='pending'));
+const pending=r=>r.items.filter(x=>x.st==='pending');
+const runLabel=r=>r.kind==='request'?`${contact(r.contact).name} request`:r.kind==='visit'?`${contact(r.contact).name} visit`:r.title;
+function runSub(r){
+  const n=pending(r).length,d=r.items.filter(x=>x.st==='done').length;
+  if(r.kind==='request') return r.stage==='gathering'?`Not sent yet · ${n} task${n===1?'':'s'}`:`Sent ${ago(r.sent.ago)} by ${r.sent.via.toLowerCase()} · waiting on ${n}`;
+  if(r.kind==='visit') return `${r.when?whenStr(r.when):'Date TBD'} · ${n} to look at${d?` · ${d} fixed`:''}`;
+  return `${person(r.runner).name} · ${d}/${r.items.length-r.items.filter(x=>x.st==='moved'||x.st==='returned').length} done${r.when?' · '+whenStr(r.when):''}`;
+}
+function onRunChip(r){
+  if(r.kind==='request') return r.stage==='gathering'?`On ${contact(r.contact).name} list · not sent`:`Sent to ${contact(r.contact).name} · ${ago(r.sent.ago)}`;
+  if(r.kind==='visit') return `${contact(r.contact).name} visit · ${r.when?whenStr(r.when):'date TBD'}`;
+  return `On ${r.title}${r.when?' · '+whenStr(r.when):''}`;
+}
 const pollsAbout=id=>S.polls.filter(p=>p.item===id);
 const costsFor=id=>S.costs.filter(c=>c.forItem===id);
 function pollResult(p){
@@ -535,7 +551,7 @@ function dueDays(i){if(i.cat==='chore')return i.repeat?i.repeat-i.last:null;retu
 function inFeed(i){
   if(i.done||i.archived) return false;
   const fe=Object.keys(i.feelings).length>0;
-  if(i.cat==='task') return true;
+  if(i.cat==='task'){const r=runOf(i.id);if(r&&r.kind==='visit')return fe||(!!r.when&&r.when.day<=3);return true}
   if(i.cat==='chore') return (i.repeat&&i.last>=i.repeat)||fe;
   return fe||(i.when&&i.when.day<=7);
 }
@@ -567,7 +583,7 @@ function chips(i){
   else c.push(`<span class="chip">${ic(CAT[i.cat].icon)}${CAT[i.cat].label}</span>`);
   if(i.cat==='need'&&i.soon) c.push(`<span class="chip">Soon</span>`);
   if(i.contact) c.push(`<span class="chip">${ic('phone')}Handled by: ${esc(contact(i.contact).name)}</span>`);
-  const r=runOf(i.id); if(r) c.push(`<span class="chip link" data-action="openrun" data-id="${r.id}" role="button" tabindex="0">${ic(r.contact?'calendar':'cart')}On ${esc(runLabel(r))}${r.when?' · '+whenStr(r.when):''}</span>`);
+  const r=runOf(i.id); if(r) c.push(`<span class="chip link" data-action="openrun" data-id="${r.id}" role="button" tabindex="0">${ic(r.kind==='batch'?'cart':r.kind==='visit'?'calendar':'phone')}${esc(onRunChip(r))}</span>`);
   const op=pollsAbout(i.id).filter(p=>!p.closed); if(op.length) c.push(`<span class="chip link" data-action="openpoll" data-id="${op[0].id}" role="button" tabindex="0">${ic('vote')}Poll · ${Object.keys(op[0].votes).length}/${PEOPLE.length}</span>`);
   const cs=costsFor(i.id); if(cs.length) c.push(`<span class="chip">${ic('receipt')}${money(cs.reduce((a,b)=>a+b.amount,0))}</span>`);
   return c.join('');
@@ -593,13 +609,13 @@ function card(i){
 const empty=(icon,text)=>`<div class="empty"><span class="ic">${ic(icon)}</span><p>${text}</p></div>`;
 const segW=(action,cur,opts)=>`<div class="seg wide" role="group">${opts.map(([v,l])=>`<button data-action="${action}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join('')}</div>`;
 function pollRow(p){return `<button class="runrow" data-action="openpoll" data-id="${p.id}">${ic('vote')}<div class="grow"><div class="t">${esc(p.q)}</div><div class="s">${p.item?`About ${esc(item(p.item).title)} · `:''}${pollLine(p)}</div></div>${ic('chev')}</button>`}
-function runRow(r){const n=r.items.length,d=r.items.filter(x=>x.done).length;return `<button class="runrow" data-action="openrun" data-id="${r.id}">${ic(r.contact?'calendar':'cart')}<div class="grow"><div class="t">${esc(runLabel(r))}</div><div class="s">${person(r.runner).name} · ${d}/${n} done${r.when?' · '+whenStr(r.when):''}</div></div>${ic('chev')}</button>`}
+function runRow(r){return `<button class="runrow" data-action="openrun" data-id="${r.id}">${ic(r.kind==='batch'?'cart':r.kind==='visit'?'calendar':'phone')}<div class="grow"><div class="t">${esc(runLabel(r))}</div><div class="s">${esc(runSub(r))}</div></div>${ic('chev')}</button>`}
 
 /* ---------- calendar data ---------- */
 function dated(){
   const out=[];
   S.items.filter(i=>i.when&&!i.done&&!i.archived).forEach(i=>out.push({kind:'item',id:i.id,title:i.title,when:i.when,room:i.room,sub:CAT[i.cat].label}));
-  openRuns().filter(r=>r.when).forEach(r=>out.push({kind:'run',id:r.id,title:runLabel(r),when:r.when,sub:`${r.items.length} thing${r.items.length===1?'':'s'} · ${person(r.runner).name}`}));
+  openRuns().filter(r=>r.when).forEach(r=>out.push({kind:'run',id:r.id,title:runLabel(r),when:r.when,sub:`${pending(r).length} thing${pending(r).length===1?'':'s'} · ${person(r.runner).name}`}));
   return out.sort((a,b)=>whenDate(a.when)-whenDate(b.when));
 }
 
@@ -613,7 +629,7 @@ function screenHome(){
     <div class="strip">${soon.map(x=>`<button class="pill-entry" data-action="${x.kind==='run'?'openrun':'open'}" data-id="${x.id}"><span class="when">${ic('calendar')}${whenStr(x.when)}</span><span class="t">${esc(x.title)}</span><span class="chip">${esc(x.sub)}</span></button>`).join('')||'<span class="pill-entry none">Nothing coming up. Quiet week.</span>'}</div>
     ${S.weightsNotice?`<button class="runrow" data-action="weights" style="margin:10px 0 0">${ic('sliders')}<div class="grow"><div class="t">${esc(S.weightsNotice)}</div><div class="s">The feed below is re-ranked. Tap to see the weights.</div></div>${ic('chev')}</button>`:''}
     ${polls.length?`<div class="section-row"><h3>Open polls</h3></div><div class="list">${polls.map(pollRow).join('')}</div>`:''}
-    ${runs.length?`<div class="section-row"><h3>Runs in progress</h3></div><div class="list">${runs.map(runRow).join('')}</div>`:''}
+    ${runs.filter(r=>r.kind==='batch').length?`<div class="section-row"><h3>Runs in progress</h3></div><div class="list">${runs.filter(r=>r.kind==='batch').map(runRow).join('')}</div>`:''}
     <div class="section-row"><h3>Needs attention</h3><div class="seg" role="group"><button data-action="seg" data-v="mine" aria-pressed="${S.seg==='mine'}">Mine</button><button data-action="seg" data-v="all" aria-pressed="${S.seg==='all'}">All</button></div></div>
     <div class="list">${list.map(card).join('')||empty('check','Nothing needs you right now. Enjoy the quiet.')}</div>`;
 }
@@ -638,10 +654,10 @@ function screenTasks(){
   let list=S.items.filter(i=>i.cat==='task'&&!i.done&&!i.archived);
   if(S.taskSeg==='mine') list=list.filter(i=>i.assignee===ME);
   if(S.taskSeg==='outside') list=list.filter(i=>i.contact);
-  const done=S.items.filter(i=>i.cat==='task'&&i.done),visits=openRuns().filter(r=>r.contact);
+  const done=S.items.filter(i=>i.cat==='task'&&i.done),visits=openRuns().filter(r=>r.kind!=='batch').sort((a,b)=>a.kind===b.kind?0:a.kind==='request'?-1:1);
   return `<div class="head"><h2>Tasks</h2>${av(ME,36)}</div>
-    <button class="btn primary block" data-action="planvisit" style="margin-bottom:4px">${ic('calendar')}Plan a visit</button>
-    ${visits.length?`<div class="section-row"><h3>Visits planned</h3></div><div class="list">${visits.map(runRow).join('')}</div>`:''}
+    <div class="section-row" style="margin-top:6px"><h3>Requests &amp; visits</h3><button class="btn primary small" data-action="newreq">${ic('plus')}New</button></div>
+    <div class="list">${visits.map(runRow).join('')||`<div class="empty" style="padding:14px"><span class="ic">${ic('phone')}</span><p>No requests yet. Start one when something needs the landlord or super.</p></div>`}</div>
     <div class="section-row">${segW('tseg',S.taskSeg,[['mine','Mine'],['all','All'],['outside','Outside help']])}</div>
     <div class="list">${sorted(list).map(card).join('')||empty('check','Nothing here.')}</div>
     ${done.length?`<h3 class="section-title">Done recently</h3><div class="group">${done.map(i=>`<div class="row"><span class="dotc"></span><div class="grow"><div class="t" style="text-decoration:line-through;color:var(--ink-soft)">${esc(i.title)}</div><div class="s">Done · ${person(i.doneBy).name}</div></div></div>`).join('')}</div>`:''}`;
@@ -711,7 +727,8 @@ function openDetail(id,quiet){
   if(i.note) kv.push(`<dt>Note</dt><dd>${esc(i.note)}</dd>`);
   const body=`<div class="chips">${tierChip(p.tier)}${chips(i)}${i.room?roomChip(i.room,false):''}</div>
     <div class="kv">${kv.join('')}</div>
-    ${r?`<button class="runrow" data-action="openrun" data-id="${r.id}">${ic(r.contact?'calendar':'cart')}<div class="grow"><div class="t">On ${esc(runLabel(r))}</div><div class="s">${person(r.runner).name}${r.when?' · '+whenStr(r.when):''}</div></div>${ic('chev')}</button>`:''}
+    ${r?`<button class="runrow" data-action="openrun" data-id="${r.id}">${ic(r.kind==='batch'?'cart':r.kind==='visit'?'calendar':'phone')}<div class="grow"><div class="t">${esc(onRunChip(r))}</div><div class="s">${esc(runSub(r))}</div></div>${ic('chev')}</button>`:(i.cat==='task'&&i.contact&&!i.done?`<button class="btn secondary block" data-action="addtolist" data-id="${i.id}">${ic('plus')}Add to ${esc(contact(i.contact).name)} list</button>`:'')}
+    ${i.history.length?`<div class="box"><h5>History</h5>${i.history.slice().reverse().map(h=>`<div class="feel-row"><span>${h.icon||'•'}</span><div><div class="who" style="font-size:14px">${esc(h.text)}</div>${h.note?`<div class="note">${esc(h.note)}</div>`:''}<div class="note" style="font-size:12px">${h.ago}</div></div></div>`).join('')}</div>`:''}
     <div class="box"><h5>Polls about this</h5>${polls.map(pollRow).join('')||'<p style="margin:0;color:var(--ink-soft);font-size:14px">None. Start one to decide something together, like which one to buy.</p>'}
       <button class="linkbtn" data-action="newpoll" data-id="${i.id}">+ Poll about this</button></div>
     ${i.cat!=='chore'?`<div class="box"><h5>Costs</h5>${cs.map(c=>`<div class="feel-row">${av(c.by,24,false)}<div><div class="who">${money(c.amount)} · ${person(c.by).name} paid</div>${c.note?`<div class="note">${esc(c.note)}</div>`:''}</div></div>`).join('')||'<p style="margin:0;color:var(--ink-soft);font-size:14px">No cost recorded. Only add one if money was spent.</p>'}
@@ -775,80 +792,212 @@ function openNewPoll(itemId){
   openSheet(it?`Poll about ${esc(it.title)}`:'A poll','',body(),mount);
 }
 
-/* ---------- runs ---------- */
+/* ---------- runs, requests & visits ---------- */
 function pickRows(kind,runId){
-  const r=runId?run(runId):null,has=id=>r&&r.items.some(x=>x.id===id);
+  const r=runId?run(runId):null,has=id=>r&&r.items.some(x=>x.id===id&&x.st==='pending');
   const avail=i=>!i.done&&!i.archived&&!(runOf(i.id)&&runOf(i.id).id!==runId)&&!has(i.id);
   const grp=(label,list,sub)=>list.length?`<p class="grp">${label}</p>`+list.map(i=>`<label><input type="checkbox" data-pick="${i.id}" data-soon="${i.soon?1:0}">${esc(i.title)}<small>${sub(i)}</small></label>`).join(''):'';
   let out='';
-  if(kind!=='visit') out+=grp('Needs',S.items.filter(i=>i.cat==='need'&&avail(i)).sort((a,b)=>!!b.soon-!!a.soon),i=>i.soon?'Soon':'');
+  if(kind==='batch') out+=grp('Needs',S.items.filter(i=>i.cat==='need'&&avail(i)).sort((a,b)=>!!b.soon-!!a.soon),i=>i.soon?'Soon':'');
   out+=grp('Tasks',S.items.filter(i=>i.cat==='task'&&avail(i)).sort((a,b)=>(b.contact?1:0)-(a.contact?1:0)),i=>i.contact?contact(i.contact).name:'');
-  if(kind!=='visit') out+=grp('Chores',S.items.filter(i=>i.cat==='chore'&&avail(i)),i=>`last ${ago(i.last)}`);
+  if(kind==='batch') out+=grp('Chores',S.items.filter(i=>i.cat==='chore'&&avail(i)),i=>`last ${ago(i.last)}`);
   return `<div class="sel">${out||'<p style="margin:0;color:var(--ink-soft)">Nothing left to pick.</p>'}</div>`;
 }
 const readPicks=root=>[...root.querySelectorAll('[data-pick]')].filter(x=>x.checked).map(x=>x.dataset.pick);
-function whenFields(defDay,defTime,optional){
-  return `${optional?`<label class="check-inline"><input type="checkbox" id="settime"> Set a date (puts it on the calendar)</label>`:''}<div id="whenbox" ${optional?'hidden':''} style="display:grid;gap:10px"><div class="twocol"><div class="field"><label class="lab" for="wdate">Date</label><input type="date" id="wdate" value="${isoDate(at(defDay))}"></div><div class="field"><label class="lab" for="wtime">Time</label><input type="time" id="wtime" value="${defTime}"></div></div></div>`;
+function whenFields(defDay,defTime,optional,label='Set a date (puts it on the calendar)'){
+  return `${optional?`<label class="check-inline"><input type="checkbox" id="settime"> ${label}</label>`:''}<div id="whenbox" ${optional?'hidden':''} style="display:grid;gap:10px"><div class="twocol"><div class="field"><label class="lab" for="wdate">Date</label><input type="date" id="wdate" value="${isoDate(at(defDay))}"></div><div class="field"><label class="lab" for="wtime">Time</label><input type="time" id="wtime" value="${defTime}"></div></div></div>`;
 }
+function wireWhen(root){const st=root.querySelector('#settime');if(st)st.addEventListener('change',()=>root.querySelector('#whenbox').hidden=!st.checked)}
 function readWhen(root){if(root.querySelector('#settime')&&!root.querySelector('#settime').checked)return null;const [Y,M,D]=root.querySelector('#wdate').value.split('-').map(Number);const d=new Date(Y,M-1,D);return {day:dayDiff(d),time:root.querySelector('#wtime').value||null}}
+function newRun(props){const r={id:nid('r'),items:[],open:true,runner:ME,...props};S.runs.push(r);return r}
+function gatheringRequest(c){return openRuns().find(r=>r.kind==='request'&&r.contact===c&&r.stage==='gathering')}
+function logHist(i,text,note,icon){i.history.push({text,note:note||'',ago:'Just now',icon})}
 function openStartRun(){
   const body=`<div class="field"><label class="lab" for="rt">Name (optional)</label><input type="text" id="rt" maxlength="60" placeholder="${person(ME).name}’s grocery run · or “Amazon order”"></div>
     <div class="quick"><button data-q="all">Select all</button><button data-q="soon">Select Soon</button><button data-q="none">Clear</button></div>
-    ${pickRows('run')}${whenFields(1,'11:00',true)}
+    ${pickRows('batch')}${whenFields(1,'11:00',true)}
     <button class="btn primary block" id="rgo">${ic('cart')}Start run</button>`;
   openSheet('Start a run','Pick what you’ll take care of. Everyone will see it’s covered.',body,root=>{
     root.querySelectorAll('.quick button').forEach(b=>b.addEventListener('click',()=>root.querySelectorAll('[data-pick]').forEach(x=>{x.checked=b.dataset.q==='all'?true:b.dataset.q==='none'?false:(x.dataset.soon==='1'||x.checked)})));
-    const st=root.querySelector('#settime');st.addEventListener('change',()=>root.querySelector('#whenbox').hidden=!st.checked);
+    wireWhen(root);
     root.querySelector('#rgo').addEventListener('click',()=>{
       const picks=readPicks(root);if(!picks.length){toast('Pick at least one thing.');return}
-      const r={id:nid('r'),title:root.querySelector('#rt').value.trim()||`${person(ME).name}’s run`,runner:ME,when:readWhen(root),items:picks.map(id=>({id,done:false})),open:true};
-      S.runs.push(r);render();openRun(r.id,true);toast(`Run started with ${picks.length} thing${picks.length===1?'':'s'}. The house can see what’s on it.`);
+      const r=newRun({kind:'batch',title:root.querySelector('#rt').value.trim()||`${person(ME).name}’s run`,when:readWhen(root),items:picks.map(id=>({id,st:'pending'}))});
+      render();openRun(r.id,true);toast(`Run started with ${picks.length} thing${picks.length===1?'':'s'}. The house can see what’s on it.`);
     });
   });
+}
+function openNewReq(){
+  openSheet('New request or visit','',`<div class="pick">
+      <button data-k="request">${ic('phone')}<span><span>Ask someone (request)</span><br><span class="s">Gather tasks for the landlord, super, or anyone, then send them the list</span></span></button>
+      <button data-k="visit">${ic('calendar')}<span><span>They’ve agreed (visit)</span><br><span class="s">Someone’s already taking these on. Date optional.</span></span></button></div>`,root=>{
+    root.querySelectorAll('[data-k]').forEach(b=>b.addEventListener('click',()=>b.dataset.k==='visit'?openPlanVisit():openStartRequest()));
+  });
+}
+function openStartRequest(preContact){
+  let c=preContact||'landlord';
+  const body=()=>`<div class="field"><span class="lab">Who are you asking?</span><div class="pick" id="cpick">${CONTACTS.map(x=>`<button data-c="${x.id}" aria-pressed="${c===x.id}">${ic('phone')}<span><span>${esc(x.name)}</span><br><span class="s">${gatheringRequest(x.id)?'Has an unsent list already':x.phone||'no number'}</span></span></button>`).join('')}</div>
+      <details><summary style="font-weight:800;cursor:pointer;color:var(--ink-soft)">+ Someone new</summary><div style="display:grid;gap:8px;margin-top:8px"><input type="text" id="ncname" maxlength="60" placeholder="Name, e.g. Plumber" aria-label="Contact name"><input type="text" id="ncphone" maxlength="30" inputmode="tel" placeholder="Phone (optional)" aria-label="Contact phone"><button class="btn secondary small" id="ncadd" style="justify-self:start">Add contact</button></div></details></div>
+    <div class="field"><span class="lab">Tasks to include (optional, you can add more later)</span>${pickRows('visit')}</div>
+    <button class="btn primary block" id="sgo">${ic('plus')}Start list</button>`;
+  const mount=root=>{
+    root.querySelectorAll('[data-pick]').forEach(x=>{const i=item(x.dataset.pick);if(i.contact===c)x.checked=true});
+    root.querySelectorAll('#cpick button').forEach(b=>b.addEventListener('click',()=>{c=b.dataset.c;root.innerHTML=body();mount(root)}));
+    root.querySelector('#ncadd').addEventListener('click',()=>{const n=root.querySelector('#ncname').value.trim();if(!n){toast('Add a name.');return}const nc={id:nid('ct'),name:n,phone:root.querySelector('#ncphone').value.trim()};CONTACTS.push(nc);c=nc.id;root.innerHTML=body();mount(root)});
+    root.querySelector('#sgo').addEventListener('click',()=>{
+      const picks=readPicks(root),existing=gatheringRequest(c);
+      const r=existing||newRun({kind:'request',title:`${contact(c).name} request`,contact:c,stage:'gathering'});
+      picks.forEach(id=>{r.items.push({id,st:'pending'});const i=item(id);i.contact=c;logHist(i,`Added to the ${contact(c).name} list`,'','📝')});
+      S.tab='tasks';render(false);openRun(r.id,true);
+      toast(existing?`Added to the existing ${contact(c).name} list.`:`Started the ${contact(c).name} list${picks.length?` with ${picks.length} task${picks.length===1?'':'s'}`:''}. Send it when it’s ready.`);
+    });
+  };
+  openSheet('Start a request','Gather what you need to ask for, then send one message.',body(),mount);
 }
 function openPlanVisit(){
   let c='super';
   const body=()=>`<div class="field"><span class="lab">Who’s coming?</span><div class="pick" id="cpick">${CONTACTS.map(x=>`<button data-c="${x.id}" aria-pressed="${c===x.id}">${ic('phone')}<span>${esc(x.name)}</span></button>`).join('')}</div></div>
     <div class="field"><span class="lab">What should they look at?</span>${pickRows('visit')}</div>
-    ${whenFields(2,'10:00',false)}
-    <div class="field"><label class="lab" for="pp">Who’ll let them in?</label><select id="pp">${PEOPLE.map(p=>`<option value="${p.id}" ${p.id===ME?'selected':''}>${p.name}${p.you?' (you)':''}</option>`).join('')}</select></div>
+    ${whenFields(2,'10:00',true,'Set a date now')}
     <button class="btn primary block" id="vgo">${ic('calendar')}Plan visit</button>`;
   const mount=root=>{
     root.querySelectorAll('[data-pick]').forEach(x=>{const i=item(x.dataset.pick);if(i.contact===c)x.checked=true});
     root.querySelectorAll('#cpick button').forEach(b=>b.addEventListener('click',()=>{c=b.dataset.c;root.innerHTML=body();mount(root)}));
+    wireWhen(root);
     root.querySelector('#vgo').addEventListener('click',()=>{
       const picks=readPicks(root);if(!picks.length){toast('Pick at least one task.');return}
-      const pp=root.querySelector('#pp').value;
-      const r={id:nid('r'),title:`${contact(c).name} visit`,contact:c,runner:pp,when:readWhen(root),items:picks.map(id=>({id,done:false})),open:true};
-      picks.forEach(id=>{const i=item(id);if(!i.contact)i.contact=c});
-      S.runs.push(r);S.tab='tasks';render(false);openRun(r.id,true);toast(`Visit planned: ${picks.length} task${picks.length===1?'':'s'}, ${whenStr(r.when)}.`);
+      const r=newRun({kind:'visit',title:`${contact(c).name} visit`,contact:c,when:readWhen(root),items:picks.map(id=>({id,st:'pending'}))});
+      picks.forEach(id=>{const i=item(id);i.contact=c;logHist(i,`Added to ${runLabel(r)}`,'','🗓')});
+      S.tab='tasks';render(false);openRun(r.id,true);toast(`Visit planned: ${picks.length} task${picks.length===1?'':'s'}${r.when?', '+whenStr(r.when):''}.`);
     });
   };
-  openSheet('Plan a visit','One visit, one date, covering as many tasks as you need.',body(),mount);
+  openSheet('Plan a visit','Someone outside the house is taking these on.',body(),mount);
+}
+function requestMessage(r){
+  const lines=pending(r).map((x,ix)=>{const i=item(x.id);return `${ix+1}) ${i.title}${i.room?` (${room(i.room).name})`:''}${i.note?` — ${i.note}`:''}`});
+  return `Hi ${contact(r.contact).name}, this is ${person(ME).name} at 12 Elm St, Apt 2. A few things need attention:\n${lines.join('\n')}\nThanks!`;
 }
 function openRun(id,quiet){
-  const r=run(id);
-  const rows=r.items.map(x=>{const i=item(x.id);return `<label class="ritem ${x.done?'done':''}"><span class="line"><input type="checkbox" data-rtick="${x.id}" data-run="${r.id}" ${x.done?'checked':''} ${r.open?'':'disabled'}><b>${esc(i.title)}</b><small style="color:var(--ink-soft);font-weight:600">${CAT[i.cat].label}</small></span></label>`}).join('');
+  const r=run(id),isReq=r.kind==='request',isVisit=r.kind==='visit';
+  const stLabel={done:isVisit?'Fixed':'Done',moved:'Moved',returned:'Back in the pool'};
+  const rows=r.items.map(x=>{const i=item(x.id),p=x.st==='pending';return `<label class="ritem ${p?'':'done'}"><span class="line">${p&&r.open?`<input type="checkbox" data-sel="${x.id}" aria-label="Select ${esc(i.title)}">`:`<span style="width:22px;text-align:center">${x.st==='done'?'✓':'↪'}</span>`}<b>${esc(i.title)}</b><small style="color:var(--ink-soft);font-weight:600">${p?CAT[i.cat].label:stLabel[x.st]}${x.to?' → '+esc(runLabel(run(x.to))):''}</small></span>${x.note?`<small style="color:var(--ink-soft);padding-left:32px">${esc(x.note)}</small>`:''}</label>`}).join('');
   const cost=S.costs.find(c=>c.forRun===r.id);
-  const body=`<div class="kv"><dt>${r.contact?'Let in by':'Who'}</dt><dd>${av(r.runner,24,false)} ${person(r.runner).name}</dd>${r.contact?`<dt>Who’s coming</dt><dd>${esc(contact(r.contact).name)} · <span class="num">${contact(r.contact).phone}</span></dd>`:''}<dt>When</dt><dd>${r.when?whenStr(r.when):'No set date'}</dd></div>
-    <div class="box"><h5>${r.open?'On this run':'Finished'} · ${r.items.filter(x=>x.done).length}/${r.items.length}</h5>${rows}
-      ${r.open?`<div class="btnrow"><button class="btn secondary small" data-action="addtorun" data-id="${r.id}">${ic('plus')}Add more</button></div><button class="btn primary block" data-action="finishrun" data-id="${r.id}">${ic('tick')}Finish ${r.contact?'visit':'run'}</button>`:''}
-      ${cost?`<p style="margin:0;font-weight:700">${money(cost.amount)} spent · ${person(cost.by).name} paid</p>`:''}</div>`;
+  const stage=isReq?(r.stage==='gathering'?'Gathering: not sent yet. Anyone can add tasks.':r.stage==='sent'?`Sent ${ago(r.sent.ago)} by ${r.sent.via.toLowerCase()} · no reply recorded yet. When they answer, select tasks and move them.`:'Closed. Everything on it has been sorted.'):'';
+  const actions=r.open&&pending(r).length?`<div class="btnrow" id="selbar">
+      <button class="btn secondary small" data-action="selall" data-id="${r.id}">Select all</button>
+      ${isReq?`<button class="btn primary small" data-action="sel-move" data-id="${r.id}">${ic('calendar')}Move to a visit…</button>`:`<button class="btn secondary small" data-action="sel-move" data-id="${r.id}">Move to…</button>`}
+      <button class="btn secondary small" data-action="sel-pool" data-id="${r.id}">Back to the pool…</button>
+      <button class="btn secondary small" data-action="sel-hand" data-id="${r.id}">${ic('phone')}Hand to…</button>
+      <button class="btn secondary small" data-action="sel-done" data-id="${r.id}">${ic('tick')}${isVisit?'Fixed':'Done'}</button></div>`:'';
+  const body=`<div class="kv"><dt>${r.contact?'Point person':'Who'}</dt><dd>${av(r.runner,24,false)} ${person(r.runner).name}</dd>${r.contact?`<dt>${isReq?'To':'Who’s coming'}</dt><dd>${esc(contact(r.contact).name)} · <span class="num">${contact(r.contact).phone||''}</span></dd>`:''}${isReq?'':`<dt>When</dt><dd>${r.when?whenStr(r.when):(isVisit?'Date TBD':'No set date')}${isVisit&&r.open?` <button class="linkbtn" data-action="setdate" data-id="${r.id}">${r.when?'Change':'Set a date'}</button>`:''}</dd>`}</div>
+    ${stage?`<p style="margin:0;font-size:14px;font-weight:700;color:var(--accent-ink)">${stage}</p>`:''}
+    <div class="box"><h5>${isReq?'On this request':isVisit?'What they’re taking on':'On this run'} · ${pending(r).length} open</h5>${rows}
+      ${actions}
+      ${r.open&&!(isReq&&r.stage!=='gathering')?`<div class="btnrow"><button class="btn secondary small" data-action="addtorun" data-id="${r.id}">${ic('plus')}Add more</button></div>`:''}
+      ${isReq&&r.stage==='gathering'&&r.open?`<button class="btn primary block" data-action="sendreq" data-id="${r.id}">${ic('phone')}Send request</button>`:''}
+      ${!isReq&&r.open?`<button class="btn ${pending(r).length?'secondary':'primary'} block" data-action="finishrun" data-id="${r.id}">${ic('tick')}Finish ${isVisit?'visit':'run'}${pending(r).length?` (${pending(r).length} go back to the pool)`:''}</button>`:''}
+      ${cost?`<p style="margin:0;font-weight:700">${money(cost.amount)} spent · ${person(cost.by).name} paid</p>`:''}</div>
+    ${isReq?`<p style="margin:0;font-size:12.5px;color:var(--ink-soft)">Recording their reply is just moving tasks: accepted ones to a visit (with or without a date), the rest back to the pool with a note, or to someone else.</p>`:''}`;
   openSheet(esc(runLabel(r)),'',body,null,{instant:!!quiet,kind:'run:'+id});
+}
+const selected=()=>sheetEl?[...sheetEl.querySelectorAll('[data-sel]')].filter(x=>x.checked).map(x=>x.dataset.sel):[];
+function afterMove(r){
+  if(r.kind==='request'&&r.open&&!pending(r).length){r.open=false;r.stage='closed';toast(`${runLabel(r)} closed. Everything on it has been sorted.`)}
+}
+function moveItems(from,ids,to,note){
+  ids.forEach(id=>{const x=from.items.find(y=>y.id===id&&y.st==='pending');x.st='moved';x.to=to.id;x.note=note||'';
+    to.items.push({id,st:'pending'});const i=item(id);if(to.contact)i.contact=to.contact;
+    logHist(i,`Moved from ${runLabel(from)} to ${runLabel(to)}${to.when?' · '+whenStr(to.when):''}`,note,to.kind==='visit'?'🗓':'↪')});
+}
+function openMove(runId,ids){
+  const from=run(runId),allTasks=ids.every(id=>item(id).cat==='task');
+  const targets=openRuns().filter(r=>r.id!==runId&&(r.kind==='batch'?from.kind==='batch':allTasks)&&!(r.kind==='request'&&r.stage!=='gathering'));
+  let pick=targets.find(r=>r.kind==='visit'&&r.contact===from.contact)?.id||'new';
+  const body=()=>`<p style="margin:0;font-weight:700">${ids.length} task${ids.length===1?'':'s'}: ${ids.map(id=>esc(item(id).title)).join(', ')}</p>
+    <div class="pick" id="tpick">${targets.map(r=>`<button data-t="${r.id}" aria-pressed="${pick===r.id}">${ic(r.kind==='batch'?'cart':r.kind==='visit'?'calendar':'phone')}<span><span>${esc(runLabel(r))}</span><br><span class="s">${esc(runSub(r))}</span></span></button>`).join('')}
+      <button data-t="new" aria-pressed="${pick==='new'}">${ic('plus')}<span><span>New ${from.contact?`${esc(contact(from.contact).name)} visit`:'run'}</span><br><span class="s">${from.contact?'They’ve taken these on. Date optional.':'A new batch'}</span></span></button></div>
+    ${allTasks||from.kind!=='batch'?'':`<p style="margin:0;font-size:13px;color:var(--ink-soft)">Requests and visits only take tasks, so only runs are shown.</p>`}
+    <div id="newbox" ${pick==='new'?'':'hidden'}>${whenFields(2,'10:00',true,'Set a date now')}</div>
+    <div class="field"><label class="lab" for="mnote">Note (optional)</label><input type="text" id="mnote" maxlength="140" placeholder="${from.kind==='request'?'e.g. Sending a plumber':'e.g. Moving to Saturday'}"></div>
+    <button class="btn primary block" id="mgo">Move</button>`;
+  const mount=root=>{
+    root.querySelectorAll('#tpick button').forEach(b=>b.addEventListener('click',()=>{pick=b.dataset.t;root.querySelectorAll('#tpick button').forEach(x=>x.setAttribute('aria-pressed',x===b));root.querySelector('#newbox').hidden=pick!=='new'}));
+    wireWhen(root);
+    root.querySelector('#mgo').addEventListener('click',()=>{
+      const to=pick==='new'?newRun(from.contact?{kind:'visit',title:`${contact(from.contact).name} visit`,contact:from.contact,runner:from.runner,when:readWhen(root)}:{kind:'batch',title:`${person(ME).name}’s run`,when:readWhen(root)}):run(pick);
+      moveItems(from,ids,to,root.querySelector('#mnote').value.trim());afterMove(from);render();openRun(to.id,true);toast(`Moved ${ids.length} to ${runLabel(to)}.`);
+    });
+  };
+  openSheet(from.kind==='request'?'Move to a visit':'Move to…','',body(),mount);
+}
+function openPool(runId,ids){
+  const from=run(runId),outside=!!from.contact;
+  openSheet('Back to the pool',`${ids.length} task${ids.length===1?'':'s'} leave ${esc(runLabel(from))}.`,
+    `<div class="field"><label class="lab" for="pnote">Note</label><input type="text" id="pnote" autofocus maxlength="140" placeholder="${from.kind==='request'?'e.g. Landlord says the light is on us':'e.g. Store was out'}"></div>
+     ${outside?`<label class="check-inline"><input type="checkbox" id="pclear" checked> Change “Handled by” to One of us</label>`:''}
+     <button class="btn primary block" id="pgo">Put back</button>`,root=>{
+    root.querySelector('#pgo').addEventListener('click',()=>{
+      const note=root.querySelector('#pnote').value.trim(),clear=outside&&root.querySelector('#pclear').checked;
+      ids.forEach(id=>{const x=from.items.find(y=>y.id===id&&y.st==='pending');x.st='returned';x.note=note;const i=item(id);if(clear)i.contact=null;logHist(i,`Back from ${runLabel(from)}`,note,'↩')});
+      afterMove(from);render();openRun(runId,true);toast(`${ids.length} back in the pool.`);
+    });
+  });
+}
+function openHand(runId,ids){
+  const from=run(runId);let pick=CONTACTS.find(c=>c.id!==from.contact)?.id;
+  const body=()=>`<div class="pick" id="hpick">${CONTACTS.filter(c=>c.id!==from.contact).map(c=>`<button data-c="${c.id}" aria-pressed="${pick===c.id}">${ic('phone')}<span><span>${esc(c.name)}</span><br><span class="s">${gatheringRequest(c.id)?'Joins their unsent list':'Starts a new list'}</span></span></button>`).join('')}</div>
+    <details><summary style="font-weight:800;cursor:pointer;color:var(--ink-soft)">+ Someone new</summary><div style="display:grid;gap:8px;margin-top:8px"><input type="text" id="hcname" maxlength="60" placeholder="Name, e.g. Plumber" aria-label="Contact name"><input type="text" id="hcphone" maxlength="30" inputmode="tel" placeholder="Phone (optional)" aria-label="Contact phone"><button class="btn secondary small" id="hcadd" style="justify-self:start">Add contact</button></div></details>
+    <div class="field"><label class="lab" for="hnote">Note (optional)</label><input type="text" id="hnote" maxlength="140" placeholder="e.g. Landlord says to call a plumber ourselves"></div>
+    <button class="btn primary block" id="hgo">Hand over</button>`;
+  const mount=root=>{
+    root.querySelectorAll('#hpick button').forEach(b=>b.addEventListener('click',()=>{pick=b.dataset.c;root.querySelectorAll('#hpick button').forEach(x=>x.setAttribute('aria-pressed',x===b))}));
+    root.querySelector('#hcadd').addEventListener('click',()=>{const n=root.querySelector('#hcname').value.trim();if(!n){toast('Add a name.');return}const c={id:nid('ct'),name:n,phone:root.querySelector('#hcphone').value.trim()};CONTACTS.push(c);pick=c.id;root.innerHTML=body();mount(root)});
+    root.querySelector('#hgo').addEventListener('click',()=>{if(!pick){toast('Pick who to hand it to.');return}
+      const to=gatheringRequest(pick)||newRun({kind:'request',title:`${contact(pick).name} request`,contact:pick,stage:'gathering'});
+      moveItems(from,ids,to,root.querySelector('#hnote').value.trim());afterMove(from);render();openRun(to.id,true);toast(`Handed to ${contact(pick).name}. It’s on their list, ready to send.`);
+    });
+  };
+  openSheet('Hand to someone else',`${ids.length} task${ids.length===1?'':'s'}`,body(),mount);
+}
+function selDone(runId,ids){
+  const r=run(runId);
+  ids.forEach(id=>{const x=r.items.find(y=>y.id===id&&y.st==='pending');x.st='done';const i=item(id);if(i.cat==='chore'){i.last=0;i.lastBy=r.runner}else{i.done=true;i.doneBy=r.runner}logHist(i,`${r.kind==='visit'?'Fixed on':'Done on'} ${runLabel(r)}`,'','✓')});
+  afterMove(r);render();openRun(runId,true);toast(`${ids.length} marked ${r.kind==='visit'?'fixed':'done'}.`);
+}
+function openSendRequest(id){
+  const r=run(id);
+  openSheet(`Send to ${esc(contact(r.contact).name)}`,'Copy this and send it however you usually reach them. Roomies never sends on your behalf.',
+    `<textarea id="rmsg" style="min-height:160px">${esc(requestMessage(r))}</textarea>
+     <button class="btn secondary block" id="rcopy">${ic('copy')}Copy message</button>
+     <div class="field"><label class="lab" for="rvia">Sent by</label><select id="rvia"><option>Text</option><option>Email</option><option>Call</option><option>Portal</option><option>In person</option></select></div>
+     <button class="btn primary block" id="rsent">${ic('tick')}Mark as sent</button>`,root=>{
+    root.querySelector('#rcopy').addEventListener('click',()=>{copyText(root.querySelector('#rmsg').value);toast('Message copied.')});
+    root.querySelector('#rsent').addEventListener('click',()=>{r.stage='sent';r.sent={ago:0,via:root.querySelector('#rvia').value};pending(r).forEach(x=>logHist(item(x.id),`Sent to ${contact(r.contact).name} by ${r.sent.via.toLowerCase()}`,'','📨'));render();openRun(id,true);toast(`Sent. It shows “waiting on ${contact(r.contact).name}” until someone records the reply.`)});
+  });
+}
+function addToList(id){
+  const i=item(id),r=gatheringRequest(i.contact)||newRun({kind:'request',title:`${contact(i.contact).name} request`,contact:i.contact,stage:'gathering'});
+  r.items.push({id,st:'pending'});logHist(i,`Added to the ${contact(i.contact).name} list`,'','📝');render();openRun(r.id,true);toast(`On the ${contact(i.contact).name} list. Send it when it’s ready.`);
 }
 function openAddToRun(id){
   const r=run(id);
-  openSheet(`Add to ${esc(runLabel(r))}`,'',`${pickRows(r.contact?'visit':'run',id)}<button class="btn primary block" id="ago">Add</button>`,root=>{
-    root.querySelector('#ago').addEventListener('click',()=>{const picks=readPicks(root);if(!picks.length){toast('Pick something to add.');return}picks.forEach(pid=>r.items.push({id:pid,done:false}));render();openRun(id,true);toast(`Added ${picks.length}.`)});
+  openSheet(`Add to ${esc(runLabel(r))}`,'',`${pickRows(r.kind,id)}<button class="btn primary block" id="ago">Add</button>`,root=>{
+    root.querySelector('#ago').addEventListener('click',()=>{const picks=readPicks(root);if(!picks.length){toast('Pick something to add.');return}picks.forEach(pid=>{r.items.push({id:pid,st:'pending'});const i=item(pid);if(r.contact)i.contact=r.contact;logHist(i,`Added to ${runLabel(r)}`,'','📝')});render();openRun(id,true);toast(`Added ${picks.length}.`)});
+  });
+}
+function openSetDate(id){
+  const r=run(id);
+  openSheet('Visit date',esc(runLabel(r)),`${whenFields(r.when?Math.max(0,r.when.day):2,r.when&&r.when.time||'10:00',false)}<button class="btn primary block" id="dgo">${ic('calendar')}Save</button>`,root=>{
+    root.querySelector('#dgo').addEventListener('click',()=>{r.when=readWhen(root);render();openRun(id,true);toast(`On the calendar: ${whenStr(r.when)}.`)});
   });
 }
 function finishRun(r,spent){
-  let back=0;
-  r.items.forEach(x=>{const i=item(x.id);if(x.done){if(i.cat==='chore'){i.last=0;i.lastBy=r.runner}else{i.done=true;i.doneBy=r.runner}}else back++});
+  const back=pending(r).length;
+  pending(r).forEach(x=>{x.st='returned';x.note=x.note||'Not done this time';logHist(item(x.id),`Back from ${runLabel(r)}`,'Not done this time','↩')});
   r.open=false;
   if(spent)S.costs.push({id:nid('k'),amount:spent,by:ME,note:runLabel(r),forRun:r.id,ago:0});
   closeSheet();render();
-  toast(`${r.contact?'Visit':'Run'} finished.${back?` ${back} went back to the list.`:''}${spent?` Logged ${money(spent)}.`:''}`);
+  toast(`${r.kind==='visit'?'Visit':'Run'} finished.${back?` ${back} went back to the pool.`:''}${spent?` Logged ${money(spent)}.`:''}`);
 }
 function openSpent(r){
   openSheet('Did you spend money?',`<b>${esc(runLabel(r))}</b>`,`<div class="field"><label class="lab" for="spent">Amount ($)</label><input type="text" id="spent" inputmode="decimal" autofocus placeholder="0.00"></div>
@@ -990,7 +1139,7 @@ phone.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
     const o={id:nid('o'),label,note:note||undefined,by:ME};p.options.push(o);refresh();
     toast(`Added “${label}”. Anyone who already voted can switch.`,()=>{p.options=p.options.filter(x=>x!==o);Object.keys(p.votes).forEach(u=>{if(p.votes[u]===o.id)delete p.votes[u]});refresh()})}
 });
-phone.addEventListener('change',e=>{const cb=e.target;if(cb.dataset.rtick){const r=run(cb.dataset.run),x=r.items.find(y=>y.id===cb.dataset.rtick);x.done=cb.checked;refresh()}});
+
 phone.addEventListener('click',e=>{
   const el=e.target.closest('[data-action]');if(!el||el.tagName==='INPUT')return;
   const a=el.dataset.action,id=el.dataset.id,v=el.dataset.v;
@@ -1013,8 +1162,16 @@ phone.addEventListener('click',e=>{
     case 'closepoll':{const p=poll(id);p.closed={ago:0};refresh();const r=pollResult(p);toast(r.none?'Closed with no votes.':r.tie?'It’s a tie. Talk it out?':`${r.winner.label} wins.`,()=>{p.closed=null;refresh()});break}
     case 'startrun':openStartRun();break;
     case 'planvisit':openPlanVisit();break;
+    case 'newreq':openNewReq();break;
     case 'addtorun':openAddToRun(id);break;
-    case 'finishrun':{const r=run(id);r.contact?finishRun(r,null):openSpent(r);break}
+    case 'finishrun':{const r=run(id);r.kind==='visit'?finishRun(r,null):openSpent(r);break}
+    case 'selall':sheetEl.querySelectorAll('[data-sel]').forEach(x=>x.checked=true);break;
+    case 'sel-move':case 'sel-pool':case 'sel-hand':case 'sel-done':{const ids=selected();if(!ids.length){toast('Select one or more first.');break}
+      if(a==='sel-hand'&&!ids.every(x=>item(x).cat==='task')){toast('Only tasks can be handed to a contact.');break}
+      if(a==='sel-move')openMove(id,ids);else if(a==='sel-pool')openPool(id,ids);else if(a==='sel-hand')openHand(id,ids);else selDone(id,ids);break}
+    case 'sendreq':openSendRequest(id);break;
+    case 'addtolist':addToList(id);break;
+    case 'setdate':openSetDate(id);break;
     case 'addcost':openAddCost(id);break;
     case 'weights':openWeights();break;
     case 'calendar':calSel=new Date(TODAY);calMonth=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);openCalendar();break;

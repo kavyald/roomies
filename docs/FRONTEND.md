@@ -287,8 +287,13 @@ A full-height sheet:
 
 ### 5.7 Tasks tab
 
+- **Requests & visits** at the top. Unsent lists come first ("Landlord request · not sent yet · 2 tasks"), then sent requests ("Sent 2 days ago by text · waiting on 3"), then visits ("Landlord visit · Thu 10:00 · 2 to look at").
 - Filters: *Mine / All / Outside help*.
-- **Plan a visit**: pick a contact → a checklist of open tasks (those already handled by that contact pre-checked) → date + time → **Plan visit**. This creates a run with the contact.
+- **+ New** (in the Requests & visits header, which replaces the old Plan a visit button) opens **New request or visit**:
+  - **Ask someone (request):** a contact (or + Someone new) → a checklist of open tasks, with that contact's pre-checked (optional, since it can start empty) → **Start list**. It opens the request, ready for *Add more* or *Send request*.
+  - **They've agreed (visit):** a contact → tasks → an optional date → **Plan visit**.
+- The section always shows, with an empty state ("No requests yet. Start one when something needs the landlord or super.").
+- A task with a contact but no run shows **"Add to {Contact} list"** on its detail.
 
 ### 5.8 Poll sheet
 
@@ -297,11 +302,19 @@ A full-height sheet:
 - **Add an option** (label + optional note) is at the bottom while the poll is open. Each option shows who added it, and people who already voted can switch.
 - "2 of 4 voted · closes Fri." **Close poll** shows the result: "Dyson V8 wins (3–1)," or **"It's a tie. Talk it out?"**
 
-### 5.9 Run sheet
+### 5.9 Run sheet (batch, request, visit)
 
-- Title, who's doing it (or which contact is coming), and the date.
-- A checklist of its items. Tick as you go. **Add more** opens the picker.
-- **Finish run** → "Did you spend money?" (amount → **Log cost**, or **Skip**) → unticked items go back to the pool ("2 went back on the list").
+- **Header:** point person or runner, the contact (for requests and visits), and the date (a visit shows *Change / Set a date*).
+- **Request stage line:** "Gathering: not sent yet" or "Sent 2 days ago by text · no reply recorded yet."
+- **Rows:** every item that's been on the run. Pending ones have a **selection checkbox**, and resolved ones show where they went ("Moved → Landlord visit", "Back in the pool · that one's on us", "✓ Fixed").
+- **Selection actions** (a row of buttons that apply to the selected items; *Select all* first):
+  - **Move to a visit…** (primary on requests) / **Move to…** (other kinds): pick an open run or a **new visit** with the same contact (optional date), plus an optional note. Requests and visits only accept tasks, so a selection that includes needs or chores only offers batches.
+  - **Back to the pool…**: a note, and "Change *Handled by* to One of us" (checked by default for requests and visits)
+  - **Hand to…**: another contact or **+ Someone new**, plus an optional note. The items join that contact's unsent list.
+  - **Done** / **Fixed**
+- **Request buttons:** *Add more* and **Send request** while gathering. Send opens the composed message with **Copy message**, a "Sent by" picker, and **Mark as sent**.
+- **Batch and visit button:** **Finish** (anything left goes back to the pool). Batches then ask "Did you spend money?"
+- A footnote on requests: "Recording their reply is just moving tasks." 
 
 ### 5.10 Calendar
 

@@ -330,11 +330,28 @@ poll_options    (id, poll_id, label, note null, added_by, added_at, sort_order)
 poll_votes      (poll_id, user_id, option_id, voted_at)     PK(poll_id, user_id)   -- one vote each, changeable while open
 
 -- runs ---------------------------------------------------------------------------
-runs            (id, house_id, title, runner_id null, contact_id null,   -- contact = a visit (the super)
-                 when_at null, when_has_time bool,
-                 status: open|finished  default 'open', finished_at null, created_by, created_at)
-run_items       (run_id, item_id, done bool default false)  PK(run_id, item_id)
-run_claims      (item_id PK, run_id)                        -- a row only while the run is open → one open run per item
+runs            (id, house_id, kind: batch|request|visit, title,
+                 runner_id,                                 -- batch: who's doing it · request/visit: house point person
+                 contact_id null,                           -- required for request & visit, null for batch
+                 when_at null, when_has_time bool,          -- batch & visit only (a visit's date is optional)
+                 status: open|finished|gathering|sent|closed,   -- one column; allowed values depend on kind
+                 sent_at null, sent_via: text|email|call|portal|in_person  null,   -- requests only
+                 finished_at null, created_by, created_at)
+                 check ((kind = 'batch') = (contact_id is null))
+                 check (case kind when 'request' then status in ('gathering','sent','closed')
+                                  else status in ('open','finished') end)
+                 check (kind = 'request' or (sent_at is null and sent_via is null))
+                 check (kind <> 'request' or when_at is null)
+                 check (status <> 'sent' or sent_at is not null)
+run_items       (id, run_id, item_id,
+                 status: pending|done|moved|returned  default 'pending',
+                 moved_to_run_id null,                      -- where it went, when moved
+                 note null, resolved_by null, resolved_at null, added_by, added_at)
+                 check ((status = 'moved') = (moved_to_run_id is not null))
+                 check ((status = 'pending') = (resolved_at is null and resolved_by is null))
+                 unique (item_id) where status = 'pending'  -- one open run per item (pending rows only exist on open runs)
+                 -- one row per stint on a run; together they form the item's request/visit history
+                 -- domain rule: request & visit runs hold tasks only (error `tasks_only`, covered by a contract test)
 
 -- money --------------------------------------------------------------------------
 costs           (id, house_id, amount_cents, paid_by, note null,
@@ -349,9 +366,9 @@ notification_prefs    (user_id, category, enabled)
 notifications_outbox  (id, user_id, house_id, category, title, body, url, send_after, sent_at, error)
 ```
 
-**9 app tables** (items, feelings, polls, poll_options, poll_votes, runs, run_items, run_claims, costs) plus house, people, and infrastructure. Every table has `house_id` (directly or through its parent) and RLS via `is_member(house_id)` (§5.2).
+**8 app tables** (items, feelings, polls, poll_options, poll_votes, runs, run_items, costs) plus house, people, and infrastructure. Every table has `house_id` (directly or through its parent) and RLS via `is_member(house_id)` (§5.2).
 
-Indexes: `items(house_id, category) where archived_at is null`, `items(house_id, when_at) where when_at is not null`, `runs(house_id, when_at)`, `polls(house_id) where closed_at is null`, `costs(house_id, created_at)`, `activity_events(house_id, created_at desc)`, `notifications_outbox(sent_at) where sent_at is null`.
+Indexes: `items(house_id, category) where archived_at is null`, `items(house_id, when_at) where when_at is not null`, `runs(house_id, status, when_at)`, `polls(house_id) where closed_at is null`, `costs(house_id, created_at)`, `activity_events(house_id, created_at desc)`, `notifications_outbox(sent_at) where sent_at is null`.
 
 **Money** is integer cents. **Time** is `timestamptz` in UTC, and dates without a time are interpreted in the house timezone.
 
@@ -363,7 +380,7 @@ Plain, immutable, serializable objects, and **discriminated unions** so invalid 
 // ---- primitives ----
 type Id<K extends string> = string & { readonly __id: K }
 type UserId = Id<'user'>; type HouseId = Id<'house'>; type ItemId = Id<'item'>; type RoomId = Id<'room'>
-type ContactId = Id<'contact'>; type PollId = Id<'poll'>; type OptionId = Id<'option'>; type RunId = Id<'run'>; type CostId = Id<'cost'>
+type ContactId = Id<'contact'>; type PollId = Id<'poll'>; type OptionId = Id<'option'>; type RunId = Id<'run'>; type RunItemId = Id<'run_item'>; type CostId = Id<'cost'>
 type Instant = { readonly epochMs: number }
 type When = { date: LocalDate; time?: string }           // local to the house timezone
 type LocalDate = `${number}-${number}-${number}`
@@ -395,10 +412,16 @@ type Poll = { id: PollId; houseId: HouseId; question: string; itemId?: ItemId
   state: { open: true } | { open: false; closedAt: Instant; result: { winner: OptionId } | { tie: readonly OptionId[] } | { noVotes: true } } }
 
 // ---- runs ----
-type Run = { id: RunId; houseId: HouseId; title: string; when?: When
-  who: { runner: UserId } | { contactId: ContactId; pointPerson?: UserId }     // a visit has a contact
-  items: readonly { itemId: ItemId; done: boolean }[]
-  state: { open: true } | { open: false; finishedAt: Instant } }
+type RunItem = { id: RunItemId; itemId: ItemId; addedBy: UserId; addedAt: Instant; note?: string
+  status: { at: 'pending' }
+        | { at: 'done' | 'returned'; by: UserId; on: Instant }
+        | { at: 'moved'; to: RunId; by: UserId; on: Instant } }
+type Run = { id: RunId; houseId: HouseId; title: string; runner: UserId; items: readonly RunItem[] } & (
+  | { kind: 'batch'; when?: When; state: { open: true } | { open: false; finishedAt: Instant } }
+  | { kind: 'request'; contactId: ContactId
+      state: { at: 'gathering' } | { at: 'sent'; sentAt: Instant; via: 'text' | 'email' | 'call' | 'portal' | 'in_person' } | { at: 'closed'; closedAt: Instant } }
+  | { kind: 'visit'; contactId: ContactId; when?: When; state: { open: true } | { open: false; finishedAt: Instant } }
+)
 
 // ---- money ----
 type Cost = { id: CostId; houseId: HouseId; amount: Cents; paidBy: UserId; note?: string
@@ -418,6 +441,10 @@ type DomainEvent =
   | { type: 'poll.closed'; pollId: PollId; result: Poll['state'] }
   | { type: 'run.started'; runId: RunId; by: UserId; count: number }
   | { type: 'run.finished'; runId: RunId; done: number; returned: number }
+  | { type: 'request.sent'; runId: RunId; via: string; count: number }
+  | { type: 'run_items.moved'; from: RunId; to: RunId; itemIds: ItemId[]; note?: string }
+  | { type: 'run_items.returned'; from: RunId; itemIds: ItemId[]; note: string }
+  | { type: 'request.closed'; runId: RunId }
   | { type: 'cost.added'; costId: CostId; by: UserId; amount: Cents }
   | { type: 'settings.feeling_weights_changed'; by: UserId; from: FeelingWeights; to: FeelingWeights }
   | { type: 'member.joined'; userId: UserId }
@@ -436,7 +463,7 @@ type DomainEvent =
 ### 7.1 Priority
 
 - **One pure function:** `scorePriority(item, feelings, weights, now, tz): { score, tier, breakdown }`. `weights` comes from `HouseSettings.feelingWeights`, and `now` is an argument. It runs in the browser (feed), in jobs, and in tests with a fixed clock.
-- **`isInFeed(item, feelings, now, tz)`** applies the PRD §8.1 rules (tasks not done, chores past their rhythm or with a feeling, needs with a feeling or needed-by within 7 days).
+- **`isInFeed(item, feelings, openRun, now, tz)`** applies the PRD §8.1 rules: tasks not done (except those on a visit, unless there's a feeling or the visit is within 3 days), chores past their rhythm or with a feeling, and needs with a feeling or needed-by within 7 days.
 - **Never stored**, because it depends on today's date.
 
 ### 7.2 Function catalog
@@ -458,9 +485,15 @@ type DomainEvent =
 | `addPollOption` | `(p: Poll, label, note?, by: UserId, id: OptionId) → Result<{ poll; events }, 'closed' \| 'duplicate_label' \| 'empty'>` | Any member, while open. Existing votes are untouched. |
 | `setHandledBy` | `(t: Task, contact: ContactId \| null, by) → { task; events }` | Via `editItem`. Only tasks accept a contact. |
 | `closePoll` | `(p: Poll, now) → { poll; events }` | Most votes wins, a tie → `{ tie }`, and no votes → `{ noVotes }` (D3) |
-| `startRun` | `(input: NewRun, items: Item[], claimed: ReadonlySet<ItemId>, by, now, id) → Result<{ run; events }, 'nothing_selected' \| 'already_claimed' \| 'done_item'>` | |
-| `addToRun` / `removeFromRun` | `(r: Run, itemIds, claimed) → Result<{ run; events }, 'finished' \| 'already_claimed'>` | |
-| `finishRun` | `(r: Run, doneIds: ItemId[], now) → { run; effects: RunEffect[]; events }` | Effects as data: `{ markDone: ItemId }` · `{ doChore: ItemId; by }` · `{ release: ItemId }` |
+| `startRun` / `startRequest` / `planVisit` | `(input, items: Item[], pendingElsewhere: ReadonlySet<ItemId>, by, now, id) → Result<{ run; events }, 'nothing_selected' \| 'already_on_a_run' \| 'done_item' \| 'tasks_only'>` | A request may start empty. A visit's date is optional. |
+| `addToRequest` | `(t: Task, open: Run[], by, now, newId) → { run; task; events }` | Joins the contact's gathering request, or starts one |
+| `addToRun` | `(r: Run, items: Item[], pendingElsewhere) → Result<{ run; events }, 'finished' \| 'already_on_a_run' \| 'request_sent' \| 'tasks_only'>` | A sent request is closed to additions |
+| `sendRequest` | `(r: Request, via, now) → Result<{ run; message: string; events }, 'not_gathering' \| 'empty'>` | Builds the numbered message and moves to `sent` |
+| `moveRunItems` | `(from: Run, to: Run, items: Item[], note?, by, now) → Result<{ from; to; tasks; events }, 'not_pending' \| 'target_closed' \| 'tasks_only'>` | Sets "Handled by" to the target's contact. Closes an emptied request. |
+| `returnToPool` | `(from: Run, itemIds, note, clearContact: boolean, by, now) → { run; items; events }` | |
+| `handToContact` | `(from: Run, itemIds, contact, note?, open: Run[], by, now, newId) → { from; to; tasks; events }` | `to` = the contact's gathering request (new if none) |
+| `markRunItemsDone` | `(r: Run, itemIds, by, now) → { run; effects: RunEffect[]; events }` | Effects as data: `{ markDone }` · `{ doChore }` |
+| `finishRun` | `(r: Batch \| Visit, now) → { run; effects; events }` | Pending items → `returned` with "Not done this time" |
 | `addCost` | `(input: NewCost, by, now, id) → Result<{ cost; events }, 'not_positive'>` | |
 | `monthlySpend` | `(costs: Cost[], members: UserId[], month) → { total: Cents; perPerson: Cents }` | Equal split |
 | `validateInvite` | `(inv: Invite, tokenHash, now) → Result<Invite, 'invalid' \| 'expired' \| 'revoked' \| 'used_up'>` | |
@@ -476,7 +509,10 @@ type DomainEvent =
 | `setFeelingWeights` | `{ weights }` (any member) | `HouseSettings` | `out_of_range` | uow |
 | `createPoll` / `addPollOption` / `vote` / `closePoll` | `NewPoll` / `{ pollId, label, note? }` / `{ pollId, optionId }` / `{ pollId }` | `Poll` | `needs_two_options`, `closed`, `duplicate_label` | uow, clock, ids |
 | `setHandledBy` / `createContact` | `{ taskId, contactId \| null }` / `{ name, phone? }` | `Task` / `Contact` | `not_a_task` | uow, ids |
-| `startRun` / `addToRun` / `removeFromRun` | `NewRun` / `{ runId, itemIds }` / `{ runId, itemId }` | `Run` | `nothing_selected`, `already_claimed`, `finished` | uow, clock, ids |
+| `startRun` / `startRequest` / `planVisit` / `addToRun` / `addToRequest` | `NewRun` / `{ contactId \| newContact, taskIds[] }` / `NewVisit` / `{ runId, itemIds }` / `{ taskId }` | `Run` | `nothing_selected`, `already_on_a_run`, `finished`, `request_sent`, `tasks_only` | uow, clock, ids |
+| `sendRequest` | `{ runId, via }` | `{ run, message }` | `not_gathering`, `empty` | uow, clock |
+| `moveRunItems` / `returnToPool` / `handToContact` / `markRunItemsDone` | `{ fromRunId, itemIds, toRunId \| newVisit, note? }` / `{ runId, itemIds, note, clearContact }` / `{ runId, itemIds, contactId \| newContact, note? }` / `{ runId, itemIds }` | `Run[]` | `not_pending`, `target_closed`, `tasks_only` | uow, clock, ids |
+| `setVisitDate` | `{ runId, when \| null }` | `Run` | `not_a_visit` | uow |
 | `finishRun` | `{ runId, doneIds, spentCents? }` | `{ run, cost? }` | `finished`, `not_found` | uow, clock, ids |
 | `addCost` | `{ amountCents, forItem? \| forRun?, note? }` | `Cost` | `not_positive` | uow, clock, ids |
 | `setupHouse` / `startInvite` / `acceptInvite` | as before | `House` / `void` / `Member` | as before | uow, clock, ids, auth, config |
@@ -531,7 +567,7 @@ Immediate notifications (assigned, 😰/😤, new poll, run started) come from t
 
 - The client subscribes to `postgres_changes` on house-scoped tables filtered by `house_id`. Supabase Realtime respects RLS.
 - On an event, the client invalidates the matching TanStack Query keys.
-- Conflicts: **last write wins** per field. Double claims are rejected by `run_claims` (primary key on `item_id`). Saves use optimistic concurrency (`where updated_at = :loaded`) and map a lost race to `conflict`.
+- Conflicts: **last write wins** per field. Putting one item on two open runs is rejected by the partial unique index on `run_items(item_id) where status = 'pending'`. Saves use optimistic concurrency (`where updated_at = :loaded`) and map a lost race to `conflict`.
 
 ### 7.6 Splitwise
 
