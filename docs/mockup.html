@@ -372,8 +372,8 @@ input[type=date],input[type=time]{width:100%;font:inherit;font-size:16px;color:v
     <p>Five concepts: <b>needs</b>, <b>chores</b>, <b>tasks</b>, <b>polls</b>, and <b>runs</b>. Money is only recorded when something was spent. Names, numbers, and contacts are placeholders.</p>
     <h2>Things to try</h2>
     <ul>
-      <li><span>🛒</span><span><b>Needs</b>: add “tomatoes” twice, toggle <i>Soon</i>, or tap a circle for <i>Got it</i>.</span></li>
-      <li><span>🧺</span><span><b>Start a run</b> from Needs with <i>Select Soon</i>, tick items, then <b>Finish</b> and log what you spent.</span></li>
+      <li><span>🛒</span><span><b>Needs</b>: add “tomatoes” twice, share a feeling to say it’s urgent, or tap a circle for <i>Got it</i>.</span></li>
+      <li><span>🧺</span><span><b>Start a run</b> from Needs with <i>Select all</i>, tick items, then <b>Finish</b> and log what you spent.</span></li>
       <li><span>🗳</span><span><b>Polls</b>: vote on “Which vacuum?” (Home → Open polls), then close it. The closed lamp poll shows a tie.</span></li>
       <li><span>📞</span><span><b>Outside help</b>: open “Bathroom 2 fan,” tap <i>Needs outside help?</i>, pick the super (or add someone new).</span></li>
       <li><span>➕</span><span><b>Add a poll option</b> to “Which vacuum?” after it started. Voters can switch.</span></li>
@@ -465,12 +465,12 @@ const S={
   weights:{...DEFAULT_WEIGHTS},weightsNotice:null,
   items:[
     // needs
-    {id:'n1',cat:'need',title:'Tomatoes',soon:true},
-    {id:'n2',cat:'need',title:'Oat milk',note:'the barista one',soon:true,run:'r2'},
+    {id:'n1',cat:'need',title:'Tomatoes'},
+    {id:'n2',cat:'need',title:'Oat milk',note:'the barista one',run:'r2',feelings:{w:{f:'frustrated',note:'Out since Tuesday.'}}},
     {id:'n3',cat:'need',title:'Dish soap'},
     {id:'n4',cat:'need',title:'Trash bags'},
     {id:'n5',cat:'need',title:'Coffee',run:'r2'},
-    {id:'n6',cat:'need',title:'Toilet paper',soon:true,room:'b1'},
+    {id:'n6',cat:'need',title:'Toilet paper',room:'b1',feelings:{s:{f:'anxious',note:'We’re on the last roll.'}}},
     {id:'n7',cat:'need',title:'Hallway lightbulbs',note:'E26, warm white',room:'hall'},
     {id:'n8',cat:'need',title:'Vacuum',room:'living',when:{day:5},priority:'normal',feelings:{s:{f:'frustrated',note:'The floors are getting gross.'}}},
     {id:'n9',cat:'need',title:'Balloons',when:{day:9}},
@@ -675,7 +675,6 @@ function chips(i){
   const c=[];
   if(i.cat==='chore') c.push(`<span class="chip">${ic('sparkles')}${i.repeat?`About every ${i.repeat} days`:'As needed'}</span>`);
   else c.push(`<span class="chip">${ic(CAT[i.cat].icon)}${CAT[i.cat].label}</span>`);
-  if(i.cat==='need'&&i.soon) c.push(`<span class="chip">Soon</span>`);
   if(i.contact) c.push(`<span class="chip">${ic('phone')}Handled by: ${esc(contact(i.contact).name)}</span>`);
   const r=runOf(i.id); if(r) c.push(`<span class="chip link" data-action="openrun" data-id="${r.id}" role="button" tabindex="0">${ic(r.kind==='batch'?'cart':r.kind==='visit'?'calendar':'phone')}${esc(onRunChip(r))}</span>`);
   const op=pollsAbout(i.id).filter(p=>!p.closed); if(op.length) c.push(`<span class="chip link" data-action="openpoll" data-id="${op[0].id}" role="button" tabindex="0">${ic('vote')}Poll · ${Object.keys(op[0].votes).length}/${PEOPLE.length}</span>`);
@@ -728,14 +727,13 @@ function screenHome(){
     <div class="list">${list.map(card).join('')||empty('check','Nothing needs you right now. Enjoy the quiet.')}</div>`;
 }
 function screenNeeds(){
-  const open=S.items.filter(i=>i.cat==='need'&&!i.done&&!i.archived).sort((a,b)=>(!!b.soon-!!a.soon)||(Object.keys(b.feelings).length-Object.keys(a.feelings).length));
+  const open=S.items.filter(i=>i.cat==='need'&&!i.done&&!i.archived).sort((a,b)=>((Object.keys(b.feelings).length>0)-(Object.keys(a.feelings).length>0))||(prio(b).score-prio(a).score));
   return `<div class="head"><h2>Needs</h2>${av(ME,36)}</div>
     <form class="outof" data-form="need"><input type="text" id="needadd" placeholder="We need…" autocomplete="off" maxlength="80" aria-label="Add a need"><button class="btn secondary small" type="submit">${ic('plus')}Add</button></form>
-    <section class="shop" style="margin-top:12px" aria-label="Needs list"><div class="shop-head"><h4>${ic('bag')}To buy</h4><span>${open.length} item${open.length===1?'':'s'}${open.filter(i=>i.soon).length?` · ${open.filter(i=>i.soon).length} soon`:''}</span></div>
+    <section class="shop" style="margin-top:12px" aria-label="Needs list"><div class="shop-head"><h4>${ic('bag')}To buy</h4><span>${open.length} item${open.length===1?'':'s'}${open.filter(i=>Object.keys(i.feelings).length).length?` · ${open.filter(i=>Object.keys(i.feelings).length).length} with feelings`:''}</span></div>
     <div>${open.map(i=>{const r=runOf(i.id),op=pollsAbout(i.id).filter(p=>!p.closed),cs=costsFor(i.id);return `<div class="shoprow">
       <button class="grab" data-action="done" data-id="${i.id}" aria-label="Got ${esc(i.title)}">${ic('tick')}</button>
-      <button class="nm" data-action="open" data-id="${i.id}" style="text-align:left"><b>${esc(i.title)}</b>${i.note?`<small>${esc(i.note)}</small>`:''}${r?`<small class="onrun">${ic('cart')}On ${esc(runLabel(r))}</small>`:''}${op.length?`<small class="onrun">${ic('vote')}Poll: ${esc(op[0].q)} · ${Object.keys(op[0].votes).length}/${PEOPLE.length}</small>`:''}${cs.length?`<small>${money(cs.reduce((a,b)=>a+b.amount,0))} spent</small>`:''}${Object.keys(i.feelings).length?`<small>${feelSummary(i)}</small>`:''}</button>
-      <button class="soon" data-action="soon" data-id="${i.id}" aria-pressed="${!!i.soon}">Soon</button></div>`}).join('')||'<p style="margin:0;color:var(--ink-soft);font-weight:600">Nothing to buy. Nice.</p>'}</div>
+      <button class="nm" data-action="open" data-id="${i.id}" style="text-align:left"><b>${esc(i.title)}</b>${i.note?`<small>${esc(i.note)}</small>`:''}${r?`<small class="onrun">${ic('cart')}On ${esc(runLabel(r))}</small>`:''}${op.length?`<small class="onrun">${ic('vote')}Poll: ${esc(op[0].q)} · ${Object.keys(op[0].votes).length}/${PEOPLE.length}</small>`:''}${cs.length?`<small>${money(cs.reduce((a,b)=>a+b.amount,0))} spent</small>`:''}${Object.keys(i.feelings).length?`<small>${feelSummary(i)}</small>`:''}</button></div>`}).join('')||'<p style="margin:0;color:var(--ink-soft);font-weight:600">Nothing to buy. Nice.</p>'}</div>
     <button class="btn primary block" data-action="startrun">${ic('cart')}Start a run</button></section>`;
 }
 function screenChores(){
@@ -891,9 +889,9 @@ function openNewPoll(itemId){
 /* ---------- runs, requests & visits ---------- */
 function pickRows(kind,runId){
   const avail=i=>!i.done&&!i.archived&&!i.run;
-  const grp=(label,list,sub)=>list.length?`<p class="grp">${label}</p>`+list.map(i=>`<label><input type="checkbox" data-pick="${i.id}" data-soon="${i.soon?1:0}">${esc(i.title)}<small>${sub(i)}</small></label>`).join(''):'';
+  const grp=(label,list,sub)=>list.length?`<p class="grp">${label}</p>`+list.map(i=>`<label><input type="checkbox" data-pick="${i.id}" >${esc(i.title)}<small>${sub(i)}</small></label>`).join(''):'';
   let out='';
-  if(kind==='batch') out+=grp('Needs',S.items.filter(i=>i.cat==='need'&&avail(i)).sort((a,b)=>!!b.soon-!!a.soon),i=>i.soon?'Soon':'');
+  if(kind==='batch') out+=grp('Needs',S.items.filter(i=>i.cat==='need'&&avail(i)).sort((a,b)=>((Object.keys(b.feelings).length>0)-(Object.keys(a.feelings).length>0))),i=>Object.values(i.feelings).map(v=>FEEL[v.f].e).join(''));
   out+=grp('Tasks',S.items.filter(i=>i.cat==='task'&&avail(i)).sort((a,b)=>(b.contact?1:0)-(a.contact?1:0)),i=>i.contact?contact(i.contact).name:'');
   if(kind==='batch') out+=grp('Chores',S.items.filter(i=>i.cat==='chore'&&avail(i)),i=>`last ${ago(i.last)}`);
   return `<div class="sel">${out||'<p style="margin:0;color:var(--ink-soft)">Nothing left to pick.</p>'}</div>`;
@@ -910,11 +908,11 @@ function gatheringRequest(c){return openRuns().find(r=>r.kind==='request'&&r.con
 
 function openStartRun(){
   const body=`<div class="field"><label class="lab" for="rt">Name (optional)</label><input type="text" id="rt" maxlength="60" placeholder="${person(ME).name}’s grocery run · or “Amazon order”"></div>
-    <div class="quick"><button data-q="all">Select all</button><button data-q="soon">Select Soon</button><button data-q="none">Clear</button></div>
+    <div class="quick"><button data-q="all">Select all</button><button data-q="none">Clear</button></div>
     ${pickRows('batch')}${whenFields(1,'11:00',true)}
     <button class="btn primary block" id="rgo">${ic('cart')}Start run</button>`;
   openSheet('Start a run','Pick what you’ll take care of. Everyone will see it’s covered.',body,root=>{
-    root.querySelectorAll('.quick button').forEach(b=>b.addEventListener('click',()=>root.querySelectorAll('[data-pick]').forEach(x=>{x.checked=b.dataset.q==='all'?true:b.dataset.q==='none'?false:(x.dataset.soon==='1'||x.checked)})));
+    root.querySelectorAll('.quick button').forEach(b=>b.addEventListener('click',()=>root.querySelectorAll('[data-pick]').forEach(x=>{x.checked=b.dataset.q==='all'})));
     wireWhen(root);
     root.querySelector('#rgo').addEventListener('click',()=>{
       const picks=readPicks(root);if(!picks.length){toast('Pick at least one thing.');return}
@@ -1178,7 +1176,6 @@ function openAdd(){
 function openAddForm(cat){
   const roomSel=`<div class="field"><label class="lab" for="nroom">Room (optional)</label><select id="nroom"><option value="">No room</option>${FLOORS.map(f=>`<optgroup label="${f}">${ROOMS.filter(r=>r.floor===f).map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}</optgroup>`).join('')}</select></div>`;
   const body=`<div class="field"><label class="lab" for="ntitle">Title</label><input type="text" id="ntitle" autofocus maxlength="120" placeholder="${cat==='need'?'e.g. Tomatoes':cat==='chore'?'e.g. Descale the kettle':'e.g. Hallway light is out'}"></div>
-    ${cat==='need'?`<label class="check-inline"><input type="checkbox" id="nsoon"> Needed soon</label>`:''}
     ${cat==='chore'?`<div class="field"><label class="lab" for="nrep">How often?</label><select id="nrep"><option value="">As needed</option><option value="3">About every 3 days</option><option value="7">About every week</option><option value="14">About every 2 weeks</option><option value="30">About every month</option></select></div>`:''}
     ${cat==='task'?`<div class="field"><label class="lab" for="ncontact">Handled by (optional)</label><select id="ncontact"><option value="">One of us</option>${CONTACTS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
       <div class="field"><label class="lab" for="nday">When (optional)</label><select id="nday"><option value="">No date</option><option value="0">Today</option><option value="1">Tomorrow</option><option value="3">In 3 days</option><option value="7">In a week</option></select></div>`:''}
@@ -1192,7 +1189,6 @@ function openAddForm(cat){
       const title=t.value.trim();
       if(cat==='need'){const ex=S.items.find(i=>i.cat==='need'&&!i.done&&i.title.toLowerCase()===title.toLowerCase());if(ex){closeSheet();openDetail(ex.id);toast(`“${ex.title}” is already on the list.`);return}}
       const it={id:nid(cat[0]),cat,title,room:root.querySelector('#nroom').value||null,assignee:root.querySelector('#nwho').value||null,priority:'normal',feelings:{}};
-      if(cat==='need')it.soon=root.querySelector('#nsoon').checked;
       if(cat==='chore'){const r=root.querySelector('#nrep').value;it.repeat=r?+r:null;it.last=0;it.lastBy=ME}
       if(cat==='task'){it.contact=root.querySelector('#ncontact').value||null;const d=root.querySelector('#nday').value;it.when=d!==''?{day:+d}:null}
       it.run=null;S.items.push(it);emit('item.created',{item:it.id});closeSheet();S.tab={need:'needs',chore:'chores',task:'tasks'}[cat];render(false);toast(`Added “${it.title}”.`);
@@ -1259,7 +1255,6 @@ phone.addEventListener('click',e=>{
     case 'room':openRoom(id);break;
     case 'close':closeSheet();break;
     case 'done':markDone(id,el,el.dataset.from==='sheet');break;
-    case 'soon':{const i=item(id);i.soon=!i.soon;emit('item.edited',{item:id,changes:{need_soon:[!i.soon,i.soon]}});render();break}
     case 'newpoll':openNewPoll(id);break;
     case 'handledby':openHandledBy(id);break;
     case 'vote':{const p=poll(id);if(p.closed)break;const was=p.votes[ME];if(was===v){delete p.votes[ME];emit('poll.vote_withdrawn',{poll:id})}else{p.votes[ME]=v;emit(was?'poll.vote_changed':'poll.voted',{poll:id,option:v,changes:was?{option:[was,v]}:undefined})}refresh();break}

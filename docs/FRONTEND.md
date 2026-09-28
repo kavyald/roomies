@@ -133,7 +133,7 @@ Inputs are always ≥ 16px, which prevents iOS from zooming in on focus.
 
 | Concept / state | Icon | Label on chip |
 |---|---|---|
-| Need | `shopping-bag` | Need (plus a **Soon** chip when needed soon) |
+| Need | `shopping-bag` | Need |
 | Chore | `sparkles` | "As needed" or "About every 7 days" |
 | Task | `check-circle` | Task |
 | Task handled by a contact | `phone` | "Handled by: Super" |
@@ -258,7 +258,7 @@ Tap **🙂+** on a card or detail, or swipe left:
 
 1. Pick one of five tiles: **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch).
 2. Title (autofocused) + **Add**. Optional fields by type:
-   - **Need:** Needed soon, needed by, room
+   - **Need:** needed by, room
    - **Chore:** *As needed* or *About every N days*, room, optional assignee
    - **Task:** date, room, assignee, **Handled by** (a contact)
    - **Poll:** a question, 2+ options (each with an optional note), an optional deadline. It can be started from an item ("+ Poll about this") or on its own.
@@ -277,9 +277,9 @@ A full-height sheet:
 
 ### 5.5 Needs tab
 
-- The shared list, *Needed soon* first. Each row has a check circle (**Got it**), the title, an optional note, a **Soon** toggle, and badges ("On Wren's run", "Poll", "$189").
+- The shared list. Needs with a feeling come first (by priority), then newest. Each row has a check circle (**Got it**), the title, an optional note, its feeling emoji, and badges ("On Wren's run", "Poll", "$189"). There's no Soon toggle: a 😰 or 😤 feeling is how someone says "we need this soon."
 - An add field at the top: "We need…". Adding something already on the list points to the existing one.
-- **Start a run**: a sheet with a checklist of open needs (*Select all* / *Select Soon*), an optional title ("Amazon order"), and an optional date → **Start run**.
+- **Start a run**: a sheet with a checklist of open needs (*Select all* / *Clear*; needs with a feeling show their emoji and are listed first), an optional title ("Amazon order"), and an optional date → **Start run**.
 
 ### 5.6 Chores tab
 

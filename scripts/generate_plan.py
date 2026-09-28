@@ -77,7 +77,7 @@ T = [
      "The \"+\" picker (Need / Chore / Task / Poll / Run, with poll and run disabled until M3), title-first forms per category, the room picker, and the item detail sheet shell.",
      "Any item can be added with just a title in 3 taps and opened in the detail sheet."),
     ("T20", "M2", "Needs tab", "M", ["T19"],
-     "The shared list with *Needed soon* first, Got it (with undo), the Soon toggle, and \"We need…\" add that points to an existing duplicate.",
+     "The shared list (needs with a feeling first), Got it (with undo), feeling emoji on rows, and \"We need…\" add that points to an existing duplicate. No Soon flag.",
      "Adding \"tomatoes\" twice points to the first. Got it removes it with undo."),
     ("T21", "M2", "Chores tab", "M", ["T19"],
      "As-needed and about-every-N-days chores, \"last done\" meta, sorting by overdue, and one-tap Did it.",

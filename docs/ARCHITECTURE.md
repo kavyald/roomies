@@ -306,7 +306,6 @@ items           (id, house_id,
                  assignee_id null,                          -- "who's on it"; null = anyone
                  when_at null, when_has_time bool,          -- due / needed by / scheduled
                  priority: low|normal|high|urgent  default 'normal',
-                 need_soon bool default false,              -- needs only
                  repeat_days int null,                      -- chores only: null = as needed
                  last_done_at null, last_done_by null,      -- chores only
                  contact_id null,                           -- tasks only: "handled by"
@@ -317,7 +316,6 @@ items           (id, house_id,
                  check ((run_id is null) = (run_kind is null))
                  check (run_kind is null or run_kind = 'batch' or category = 'task')   -- requests & visits hold tasks only
                  check (run_id is null or (done_at is null and archived_at is null))  -- done/archived items aren't on a run
-                 check (category = 'need'  or need_soon = false)
                  check (category = 'chore' or (repeat_days is null and last_done_at is null and last_done_by is null))
                  check (category = 'task'  or contact_id is null)
                  check (category <> 'chore' or done_at is null)          -- chores are never "done", only "last done"
@@ -394,7 +392,7 @@ interface ItemBase {
   createdBy: UserId; createdAt: Instant; archivedAt?: Instant
 }
 type Done = { at: Instant; by: UserId }
-type Need  = ItemBase & { category: 'need';  needSoon: boolean; done?: Done }
+type Need  = ItemBase & { category: 'need';  done?: Done }                       // urgency = feelings + needed-by date
 type Chore = ItemBase & { category: 'chore'; repeatDays: number | null; lastDone?: Done }   // null = as needed
 type Task  = ItemBase & { category: 'task';  contactId?: ContactId; done?: Done }
 type Item = Need | Chore | Task

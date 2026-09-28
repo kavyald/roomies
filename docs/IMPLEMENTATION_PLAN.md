@@ -268,7 +268,7 @@ flowchart TD
   *Done when:* Each category's rules hold in both the domain and the database (a chore can't be done, a need can't repeat), tested on both adapters.
 - **T19 Add sheet + item detail**: The "+" picker (Need / Chore / Task / Poll / Run, with poll and run disabled until M3), title-first forms per category, the room picker, and the item detail sheet shell.  
   *Done when:* Any item can be added with just a title in 3 taps and opened in the detail sheet.
-- **T20 Needs tab**: The shared list with *Needed soon* first, Got it (with undo), the Soon toggle, and "We need…" add that points to an existing duplicate.  
+- **T20 Needs tab**: The shared list (needs with a feeling first), Got it (with undo), feeling emoji on rows, and "We need…" add that points to an existing duplicate. No Soon flag.  
   *Done when:* Adding "tomatoes" twice points to the first. Got it removes it with undo.
 - **T21 Chores tab**: As-needed and about-every-N-days chores, "last done" meta, sorting by overdue, and one-tap Did it.  
   *Done when:* An every-7-days chore last done 9 days ago sorts to the top, and Did it resets it.

@@ -93,7 +93,7 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 | Tab | Contents |
 |---|---|
 | **Home** | **Coming up** (the next 7 days of dated items and runs; tap for the calendar), **Open polls**, **Runs in progress**, then the ranked **Needs attention** feed (*Mine / All*) |
-| **Needs** | The shared list of things to buy. *Needed soon* first. **Start a run** from here. |
+| **Needs** | The shared list of things to buy. Needs with a feeling come first. **Start a run** from here. |
 | **Chores** | Chores, sorted by what's due for a go, with "last done" |
 | **Tasks** | **Requests & visits** (unsent and sent requests, planned visits) with **+ New** (start a request or plan a visit), then tasks with filters *Mine / All / Outside help* |
 | **House** | **Settings** (feeling weights), rooms, contacts, roommates, invite link, activity log |
@@ -127,7 +127,8 @@ Every item has:
 
 ### 6.1 Needs (things to buy)
 
-- **Adding:** a title is enough ("tomatoes"). Optional: *Needed soon*, room, who's getting it, needed by, note ("the oat one, not almond").
+- **Adding:** a title is enough ("tomatoes"). Optional: room, who's getting it, needed by, note ("the oat one, not almond").
+- **Urgency comes from feelings**, not a separate flag. **[DECIDED] (owner)** 😰 "we're on the last roll" does what a "needed soon" toggle would, and it says why. Needs with a feeling sort to the top of the list. A needed-by date also raises priority.
 - **Adding something that's already on the list** doesn't duplicate it. The app points to the existing one.
 - **Clearing a need:**
   - **Got it:** check it off directly.
@@ -339,9 +340,9 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | **Belongings & ownership shares**, settled state, move-out checklist | A "Keep it?" poll + a cost |
 | **Rotating / fixed chore schedules** (take turns, rrule) | An optional assignee |
 | **Outside-help stages** (not contacted → fixed), contact log, "no word in 3 days" nudges | "Handled by" a contact + visit runs |
-| **Standalone heads-ups** with "Got it" acknowledgments | A task with a date |
+| **Heads-ups + calendar icon**: a `heads_up` item category (date, optional end date, room, host; never done, never on a run, not in the feed), an "A heads-up" tile on +, a calendar button on Home, "heads-up tomorrow" notifications. Designed in detail, deferred by the owner. Later still: "Got it" acknowledgments. | A task with a date |
 | **Info items** (Wi‑Fi, trash days) with hidden values | None |
-| **+1s** on needs | *Needed soon* |
+| **+1s** on needs | Feelings (😰 / 😤) on the need |
 | Full **priority preferences** (presets, deadline weight, outside-help boost) | Feeling weights only |
 | Tags, attachments, links between items | Rooms and titles |
 | Email digest fallback, passkeys, Splitwise API, multiple houses, floor-plan view | — |
@@ -377,5 +378,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D23 | Tasks on a visit leave the Home feed unless there's a feeling or the visit is within 3 days | Default |
 | D24 | No automatic "no reply" nudge in v1, only a "Sent N days ago" label | Default |
 | D25 | Items point at their current run. The activity log (typed columns, append-only) is the single store of history, including run moves. | Owner |
+| D26 | No "needed soon" flag on needs. Feelings and the needed-by date carry urgency. | Owner |
+| D27 | Heads-ups and the calendar icon are v2 (design parked in §13) | Owner |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.
