@@ -1,8 +1,7 @@
 # Roomies — Architecture & System Design
 
-**Status:** Draft v1.0 (dependency injection, use-case catalog, standalone domain types, 2026-09-25)
+**Status:** v1 scope (2026-09-28): one items table, polls, runs, costs. DI structure unchanged.
 **Companions:** [PRD.md](./PRD.md) · [FRONTEND.md](./FRONTEND.md) (visual design, UI, copy)
-**Last updated:** 2026-09-24
 
 > Same convention as the PRD: **[DECIDED]**, with *(owner)* marking the ones you answered directly. The design targets **one house, 2–8 users, built by one person, on free tiers**. The priorities are low cost, low ops, fast iteration, and making sure only house members can read house data.
 
@@ -17,8 +16,8 @@
 | **Only house members** can see house data | Per-user authentication + authorization enforced at the **database layer** (row-level security), not only in UI code |
 | Tiny data volume (thousands of rows per house, ever) | No caching layers, queues, or microservices. Postgres handles everything. |
 | Collaborative (several people editing the same lists) | Realtime updates are nice to have. Last-write-wins is acceptable for conflicts. |
-| Reminders, repeating chores, vote deadlines, heads-up reminders | Need **scheduled jobs** (cron) |
-| Notifications on iPhone | **Web Push** (iOS 16.4+, only when installed to the Home Screen) + email fallback |
+| Reminders, chore rhythms, poll deadlines, dated runs | Need **scheduled jobs** (cron) |
+| Notifications on iPhone | **Web Push** (iOS 16.4+, only when installed to the Home Screen). An email fallback comes later. |
 | Solo developer | Minimize the number of vendors and moving parts. One language (TypeScript) end to end. |
 
 ---
@@ -52,7 +51,7 @@ Onboarding must actively guide iOS users through **Share → Add to Home Screen*
 
 ### 3.2 Why Option A
 
-- **Supabase** gives relational Postgres (a natural fit for houses, members, artifacts, and votes), **row-level security** for the "only members can access" requirement, built-in auth (email codes, passkeys later), file storage with the same RLS, realtime subscriptions, and cron, all from one vendor with a generous free tier.
+- **Supabase** gives relational Postgres (a natural fit for houses, members, items, polls, and runs), **row-level security** for the "only members can access" requirement, built-in auth (email codes, passkeys later), file storage with the same RLS, realtime subscriptions, and cron, all from one vendor with a generous free tier.
 - **Firebase** would work too, but Firestore security rules are harder to reason about for relational data (membership joins, votes, ownership shares), and the data model fights the document store.
 - **A custom API** gives the most control but means writing and securing auth, authz, and file uploads yourself. That's too much ops for this scale.
 - **Next.js on Vercel**: first-class hosting, route handlers for the few things that need secrets (push sending, invite acceptance, cron), and preview deploys per PR.
@@ -80,7 +79,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | Dates / recurrence | `date-fns` + `date-fns-tz`, `rrule` |
 | PWA | Hand-written service worker (push + minimal offline shell), or Serwist |
 | Push | `web-push` (VAPID) from a server route |
-| Email | Resend: Supabase custom SMTP for sign-in codes (required, since Supabase's built-in sender won't reach roommates), plus reminder fallback emails |
+| Email | Resend: Supabase custom SMTP for sign-in codes (required, since Supabase's built-in sender won't reach roommates). Reminder emails come later. |
 | Icons | Lucide |
 | Testing | Vitest (unit), Playwright with the iPhone 15 device profile (e2e), pgTAP or SQL tests for RLS |
 | Errors / monitoring | Sentry (free tier), Vercel Analytics |
@@ -110,7 +109,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
  └────────┬───────────┘   │  pg_cron + pg_net (calls /api/cron)  │
           │               └──────────────────────────────────────┘
           ▼
-   Web Push services (Apple / Google / Mozilla)    Resend (email)    Splitwise API (phase 2)
+   Web Push services (Apple / Google / Mozilla)    Resend (sign-in codes, via Supabase SMTP)
 ```
 
 **Data access pattern [DECIDED] (revised in v1.0; see §4.1):**
@@ -145,14 +144,14 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
  ┌──────┴──────────────────────────────────────────────────────────────┐
  │ Adapters                      lib/adapters/                         │
  │  postgres (Kysely) · supabase-browser · supabase-auth · web-push ·   │
- │  resend · splitwise · system-clock · crypto-ids · in-memory fakes    │
+ │  system-clock · crypto-ids · in-memory fakes                         │
  └─────────────────────────────────────────────────────────────────────┘
 ```
 
 **Rules**
 1. **Domain** imports nothing outside `lib/domain/`. Time, ids, and settings are passed in as arguments. Functions return values (including `Result<T, E>` for expected failures) and never throw for business rules.
 2. **Use cases** receive every dependency through a `deps` argument (**constructor/factory injection, no service locator, no DI container**). A use case never reads `process.env`, never imports an adapter, and never calls `new Date()`.
-3. **Adapters** are the only code that knows about Supabase, Postgres rows, Kysely, `web-push`, Resend, or Splitwise. Generated DB types stay here. Adapters map rows ↔ domain types with explicit `toDomain` / `toRow` functions.
+3. **Adapters** are the only code that knows about Supabase, Postgres rows, Kysely, or `web-push`. Generated DB types stay here. Adapters map rows ↔ domain types with explicit `toDomain` / `toRow` functions.
 4. **Entry points** are thin. They validate input with Zod, build deps via the composition root, call one use case, and map `Result` to an HTTP/action response. No business logic.
 5. **Every port has an in-memory fake** in `lib/adapters/memory/`, used by unit tests and Storybook. The same contract test suite runs against the fake and the Postgres adapter.
 
@@ -161,16 +160,14 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | Port | Methods (abridged) | Production adapter | Test adapter |
 |---|---|---|---|
 | `UnitOfWork` | `run<T>(actor, fn: (repos: Repos) => Promise<T>): Promise<T>`, one transaction per call | Postgres: `begin` → `set local role authenticated` + `set_config('request.jwt.claims', …)` so **RLS still applies** → `commit` | in-memory (copy-on-write) |
-| `Repos` (inside a UoW) | `artifacts`, `shopping`, `runs`, `schedule`, `feelings`, `purchases`, `votes`, `members`, `invites`, `contacts`, `claims`: each with `get` / `find…` / `save` | Kysely queries | Maps |
+| `Repos` (inside a UoW) | `items`, `feelings`, `polls`, `runs`, `costs`, `settings`, `members`, `invites`, `contacts`: each with `get` / `find…` / `save` | Kysely queries | Maps |
 | `EventSink` (inside a UoW) | `record(events: DomainEvent[])`: writes `activity_events` + `notifications_outbox` in the **same transaction** (transactional outbox) | Postgres | array |
 | `Clock` | `now(): Instant` | `systemClock` | `fixedClock(t)` |
 | `IdGenerator` | `newId<K>(): Id<K>` | `crypto.randomUUID` | sequential |
-| `HouseQueries` (read side) | `feed(houseId)`, `shoppingList(houseId)`, `calendar(houseId, range)`, `artifact(id)`, … returning domain types | Supabase browser client (RLS) | fixtures |
+| `HouseQueries` (read side) | `feed(houseId)`, `needs(houseId)`, `chores(houseId)`, `tasks(houseId)`, `openPolls(houseId)`, `openRuns(houseId)`, `calendar(houseId, range)`, `item(id)`, … returning domain types | Supabase browser client (RLS) | fixtures |
 | `ChangeFeed` | `subscribe(houseId, onChange): Unsubscribe` | Supabase Realtime | manual emitter |
 | `AuthGateway` | `createUser(email)`, `sendOtp(email)`, `verifyOtp(email, code)`, `deleteUser(id)` | Supabase Auth admin | fake |
 | `PushSender` | `send(subscription, message): Result<void, 'gone' \| 'failed'>` | `web-push` (VAPID) | recorder |
-| `EmailSender` | `send(to, message)` | Resend | recorder |
-| `SplitwiseGateway` (phase 2) | `createExpense(token, expense)` | Splitwise API | recorder |
 | `Config` | typed values (`setupToken`, `vapid`, `cronSecret`, …) | `loadConfig(process.env)` validated by Zod, **the only place env is read** | literal object |
 
 **Composition root** (`lib/compose.ts`), the one place where concrete adapters are wired:
@@ -223,10 +220,10 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- pattern applied to every house-scoped table
-alter table artifacts enable row level security;
-create policy "members read"  on artifacts for select using (is_member(house_id));
-create policy "members write" on artifacts for insert with check (is_member(house_id) and created_by = auth.uid());
-create policy "members edit"  on artifacts for update using (is_member(house_id)) with check (is_member(house_id));
+alter table items enable row level security;
+create policy "members read"  on items for select using (is_member(house_id));
+create policy "members write" on items for insert with check (is_member(house_id) and created_by = auth.uid());
+create policy "members edit"  on items for update using (is_member(house_id)) with check (is_member(house_id));
 -- no delete policy: soft-delete via archived_at only
 ```
 
@@ -255,7 +252,7 @@ Admin-only actions (invites, removing members, house settings) use an `is_admin(
 | The 6-digit code | Supabase Auth, **hashed**, single use | Expires after 10 minutes (we set this, default is 1h). Rate-limited per email/IP. |
 | Session | A refresh token in Supabase Auth, plus an access token (JWT) in the phone's browser storage/cookie | Signing out, or an admin removing a member, revokes it |
 | Display name, timezone, quiet hours | Our `profiles` table (same database) | Readable only by members of the same house |
-| House data (artifacts, feelings, photos) | Our tables + Supabase Storage, same project | Access controlled by RLS as above |
+| House data (items, feelings, polls, runs, costs) | Our tables + Supabase Storage, same project | Access controlled by RLS as above |
 
 - **Physical location:** one Supabase project in the region you pick when creating it (e.g. `us-east-1`). The data is encrypted at rest and in transit (TLS). Only you, as the Supabase project owner, can see the raw tables in the dashboard.
 - **Who else touches it:**
@@ -263,438 +260,286 @@ Admin-only actions (invites, removing members, house settings) use an `is_admin(
   - **Vercel** sees requests passing through the server routes, but it doesn't store user data beyond short-lived logs.
   - **Sentry** is configured to scrub emails and request bodies.
 - **Email sending needs Resend (or similar).** Supabase's built-in email service only delivers to your own team's addresses and is heavily rate-limited, so custom SMTP is required before roommates can sign in. Resend's free tier is enough.
-- **Deleting an account:** a "Delete my account" option in settings removes the auth user and profile. Their name on past artifacts becomes "Former roommate."
+- **Deleting an account:** a "Delete my account" option in settings removes the auth user and profile. Their name on past items becomes "Former roommate."
 
 ### 5.4 Other security decisions [DECIDED]
 
 - RLS is **enabled on every table**, and a CI test fails if any public table lacks RLS.
 - The service-role key lives only in Vercel server env vars and is never shipped to the client.
-- **Sensitive fields** (Wi‑Fi password, door code) go in a separate `artifact_secrets` table: RLS'd, excluded from Realtime publication, activity events, and notifications, and fetched only on tap-to-reveal. Encryption at rest comes from Supabase disk encryption. App-level encryption (pgsodium/Vault) is optional and deferred.
-- Storage buckets are private. The path convention `house/<house_id>/<artifact_id>/<file>` enables a storage RLS policy using `is_member`. Files are served via short-lived signed URLs.
+- **Sensitive fields** (Wi‑Fi, door codes) come later with info items (PRD §13). v1 stores no secrets.
+- File attachments come later (PRD §13). When added: private buckets, `house/<house_id>/<item_id>/<file>` paths, and signed URLs.
 - Rate limits: Supabase Auth's built-in OTP limits, plus our own limit on `/api/invites/start`, `/api/invites/accept`, and `/setup` per IP (a simple Postgres counter table, no extra vendor). Invalid-token attempts are logged.
 - CSP headers, `SameSite=Lax` cookies, and no third-party scripts besides Sentry.
 
 ---
 
-## 6. Data model
+## 6. Data model (v1)
 
-### 6.1 Artifact storage strategy — **[DECIDED] after comparing options**
+### 6.1 Storage strategy — **[DECIDED] (owner) D18: one `items` table**
 
-| Option | Description | Pros | Cons |
-|---|---|---|---|
-| **Single table + JSONB details** | `artifacts` has the common columns plus `details jsonb`, validated by per-type Zod schemas and a DB check on `type` | Simplest queries for the unified feed and priority. Easy to add types. | Weaker DB-level typing for type-specific fields |
-| **Base table + per-type extension tables** ⭐ | `artifacts` (common) + `chore_details`, `one_off_details`, `purchase_details` (1:1, PK = artifact_id) | The unified feed queries only the base table. Type-specific fields are real, typed, indexable columns. FK integrity (e.g. `contact_id`). | More joins and migrations |
-| Table per type, no base | Separate `chores`, `one_offs`, `purchases`, ... | Strong typing | The unified feed, feelings, tags, and activity need polymorphic FKs, which is painful |
+v1 has three item categories (need, chore, task), and each adds only one or two columns. So they share **one table**, with CHECK constraints tying each category-specific column to its category. Polls, runs, costs, and feelings are **their own tables** that point at items.
 
-**Chosen: base + extension tables.** Feelings, tags, attachments, and activity all FK to `artifacts.id`, and money/date fields that cron jobs query (bill due day, outside-help follow-up date, vote deadline, schedule entry times) are real columns.
+| Option | Why not (for v1) |
+|---|---|
+| Base + a detail table per category (previous draft) | Three extra 1:1 tables for 1–2 columns each. More joins and migrations for no real gain at this size. |
+| JSON details column | The database can't enforce anything about the JSON |
+| Item + optional "component" tables | Designed for items that gain features over time. v1 creates new linked items instead (D15), so it isn't needed. |
 
-### 6.1b Category → features
+**If a category grows a lot later** (e.g. bills with cadence and payment history), it gets its own detail table then, keyed `(item_id, category)` with a composite foreign key. That's the same pattern as before, adopted only when it's earned.
 
-Every row is an `artifacts` row. The category decides which detail table exists and which features the UI shows.
-
-| Feature | Chore | One-off | Run | Purchase | Heads-up | Info |
-|---|---|---|---|---|---|---|
-| Detail table | `chore_details` | `one_off_details` | `run_details` + `run_items` | `purchase_details` | none (its `schedule_entries`) | none (+ `artifact_secrets`) |
-| Assignee | none by default (mode) | optional; point person if outside help | the runner / point person | buyer / payer | optional | none |
-| Repeats / rotation | mode: anyone · rhythm · rotating · fixed | | | bill: cadence | | |
-| Outside help + contact log | | ✓ | visit: `contact_id` | | | |
-| Can go on a run | ✓ | ✓ | | | | |
-| Schedule entries | rare | rare (visits are runs) | optional (visit: required) | rare | required, ≥ 1 | |
-| Linked purchases | ✓ | ✓ | the supplies it produced | (is the purchase) | | |
-| Priority score / in feed | as needed: only with a feeling · rhythm: once past · rotating/fixed: due | ✓ | ✗ (Runs in progress) | bill due · open vote | ✗ (Coming up) | ✗ |
-| Feelings | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ |
-| Done means | `last_done_*` updated (rotating/fixed: next occurrence spawned) | completed / Fixed | finished, with per-item outcomes | settled (owned, supplies) · a bill is never done | last entry passed → auto-archived | n/a |
-
-### 6.2 Schema (initial)
+### 6.2 Schema
 
 ```
-profiles            (id = auth.users.id, display_name, theme: auto|light|dark, timezone, quiet_start, quiet_end, created_at)
+-- house & people (unchanged) -------------------------------------------------------
+profiles        (id = auth.users.id, display_name, theme: auto|light|dark, timezone, quiet_start, quiet_end, created_at)
+houses          (id, name, address, unit, created_by, created_at,
+                 settings jsonb)   -- { timezone, feeling_weights: {anxious:20, frustrated:15, confused:5, fine:0, meh:-5, thanks:0}, invite_ttl_days }
+house_members   (house_id, user_id, role: admin|member, status: active|moved_out, room_id null, joined_at, left_at)  PK(house_id, user_id)
+rooms           (id, house_id, name, floor: first|basement|outside, kind, element: air|fire|water|earth|null, sort_order, archived_at)
+house_invites   (id, house_id, token_hash, created_by, expires_at, max_uses, uses, revoked_at)
+contacts        (id, house_id, name, phone null, note null)
 
-houses              (id, name, address, unit, created_by, settings jsonb, created_at)
-                     settings: { timezone, priority_weights, priority_preset, stall_days, invite_ttl_days }
-house_members       (house_id, user_id, role: admin|member, status: active|moved_out,
-                     room_id null,            -- their bedroom; its element sets their avatar color
-                     joined_at, left_at)  PK(house_id, user_id)
-rooms               (id, house_id, name, floor: first|basement|outside, kind: bedroom|bath|common|utility|outdoor|entry,
-                     element: air|fire|water|earth|null, sort_order, archived_at)   unique(house_id, name)
-                     -- seeded at house setup from the apartment layout (FRONTEND.md §4.1)
-house_invites       (id, house_id, token_hash, created_by, expires_at, max_uses, uses, revoked_at)
+-- items: needs, chores, tasks ----------------------------------------------------
+items           (id, house_id,
+                 category: need|chore|task,                 -- never changes (D15)
+                 title, note null, room_id null,
+                 assignee_id null,                          -- "who's on it"; null = anyone
+                 when_at null, when_has_time bool,          -- due / needed by / scheduled
+                 priority: low|normal|high|urgent  default 'normal',
+                 need_soon bool default false,              -- needs only
+                 repeat_days int null,                      -- chores only: null = as needed
+                 last_done_at null, last_done_by null,      -- chores only
+                 contact_id null,                           -- tasks only: "handled by"
+                 done_at null, done_by null,                -- needs & tasks (chores use last_done_*)
+                 created_by, created_at, updated_at, archived_at null)
+                 check (category = 'need'  or need_soon = false)
+                 check (category = 'chore' or (repeat_days is null and last_done_at is null and last_done_by is null))
+                 check (category = 'task'  or contact_id is null)
+                 check (category <> 'chore' or done_at is null)          -- chores are never "done", only "last done"
+                 unique (house_id, lower(title)) where category = 'need' and done_at is null and archived_at is null
+                                                                          -- adding a need that's already open points to it
 
-artifacts           (id, house_id, category: chore|one_off|run|purchase|heads_up|info, title, description,
-                     base_priority: low|normal|high|urgent, due_at, pinned bool, room_id null,
-                     created_by, created_at, updated_at, last_activity_at, completed_at, archived_at)
-artifact_assignees  (artifact_id, user_id)
-artifact_links      (item_id, purchase_id, created_by, created_at)   PK(item_id, purchase_id)
-                     -- owner: chores/one-offs link to purchases; shown on both sides.
-                     -- item_id must be a chore or one_off; purchase_id must be a purchase (checked by the domain + a composite FK on (id, category)).
-tags                (id, house_id, name, color)          unique(house_id, name)
-artifact_tags       (artifact_id, tag_id)
-attachments         (id, artifact_id, house_id, storage_path, mime, size, uploaded_by, created_at)
-artifact_secrets    (artifact_id, house_id, label, value)   -- tap-to-reveal only
+feelings        (item_id, user_id, house_id, kind: anxious|frustrated|confused|fine|meh|thanks, note null, updated_at)
+                 PK(item_id, user_id)       -- previous versions come from activity_events for the "Earlier" list
 
--- chores ------------------------------------------------------------
-chore_details       (artifact_id PK,
-                     mode: anyone|rhythm|rotating|fixed  default 'anyone',   -- owner: flexible by default
-                     rhythm_days int null,                                    -- rhythm: "usually every N days"
-                     rrule null, rotation_order uuid[] null, rotation_index int null, series_id null,  -- rotating / fixed only
-                     last_done_at null, last_done_by null,
-                     checklist jsonb)
-                     -- anyone/rhythm: one long-lived row; "done" updates last_done_*.
-                     -- rotating/fixed: an occurrence per turn (series_id), as before.
+-- polls --------------------------------------------------------------------------
+polls           (id, house_id, question, item_id null,      -- about an item, or standalone ("house name")
+                 closes_at null, closed_at null, created_by, created_at)
+poll_options    (id, poll_id, label, note null, added_by, added_at, sort_order)
+                 unique (poll_id, lower(label))           -- options can be added while the poll is open
+poll_votes      (poll_id, user_id, option_id, voted_at)     PK(poll_id, user_id)   -- one vote each, changeable while open
 
--- shopping list (the pool; owner: one shared list, everything shared) -------------
-shopping_items      (id, house_id, name, name_normalized, note null,
-                     need_soon bool default false,
-                     added_by, added_at,
-                     status: open|done  default 'open', done_by null, done_at null)
-                     unique(house_id, name_normalized) where status = 'open'   -- re-adding = +1 instead of a duplicate
-shopping_plus_ones  (shopping_item_id, user_id, created_at)   PK(shopping_item_id, user_id)   -- "me too"
+-- runs ---------------------------------------------------------------------------
+runs            (id, house_id, title, runner_id null, contact_id null,   -- contact = a visit (the super)
+                 when_at null, when_has_time bool,
+                 status: open|finished  default 'open', finished_at null, created_by, created_at)
+run_items       (run_id, item_id, done bool default false)  PK(run_id, item_id)
+run_claims      (item_id PK, run_id)                        -- a row only while the run is open → one open run per item
 
--- runs (owner: batches for shopping, errands, visits) ------------------------------
-run_details         (artifact_id PK, kind: shopping|errand|visit,
-                     runner_id null,                  -- roommate doing it (shopping/errand) or point person (visit)
-                     contact_id null,                 -- visit: who's coming (required for kind = visit)
-                     status: open|finished  default 'open', finished_at null,
-                     supplies_purchase_id null)       -- the purchase created at "Did you spend money?"
-                     -- the run's time, if any, is a schedule_entries row owned by the run
-run_items           (id, run_id → artifacts.id,
-                     artifact_id → artifacts.id  null,           -- a one-off or chore
-                     shopping_item_id → shopping_items.id null,  -- a shopping item
-                     outcome: pending|done|not_done  default 'pending',
-                     note null, added_by, added_at)
-                     check (num_nonnulls(artifact_id, shopping_item_id) = 1)
-                     unique(run_id, artifact_id), unique(run_id, shopping_item_id)
-                     -- the referenced artifact must be a chore or one_off (domain rule + composite FK on (id, category));
-                     -- "one open claim at a time" is enforced by run_claims (below); history across runs is kept
-run_claims          (run_id, artifact_id null unique, shopping_item_id null unique)
-                     check (num_nonnulls(artifact_id, shopping_item_id) = 1)
-                     -- a row exists only while the item is on an OPEN run; deleted when the run finishes
+-- money --------------------------------------------------------------------------
+costs           (id, house_id, amount_cents, paid_by, note null,
+                 item_id null, run_id null,                 -- what it was for (at most one)
+                 splitwise_copied_at null, created_by, created_at)
+                 check (num_nonnulls(item_id, run_id) <= 1)
 
--- one-offs ----------------------------------------------------------
-one_off_details     (artifact_id PK, broken bool default false, checklist jsonb,
-                     handler: us|outside  default 'us',                     -- owner: two levels only
-                     contact_id null,                                       -- required when handler = 'outside'
-                     outside_stage: not_contacted|reached_out|heard_back|scheduled|fixed  null,
-                     stalled bool default false, last_outside_update_at null)
-                     check (handler = 'us' or contact_id is not null)
-                     -- escalated one-offs must have exactly one assignee (the point person): enforced by the `escalateOneOff` domain function (the `OneOff` type only allows a single `pointPerson`)
-                     -- the visit time lives in schedule_entries, not here
-contact_log         (id, one_off_id, house_id, at, channel: call|text|email|portal|in_person, note, by_user)
-contacts            (id, house_id, name, role, phone, email, preferred_channel, notes)
-
--- heads-ups / schedule (owner: option D, every entry belongs to exactly one artifact) ----
-schedule_entries    (id, house_id, artifact_id NOT NULL,       -- the parent item, or a heads_up artifact for standalone ones
-                     title null,                               -- null = use the artifact's title
-                     starts_at, ends_at null, all_day bool,
-                     room_id null,                             -- null = use the artifact's room
-                     note null, created_by, created_at, canceled_at null)
-schedule_acks       (entry_id, user_id, acked_at)   PK(entry_id, user_id)   -- "Got it 👍"
-                     -- heads_up artifacts have no *_details table; their entries carry the time.
-
--- purchases ---------------------------------------------------------
-purchase_details    (artifact_id PK, kind: owned|bill|supplies, amount_cents, amount_varies bool,
-                     paid_by / purchased_by, split jsonb, contact_id null, splitwise_expense_id null,
-                     -- owned
-                     purchased_at, store, return_by, settled_at null, outcome: kept|returned|no_vote  null,
-                     -- owner: settled = out of the feed, still the ownership record. 'returned' is set when the linked return one-off completes;
-                     -- the hourly close-votes job sets 'no_vote' once return_by passes with no ballots.
-                     -- bill
-                     cadence: monthly|quarterly|yearly, due_day, account_holder_id, account_last4, portal_url,
-                     next_amount_cents null,   -- one-off override for the upcoming payment only; cleared when it's paid
-                     -- supplies: settled_at = purchased_at (settled immediately)
-                     )
-                     -- amount_cents on a bill is the *current* amount (editable, "from now on"). History lives in purchase_payments
-                     -- (actual amounts per period) + activity_events (every amount change, old → new, scope).
-purchase_payments   (id, purchase_id, period_start, amount_cents, paid_by, paid_at, splitwise_expense_id)   -- bills only
-                     -- amount_cents = what was actually paid; never rewritten when the bill's amount changes
-ownership_shares    (artifact_id, user_id, share_bps)   -- owned only; basis points, sum = 10000
-votes               (id, artifact_id, house_id, kind: keep_return, opened_by, deadline,
-                     closed_at, outcome: keep|return|tie)
-vote_ballots        (vote_id, user_id, choice: keep|return|abstain, cast_at)
-
-feelings            (artifact_id, user_id, house_id, feeling: anxious|frustrated|confused|fine|meh|thanks,
-                     note, updated_at)   PK(artifact_id, user_id)
-                     -- owner: no comments table. Feeling + note is the conversation. Previous versions are read from
-                     -- activity_events (kind = 'feeling_changed', payload has the old feeling + note) for the "Earlier" list.
-
-activity_events     (id bigserial, house_id, actor_id, artifact_id null, kind, payload jsonb, created_at)
-push_subscriptions  (id, user_id, endpoint, p256dh, auth, user_agent, created_at, last_ok_at)
-notification_prefs  (user_id, category, enabled)
-notifications_outbox(id, user_id, house_id, category, title, body, url, send_after, sent_at, error)
-splitwise_accounts  (user_id, access_token_enc, refresh_token_enc, splitwise_user_id)   -- phase 2
+-- infrastructure (unchanged) -----------------------------------------------------
+activity_events       (id bigserial, house_id, actor_id, kind, item_id null, poll_id null, run_id null, payload jsonb, created_at)
+push_subscriptions    (id, user_id, endpoint, p256dh, auth, user_agent, created_at, last_ok_at)
+notification_prefs    (user_id, category, enabled)
+notifications_outbox  (id, user_id, house_id, category, title, body, url, send_after, sent_at, error)
 ```
 
-Indexes: `run_items(artifact_id) where outcome = 'pending'`, `run_items(shopping_item_id) where outcome = 'pending'`, `artifacts(house_id, archived_at, due_at)`, `schedule_entries(house_id, starts_at) where canceled_at is null`, `shopping_items(house_id) where status = 'open'`, `artifacts(room_id) where archived_at is null`, `artifacts(house_id, last_activity_at desc)`, `activity_events(house_id, created_at desc)`, `feelings(artifact_id)`, `notifications_outbox(sent_at) where sent_at is null`.
+**9 app tables** (items, feelings, polls, poll_options, poll_votes, runs, run_items, run_claims, costs) plus house, people, and infrastructure. Every table has `house_id` (directly or through its parent) and RLS via `is_member(house_id)` (§5.2).
 
-**Feelings are always named (owner).** The client reads `feelings` directly, with no masking view.
+Indexes: `items(house_id, category) where archived_at is null`, `items(house_id, when_at) where when_at is not null`, `runs(house_id, when_at)`, `polls(house_id) where closed_at is null`, `costs(house_id, created_at)`, `activity_events(house_id, created_at desc)`, `notifications_outbox(sent_at) where sent_at is null`.
 
-**Money:** always stored as integer cents plus a house currency (USD default). Never floats.
-
-**Time:** all timestamps are `timestamptz` in UTC. Due dates for chores are **local dates** in the house's timezone (stored in `houses.settings.timezone`), so "due Tuesday" doesn't drift.
+**Money** is integer cents. **Time** is `timestamptz` in UTC, and dates without a time are interpreted in the house timezone.
 
 ### 6.3 Domain model: standalone types (`lib/domain/types.ts`)
 
-The tables in §6.2 are the **storage** shape. The code works with **domain types** that are standalone:
-- plain, immutable, serializable objects with no methods and no ORM or Supabase types
-- **discriminated unions**, so illegal states can't be represented. A bill can't have a `return_by`, a visit can't lack a contact, and an escalated one-off always has exactly one point person.
-- adapters convert between rows and these types (`toDomain` / `toRow`), and that mapping is covered by contract tests
+Plain, immutable, serializable objects, and **discriminated unions** so invalid states can't be represented (a need can't have a repeat, a chore can't be "done"). Adapters map rows ↔ these types.
 
 ```ts
 // ---- primitives ----
 type Id<K extends string> = string & { readonly __id: K }
-type TagId = Id<'tag'>; type ChecklistItem = { text: string; done: boolean }
-type UserId = Id<'user'>; type HouseId = Id<'house'>; type ArtifactId = Id<'artifact'>
-type RoomId = Id<'room'>; type ContactId = Id<'contact'>; type ShoppingItemId = Id<'shopping'>
-type RunItemId = Id<'run_item'>; type EntryId = Id<'entry'>
-type Instant = { readonly epochMs: number }          // a moment in UTC
-type LocalDate = `${number}-${number}-${number}`     // a calendar day in the house timezone
-type Cents = number & { readonly __cents: true }     // integer money
+type UserId = Id<'user'>; type HouseId = Id<'house'>; type ItemId = Id<'item'>; type RoomId = Id<'room'>
+type ContactId = Id<'contact'>; type PollId = Id<'poll'>; type OptionId = Id<'option'>; type RunId = Id<'run'>; type CostId = Id<'cost'>
+type Instant = { readonly epochMs: number }
+type When = { date: LocalDate; time?: string }           // local to the house timezone
+type LocalDate = `${number}-${number}-${number}`
+type Cents = number & { readonly __cents: true }
 type Actor = { kind: 'member'; userId: UserId; houseId: HouseId } | { kind: 'system'; houseId: HouseId }
 type Result<T, E extends string> = { ok: true; value: T } | { ok: false; error: E }
 
-// ---- artifacts ----
-interface ArtifactBase {
-  id: ArtifactId; houseId: HouseId; title: string; description?: string
-  roomId?: RoomId; tagIds: readonly TagId[]; basePriority: 'low' | 'normal' | 'high' | 'urgent'
+// ---- items ----
+interface ItemBase {
+  id: ItemId; houseId: HouseId; title: string; note?: string; roomId?: RoomId
+  assignee?: UserId; when?: When; priority: 'low' | 'normal' | 'high' | 'urgent'
   createdBy: UserId; createdAt: Instant; archivedAt?: Instant
-  linkedPurchaseIds: readonly ArtifactId[]
 }
-type Artifact = Chore | OneOff | Run | Purchase | HeadsUp | Info
+type Done = { at: Instant; by: UserId }
+type Need  = ItemBase & { category: 'need';  needSoon: boolean; done?: Done }
+type Chore = ItemBase & { category: 'chore'; repeatDays: number | null; lastDone?: Done }   // null = as needed
+type Task  = ItemBase & { category: 'task';  contactId?: ContactId; done?: Done }
+type Item = Need | Chore | Task
 
-type Chore = ArtifactBase & {
-  category: 'chore'; checklist: readonly ChecklistItem[]
-  lastDone?: { at: Instant; by: UserId }
-  schedule:
-    | { mode: 'anyone' }
-    | { mode: 'rhythm'; everyDays: number }
-    | { mode: 'rotating'; rrule: string; rotation: readonly UserId[]; turn: UserId; due: LocalDate; seriesId: string }
-    | { mode: 'fixed'; rrule: string; assignee: UserId; due: LocalDate; seriesId: string }
-}
-
-type OneOff = ArtifactBase & {
-  category: 'one_off'; broken: boolean; checklist: readonly ChecklistItem[]; due?: LocalDate
-  status: { state: 'open' } | { state: 'done'; at: Instant; by: UserId }
-  help:
-    | { handler: 'us'; assignees: readonly UserId[] }
-    | { handler: 'outside'; contactId: ContactId; pointPerson: UserId; stage: OutsideStage
-        stalled: boolean; lastUpdateAt: Instant; log: readonly ContactAttempt[] }
-}
-type OutsideStage = 'not_contacted' | 'reached_out' | 'heard_back' | 'scheduled' | 'fixed'
-
-type Run = ArtifactBase & {
-  category: 'run'
-  who: { kind: 'shopping' | 'errand'; runner: UserId } | { kind: 'visit'; contactId: ContactId; pointPerson: UserId }
-  items: readonly RunItem[]
-  status: { state: 'open' } | { state: 'finished'; at: Instant; suppliesPurchaseId?: ArtifactId }
-}
-type ItemRef = { type: 'artifact'; id: ArtifactId } | { type: 'shopping'; id: ShoppingItemId }
-type RunItem = { id: RunItemId; ref: ItemRef; outcome: 'pending' | 'done' | { notDone: string | null } }
-
-type Purchase = ArtifactBase & { category: 'purchase'; payer: UserId; split: Split } & (
-  | { kind: 'owned'; price: Cents; purchasedAt: Instant; store?: string; returnBy?: LocalDate
-      ownership: readonly { user: UserId; bps: number }[]
-      settlement?: { at: Instant; outcome: 'kept' | 'returned' | 'no_vote' } }
-  | { kind: 'bill'; amount: Cents; varies: boolean; nextPaymentOverride?: Cents
-      cadence: 'monthly' | 'quarterly' | 'yearly'; nextDue: LocalDate
-      accountHolder: UserId; contactId?: ContactId; account?: { last4: string; portalUrl?: string } }
-  | { kind: 'supplies'; amount: Cents; purchasedAt: Instant; items: readonly string[] }
-)
-type Split =
-  | { type: 'equal'; among: readonly UserId[] }
-  | { type: 'percent'; shares: readonly { user: UserId; bps: number }[] }
-  | { type: 'amounts'; shares: readonly { user: UserId; cents: Cents }[] }
-
-type Bill = Extract<Purchase, { kind: 'bill' }>; type OwnedPurchase = Extract<Purchase, { kind: 'owned' }>
-type Scorable = Chore | OneOff | Bill | OwnedPurchase               // what the priority score applies to
-
-type HeadsUp = ArtifactBase & { category: 'heads_up' }            // its time lives in ScheduleEntry
-type Info = ArtifactBase & { category: 'info'; body: string; pinned: boolean; hasSecret: boolean }
-
-// ---- standalone (non-artifact) objects ----
-type ShoppingItem = { id: ShoppingItemId; houseId: HouseId; name: string; note?: string; needSoon: boolean
-  plusOnes: readonly UserId[]; addedBy: UserId; addedAt: Instant
-  status: { state: 'open' } | { state: 'done'; at: Instant; by: UserId } }
-type ScheduleEntry = { id: EntryId; artifactId: ArtifactId; starts: Instant; ends?: Instant; allDay: boolean
-  titleOverride?: string; roomOverride?: RoomId; note?: string; acks: readonly UserId[]; canceled: boolean }
-type Feeling = { artifactId: ArtifactId; by: UserId; kind: FeelingKind; note?: string; at: Instant }
 type FeelingKind = 'anxious' | 'frustrated' | 'confused' | 'fine' | 'meh' | 'thanks'
-type ContactAttempt = { at: Instant; channel: 'call' | 'text' | 'email' | 'portal' | 'in_person'; note: string; by: UserId }
-type Payment = { purchaseId: ArtifactId; periodStart: LocalDate; amount: Cents; paidBy: UserId; paidAt: Instant }
-type Vote = { artifactId: ArtifactId; deadline: Instant; ballots: readonly { user: UserId; choice: 'keep' | 'return' | 'abstain' }[] }
-type Member = { userId: UserId; houseId: HouseId; name: string; role: 'admin' | 'member'
-  status: 'active' | 'moved_out'; roomId?: RoomId }
-type Invite = { id: Id<'invite'>; houseId: HouseId; tokenHash: string; expiresAt: Instant
-  maxUses: number; uses: number; revokedAt?: Instant }
-type HouseSettings = { timezone: string; priorityWeights: PriorityWeights; stallDays: number; inviteTtlDays: number }
-type PriorityWeights = { base: Record<'low'|'normal'|'high'|'urgent', number>
-  feelings: Record<FeelingKind, number>; outsideBoost: number; staleCap: number /* … §8.1 of the PRD */ }
+type Feeling = { itemId: ItemId; by: UserId; kind: FeelingKind; note?: string; at: Instant }
+type FeelingWeights = Record<FeelingKind, number>
+
+// ---- polls ----
+type Poll = { id: PollId; houseId: HouseId; question: string; itemId?: ItemId
+  options: readonly { id: OptionId; label: string; note?: string; addedBy: UserId }[]
+  votes: readonly { user: UserId; option: OptionId }[]
+  closesAt?: Instant; createdBy: UserId
+  state: { open: true } | { open: false; closedAt: Instant; result: { winner: OptionId } | { tie: readonly OptionId[] } | { noVotes: true } } }
+
+// ---- runs ----
+type Run = { id: RunId; houseId: HouseId; title: string; when?: When
+  who: { runner: UserId } | { contactId: ContactId; pointPerson?: UserId }     // a visit has a contact
+  items: readonly { itemId: ItemId; done: boolean }[]
+  state: { open: true } | { open: false; finishedAt: Instant } }
+
+// ---- money ----
+type Cost = { id: CostId; houseId: HouseId; amount: Cents; paidBy: UserId; note?: string
+  for?: { item: ItemId } | { run: RunId }; createdAt: Instant }
+
+type HouseSettings = { timezone: string; feelingWeights: FeelingWeights; inviteTtlDays: number }
 
 // ---- events (returned by domain functions, recorded by EventSink) ----
 type DomainEvent =
-  | { type: 'chore.completed'; choreId: ArtifactId; by: UserId; at: Instant; nextId?: ArtifactId }
-  | { type: 'one_off.escalated'; id: ArtifactId; contactId: ContactId; pointPerson: UserId; at: Instant }
-  | { type: 'run.started'; runId: ArtifactId; items: number; by: UserId; at: Instant }
-  | { type: 'run.finished'; runId: ArtifactId; done: number; returned: number; at: Instant }
-  | { type: 'feeling.set'; artifactId: ArtifactId; by: UserId; next: Feeling | null; previous: Feeling | null }
-  | { type: 'purchase.amount_changed'; id: ArtifactId; from: Cents; to: Cents; scope: 'from_now_on' | 'this_payment' }
-  | { type: 'purchase.paid'; id: ArtifactId; payment: Payment }
-  | { type: 'vote.closed'; id: ArtifactId; outcome: 'keep' | 'return' | 'tie' }
-  | { type: 'member.joined'; userId: UserId; at: Instant }
-  // …one variant per activity-log kind in the PRD §9
+  | { type: 'item.created' | 'item.edited' | 'item.archived'; itemId: ItemId; by: UserId }
+  | { type: 'item.done'; itemId: ItemId; by: UserId; viaRun?: RunId }
+  | { type: 'chore.done'; itemId: ItemId; by: UserId }
+  | { type: 'feeling.set'; itemId: ItemId; by: UserId; next: Feeling | null; previous: Feeling | null }
+  | { type: 'poll.created' | 'poll.voted'; pollId: PollId; by: UserId }
+  | { type: 'poll.option_added'; pollId: PollId; optionId: OptionId; by: UserId }
+  | { type: 'task.handled_by_changed'; itemId: ItemId; by: UserId; from: ContactId | null; to: ContactId | null }
+  | { type: 'poll.closed'; pollId: PollId; result: Poll['state'] }
+  | { type: 'run.started'; runId: RunId; by: UserId; count: number }
+  | { type: 'run.finished'; runId: RunId; done: number; returned: number }
+  | { type: 'cost.added'; costId: CostId; by: UserId; amount: Cents }
+  | { type: 'settings.feeling_weights_changed'; by: UserId; from: FeelingWeights; to: FeelingWeights }
+  | { type: 'member.joined'; userId: UserId }
 ```
-
-**Changes to the storage schema that fall out of this:**
-- **`artifacts.status` and `norm_status` are replaced** by per-category state in the detail tables. The feed's "is it open?" becomes a pure domain function (`isOpen(artifact)`), not a duplicated column.
-- **`purchase_details` "paid_by / purchased_by"** becomes one column, `payer_id`.
-- **`split jsonb`, `checklist jsonb`, and `houses.settings jsonb`** are each validated by the Zod schema of their domain type at the adapter boundary.
-- **Claims:** the "one open claim per item" trigger becomes a constraint table, `run_claims(run_id, artifact_id unique null, shopping_item_id unique null)`. The UoW inserts a row when an item joins an open run and deletes it on finish, so the unique index enforces the rule with no trigger logic.
 
 ### 6.4 Activity log implementation
 
-- **[DECIDED] (v1.0)** No triggers. Every use case returns **domain events** (§6.3), and `EventSink.record(events)` writes them to `activity_events` in the **same transaction** as the change, so the log can't miss a change or record one that rolled back.
-- `activityRowFor(event): ActivityRow | null` is a pure function (it drops noise and never includes `artifact_secrets` values). A `feeling.set` event carries the previous feeling + note, which powers the "Earlier" list.
-- The actor comes from the use case's `actor` argument. A `system` actor (cron) shows as "Roomies." 
-- The activity feed is a paginated select (keyset on `id`).
+- Every use case returns **domain events** (§6.3), and `EventSink.record(events)` writes them to `activity_events` in the **same transaction** as the change. No triggers.
+- `activityRowFor(event)` is pure. A `feeling.set` event carries the previous feeling + note, which powers the "Earlier" list.
+- The actor comes from the use case's `actor` argument. A `system` actor (jobs) shows as "Roomies."
 
 ---
 
 ## 7. Key flows
 
-### 7.1 Priority computation
+### 7.1 Priority
 
-- **[DECIDED] A5: computed at read time by one pure function**, `scorePriority(item, feelings, weights, now, tz): PriorityResult` in `lib/domain/priority.ts`. It returns `{ score, tier, breakdown }`, where `breakdown` powers "Why is this here?"
-- It's never stored, because the score depends on the current time. `now` is **an argument**, so the same function runs in the browser (feed), in jobs (reminders), and in tests with a fixed clock. There's no SQL copy of the formula.
+- **One pure function:** `scorePriority(item, feelings, weights, now, tz): { score, tier, breakdown }`. `weights` comes from `HouseSettings.feelingWeights`, and `now` is an argument. It runs in the browser (feed), in jobs, and in tests with a fixed clock.
+- **`isInFeed(item, feelings, now, tz)`** applies the PRD §8.1 rules (tasks not done, chores past their rhythm or with a feeling, needs with a feeling or needed-by within 7 days).
+- **Never stored**, because it depends on today's date.
 
-### 7.2 Repeating chores
+### 7.2 Function catalog
 
-- The recurrence rule is stored on `chore_details` for the current occurrence, and all occurrences share a `series_id`.
-- **Generate-on-complete** (not pre-generated): the use case `completeChore` calls the pure `completeChore` domain function (§7.2b), which returns the updated occurrence plus the next one (next due date from the RRULE, next person in the rotation). The UoW saves both in one transaction.
-- **Missed occurrences:** the hourly `sweepRecurrences` use case (with the injected clock) finds occurrences past due by more than the grace period (default 1 day) and, depending on the rotation mode, marks them `missed` and spawns the next one (so the schedule doesn't stall forever), or leaves them overdue. That's a house setting. Default: leave overdue and keep nagging, because chores still need doing.
-
-### 7.2b Function catalog
-
-Two kinds of functions. **Domain functions** are pure: the same input always gives the same output, and there's no I/O. **Use cases** are the only functions entry points call. Each one runs in exactly one `UnitOfWork` transaction and returns a typed `Result`.
-
-**Domain functions** (`lib/domain/*.ts`, all pure)
+**Domain functions** (`lib/domain/*.ts`, pure: no I/O, time and ids passed in)
 
 | Function | Signature | Notes |
 |---|---|---|
-| `scorePriority` | `(a: Scorable, feelings: Feeling[], w: PriorityWeights, now: Instant, tz: string) → PriorityResult` | §7.1 |
-| `isInFeed` | `(a: Artifact, feelings: Feeling[], now: Instant, tz: string) → boolean` | as-needed chores need a feeling, rhythm chores must be past their rhythm, and so on |
-| `nextOccurrence` | `(rrule: string, after: LocalDate, tz: string) → LocalDate` | wraps `rrule`, DST-safe |
-| `completeChore` | `(c: Chore, by: UserId, now: Instant, nextId: ArtifactId) → { chore: Chore; next?: Chore; events }` | `nextId` is injected, never generated inside |
-| `escalateOneOff` | `(o: OneOff, contact: ContactId, pointPerson: UserId, now: Instant) → Result<{ oneOff; events }, 'already_done'>` | |
-| `deescalateOneOff` | `(o: OneOff) → { oneOff; events }` | keeps the contact log |
-| `logContact` | `(o: OneOff, attempt: ContactAttempt) → Result<{ oneOff; events }, 'not_outside'>` | `not_contacted → reached_out`, clears `stalled` |
-| `markStalled` | `(o: OneOff, now: Instant, stallDays: number) → OneOff` | |
-| `addShoppingItem` | `(open: ShoppingItem[], name: string, by: UserId, now: Instant, newId: ShoppingItemId) → { kind: 'added' \| 'plus_one'; item; events }` | merges duplicates |
-| `startRun` | `(input: StartRunInput, claimed: ReadonlySet<string>, ids: RunIds, now: Instant) → Result<{ run: Run; entry?: ScheduleEntry; events }, 'nothing_selected' \| 'already_claimed'>` | |
-| `addToRun` | `(r: Run, refs: ItemRef[], claimed, ids) → Result<{ run; events }, 'run_finished' \| 'already_claimed'>` | |
-| `finishRun` | `(r: Run, outcomes: RunOutcome[], now: Instant) → { run: Run; effects: RunEffect[]; events }` | returns **effects** as data (see below). It doesn't touch other objects itself. |
-| `applyRunEffect` | `(effect: RunEffect, target: Artifact \| ShoppingItem, now: Instant) → Artifact \| ShoppingItem` | one pure step per effect |
-| `planVisit` | `(input: PlanVisitInput, oneOffs: OneOff[], claimed, ids, now) → Result<{ run; entry; oneOffs; events }, 'no_one_offs' \| 'already_claimed'>` | escalates any `us` one-offs to the contact |
-| `tallyVote` | `(v: Vote) → 'keep' \| 'return' \| 'tie'` | owner's rule: majority of keep vs. return |
-| `closeVote` | `(p: OwnedPurchase, v: Vote, now: Instant, returnTaskId: ArtifactId) → { purchase; returnTask?: OneOff; events }` | |
-| `changeBillAmount` | `(b: Bill, to: Cents, scope) → { bill; events }` | |
-| `markBillPaid` | `(b: Bill, amount: Cents, by: UserId, now: Instant, tz: string) → { bill; payment: Payment; events }` | advances `nextDue` by one cadence |
-| `setFeeling` | `(current: Feeling \| null, next: Feeling \| null) → { feeling; events }` | the event carries `previous` for the Earlier list |
-| `createHeadsUp` | `(input, ids, now) → { headsUp: HeadsUp; entry: ScheduleEntry; events }` | |
-| `validateInvite` | `(inv: Invite, tokenHash: string, now: Instant) → Result<Invite, 'invalid' \| 'expired' \| 'revoked' \| 'used_up'>` | |
-| `activityRowFor` | `(e: DomainEvent) → ActivityRow \| null` | used by `EventSink` |
-| `notificationsFor` | `(e: DomainEvent, members: Member[], prefs: NotificationPrefs[], now: Instant, tz: string) → OutboxMessage[]` | applies quiet hours and per-category prefs |
+| `scorePriority` | `(i: Item, f: Feeling[], w: FeelingWeights, now: Instant, tz) → { score, tier, breakdown }` | PRD §8.1 |
+| `isInFeed` | `(i: Item, f: Feeling[], now: Instant, tz) → boolean` | |
+| `createItem` | `(input: NewItem, by: UserId, now: Instant, id: ItemId, openNeeds: Need[]) → Result<{ item; events }, 'duplicate_need'>` | A duplicate open need returns the existing one's id in the error |
+| `editItem` | `(i: Item, patch: ItemPatch, by, now) → Result<{ item; events }, 'invalid_for_category'>` | Category can't change |
+| `markDone` | `(i: Need \| Task, by, now) → Result<{ item; events }, 'already_done'>` | |
+| `doChore` | `(c: Chore, by, now) → { chore; events }` | Updates last done |
+| `setFeeling` | `(current: Feeling \| null, next: Feeling \| null) → { feeling; events }` | The event carries `previous` |
+| `validateWeights` / `setFeelingWeights` | `(w: FeelingWeights) → Result<FeelingWeights, 'out_of_range'>` / `(s: HouseSettings, w, by) → { settings; events }` | −20…+40, steps of 5 |
+| `createPoll` | `(input: NewPoll, by, now, ids) → Result<{ poll; events }, 'needs_two_options'>` | |
+| `vote` | `(p: Poll, user, option) → Result<{ poll; events }, 'closed' \| 'unknown_option'>` | Changing a vote replaces it |
+| `addPollOption` | `(p: Poll, label, note?, by: UserId, id: OptionId) → Result<{ poll; events }, 'closed' \| 'duplicate_label' \| 'empty'>` | Any member, while open. Existing votes are untouched. |
+| `setHandledBy` | `(t: Task, contact: ContactId \| null, by) → { task; events }` | Via `editItem`. Only tasks accept a contact. |
+| `closePoll` | `(p: Poll, now) → { poll; events }` | Most votes wins, a tie → `{ tie }`, and no votes → `{ noVotes }` (D3) |
+| `startRun` | `(input: NewRun, items: Item[], claimed: ReadonlySet<ItemId>, by, now, id) → Result<{ run; events }, 'nothing_selected' \| 'already_claimed' \| 'done_item'>` | |
+| `addToRun` / `removeFromRun` | `(r: Run, itemIds, claimed) → Result<{ run; events }, 'finished' \| 'already_claimed'>` | |
+| `finishRun` | `(r: Run, doneIds: ItemId[], now) → { run; effects: RunEffect[]; events }` | Effects as data: `{ markDone: ItemId }` · `{ doChore: ItemId; by }` · `{ release: ItemId }` |
+| `addCost` | `(input: NewCost, by, now, id) → Result<{ cost; events }, 'not_positive'>` | |
+| `monthlySpend` | `(costs: Cost[], members: UserId[], month) → { total: Cents; perPerson: Cents }` | Equal split |
+| `validateInvite` | `(inv: Invite, tokenHash, now) → Result<Invite, 'invalid' \| 'expired' \| 'revoked' \| 'used_up'>` | |
+| `activityRowFor` / `notificationsFor` | `(e: DomainEvent, …) → ActivityRow \| null` / `→ OutboxMessage[]` | Quiet hours + prefs applied in `notificationsFor` |
 
-`RunEffect` is a plain data union: `{ type: 'shopping.done'; id }` · `{ type: 'one_off.done'; id; fixed: boolean }` · `{ type: 'one_off.returned'; id; note }` · `{ type: 'chore.done'; id; by }` · `{ type: 'supplies.create'; amount; items; payer }`. Because `finishRun` describes what should happen instead of doing it, it's testable without any other objects loaded, and the use case applies the effects inside the transaction.
+**Use cases** (`lib/app/*.ts`). Each is built as `makeX(deps)`, then called as `(actor, input) → Promise<Result<Out, Err>>` in one `UnitOfWork` transaction.
 
-**Use cases** (`lib/app/*.ts`). Each is built as `makeX(deps)`, then called as `(actor: Actor, input) → Promise<Result<Output, Error>>`.
-
-| Use case | Input (validated by Zod at the entry point) | Output | Errors | Deps |
+| Use case | Input | Output | Errors | Deps |
 |---|---|---|---|---|
-| `completeChore` | `{ choreId }` | `{ chore, next? }` | `not_found`, `forbidden` | uow, clock, ids |
-| `escalateOneOff` | `{ oneOffId, contactId, pointPerson }` | `OneOff` | `not_found`, `already_done` | uow, clock |
-| `deescalateOneOff` | `{ oneOffId }` | `OneOff` | `not_found` | uow |
-| `logContact` | `{ oneOffId, channel, note }` | `OneOff` | `not_outside` | uow, clock |
-| `completeOneOff` | `{ oneOffId }` | `OneOff` | `already_done` | uow, clock |
-| `addShoppingItem` / `grabShoppingItem` / `togglePlusOne` / `toggleNeedSoon` | `{ name }` / `{ id }` | `ShoppingItem` | `not_found` | uow, clock, ids |
-| `startRun` | `{ kind, refs[], starts? }` | `{ run, entry? }` | `nothing_selected`, `already_claimed` | uow, clock, ids |
-| `addToRun` / `removeFromRun` | `{ runId, refs[] }` / `{ runItemId }` | `Run` | `run_finished`, `already_claimed` | uow, ids |
-| `finishRun` | `{ runId, outcomes[], spentCents? }` | `{ run, suppliesPurchase? }` | `run_finished`, `not_found` | uow, clock, ids |
-| `planVisit` | `{ contactId, oneOffIds[], starts, pointPerson }` | `{ run, entry }` | `no_one_offs`, `already_claimed` | uow, clock, ids |
-| `addScheduleEntry` / `createHeadsUp` / `ackEntry` | `{ artifactId, starts, … }` / `{ title, starts, … }` / `{ entryId }` | `ScheduleEntry` | `not_found` | uow, clock, ids |
-| `setFeeling` | `{ artifactId, kind \| null, note? }` | `Feeling \| null` | `not_found`, `info_has_no_feelings` | uow, clock |
-| `castBallot` / `closeVote` | `{ artifactId, choice }` / `{ artifactId }` | `Vote` / `Purchase` | `vote_closed` | uow, clock, ids |
-| `changeBillAmount` / `markBillPaid` | `{ purchaseId, cents, scope }` / `{ purchaseId, cents? }` | `Bill` / `Payment` | `not_a_bill` | uow, clock |
-| `startInvite` / `acceptInvite` | `{ token, email, name }` / `{ token, code }` | `void` / `Member` | `invalid`, `expired`, `revoked`, `used_up`, `bad_code` | uow, clock, auth, config |
-| `setupHouse` | `{ setupToken, house, owner }` | `House` | `already_set_up`, `bad_token` | uow, clock, ids, auth, config |
-| **Jobs:** `runReminders`, `sendNotifications`, `sweepRecurrences`, `closeDueVotes`, `archivePastHeadsUps` | `{ now? }` (defaults to `clock.now()`) | counts | none | uow, clock, push, email |
+| `createItem` / `editItem` / `archiveItem` | `NewItem` / `{ id, patch }` / `{ id }` | `Item` | `duplicate_need`, `invalid_for_category`, `not_found` | uow, clock, ids |
+| `markDone` / `doChore` | `{ id }` | `Item` | `already_done`, `not_found` | uow, clock |
+| `setFeeling` | `{ itemId, kind \| null, note? }` | `Feeling \| null` | `not_found` | uow, clock |
+| `setFeelingWeights` | `{ weights }` (any member) | `HouseSettings` | `out_of_range` | uow |
+| `createPoll` / `addPollOption` / `vote` / `closePoll` | `NewPoll` / `{ pollId, label, note? }` / `{ pollId, optionId }` / `{ pollId }` | `Poll` | `needs_two_options`, `closed`, `duplicate_label` | uow, clock, ids |
+| `setHandledBy` / `createContact` | `{ taskId, contactId \| null }` / `{ name, phone? }` | `Task` / `Contact` | `not_a_task` | uow, ids |
+| `startRun` / `addToRun` / `removeFromRun` | `NewRun` / `{ runId, itemIds }` / `{ runId, itemId }` | `Run` | `nothing_selected`, `already_claimed`, `finished` | uow, clock, ids |
+| `finishRun` | `{ runId, doneIds, spentCents? }` | `{ run, cost? }` | `finished`, `not_found` | uow, clock, ids |
+| `addCost` | `{ amountCents, forItem? \| forRun?, note? }` | `Cost` | `not_positive` | uow, clock, ids |
+| `setupHouse` / `startInvite` / `acceptInvite` | as before | `House` / `void` / `Member` | as before | uow, clock, ids, auth, config |
+| **Jobs:** `runReminders`, `sendNotifications`, `closeDuePolls` | `{ now? }` | counts | none | uow, clock, push |
 
 **Worked example: `finishRun`**
 
 ```ts
-// lib/app/finishRun.ts
 export const makeFinishRun = ({ uow, clock, ids }: Pick<AppDeps, 'uow' | 'clock' | 'ids'>) =>
   (actor: Actor, input: FinishRunInput): Promise<Result<FinishRunOutput, FinishRunError>> =>
     uow.run(actor, async (repos) => {
       const run = await repos.runs.get(input.runId)
       if (!run) return err('not_found')
-      if (run.status.state === 'finished') return err('run_finished')
+      if (!run.state.open) return err('finished')
 
       const now = clock.now()
-      const { run: finished, effects, events } = domain.finishRun(run, input.outcomes, now)  // pure
-
-      for (const effect of effects) {                                                       // explicit I/O
-        const target = await repos.targetOf(effect)
-        await repos.save(domain.applyRunEffect(effect, target, now))
-      }
+      const { run: finished, effects, events } = domain.finishRun(run, input.doneIds, now)   // pure
+      for (const e of effects) await repos.items.apply(e, now)                              // markDone / doChore / release
       await repos.runs.save(finished)
-      await repos.claims.releaseAll(run.id)
-      repos.events.record(events)                                                           // activity + outbox, same tx
-      return ok({ run: finished })
-    })
 
-// app/api/runs/[id]/finish/route.ts  (entry point, thin)
-export const POST = handler(FinishRunInputSchema, (deps) => makeFinishRun(deps))
+      let cost: Cost | undefined
+      if (input.spentCents) {
+        const r = domain.addCost({ amount: input.spentCents, for: { run: run.id } }, actorUser(actor), now, ids.newId())
+        if (r.ok) { cost = r.value.cost; await repos.costs.save(cost); events.push(...r.value.events) }
+      }
+      repos.events.record(events)                                                            // activity + outbox, same tx
+      return ok({ run: finished, cost })
+    })
 ```
 
 ### 7.3 Scheduled jobs
 
-Jobs are **use cases** (§7.2b) called by an authenticated route handler (`/api/cron/*`, secret header) with `depsForJob()`. The trigger is decided below. The logic is the same use case code users hit, with the clock injected, so every job is unit-testable with `fixedClock`.
+Jobs are **use cases** called by `/api/cron/*` (secret header) with `depsForJob()`, triggered by **Supabase pg_cron + pg_net** (free). **[DECIDED]**
 
 | Job | Frequency | Does |
 |---|---|---|
-| `runReminders` | every 15 min | Finds due-soon/overdue chores, one-offs and bills, outside-help one-offs with no update in 3 days (sets `stalled`, nudges the point person), tomorrow's appointments, and closing votes → enqueues into `notifications_outbox` (idempotent via a unique key `(user, artifact, category, period)`) |
-| `sendNotifications` | every 5 min (plus right after any use case that enqueued messages) | Sends outbox rows whose `send_after <= now()`, respecting quiet hours. Web push first, then email fallback if the user has no working subscription. |
-| `runReminders` (heads-ups) | every 15 min | Enqueues evening-before (7pm house time) and morning-of (8am) notifications for upcoming `schedule_entries`, and auto-archives standalone heads-ups whose last entry has passed |
-| `closeDueVotes` | hourly | Closes votes past deadline and computes the outcome from Keep vs. Return ballots. **Return** creates a linked "Return X by {date}" one-off for the buyer. **Keep** marks it kept. **Tie** records `tie`, notifies everyone "Vote on X: tie", and does nothing else (owner). |
-| `sweepRecurrences` | hourly | Handles missed occurrences per §7.2 |
+| `runReminders` | every 15 min | Due-tomorrow / due-today tasks and chores (assignee), polls closing tomorrow, and runs with a date tomorrow → outbox (idempotent key per user/item/day) |
+| `sendNotifications` | every 5 min (plus right after any use case that enqueued) | Sends pending outbox rows by Web Push, respecting quiet hours. Drops dead subscriptions. |
+| `closeDuePolls` | hourly | Closes polls past `closes_at` and records the result |
 
-Vercel Hobby limits cron to daily on the free plan. For 5–15 minute schedules, use Vercel Pro ($20/mo), **Supabase pg_cron calling the route via `pg_net`** (free), or a free external pinger (e.g. GitHub Actions scheduled workflow, cron-job.org). **[DECIDED] Supabase pg_cron + pg_net → Vercel route** keeps cost at $0.
-
-Immediate notifications (assignment, 😰/😤 feeling, a new note on your item) are enqueued by the **use case's events**: `EventSink` calls the pure `notificationsFor(event, …)` and writes the outbox rows in the same transaction. After the commit, the entry point calls `sendNotifications` for just those rows, so they go out within seconds. No triggers or `pg_net` pokes are needed for immediate sends.
+Immediate notifications (assigned, 😰/😤, new poll, run started) come from the use case's events via `notificationsFor` and are written to the outbox in the same transaction.
 
 ### 7.4 Web Push on iOS
 
 - Requires the PWA to be **installed to the Home Screen** (iOS 16.4+), a user gesture to request permission, and a VAPID key pair.
-- Flow: the user taps "Enable notifications" in onboarding → `Notification.requestPermission()` → `pushManager.subscribe({ applicationServerKey })` → POST the subscription to `/api/push/subscribe` → stored in `push_subscriptions`.
+- Flow: the user taps "Enable notifications" → `Notification.requestPermission()` → `pushManager.subscribe({ applicationServerKey })` → POST to `/api/push/subscribe` → stored in `push_subscriptions`.
 - The server sends with `web-push`. A 404/410 response deletes the subscription.
-- The service worker handles the `push` event (show the notification) and `notificationclick` (open the deep link URL).
-- **Email fallback:** if a user has no active subscription, they get one daily digest email (not one per event) summarizing their notifications.
+- The service worker handles `push` (show) and `notificationclick` (open the deep link).
+- The email digest fallback is **later** (PRD §13).
 
 ### 7.5 Realtime
 
-- The client subscribes to `postgres_changes` on house-scoped tables filtered by `house_id=eq.<id>`. Supabase Realtime respects RLS.
-- On an event, the client invalidates the matching TanStack Query keys (a simple refetch, no manual cache merging). This is cheap at this data size.
-- Conflict policy: **last write wins** per field (updates send only changed fields). Concurrent completion or claiming of the same item is guarded inside the use cases' transactions: `run_claims` unique indexes reject double claims, and saves use optimistic concurrency (`where updated_at = :loaded`), mapping a lost race to a `conflict` error.
+- The client subscribes to `postgres_changes` on house-scoped tables filtered by `house_id`. Supabase Realtime respects RLS.
+- On an event, the client invalidates the matching TanStack Query keys.
+- Conflicts: **last write wins** per field. Double claims are rejected by `run_claims` (primary key on `item_id`). Saves use optimistic concurrency (`where updated_at = :loaded`) and map a lost race to `conflict`.
 
-### 7.6 Splitwise (phase 2)
+### 7.6 Splitwise
 
-- Register a Splitwise OAuth app. `/api/splitwise/connect` → OAuth → store tokens encrypted (Supabase Vault or AES-GCM with a server key).
-- The house admin maps the house to a Splitwise group, and members to Splitwise users (auto-match by email, manual override).
-- "Add to Splitwise" calls `/api/splitwise/expense`, which uses the *acting user's* token to `create_expense` with the split from the purchase's `Split` / ownership (via the `SplitwiseGateway` port), then stores `splitwise_expense_id`.
-- v1 link-out: `https://secure.splitwise.com/` deep link + clipboard text. No API needed.
+v1 is a link-out only: copy "{title} — ${amount}" and open Splitwise, then record `splitwise_copied_at` on the cost. The API integration is later.
 
 ### 7.7 Offline behavior
 
-**[DECIDED] Online-first.** The service worker caches the app shell so it opens instantly and shows the last cached data read-only when offline. Writes need connectivity, and the UI shows a toast if you're offline. A true offline queue isn't worth the complexity in v1.
+**[DECIDED] Online-first.** The service worker caches the app shell and shows the last cached data read-only when offline. Writes need connectivity.
 
 ---
 
@@ -710,23 +555,24 @@ app/
   h/[houseId]/
     layout.tsx         -- tab bar, house context, realtime subscription
     page.tsx           -- Home feed
-    chores/  one-offs/  purchases/  house/  calendar/
-    a/[artifactId]/    -- artifact detail (shared across types; type-specific sections)
+    needs/  chores/  tasks/  house/  calendar/
+    i/[itemId]/  p/[pollId]/  r/[runId]/   -- item, poll, and run detail
     activity/  settings/
   api/
     invites/start  invites/accept  setup  account/delete  push/subscribe  cron/*  splitwise/*
 components/
   ui/                  -- Card, Button, Chip (type/room/tier), Avatar (initials + element), Sheet, TabBar, ListRow, SegmentedControl, Toast, EmptyState
   rooms/               -- RoomPicker (grouped by floor), RoomList, RoomChip
-  artifacts/           -- ArtifactCard, ArtifactForm (per-type sections), FeelingPicker
+  items/               -- ItemCard, ItemForm (per-category fields), FeelingPicker
+  polls/  runs/        -- PollCard, PollSheet, RunPicker, RunChecklist, SpentSheet
 lib/
-  domain/              -- PURE: types.ts, priority.ts, chores.ts, oneOffs.ts, runs.ts, shopping.ts,
-                          purchases.ts, votes.ts, schedule.ts, invites.ts, events.ts, notifications.ts
+  domain/              -- PURE: types.ts, items.ts, priority.ts, polls.ts, runs.ts, costs.ts,
+                          settings.ts, invites.ts, events.ts, notifications.ts
   app/                 -- use cases (makeX(deps)), ports.ts (interfaces), errors.ts
   adapters/
     postgres/          -- Kysely UoW + repos, row ↔ domain mappers, generated DB types live here
     supabase/          -- browser HouseQueries + ChangeFeed, AuthGateway
-    push/ email/ splitwise/ clock/ ids/
+    push/ clock/ ids/
     memory/            -- in-memory fakes for every port (tests, Storybook)
   compose.ts           -- composition root: depsForRequest / depsForJob / depsForTest
   config.ts            -- loadConfig(env) (the only process.env reader)
@@ -740,7 +586,7 @@ public/
 
 iPhone UX specifics:
 - Respect `env(safe-area-inset-*)` for the notch and home indicator. The tab bar sits above the home indicator.
-- Use iOS-style bottom **sheets** for create/edit (not full-page navigations). Swipe-to-complete on chore and one-off rows. Haptics aren't available on the web, so we skip them.
+- Use iOS-style bottom **sheets** for create/edit (not full-page navigations). Swipe-to-complete on item rows. Haptics aren't available on the web, so we skip them.
 - Font sizes ≥ 16px on inputs (prevents iOS auto-zoom). Use `inputmode` / `type="tel"` etc. for the right keyboards.
 - `apple-mobile-web-app-capable`, `theme-color`, a splash/icon set, and `display: standalone`.
 - Dark mode follows the system (`prefers-color-scheme`), with a manual override. Tokens are in FRONTEND.md §3.
@@ -817,3 +663,5 @@ iPhone UX specifics:
 | A12 | Writes from the browser | Only through use cases (server actions/routes). Reads via the `HouseQueries` port. | Owner (DI request) |
 | A13 | Data objects | Standalone, immutable domain types (discriminated unions), mapped to/from rows in adapters | Owner (DI request) |
 | A14 | Activity log + notifications | Domain events recorded in the same transaction (transactional outbox). No triggers. | Owner (DI request) |
+| A15 | v1 storage | One `items` table (need / chore / task) with CHECKs. Polls, runs, costs, and feelings are their own tables. Detail tables come back per category only if one grows. | Owner (D18) |
+| A16 | v1 scope | Needs, chores, tasks, polls, runs, costs, feeling weights. Bills, belongings, rotations, outside-help stages, heads-ups, info, and email come later. | Owner (D13) |

@@ -1,8 +1,7 @@
 # Roomies — Frontend & Visual Design Guidance
 
-**Status:** Draft v0.6 (flexible chores, shopping pool, runs & visits)
+**Status:** v1 scope (2026-09-28): needs, chores, tasks, polls, runs
 **Companions:** [PRD.md](./PRD.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) (§8 covers frontend code structure) · [mockup.html](./mockup.html) (clickable prototype, open in a browser)
-**Last updated:** 2026-09-24
 
 > Same convention: **[DECIDED]** = default we'll build with, **[OPEN]** = needs your call. §10 lists every open item.
 
@@ -49,7 +48,7 @@ Color has exactly three jobs:
 | **Who / where** | The four **elements**: Air, Fire, Water, Earth, plus a neutral for shared rooms | Person avatars, room chips, the person's bedroom |
 | **How urgent** | **Plum**, the app's accent | The priority tier chips, the "+" button, primary buttons |
 
-Item *categories* (Chore, One-off, Purchase, Heads-up, Info) and states like *Outside help* or *Broken* do **not** get their own colors. They're shown with an **icon + label** on a neutral chip. Giving types, people, and tiers each their own color would make the screen noisy, and color would stop meaning anything.
+Item types (need, chore, task), polls, runs, and states like *Handled by* do **not** get their own colors. They're shown with an **icon + label** on a neutral chip. Giving types, people, and tiers each their own color would make the screen noisy, and color would stop meaning anything.
 
 Plum was chosen as the accent because it's the one warm hue that doesn't belong to any element, so "urgent" never gets confused with "Fire's."
 
@@ -132,22 +131,17 @@ Inputs are always ≥ 16px, which prevents iOS from zooming in on focus.
 
 [Lucide](https://lucide.dev) icons at a 2px stroke with round caps. Type icons:
 
-| Category / state | Icon | Label on chip |
+| Concept / state | Icon | Label on chip |
 |---|---|---|
-| Chore | `sparkles` / `repeat` | mode label: "As needed", "About weekly", "Rotates", "Fixed" |
-| Run: shopping / errand | `shopping-cart` / `route` | "Kavya's run" |
-| Run: visit | `phone` | "Super visit" |
-| On a run (badge) | `shopping-cart` / `calendar` | "On Kavya's run" / "On Super visit · Thu" |
-| Shopping item emphasis | `arrow-up` (not `flame`, which means the Fire room) | "Soon" chip, and "+2" with avatars |
-| One-off | `check-circle` | One-off |
-| One-off, broken | `wrench` | Broken |
-| One-off with outside help | `phone` | Outside help · {contact}, e.g. "Outside help · Super" |
-| Purchase: owned | `shopping-bag` | Owned |
-| Purchase: bill | `receipt` | Monthly / Quarterly / Yearly |
-| Purchase: supplies | `package` | Supplies |
-| Heads-up / schedule entry | `calendar` | the date and time, e.g. "Thu 10:00" |
-| Info | `book-open` | Info |
-| Linked purchase | `link` | the linked item's title, e.g. "🔗 Internet" |
+| Need | `shopping-bag` | Need (plus a **Soon** chip when needed soon) |
+| Chore | `sparkles` | "As needed" or "About every 7 days" |
+| Task | `check-circle` | Task |
+| Task handled by a contact | `phone` | "Handled by: Super" |
+| Poll | `vote` | "Poll · 2/4 voted" |
+| Run | `shopping-cart` (grocery/order) · `calendar` (visit/event) | "Kavya's run" / "Super visit" |
+| On a run (badge) | same as the run | "On Kavya's run · Sat" |
+| Cost | `receipt` | "$189 · Wren paid" |
+| Date | `calendar` | "Thu 10:00" / "Needed by Fri" |
 
 Element icons (for room chips and the small element icon on avatars): Air `wind`, Fire `flame`, Water `droplet`, Earth `sprout`.
 
@@ -213,7 +207,7 @@ FIRST FLOOR                                         BASEMENT
 
 ### 4.3 Feelings belong to items, not people
 
-**[DECIDED] (owner)** A feeling is about an **item** (a chore, one-off, purchase, or heads-up), never about a person as a whole. So:
+**[DECIDED] (owner)** A feeling is about an **item** (a need, chore, or task), never about a person as a whole. So:
 
 - Avatars never show feelings. There's no badge, no mood, and no "how is Maya doing" summary anywhere.
 - Feelings appear only on the item: an emoji count on the card ("😰 1") and the full list (who + note) in the item's detail view.
@@ -223,117 +217,113 @@ FIRST FLOOR                                         BASEMENT
 
 ## 5. Key screens
 
-Tabs: **Home · Chores · One-offs · Purchases · House**. The calendar opens from Home.
+Tabs: **Home · Needs · Chores · Tasks · House**. The calendar opens from Home.
 
 ### 5.1 Home
 
 ```
 ┌───────────────────────────────┐
-│ Home                    (KD)  │  ← your avatar → settings
-│ Coming up              All ›  │  ← next 7 days of schedule entries; "All" opens the calendar
-│ [Thu 10:00 Super · Fire]      │  ← horizontal scroll of entry pills:
-│ [Sat  All day Parents stay]   │     time · title · room chip
-│ ┌ We're out of… ──────── + ┐  │  ← one-line quick add to the shared shopping list
-│ Runs in progress              │  ← compact rows: "Wren's grocery run · 3 items · Sat"
+│ Home                    (KD)  │  ← your avatar → personal settings
+│ Coming up              All ›  │  ← next 7 days: dated tasks, needs, runs
+│ [Thu 10:00 Super visit]       │
+│ [Sat Wren's grocery run]      │
+│ Open polls                    │  ← "Which vacuum? · 2/4 voted"
+│ Runs in progress              │  ← "Wren's grocery run · 1/3 · Sat"
 │ Needs attention    Mine | All │
 │ ┌───────────────────────────┐ │
-│ │ ●● Top                    │ │
-│ │ Leak under the kitchen sink│ │
-│ │ [🔧 Broken] [📞 Outside   │ │
-│ │  help · Landlord] [Kitchen]│ │
-│ │ (K) Not contacted     😤1 │ │
+│ │ ●● Top          😤1       │ │
+│ │ Leak under the sink       │ │
+│ │ [✓ Task] [📞 Landlord]    │ │
+│ │ [Kitchen]                 │ │
+│ │ (K) Due yesterday         │ │
 │ └───────────────────────────┘ │
-│                          (+)  │  ← plum "+"
-│ [Home][Chores][One-offs][Purchases][House]
+│                          (+)  │
+│ [Home][Needs][Chores][Tasks][House]
 └───────────────────────────────┘
 ```
 
-- **Card anatomy:** tier chip → title → chip row (category/state chips in neutral, room chip in the room's color, linked purchase chip) → meta line (assignee avatar + status/due + feelings count).
-- **Swipe:** right = complete (chores, one-offs) or mark paid (bills), left = share a feeling.
-- Heads-ups never appear in the ranked list, only in Coming up and the calendar.
+- **Card:** tier chip → title → chips (category, handled-by, room, "On X's run") → meta line (assignee + date or last done + feelings).
+- **Swipe:** right = done, left = share a feeling.
+- A card appears when someone changes the feeling weights ("Maya set 😰 Anxious to +30").
 
 ### 5.2 Sharing a feeling (the most important interaction)
 
-Tap **🙂+** on a card or detail screen, or swipe left, to open a short bottom sheet:
-
-- Title: "How do you feel about this?" Subtitle: "Only if it matters to you. The house will see it."
-- Six big emoji buttons with labels: Anxious 😰 · Frustrated 😤 · Confused 😕 · Fine 🙂 · Not a big deal 😌 · Thanks 🙏
-- An optional note field, then **Share with the house**.
-- Confirmation toast: "Shared. The house can see how you feel. 💛"
-- Tap your own feeling to change it or **Remove my feeling**.
-- Two taps without a note, which meets the PRD's ≤ 3.
+Tap **🙂+** on a card or detail, or swipe left:
+- "How do you feel about this?" · "Only if it matters to you. The house will see it."
+- Six big emoji buttons: Anxious 😰 · Frustrated 😤 · Confused 😕 · Fine 🙂 · Not a big deal 😌 · Thanks 🙏
+- An optional note, then **Share with the house**. A toast: "Shared. The house can see how you feel. 💛"
+- Tap your own feeling to change or remove it. The old one moves to **Earlier**.
 
 ### 5.3 Add sheet (+)
 
-1. Pick a category from six tiles: **"A chore"** (ongoing upkeep), **"A one-off"** (broken thing or errand), **"A run"** (grocery run, errand run, or a visit), **"Something we bought"**, **"A heads-up"** (something happening at a time), **"House info"**.
-2. Title field (autofocused) + **Add**. Optional rows below depend on the category:
-   - **Chore:** mode (*As needed* default, *On a rhythm* → every N days, *Rotating* → who + how often, *Fixed* → who + how often), room.
-   - **One-off:** *Something's broken* toggle, **Who's handling it?** (*One of us* / *Outside help* → contact picker), room.
-   - **Purchase:** *Owned / Bill / Supplies*, amount. Bill reveals cadence + due day.
-   - **Heads-up:** **When** (date, time or all-day, optional end), room, note. It's created with its schedule entry in one step.
-3. **Room picker:** a list grouped by floor ("First floor", "Basement", "Outside"). Elemental rooms show their color dot.
+1. Pick one of five tiles: **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch).
+2. Title (autofocused) + **Add**. Optional fields by type:
+   - **Need:** Needed soon, needed by, room
+   - **Chore:** *As needed* or *About every N days*, room, optional assignee
+   - **Task:** date, room, assignee, **Handled by** (a contact)
+   - **Poll:** a question, 2+ options (each with an optional note), an optional deadline. It can be started from an item ("+ Poll about this") or on its own.
+   - **Run:** the item picker (below)
 
 ### 5.4 Item detail
 
-A full-height sheet with the tier + category chips, title, status control, then meta rows (room chip, assignee avatars, due, tags), **linked purchases**, **schedule entries** (with "+ Add to calendar"), "How the house feels" (each person's current feeling + note, with an **Earlier** list of previous notes; this is where the house discusses and decides), attachments, and a one-line history. There is no separate comments section.
+A full-height sheet:
+- category chips, title, meta rows (room, assignee, date)
+- **Tasks: "Handled by"** is always shown. It reads *One of us · Needs outside help?* or *Super · (555) 010-2231 · Copy · Change*, and either link opens **Who's handling it?**: One of us, the contacts, or **+ Someone new** (name + optional phone).
+- **Polls about this** (vote inline) + **"+ Poll about this"**
+- **Costs** (+ **Add cost**: amount, who paid, then Open Splitwise)
+- **How the house feels** (current feelings + notes, **Earlier**)
+- **"Why is this here?"** (the score breakdown)
+- **Done** (or **Did it** for a chore)
 
-### 5.4a Chores tab & the shopping list
+### 5.5 Needs tab
 
-- **Shopping list card** (top):
-  - rows sorted *Soon* → +1s → newest. Each row has a check circle (**grab**: "Got it" removes it), the name, an optional note, a **+1** button (avatars of who +1'd), and a **Soon** toggle.
-  - items on an open run show a quiet **"On Wren's run"** badge and can't be grabbed into another run
-  - an add field at the bottom (re-adding an existing item gives it a +1)
-  - a primary **Start a run** button
-- **Start a run sheet:** kind (*Groceries* / *Errands*) → a checklist of open, unclaimed items with *Select all* / *Select Soon* chips. Errands also list open one-offs and chores. Optional **When** → **Start run**. Toast: "Run started. Everyone can see what's on it."
-- **Chores list** (below): cards show the mode chip and a "Last done 9 days ago · Wren" meta line. Rhythm chores past their rhythm float to the top with "Due for a clean." One-tap **Done** from the card.
+- The shared list, *Needed soon* first. Each row has a check circle (**Got it**), the title, an optional note, a **Soon** toggle, and badges ("On Wren's run", "Poll", "$189").
+- An add field at the top: "We need…". Adding something already on the list points to the existing one.
+- **Start a run**: a sheet with a checklist of open needs (*Select all* / *Select Soon*), an optional title ("Amazon order"), and an optional date → **Start run**.
 
-### 5.4b One-offs tab, outside help & visits
+### 5.6 Chores tab
 
-- Filters: *Mine / All / Broken / Outside help*. A primary **Plan a visit** button sits above the list.
-- **Plan a visit sheet:** contact picker → a checklist of open one-offs (broken first; one-offs already escalated to that contact pre-checked) → date + time → point person → **Plan visit**. It creates one calendar entry for the visit.
-- A one-off's detail has a **"Who's handling it?"** row: *One of us* · *Outside help*. Choosing **Outside help** opens the escalate sheet (contact + point person).
-- Once escalated, the **outside-help box** shows the progress stepper, contact buttons (**Call / Text / Copy number**), **Log a contact** + the log, and "Actually, we've got it." Tapping **Scheduled** opens *Plan a visit* with this one-off pre-selected, or **"Add to the Super visit · Thu 10am"** if one is already planned.
-- Items on an open visit show **"On Super visit · Thu"**. Their detail lists every visit they've been on, with outcomes ("Thu: needs a part → Tue: fixed").
+- Chore cards sorted by how overdue they are against their rhythm (as-needed chores last), each with "Last done 9 days ago · Wren" and a one-tap **Did it**.
 
-### 5.4c Run detail
+### 5.7 Tasks tab
 
-- Header: kind chip, runner/point person, when (and a calendar entry if timed), contact for visits.
-- A **checklist** of `run_items` (each tick sets *done*). For visits, each row has *Fixed* / *Not fixed* and an optional note.
-- **Add more** opens the same picker. **Finish run** (shopping/errand) asks "Did you spend money?" → **Log purchase** / **Skip**. **Wrap up visit** asks for per-item outcomes.
-- Unticked items go back to the pool on finish. The toast says so ("2 items went back on the list").
+- Filters: *Mine / All / Outside help*.
+- **Plan a visit**: pick a contact → a checklist of open tasks (those already handled by that contact pre-checked) → date + time → **Plan visit**. This creates a run with the contact.
 
-### 5.4d Purchases tab
+### 5.8 Poll sheet
 
-- The top card is **"Your share this month: $X"**.
-- Segments: *Bills / Owned / Supplies*.
-- Bill rows show amount, due date, and payer, with a **Mark paid** check. The detail has **Change amount** (*From now on* / *Just this payment*) and the payment history.
-- Owned rows show price, buyer, and vote status ("It's a tie (1–1)"), and settle once the vote or return window is done.
-- Supplies rows show the amount, who paid, the linked run, and what was bought.
-- The purchase detail shows **linked chores/one-offs** and a **"+ Link"** button.
+- The question, and what it's about (a link to the item) if anything.
+- Options as big rows with vote counts and voter avatars. Tap to vote, tap another to change.
+- **Add an option** (label + optional note) is at the bottom while the poll is open. Each option shows who added it, and people who already voted can switch.
+- "2 of 4 voted · closes Fri." **Close poll** shows the result: "Dyson V8 wins (3–1)," or **"It's a tie. Talk it out?"**
 
-### 5.4e Calendar
+### 5.9 Run sheet
 
-- Opens from **Coming up → All**. It shows a **month grid** (a dot on days with entries, today outlined), with the selected day's entries listed below.
-- Each entry row shows the time (or "All day"), title, room chip, the parent item's category ("One-off · Outside help · Super" or "Heads-up"), and **Got it 👍** with the avatars of people who've acknowledged it.
-- Tapping an entry opens its parent item. A floating "+" here creates a standalone heads-up on the selected day.
-- **Schedule entries only (owner).** No chore or bill due dates.
+- Title, who's doing it (or which contact is coming), and the date.
+- A checklist of its items. Tick as you go. **Add more** opens the picker.
+- **Finish run** → "Did you spend money?" (amount → **Log cost**, or **Skip**) → unticked items go back to the pool ("2 went back on the list").
 
-### 5.5 House tab → Rooms & Contacts
+### 5.10 Calendar
 
-A simple list grouped by floor. Each row shows the room name, its color dot or chip, and a count of open items ("Kitchen · 3 open"). Tapping a room shows everything in it, which is handy for "what's broken in the basement?" Below the rooms is **Contacts** (landlord, super, providers), each with the number and a Copy button, and a count of the open one-offs escalated to them.
+- A month grid with dots on days that have something, and the selected day's list below: dated tasks, needs with a needed-by date, and runs. Tap one to open it.
 
-**[OPEN] F3:** Later, this could become a simple **floor plan made of colored blocks** (no illustration, just rectangles in element and neutral colors, laid out like §4.1) that you tap to open a room. Recommendation: phase 2. The list covers the need for v1.
+### 5.11 House tab
 
-### 5.6 Join, sign-in, empty states
+- **Settings → Feeling weights**: six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, **Save for the house**. "One setting for the whole house. Anyone can change it."
+- **Spent this month**: total and your share.
+- **Rooms** grouped by floor, with open-item counts. Tap a room to see its items.
+- **Contacts** with Copy number. **Roommates**. **Invite link** (admins). **Activity**.
+
+### 5.12 Join, sign-in, empty states
 
 - Join page: "Sam invited you to the apartment 🏠" → name + email → 6-digit code (six big boxes, `autocomplete="one-time-code"`) → **"Which room is yours?"** (pick from bedrooms, which sets your element color) → Add to Home Screen guide.
-- Empty states are text + an icon in a soft neutral circle + one button. For example, Chores all done: "Nothing to do. Enjoy the quiet." Nothing on the calendar: "Nothing coming up. Quiet week." House info: "Add the Wi‑Fi so nobody has to ask again."
+- Empty states are text + an icon in a soft neutral circle + one button. For example, Chores all done: "Nothing to do. Enjoy the quiet." Nothing on the calendar: "Nothing coming up. Quiet week." Needs empty: "Nothing to buy. Nice."
 
 ---
 
 ## 6. Delight (kept small)
 
-- **Complete a chore or one-off, or mark a bill paid:** the checkbox fills with a quick spring and a short burst of 5–6 small dots in the completer's element color (≤ 500ms).
+- **Mark an item done:** the checkbox fills with a quick spring and a short burst of 5–6 small dots in the completer's element color (≤ 500ms).
 - **A Top item gets resolved:** the card fades out with a gentle "Handled 💛" toast.
 - **Move-in checklist done:** a one-time full-screen card, "You're all moved in," with a confetti burst in all four element colors.
 - Everything respects `prefers-reduced-motion`, falling back to a simple fade.
@@ -347,13 +337,12 @@ A simple list grouped by floor. Each row shows the room name, its color dot or c
 
 | Situation | ✅ Write | ❌ Not |
 |---|---|---|
-| Overdue chore or one-off | "This one's been waiting a couple days" | "OVERDUE" · "You missed this" |
+| Overdue chore or task | "This one's been waiting a couple days" | "OVERDUE" · "You missed this" |
 | Due today | "Today's the day" | "DUE" |
-| Escalated, no reply | "No word from the super in 3 days. Nudge them?" | "Request stalled" |
-| Escalating | "Who should we reach out to?" | "Create external request" |
+| Planning a visit | "Who's coming?" | "Create external request" |
 | Someone shares 😰 | "Maya's feeling anxious about Radiator clanking" | "Maya flagged Radiator" |
 | Push: assigned | "You're on trash this week 🗑️" | "New assignment" |
-| Vote tie | "It's a tie (1–1). Talk it out?" | "Vote failed" |
+| Poll tie | "It's a tie (1–1). Talk it out?" | "Vote failed" |
 | Network error | "Couldn't reach the house. Check your connection and try again." | "Error 500" |
 | Invite expired | "This invite has expired. Ask a roommate for a fresh link." | "Invalid token" |
 | Archive confirm | "Archive this? You can bring it back for 30 days." | "Are you sure?" |
@@ -384,8 +373,8 @@ Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss. 
 | Concern | Decision |
 |---|---|
 | Tokens | CSS variables in `app/globals.css` for `:root`, `[data-theme=dark]`, and `@media (prefers-color-scheme: dark)`, exposed to Tailwind v4 via `@theme`. Element colors are tokens (`--air-fill`, `--air-ink`, ...), and components take an `element` prop instead of raw hex. No raw hex values in components. |
-| Components | `components/ui/`: `Card`, `Button`, `Chip` (type / room / tier), `Avatar` (initials + element), `Sheet`, `TabBar`, `ListRow`, `SegmentedControl`, `Toast`, `EmptyState`, `FeelingPicker`, `RoomPicker`, `ComingUpStrip`, `MonthCalendar`, `ShoppingList`, `RunPicker`, `RunChecklist`, `PlanVisitSheet`, `SpentMoneySheet`. Radix / Vaul for accessible sheet behavior. |
-| Data | `rooms` table (see Architecture §6), `artifacts.room_id` (optional), `house_members.room_id` for the member's bedroom, which drives their color. No per-user avatar config. |
+| Components | `components/ui/`: `Card`, `Button`, `Chip` (type / room / tier), `Avatar` (initials + element), `Sheet`, `TabBar`, `ListRow`, `SegmentedControl`, `Toast`, `EmptyState`, `FeelingPicker`, `RoomPicker`, `ComingUpStrip`, `MonthCalendar`, `NeedsList`, `PollSheet`, `RunPicker`, `RunChecklist`, `PlanVisitSheet`, `SpentSheet`, `FeelingWeights`. Radix / Vaul for accessible sheet behavior. |
+| Data | `rooms` table (see Architecture §6), `items.room_id` (optional), `house_members.room_id` for the member's bedroom, which drives their color. No per-user avatar config. |
 | Animation | CSS transitions + Framer Motion for sheets and list reordering only |
 | Safe areas | `env(safe-area-inset-*)` on the tab bar, "+" button, and sheets. `viewport-fit=cover`. |
 | Performance | Home interactive in < 2s on a mid-range iPhone over 4G. No web font on iOS. |
