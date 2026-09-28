@@ -379,6 +379,7 @@ input[type=date],input[type=time]{width:100%;font:inherit;font-size:16px;color:v
       <li><span>➕</span><span><b>Add a poll option</b> to “Which vacuum?” after it started. Voters can switch.</span></li>
       <li><span>📨</span><span><b>Landlord request</b> (Tasks → Requests &amp; visits): it was sent 2 days ago. Record the reply by selecting tasks: <i>Move to a visit</i> (accepted), <i>Back to the pool</i> with a note (“that’s on you”), or <i>Hand to</i> someone else.</span></li>
       <li><span>📝</span><span><b>Start a request</b>: Tasks → Requests &amp; visits → <b>+ New</b> → <i>Ask someone</i>. Pick the super, check the radiator, then <i>Send request</i>. (Or “Add to Super list” from the radiator itself.)</span></li>
+      <li><span>📜</span><span><b>Activity</b> (House → Activity): every change above shows up there, and a bulk move is one line. Task and run histories are read from it.</span></li>
       <li><span>⚖︎</span><span><b>Feeling weights</b> (House → Settings): set 😰 to +40 and watch the Home feed re-rank.</span></li>
       <li><span>💸</span><span><b>Add cost</b> on the vacuum once it’s bought. Tomatoes never ask.</span></li>
     </ul>
@@ -465,10 +466,10 @@ const S={
   items:[
     // needs
     {id:'n1',cat:'need',title:'Tomatoes',soon:true},
-    {id:'n2',cat:'need',title:'Oat milk',note:'the barista one',soon:true},
+    {id:'n2',cat:'need',title:'Oat milk',note:'the barista one',soon:true,run:'r2'},
     {id:'n3',cat:'need',title:'Dish soap'},
     {id:'n4',cat:'need',title:'Trash bags'},
-    {id:'n5',cat:'need',title:'Coffee'},
+    {id:'n5',cat:'need',title:'Coffee',run:'r2'},
     {id:'n6',cat:'need',title:'Toilet paper',soon:true,room:'b1'},
     {id:'n7',cat:'need',title:'Hallway lightbulbs',note:'E26, warm white',room:'hall'},
     {id:'n8',cat:'need',title:'Vacuum',room:'living',when:{day:5},priority:'normal',feelings:{s:{f:'frustrated',note:'The floors are getting gross.'}}},
@@ -481,15 +482,15 @@ const S={
     {id:'c5',cat:'chore',title:'Take out recycling',room:'entry',repeat:7,last:6,lastBy:'k'},
     {id:'c6',cat:'chore',title:'Water the garden',room:'garden',repeat:3,last:2,lastBy:'w',assignee:'w',feelings:{k:{f:'thanks',note:''}}},
     // tasks
-    {id:'t1',cat:'task',title:'Leak under the kitchen sink',room:'kitchen',assignee:'k',contact:'landlord',when:{day:-1},priority:'high',feelings:{w:{f:'frustrated',note:'Third time this month.'}}},
-    {id:'t2',cat:'task',title:'Radiator clanking at night',room:'fire',assignee:'s',contact:'super',feelings:{s:{f:'anxious',note:'Wakes me up around 3am.'}},earlier:[{by:'s',f:'fine',note:'Started last week, only at night.',ago:'6 days ago'}]},
-    {id:'t3',cat:'task',title:'Hallway light flickering',room:'hall',assignee:'j',contact:'super'},
+    {id:'t1',cat:'task',title:'Leak under the kitchen sink',room:'kitchen',assignee:'k',contact:'landlord',run:'r3',when:{day:-1},priority:'high',feelings:{w:{f:'frustrated',note:'Third time this month.'}}},
+    {id:'t2',cat:'task',title:'Radiator clanking at night',room:'fire',assignee:'s',contact:'super',feelings:{s:{f:'anxious',note:'Wakes me up around 3am.'}}},
+    {id:'t3',cat:'task',title:'Hallway light flickering',room:'hall',assignee:'j',contact:'super',run:'r1'},
     {id:'t4',cat:'task',title:'Bathroom 2 fan is rattling',room:'b2'},
     {id:'t5',cat:'task',title:'Fix the fitness space door latch',room:'fitness',assignee:'s',when:{day:6},feelings:{j:{f:'meh',note:'I just prop it open, no rush.'}}},
     {id:'t6',cat:'task',title:'Get renter’s insurance',assignee:'k',when:{day:9}},
     {id:'t7',cat:'task',title:'Jo’s parents staying',room:'living2',assignee:'j',when:{day:3},note:'They’ll sleep downstairs. Keep the downstairs living room clear.'},
-    {id:'t9',cat:'task',title:'Window in Water won’t lock',room:'water',contact:'landlord',assignee:'w'},
-    {id:'t10',cat:'task',title:'Mold spot on the Bathroom 3 ceiling',room:'b3',contact:'landlord',feelings:{j:{f:'anxious',note:'It’s spreading.'}}},
+    {id:'t9',cat:'task',title:'Window in Water won’t lock',room:'water',contact:'landlord',assignee:'w',run:'r3'},
+    {id:'t10',cat:'task',title:'Mold spot on the Bathroom 3 ceiling',room:'b3',contact:'landlord',run:'r3',feelings:{j:{f:'anxious',note:'It’s spreading.'}}},
     {id:'t8',cat:'task',title:'Clear the living room for Sam’s birthday',room:'living',when:{day:9,time:'17:00'}},
   ],
   polls:[
@@ -498,17 +499,107 @@ const S={
     {id:'p3',q:'Keep the standing lamp?',item:null,closes:null,by:'j',options:[{id:'o7',label:'Keep'},{id:'o8',label:'Return'}],votes:{s:'o7',w:'o8'},closed:{ago:1}},
   ],
   runs:[
-    {id:'r1',kind:'visit',title:'Super visit',contact:'super',runner:'j',when:{day:2,time:'10:00'},items:[{id:'t3',st:'pending'}],open:true},
-    {id:'r2',kind:'batch',title:'Wren’s grocery run',runner:'w',when:{day:3,time:'11:00'},items:[{id:'n2',st:'pending'},{id:'n5',st:'pending'}],open:true},
-    {id:'r3',kind:'request',title:'Landlord request',contact:'landlord',runner:'k',stage:'sent',sent:{ago:2,via:'Text'},items:[{id:'t1',st:'pending'},{id:'t9',st:'pending'},{id:'t10',st:'pending'}],open:true},
+    {id:'r1',kind:'visit',title:'Super visit',contact:'super',runner:'j',when:{day:2,time:'10:00'},open:true},
+    {id:'r2',kind:'batch',title:'Wren’s grocery run',runner:'w',when:{day:3,time:'11:00'},open:true},
+    {id:'r3',kind:'request',title:'Landlord request',contact:'landlord',runner:'k',stage:'sent',sent:{ago:2,via:'Text'},open:true},
   ],
+  activity:[],
   costs:[
     {id:'k1',amount:86.40,by:'j',note:'Groceries',forRun:'r0',ago:5},
     {id:'k2',amount:21.15,by:'s',note:'Toilet paper & soap',ago:9},
     {id:'k3',amount:48,by:'j',note:'Standing lamp',ago:12},
   ],
 };
-S.items.forEach(i=>{i.feelings=i.feelings||{};i.earlier=i.earlier||[];i.history=i.history||[];i.priority=i.priority||'normal'});
+S.items.forEach(i=>{i.feelings=i.feelings||{};i.priority=i.priority||'normal';i.run=i.run||null});
+S.runs.forEach(r=>S.items.filter(i=>i.run===r.id).forEach(i=>i.runKind=r.kind));
+
+/* ---------- activity log: the only history store (Architecture §6.4) ---------- */
+let seq=0,act=0;
+const newAction=()=>'a'+(++act);
+// one row per subject; rows from one user action share `action`
+function row(kind,f,ago,actor,action){S.activity.push({id:++seq,ago,actor:actor===undefined?ME:actor,action:action||newAction(),kind,...f});return action}
+function emit(kind,f,action){return row(kind,f,0,ME,action)}
+(function seed(){
+  row('house.created',{},30,'k');
+  ['s','w','j'].forEach(m=>row('member.joined',{member:m},29,m));
+  row('cost.added',{cost:'k3',member:'j',note:'Standing lamp'},12,'j');
+  row('cost.added',{cost:'k2',member:'s',note:'Toilet paper & soap'},9,'s');
+  row('feeling.set',{item:'t2',changes:{previous:null,next:{f:'fine',note:'Started last week, only at night.'}}},6,'s');
+  row('cost.added',{cost:'k1',member:'j',note:'Groceries'},5,'j');
+  const a1=newAction();row('run.created',{run:'r3',contact:'landlord'},4,'k',a1);['t1','t9','t10'].forEach(t=>row('run.item_added',{item:t,run:'r3'},4,'k',a1));
+  row('poll.created',{poll:'p1',item:'n8'},3,'s');row('poll.voted',{poll:'p1',option:'o1'},3,'s');row('poll.created',{poll:'p2'},3,'w');
+  row('request.sent',{run:'r3',contact:'landlord',note:'Text'},2,'k');
+  const a2=newAction();row('run.created',{run:'r1',contact:'super'},2,'j',a2);row('run.item_added',{item:'t3',run:'r1'},2,'j',a2);
+  row('feeling.set',{item:'t2',changes:{previous:{f:'fine',note:'Started last week, only at night.'},next:{f:'anxious',note:'Wakes me up around 3am.'}}},1,'s');
+  const a3=newAction();row('run.created',{run:'r2'},1,'w',a3);['n2','n5'].forEach(n=>row('run.item_added',{item:n,run:'r2'},1,'w',a3));
+  row('poll.closed',{poll:'p3',payload:{result:'tie'}},1,'j');
+})();
+const agoLabel=e=>e.ago===0?'just now':ago(e.ago);
+// Earlier feelings = every `previous` recorded on feeling events for this item
+function earlierOf(id){return S.activity.filter(e=>e.item===id&&(e.kind==='feeling.set'||e.kind==='feeling.removed')&&e.changes&&e.changes.previous).map(e=>({by:e.actor,f:e.changes.previous.f,note:e.changes.previous.note,when:agoLabel(e)}))}
+// an item's path through runs, including requests being sent while it was on them
+function itemPath(id){
+  const evs=S.activity.filter(e=>e.item===id);const out=[];let cur=null,since=0;
+  const sends=S.activity.filter(e=>e.kind==='request.sent');
+  const flush=(until)=>{if(cur)sends.filter(x=>x.run===cur&&x.id>since&&x.id<until).forEach(x=>out.push({id:x.id,icon:'📨',text:`Sent to ${contact(x.contact).name} by ${x.note.toLowerCase()}`,when:agoLabel(x)}))};
+  evs.forEach(e=>{
+    const R=e.run&&run(e.run),T=e.toRun&&run(e.toRun);
+    if(e.kind==='run.item_added'){flush(e.id);cur=e.run;since=e.id;out.push({id:e.id,icon:'📝',text:`Added to ${runLabel(R)}`,when:agoLabel(e),by:e.actor})}
+    else if(e.kind==='run.item_moved'){flush(e.id);out.push({id:e.id,icon:T.kind==='visit'?'🗓':'↪',text:`Moved from ${runLabel(R)} to ${runLabel(T)}`,note:e.note,when:agoLabel(e),by:e.actor});cur=e.toRun;since=e.id}
+    else if(e.kind==='run.item_returned'){flush(e.id);out.push({id:e.id,icon:'↩',text:`Back from ${runLabel(R)}`,note:e.note,when:agoLabel(e),by:e.actor});cur=null}
+    else if(e.kind==='run.item_done'){flush(e.id);out.push({id:e.id,icon:'✓',text:`${R.kind==='visit'?'Fixed on':'Done on'} ${runLabel(R)}`,when:agoLabel(e),by:e.actor});cur=null}
+    else if(e.kind==='item.handled_by_changed'){out.push({id:e.id,icon:'📞',text:e.contact?`Handled by ${contact(e.contact).name}`:'Handled by one of us',when:agoLabel(e),by:e.actor})}
+    else if(e.kind==='item.done'||e.kind==='item.reopened'){out.push({id:e.id,icon:e.kind==='item.done'?'✓':'↺',text:e.kind==='item.done'?'Marked done':'Reopened',when:agoLabel(e),by:e.actor})}
+  });
+  flush(Infinity);
+  return out.sort((a,b)=>a.id-b.id);
+}
+// a run's story: what came onto it and how things left it
+function runStory(rid){
+  return S.activity.filter(e=>(e.run===rid||e.toRun===rid)&&/^(run\.|request\.)/.test(e.kind)&&e.kind!=='run.created').map(e=>{
+    const I=e.item&&item(e.item),t=I?`“${I.title}”`:'';
+    const txt=e.kind==='run.item_added'?`${t} added`:e.kind==='run.item_moved'?(e.run===rid?`${t} moved to ${runLabel(run(e.toRun))}`:`${t} came from ${runLabel(run(e.run))}`)
+      :e.kind==='run.item_returned'?`${t} back in the pool`:e.kind==='run.item_done'?`${t} ${run(rid).kind==='visit'?'fixed':'done'}`
+      :e.kind==='request.sent'?`Sent by ${e.note.toLowerCase()}`:e.kind==='request.closed'?'Closed: everything sorted':e.kind==='run.finished'?'Finished':e.kind==='run.date_set'?`Date set: ${e.note}`:e.kind;
+    return {id:e.id,by:e.actor,text:txt,note:e.kind==='request.sent'||e.kind==='run.date_set'?'':e.note,when:agoLabel(e)};
+  }).sort((a,b)=>b.id-a.id);
+}
+// one feed line per action (rows sharing an action are grouped)
+function activityLines(){
+  const groups={};S.activity.forEach(e=>{(groups[e.action]=groups[e.action]||[]).push(e)});
+  return Object.values(groups).map(rows=>({id:Math.max(...rows.map(r=>r.id)),actor:rows[0].actor,when:agoLabel(rows[0]),parts:phrase(rows)})).sort((a,b)=>b.id-a.id);
+}
+function phrase(rows){
+  const byKind={};rows.forEach(r=>(byKind[r.kind]=byKind[r.kind]||[]).push(r));
+  const n=k=>byKind[k].length,t=r=>r.item?`“${item(r.item).title}”`:'',many=(k,one,more)=>n(k)===1?one(byKind[k][0]):more(n(k),byKind[k][0]);
+  const out=[];
+  for(const k of Object.keys(byKind)){const r=byKind[k][0],R=r.run&&run(r.run);
+    const line=({
+      'house.created':()=>'set up the house',
+      'member.joined':()=>'joined the house',
+      'item.created':()=>many(k,x=>`added ${t(x)}`,m=>`added ${m} items`),
+      'item.edited':()=>`edited ${t(r)}`,
+      'item.done':()=>`marked ${t(r)} done`,'item.reopened':()=>`reopened ${t(r)}`,
+      'chore.done':()=>`did ${t(r)}`,'chore.undone':()=>`undid ${t(r)}`,
+      'item.handled_by_changed':()=>r.contact?`handed ${t(r)} to ${contact(r.contact).name}`:`took back ${t(r)}`,
+      'feeling.set':()=>`feels ${FEEL[r.changes.next.f].e} about ${t(r)}`,'feeling.removed':()=>`removed their feeling on ${t(r)}`,
+      'poll.created':()=>`started a poll: “${poll(r.poll).q}”`,'poll.voted':()=>`voted on “${poll(r.poll).q}”`,'poll.vote_changed':()=>`changed their vote on “${poll(r.poll).q}”`,
+      'poll.vote_withdrawn':()=>`withdrew their vote on “${poll(r.poll).q}”`,'poll.option_added':()=>`added “${r.note}” to “${poll(r.poll).q}”`,
+      'poll.closed':()=>`closed “${poll(r.poll).q}”${r.payload&&r.payload.result==='tie'?': a tie':''}`,'poll.reopened':()=>`reopened “${poll(r.poll).q}”`,
+      'run.created':()=>`started ${runLabel(R)}`,
+      'run.item_added':()=>many(k,x=>`added ${t(x)} to ${runLabel(R)}`,m=>`added ${m} items to ${runLabel(R)}`),
+      'run.item_moved':()=>many(k,x=>`moved ${t(x)} to ${runLabel(run(x.toRun))}`,(m,x)=>`moved ${m} tasks from ${runLabel(R)} to ${runLabel(run(x.toRun))}`),
+      'run.item_returned':()=>many(k,x=>`put ${t(x)} back in the pool`,m=>`put ${m} items back in the pool from ${runLabel(R)}`),
+      'run.item_done':()=>many(k,x=>`${R.kind==='visit'?'marked':'finished'} ${t(x)}${R.kind==='visit'?' fixed':''}`,m=>`${R.kind==='visit'?'marked':'finished'} ${m} items on ${runLabel(R)}`),
+      'request.sent':()=>`sent the ${runLabel(R)} by ${r.note.toLowerCase()}`,'request.closed':()=>`${runLabel(R)} closed`,
+      'run.finished':()=>`finished ${runLabel(R)}`,'run.date_set':()=>`set ${runLabel(R)} for ${r.note}`,
+      'cost.added':()=>`logged ${money(S.costs.find(c=>c.id===r.cost)?.amount||0)} for ${r.note}`,'cost.removed':()=>`removed a cost`,
+      'settings.feeling_weights_changed':()=>'changed the feeling weights',
+    }[k]||(()=>k))();
+    out.push({text:line,note:byKind[k].map(x=>x.note).find(x=>x&&!['Text','Email','Call','Portal','In person'].includes(x)&&!/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun|Today|Tomorrow)/.test(x)&&k!=='poll.option_added'&&k!=='cost.added')});
+  }
+  return out;
+}
 const item=id=>S.items.find(i=>i.id===id);
 const poll=id=>S.polls.find(p=>p.id===id);
 const run=id=>S.runs.find(r=>r.id===id);
@@ -516,14 +607,17 @@ const ME='k';
 
 /* ---------- derived ---------- */
 const openRuns=()=>S.runs.filter(r=>r.open);
-const runOf=id=>openRuns().find(r=>r.items.some(x=>x.id===id&&x.st==='pending'));
-const pending=r=>r.items.filter(x=>x.st==='pending');
+const onRun=rid=>S.items.filter(i=>i.run===rid&&!i.done&&!i.archived);       // a run's contents = items pointing at it
+const runOf=id=>{const i=item(id);return i&&i.run?run(i.run):undefined};
+const pending=r=>onRun(r.id);
+const doneOn=rid=>S.activity.filter(e=>e.run===rid&&e.kind==='run.item_done').length;
+function setRun(i,r){if(r&&r.kind!=='batch'&&i.cat!=='task')throw new Error('tasks_only');i.run=r?r.id:null;i.runKind=r?r.kind:null}
 const runLabel=r=>r.kind==='request'?`${contact(r.contact).name} request`:r.kind==='visit'?`${contact(r.contact).name} visit`:r.title;
 function runSub(r){
-  const n=pending(r).length,d=r.items.filter(x=>x.st==='done').length;
+  const n=pending(r).length,d=doneOn(r.id);
   if(r.kind==='request') return r.stage==='gathering'?`Not sent yet · ${n} task${n===1?'':'s'}`:`Sent ${ago(r.sent.ago)} by ${r.sent.via.toLowerCase()} · waiting on ${n}`;
   if(r.kind==='visit') return `${r.when?whenStr(r.when):'Date TBD'} · ${n} to look at${d?` · ${d} fixed`:''}`;
-  return `${person(r.runner).name} · ${d}/${r.items.length-r.items.filter(x=>x.st==='moved'||x.st==='returned').length} done${r.when?' · '+whenStr(r.when):''}`;
+  return `${person(r.runner).name} · ${d} done · ${n} left${r.when?' · '+whenStr(r.when):''}`;
 }
 function onRunChip(r){
   if(r.kind==='request') return r.stage==='gathering'?`On ${contact(r.contact).name} list · not sent`:`Sent to ${contact(r.contact).name} · ${ago(r.sent.ago)}`;
@@ -673,6 +767,8 @@ function screenHouse(){
     ${FLOORS.map(f=>`<h3 class="section-title">${f}</h3><div class="group">${ROOMS.filter(r=>r.floor===f).map(r=>{const n=count(r.id);const who=r.el?PEOPLE.find(p=>p.el===r.el):null;return `<button class="row" data-action="room" data-id="${r.id}"><span class="dotc ${r.el?'el-'+r.el:''}"></span><div class="grow"><div class="t">${esc(r.name)}</div>${who?`<div class="s">${who.name}’s room</div>`:''}</div><span class="count">${n?n+' open':''}</span>${ic('chev')}</button>`}).join('')}</div>`).join('')}
     <h3 class="section-title">Contacts</h3>
     <div class="group">${CONTACTS.map(c=>`<div class="row">${ic('phone')}<div class="grow"><div class="t">${c.name}</div><div class="s num">${c.phone}</div></div><button class="btn secondary small" data-action="copy" data-v="${c.phone}" aria-label="Copy ${c.name}’s number">${ic('copy')}Copy</button></div>`).join('')}</div>
+    <h3 class="section-title">Activity</h3>
+    <div class="group"><button class="row" data-action="activity">${ic('sliders')}<div class="grow"><div class="t">Everything that happened</div><div class="s">${S.activity.length} events · the only place history lives</div></div>${ic('chev')}</button></div>
     <h3 class="section-title">Roommates</h3>
     <div class="group">${PEOPLE.map(p=>`<div class="row">${av(p.id,40)}<div class="grow"><div class="t">${p.name}${p.you?' (you)':''}</div><div class="s">${EL[p.el].label} room</div></div></div>`).join('')}</div>`;
 }
@@ -708,7 +804,7 @@ function refresh(){
   if(!sheetKind) return;
   const b=sheetEl&&sheetEl.querySelector('.sheet-body'),y=b?b.scrollTop:0;
   const [k,id]=sheetKind.split(':');
-  if(k==='item')openDetail(id,true);else if(k==='poll')openPoll(id,true);else if(k==='run')openRun(id,true);else if(k==='calendar')openCalendar(true);else return;
+  if(k==='item')openDetail(id,true);else if(k==='poll')openPoll(id,true);else if(k==='run')openRun(id,true);else if(k==='calendar')openCalendar(true);else if(k==='activity'){openActivity();return}else return;
   const nb=sheetEl&&sheetEl.querySelector('.sheet-body');if(nb)nb.scrollTop=y;
 }
 
@@ -728,14 +824,14 @@ function openDetail(id,quiet){
   const body=`<div class="chips">${tierChip(p.tier)}${chips(i)}${i.room?roomChip(i.room,false):''}</div>
     <div class="kv">${kv.join('')}</div>
     ${r?`<button class="runrow" data-action="openrun" data-id="${r.id}">${ic(r.kind==='batch'?'cart':r.kind==='visit'?'calendar':'phone')}<div class="grow"><div class="t">${esc(onRunChip(r))}</div><div class="s">${esc(runSub(r))}</div></div>${ic('chev')}</button>`:(i.cat==='task'&&i.contact&&!i.done?`<button class="btn secondary block" data-action="addtolist" data-id="${i.id}">${ic('plus')}Add to ${esc(contact(i.contact).name)} list</button>`:'')}
-    ${i.history.length?`<div class="box"><h5>History</h5>${i.history.slice().reverse().map(h=>`<div class="feel-row"><span>${h.icon||'•'}</span><div><div class="who" style="font-size:14px">${esc(h.text)}</div>${h.note?`<div class="note">${esc(h.note)}</div>`:''}<div class="note" style="font-size:12px">${h.ago}</div></div></div>`).join('')}</div>`:''}
+    ${(()=>{const h=itemPath(i.id);return h.length?`<div class="box"><h5>History <span style="font-weight:600;text-transform:none;letter-spacing:0">(from the activity log)</span></h5>${h.slice().reverse().map(x=>`<div class="feel-row"><span>${x.icon}</span><div><div class="who" style="font-size:14px">${esc(x.text)}</div>${x.note?`<div class="note">${esc(x.note)}</div>`:''}<div class="note" style="font-size:12px">${x.by?person(x.by).name+' · ':''}${x.when}</div></div></div>`).join('')}</div>`:''})()}
     <div class="box"><h5>Polls about this</h5>${polls.map(pollRow).join('')||'<p style="margin:0;color:var(--ink-soft);font-size:14px">None. Start one to decide something together, like which one to buy.</p>'}
       <button class="linkbtn" data-action="newpoll" data-id="${i.id}">+ Poll about this</button></div>
     ${i.cat!=='chore'?`<div class="box"><h5>Costs</h5>${cs.map(c=>`<div class="feel-row">${av(c.by,24,false)}<div><div class="who">${money(c.amount)} · ${person(c.by).name} paid</div>${c.note?`<div class="note">${esc(c.note)}</div>`:''}</div></div>`).join('')||'<p style="margin:0;color:var(--ink-soft);font-size:14px">No cost recorded. Only add one if money was spent.</p>'}
       <button class="linkbtn" data-action="addcost" data-id="${i.id}">+ Add cost</button></div>`:''}
     <div class="box"><h5>How the house feels</h5>
       ${fe.length?fe.map(([pid,v])=>`<div class="feel-row">${av(pid,32,false)}<div><div class="who">${FEEL[v.f].e} ${person(pid).name}${pid===ME?' (you)':''} · ${FEEL[v.f].label}</div>${v.note?`<div class="note">${esc(v.note)}</div>`:''}</div></div>`).join(''):'<p style="margin:0;color:var(--ink-soft);font-size:14px">No one has shared anything yet. Add a feeling or a note only if it matters to you.</p>'}
-      ${i.earlier.length?`<details><summary style="font-size:13px;font-weight:800;color:var(--ink-soft);cursor:pointer">Earlier (${i.earlier.length})</summary><div style="display:grid;gap:8px;margin-top:8px">${i.earlier.slice().reverse().map(x=>`<div class="feel-row" style="opacity:.8">${av(x.by,24,false)}<div><div class="who" style="font-size:13px">${FEEL[x.f].e} ${person(x.by).name} · ${x.ago}</div>${x.note?`<div class="note">${esc(x.note)}</div>`:''}</div></div>`).join('')}</div></details>`:''}
+      ${(()=>{const e=earlierOf(i.id);return e.length?`<details><summary style="font-size:13px;font-weight:800;color:var(--ink-soft);cursor:pointer">Earlier (${e.length})</summary><div style="display:grid;gap:8px;margin-top:8px">${e.slice().reverse().map(x=>`<div class="feel-row" style="opacity:.8">${av(x.by,24,false)}<div><div class="who" style="font-size:13px">${FEEL[x.f].e} ${person(x.by).name} · ${x.when}</div>${x.note?`<div class="note">${esc(x.note)}</div>`:''}</div></div>`).join('')}</div></details>`:''})()}
       <button class="btn secondary small" data-action="feel" data-id="${i.id}" style="justify-self:start">${ic('smileplus')}${mine?'Update my feeling or note':'Share a feeling or note'}</button></div>
     <div class="box"><h5>Why it’s ${TIER_LABEL[p.tier].replace('●● ','')}${inFeed(i)?'':' (not in the feed right now)'}</h5><div class="why">${p.parts.map(([l,n])=>`<div><span>${esc(l)}</span><span class="n">${n>0?'+':''}${n}</span></div>`).join('')}<div class="total"><span>Score</span><span class="n">${p.score}</span></div></div></div>
     ${i.done?'':`<button class="btn primary block" data-action="done" data-id="${i.id}" data-from="sheet">${ic('tick')}${i.cat==='chore'?'Did it':i.cat==='need'?'Got it':'Mark done'}</button>`}`;
@@ -754,7 +850,7 @@ function openHandledBy(id){
   const mount=root=>{
     root.querySelectorAll('#hpick button').forEach(b=>b.addEventListener('click',()=>{pick=b.dataset.c;root.querySelectorAll('#hpick button').forEach(x=>x.setAttribute('aria-pressed',x===b))}));
     root.querySelector('#hcadd').addEventListener('click',()=>{const n=root.querySelector('#hcname').value.trim();if(!n){toast('Add a name.');return}const c={id:nid('ct'),name:n,phone:root.querySelector('#hcphone').value.trim()};CONTACTS.push(c);pick=c.id;root.innerHTML=body();mount(root);toast(`Added ${n} to Contacts.`)});
-    root.querySelector('#hgo').addEventListener('click',()=>{const prev=i.contact;i.contact=pick||null;render();openDetail(id,true);toast(pick?`Handled by ${contact(pick).name}. It’s under Outside help now.`:'Back with the house.',()=>{i.contact=prev;render();openDetail(id,true)})});
+    root.querySelector('#hgo').addEventListener('click',()=>{const prev=i.contact;i.contact=pick||null;if(prev!==i.contact)emit('item.handled_by_changed',{item:i.id,contact:i.contact,changes:{contact:[prev,i.contact]}});render();openDetail(id,true);toast(pick?`Handled by ${contact(pick).name}. It’s under Outside help now.`:'Back with the house.',()=>{i.contact=prev;render();openDetail(id,true)})});
   };
   openSheet('Who’s handling it?',`<b>${esc(i.title)}</b>`,body(),mount);
 }
@@ -786,7 +882,7 @@ function openNewPoll(itemId){
       if(!q){toast('Add a question.');return} if(os.length<2){toast('A poll needs at least two options.');return}
       const cl=root.querySelector('#pclose').value;
       const p={id:nid('p'),q,item:itemId||null,closes:cl?+cl:null,by:ME,options:os.map(l=>{const [label,...rest]=l.split(',');return {id:nid('o'),label:label.trim(),note:rest.join(',').trim()||undefined}}),votes:{},closed:null};
-      S.polls.push(p);render();openPoll(p.id,true);toast('Poll started. Everyone can vote.');
+      S.polls.push(p);emit('poll.created',{poll:p.id,item:p.item||undefined});render();openPoll(p.id,true);toast('Poll started. Everyone can vote.');
     });
   };
   openSheet(it?`Poll about ${esc(it.title)}`:'A poll','',body(),mount);
@@ -794,8 +890,7 @@ function openNewPoll(itemId){
 
 /* ---------- runs, requests & visits ---------- */
 function pickRows(kind,runId){
-  const r=runId?run(runId):null,has=id=>r&&r.items.some(x=>x.id===id&&x.st==='pending');
-  const avail=i=>!i.done&&!i.archived&&!(runOf(i.id)&&runOf(i.id).id!==runId)&&!has(i.id);
+  const avail=i=>!i.done&&!i.archived&&!i.run;
   const grp=(label,list,sub)=>list.length?`<p class="grp">${label}</p>`+list.map(i=>`<label><input type="checkbox" data-pick="${i.id}" data-soon="${i.soon?1:0}">${esc(i.title)}<small>${sub(i)}</small></label>`).join(''):'';
   let out='';
   if(kind==='batch') out+=grp('Needs',S.items.filter(i=>i.cat==='need'&&avail(i)).sort((a,b)=>!!b.soon-!!a.soon),i=>i.soon?'Soon':'');
@@ -809,9 +904,10 @@ function whenFields(defDay,defTime,optional,label='Set a date (puts it on the ca
 }
 function wireWhen(root){const st=root.querySelector('#settime');if(st)st.addEventListener('change',()=>root.querySelector('#whenbox').hidden=!st.checked)}
 function readWhen(root){if(root.querySelector('#settime')&&!root.querySelector('#settime').checked)return null;const [Y,M,D]=root.querySelector('#wdate').value.split('-').map(Number);const d=new Date(Y,M-1,D);return {day:dayDiff(d),time:root.querySelector('#wtime').value||null}}
-function newRun(props){const r={id:nid('r'),items:[],open:true,runner:ME,...props};S.runs.push(r);return r}
+function newRun(props,action){const r={id:nid('r'),open:true,runner:ME,...props};S.runs.push(r);emit('run.created',{run:r.id,contact:r.contact},action);return r}
+function putOn(r,ids,action,{setContact=true}={}){ids.forEach(id=>{const i=item(id);setRun(i,r);if(setContact&&r.contact&&i.contact!==r.contact){const prev=i.contact;i.contact=r.contact;emit('item.handled_by_changed',{item:id,contact:r.contact,changes:{contact:[prev,r.contact]}},action)}emit('run.item_added',{item:id,run:r.id},action)})}
 function gatheringRequest(c){return openRuns().find(r=>r.kind==='request'&&r.contact===c&&r.stage==='gathering')}
-function logHist(i,text,note,icon){i.history.push({text,note:note||'',ago:'Just now',icon})}
+
 function openStartRun(){
   const body=`<div class="field"><label class="lab" for="rt">Name (optional)</label><input type="text" id="rt" maxlength="60" placeholder="${person(ME).name}’s grocery run · or “Amazon order”"></div>
     <div class="quick"><button data-q="all">Select all</button><button data-q="soon">Select Soon</button><button data-q="none">Clear</button></div>
@@ -822,7 +918,7 @@ function openStartRun(){
     wireWhen(root);
     root.querySelector('#rgo').addEventListener('click',()=>{
       const picks=readPicks(root);if(!picks.length){toast('Pick at least one thing.');return}
-      const r=newRun({kind:'batch',title:root.querySelector('#rt').value.trim()||`${person(ME).name}’s run`,when:readWhen(root),items:picks.map(id=>({id,st:'pending'}))});
+      const a=newAction(),r=newRun({kind:'batch',title:root.querySelector('#rt').value.trim()||`${person(ME).name}’s run`,when:readWhen(root)},a);putOn(r,picks,a);
       render();openRun(r.id,true);toast(`Run started with ${picks.length} thing${picks.length===1?'':'s'}. The house can see what’s on it.`);
     });
   });
@@ -845,9 +941,9 @@ function openStartRequest(preContact){
     root.querySelectorAll('#cpick button').forEach(b=>b.addEventListener('click',()=>{c=b.dataset.c;root.innerHTML=body();mount(root)}));
     root.querySelector('#ncadd').addEventListener('click',()=>{const n=root.querySelector('#ncname').value.trim();if(!n){toast('Add a name.');return}const nc={id:nid('ct'),name:n,phone:root.querySelector('#ncphone').value.trim()};CONTACTS.push(nc);c=nc.id;root.innerHTML=body();mount(root)});
     root.querySelector('#sgo').addEventListener('click',()=>{
-      const picks=readPicks(root),existing=gatheringRequest(c);
-      const r=existing||newRun({kind:'request',title:`${contact(c).name} request`,contact:c,stage:'gathering'});
-      picks.forEach(id=>{r.items.push({id,st:'pending'});const i=item(id);i.contact=c;logHist(i,`Added to the ${contact(c).name} list`,'','📝')});
+      const picks=readPicks(root),existing=gatheringRequest(c),a=newAction();
+      const r=existing||newRun({kind:'request',title:`${contact(c).name} request`,contact:c,stage:'gathering'},a);
+      putOn(r,picks,a);
       S.tab='tasks';render(false);openRun(r.id,true);
       toast(existing?`Added to the existing ${contact(c).name} list.`:`Started the ${contact(c).name} list${picks.length?` with ${picks.length} task${picks.length===1?'':'s'}`:''}. Send it when it’s ready.`);
     });
@@ -866,24 +962,22 @@ function openPlanVisit(){
     wireWhen(root);
     root.querySelector('#vgo').addEventListener('click',()=>{
       const picks=readPicks(root);if(!picks.length){toast('Pick at least one task.');return}
-      const r=newRun({kind:'visit',title:`${contact(c).name} visit`,contact:c,when:readWhen(root),items:picks.map(id=>({id,st:'pending'}))});
-      picks.forEach(id=>{const i=item(id);i.contact=c;logHist(i,`Added to ${runLabel(r)}`,'','🗓')});
+      const a=newAction(),r=newRun({kind:'visit',title:`${contact(c).name} visit`,contact:c,when:readWhen(root)},a);putOn(r,picks,a);
       S.tab='tasks';render(false);openRun(r.id,true);toast(`Visit planned: ${picks.length} task${picks.length===1?'':'s'}${r.when?', '+whenStr(r.when):''}.`);
     });
   };
   openSheet('Plan a visit','Someone outside the house is taking these on.',body(),mount);
 }
 function requestMessage(r){
-  const lines=pending(r).map((x,ix)=>{const i=item(x.id);return `${ix+1}) ${i.title}${i.room?` (${room(i.room).name})`:''}${i.note?` — ${i.note}`:''}`});
+  const lines=pending(r).map((i,ix)=>`${ix+1}) ${i.title}${i.room?` (${room(i.room).name})`:''}${i.note?` — ${i.note}`:''}`);
   return `Hi ${contact(r.contact).name}, this is ${person(ME).name} at 12 Elm St, Apt 2. A few things need attention:\n${lines.join('\n')}\nThanks!`;
 }
 function openRun(id,quiet){
-  const r=run(id),isReq=r.kind==='request',isVisit=r.kind==='visit';
-  const stLabel={done:isVisit?'Fixed':'Done',moved:'Moved',returned:'Back in the pool'};
-  const rows=r.items.map(x=>{const i=item(x.id),p=x.st==='pending';return `<label class="ritem ${p?'':'done'}"><span class="line">${p&&r.open?`<input type="checkbox" data-sel="${x.id}" aria-label="Select ${esc(i.title)}">`:`<span style="width:22px;text-align:center">${x.st==='done'?'✓':'↪'}</span>`}<b>${esc(i.title)}</b><small style="color:var(--ink-soft);font-weight:600">${p?CAT[i.cat].label:stLabel[x.st]}${x.to?' → '+esc(runLabel(run(x.to))):''}</small></span>${x.note?`<small style="color:var(--ink-soft);padding-left:32px">${esc(x.note)}</small>`:''}</label>`}).join('');
+  const r=run(id),isReq=r.kind==='request',isVisit=r.kind==='visit',now=pending(r),story=runStory(r.id);
+  const rows=now.map(i=>`<label class="ritem"><span class="line">${r.open?`<input type="checkbox" data-sel="${i.id}" aria-label="Select ${esc(i.title)}">`:''}<b>${esc(i.title)}</b><small style="color:var(--ink-soft);font-weight:600">${CAT[i.cat].label}</small></span></label>`).join('');
   const cost=S.costs.find(c=>c.forRun===r.id);
   const stage=isReq?(r.stage==='gathering'?'Gathering: not sent yet. Anyone can add tasks.':r.stage==='sent'?`Sent ${ago(r.sent.ago)} by ${r.sent.via.toLowerCase()} · no reply recorded yet. When they answer, select tasks and move them.`:'Closed. Everything on it has been sorted.'):'';
-  const actions=r.open&&pending(r).length?`<div class="btnrow" id="selbar">
+  const actions=r.open&&now.length?`<div class="btnrow" id="selbar">
       <button class="btn secondary small" data-action="selall" data-id="${r.id}">Select all</button>
       ${isReq?`<button class="btn primary small" data-action="sel-move" data-id="${r.id}">${ic('calendar')}Move to a visit…</button>`:`<button class="btn secondary small" data-action="sel-move" data-id="${r.id}">Move to…</button>`}
       <button class="btn secondary small" data-action="sel-pool" data-id="${r.id}">Back to the pool…</button>
@@ -891,23 +985,24 @@ function openRun(id,quiet){
       <button class="btn secondary small" data-action="sel-done" data-id="${r.id}">${ic('tick')}${isVisit?'Fixed':'Done'}</button></div>`:'';
   const body=`<div class="kv"><dt>${r.contact?'Point person':'Who'}</dt><dd>${av(r.runner,24,false)} ${person(r.runner).name}</dd>${r.contact?`<dt>${isReq?'To':'Who’s coming'}</dt><dd>${esc(contact(r.contact).name)} · <span class="num">${contact(r.contact).phone||''}</span></dd>`:''}${isReq?'':`<dt>When</dt><dd>${r.when?whenStr(r.when):(isVisit?'Date TBD':'No set date')}${isVisit&&r.open?` <button class="linkbtn" data-action="setdate" data-id="${r.id}">${r.when?'Change':'Set a date'}</button>`:''}</dd>`}</div>
     ${stage?`<p style="margin:0;font-size:14px;font-weight:700;color:var(--accent-ink)">${stage}</p>`:''}
-    <div class="box"><h5>${isReq?'On this request':isVisit?'What they’re taking on':'On this run'} · ${pending(r).length} open</h5>${rows}
+    <div class="box"><h5>${isReq?'On this request':isVisit?'What they’re taking on':'On this run'} · ${now.length} right now</h5>${rows||'<p style="margin:0;color:var(--ink-soft);font-size:14px">Nothing on it right now.</p>'}
       ${actions}
       ${r.open&&!(isReq&&r.stage!=='gathering')?`<div class="btnrow"><button class="btn secondary small" data-action="addtorun" data-id="${r.id}">${ic('plus')}Add more</button></div>`:''}
       ${isReq&&r.stage==='gathering'&&r.open?`<button class="btn primary block" data-action="sendreq" data-id="${r.id}">${ic('phone')}Send request</button>`:''}
-      ${!isReq&&r.open?`<button class="btn ${pending(r).length?'secondary':'primary'} block" data-action="finishrun" data-id="${r.id}">${ic('tick')}Finish ${isVisit?'visit':'run'}${pending(r).length?` (${pending(r).length} go back to the pool)`:''}</button>`:''}
+      ${!isReq&&r.open?`<button class="btn ${now.length?'secondary':'primary'} block" data-action="finishrun" data-id="${r.id}">${ic('tick')}Finish ${isVisit?'visit':'run'}${now.length?` (${now.length} go back to the pool)`:''}</button>`:''}
       ${cost?`<p style="margin:0;font-weight:700">${money(cost.amount)} spent · ${person(cost.by).name} paid</p>`:''}</div>
+    ${story.length?`<div class="box"><h5>What’s happened <span style="font-weight:600;text-transform:none;letter-spacing:0">(from the activity log)</span></h5>${story.map(x=>`<div class="feel-row">${x.by?av(x.by,22,false):'<span></span>'}<div><div class="who" style="font-size:14px">${esc(x.text)}</div>${x.note?`<div class="note">${esc(x.note)}</div>`:''}<div class="note" style="font-size:12px">${x.when}</div></div></div>`).join('')}</div>`:''}
     ${isReq?`<p style="margin:0;font-size:12.5px;color:var(--ink-soft)">Recording their reply is just moving tasks: accepted ones to a visit (with or without a date), the rest back to the pool with a note, or to someone else.</p>`:''}`;
   openSheet(esc(runLabel(r)),'',body,null,{instant:!!quiet,kind:'run:'+id});
 }
 const selected=()=>sheetEl?[...sheetEl.querySelectorAll('[data-sel]')].filter(x=>x.checked).map(x=>x.dataset.sel):[];
-function afterMove(r){
-  if(r.kind==='request'&&r.open&&!pending(r).length){r.open=false;r.stage='closed';toast(`${runLabel(r)} closed. Everything on it has been sorted.`)}
+function afterMove(r,action){
+  if(r.kind==='request'&&r.open&&!pending(r).length){r.open=false;r.stage='closed';emit('request.closed',{run:r.id},action);toast(`${runLabel(r)} closed. Everything on it has been sorted.`)}
 }
-function moveItems(from,ids,to,note){
-  ids.forEach(id=>{const x=from.items.find(y=>y.id===id&&y.st==='pending');x.st='moved';x.to=to.id;x.note=note||'';
-    to.items.push({id,st:'pending'});const i=item(id);if(to.contact)i.contact=to.contact;
-    logHist(i,`Moved from ${runLabel(from)} to ${runLabel(to)}${to.when?' · '+whenStr(to.when):''}`,note,to.kind==='visit'?'🗓':'↪')});
+function moveItems(from,ids,to,note,action){
+  ids.forEach(id=>{const i=item(id);setRun(i,to);
+    if(to.contact&&i.contact!==to.contact){const prev=i.contact;i.contact=to.contact;emit('item.handled_by_changed',{item:id,contact:to.contact,changes:{contact:[prev,to.contact]}},action)}
+    emit('run.item_moved',{item:id,run:from.id,toRun:to.id,note:note||''},action)});
 }
 function openMove(runId,ids){
   const from=run(runId),allTasks=ids.every(id=>item(id).cat==='task');
@@ -924,8 +1019,8 @@ function openMove(runId,ids){
     root.querySelectorAll('#tpick button').forEach(b=>b.addEventListener('click',()=>{pick=b.dataset.t;root.querySelectorAll('#tpick button').forEach(x=>x.setAttribute('aria-pressed',x===b));root.querySelector('#newbox').hidden=pick!=='new'}));
     wireWhen(root);
     root.querySelector('#mgo').addEventListener('click',()=>{
-      const to=pick==='new'?newRun(from.contact?{kind:'visit',title:`${contact(from.contact).name} visit`,contact:from.contact,runner:from.runner,when:readWhen(root)}:{kind:'batch',title:`${person(ME).name}’s run`,when:readWhen(root)}):run(pick);
-      moveItems(from,ids,to,root.querySelector('#mnote').value.trim());afterMove(from);render();openRun(to.id,true);toast(`Moved ${ids.length} to ${runLabel(to)}.`);
+      const a=newAction(),to=pick==='new'?newRun(from.contact&&allTasks?{kind:'visit',title:`${contact(from.contact).name} visit`,contact:from.contact,runner:from.runner,when:readWhen(root)}:{kind:'batch',title:`${person(ME).name}’s run`,when:readWhen(root)},a):run(pick);
+      moveItems(from,ids,to,root.querySelector('#mnote').value.trim(),a);afterMove(from,a);render();openRun(to.id,true);toast(`Moved ${ids.length} to ${runLabel(to)}.`);
     });
   };
   openSheet(from.kind==='request'?'Move to a visit':'Move to…','',body(),mount);
@@ -938,8 +1033,9 @@ function openPool(runId,ids){
      <button class="btn primary block" id="pgo">Put back</button>`,root=>{
     root.querySelector('#pgo').addEventListener('click',()=>{
       const note=root.querySelector('#pnote').value.trim(),clear=outside&&root.querySelector('#pclear').checked;
-      ids.forEach(id=>{const x=from.items.find(y=>y.id===id&&y.st==='pending');x.st='returned';x.note=note;const i=item(id);if(clear)i.contact=null;logHist(i,`Back from ${runLabel(from)}`,note,'↩')});
-      afterMove(from);render();openRun(runId,true);toast(`${ids.length} back in the pool.`);
+      const a=newAction();
+      ids.forEach(id=>{const i=item(id);setRun(i,null);if(clear&&i.contact){const prev=i.contact;i.contact=null;emit('item.handled_by_changed',{item:id,contact:null,changes:{contact:[prev,null]}},a)}emit('run.item_returned',{item:id,run:from.id,note},a)});
+      afterMove(from,a);render();openRun(runId,true);toast(`${ids.length} back in the pool.`);
     });
   });
 }
@@ -953,16 +1049,16 @@ function openHand(runId,ids){
     root.querySelectorAll('#hpick button').forEach(b=>b.addEventListener('click',()=>{pick=b.dataset.c;root.querySelectorAll('#hpick button').forEach(x=>x.setAttribute('aria-pressed',x===b))}));
     root.querySelector('#hcadd').addEventListener('click',()=>{const n=root.querySelector('#hcname').value.trim();if(!n){toast('Add a name.');return}const c={id:nid('ct'),name:n,phone:root.querySelector('#hcphone').value.trim()};CONTACTS.push(c);pick=c.id;root.innerHTML=body();mount(root)});
     root.querySelector('#hgo').addEventListener('click',()=>{if(!pick){toast('Pick who to hand it to.');return}
-      const to=gatheringRequest(pick)||newRun({kind:'request',title:`${contact(pick).name} request`,contact:pick,stage:'gathering'});
-      moveItems(from,ids,to,root.querySelector('#hnote').value.trim());afterMove(from);render();openRun(to.id,true);toast(`Handed to ${contact(pick).name}. It’s on their list, ready to send.`);
+      const a=newAction(),to=gatheringRequest(pick)||newRun({kind:'request',title:`${contact(pick).name} request`,contact:pick,stage:'gathering'},a);
+      moveItems(from,ids,to,root.querySelector('#hnote').value.trim(),a);afterMove(from,a);render();openRun(to.id,true);toast(`Handed to ${contact(pick).name}. It’s on their list, ready to send.`);
     });
   };
   openSheet('Hand to someone else',`${ids.length} task${ids.length===1?'':'s'}`,body(),mount);
 }
 function selDone(runId,ids){
-  const r=run(runId);
-  ids.forEach(id=>{const x=r.items.find(y=>y.id===id&&y.st==='pending');x.st='done';const i=item(id);if(i.cat==='chore'){i.last=0;i.lastBy=r.runner}else{i.done=true;i.doneBy=r.runner}logHist(i,`${r.kind==='visit'?'Fixed on':'Done on'} ${runLabel(r)}`,'','✓')});
-  afterMove(r);render();openRun(runId,true);toast(`${ids.length} marked ${r.kind==='visit'?'fixed':'done'}.`);
+  const r=run(runId),a=newAction();
+  ids.forEach(id=>{const i=item(id);setRun(i,null);if(i.cat==='chore'){i.last=0;i.lastBy=r.runner}else{i.done=true;i.doneBy=r.runner}emit('run.item_done',{item:id,run:r.id},a)});
+  afterMove(r,a);render();openRun(runId,true);toast(`${ids.length} marked ${r.kind==='visit'?'fixed':'done'}.`);
 }
 function openSendRequest(id){
   const r=run(id);
@@ -972,32 +1068,32 @@ function openSendRequest(id){
      <div class="field"><label class="lab" for="rvia">Sent by</label><select id="rvia"><option>Text</option><option>Email</option><option>Call</option><option>Portal</option><option>In person</option></select></div>
      <button class="btn primary block" id="rsent">${ic('tick')}Mark as sent</button>`,root=>{
     root.querySelector('#rcopy').addEventListener('click',()=>{copyText(root.querySelector('#rmsg').value);toast('Message copied.')});
-    root.querySelector('#rsent').addEventListener('click',()=>{r.stage='sent';r.sent={ago:0,via:root.querySelector('#rvia').value};pending(r).forEach(x=>logHist(item(x.id),`Sent to ${contact(r.contact).name} by ${r.sent.via.toLowerCase()}`,'','📨'));render();openRun(id,true);toast(`Sent. It shows “waiting on ${contact(r.contact).name}” until someone records the reply.`)});
+    root.querySelector('#rsent').addEventListener('click',()=>{r.stage='sent';r.sent={ago:0,via:root.querySelector('#rvia').value};emit('request.sent',{run:r.id,contact:r.contact,note:r.sent.via});render();openRun(id,true);toast(`Sent. It shows “waiting on ${contact(r.contact).name}” until someone records the reply.`)});
   });
 }
 function addToList(id){
-  const i=item(id),r=gatheringRequest(i.contact)||newRun({kind:'request',title:`${contact(i.contact).name} request`,contact:i.contact,stage:'gathering'});
-  r.items.push({id,st:'pending'});logHist(i,`Added to the ${contact(i.contact).name} list`,'','📝');render();openRun(r.id,true);toast(`On the ${contact(i.contact).name} list. Send it when it’s ready.`);
+  const i=item(id),a=newAction(),r=gatheringRequest(i.contact)||newRun({kind:'request',title:`${contact(i.contact).name} request`,contact:i.contact,stage:'gathering'},a);
+  putOn(r,[id],a);render();openRun(r.id,true);toast(`On the ${contact(i.contact).name} list. Send it when it’s ready.`);
 }
 function openAddToRun(id){
   const r=run(id);
   openSheet(`Add to ${esc(runLabel(r))}`,'',`${pickRows(r.kind,id)}<button class="btn primary block" id="ago">Add</button>`,root=>{
-    root.querySelector('#ago').addEventListener('click',()=>{const picks=readPicks(root);if(!picks.length){toast('Pick something to add.');return}picks.forEach(pid=>{r.items.push({id:pid,st:'pending'});const i=item(pid);if(r.contact)i.contact=r.contact;logHist(i,`Added to ${runLabel(r)}`,'','📝')});render();openRun(id,true);toast(`Added ${picks.length}.`)});
+    root.querySelector('#ago').addEventListener('click',()=>{const picks=readPicks(root);if(!picks.length){toast('Pick something to add.');return}putOn(r,picks,newAction());render();openRun(id,true);toast(`Added ${picks.length}.`)});
   });
 }
 function openSetDate(id){
   const r=run(id);
   openSheet('Visit date',esc(runLabel(r)),`${whenFields(r.when?Math.max(0,r.when.day):2,r.when&&r.when.time||'10:00',false)}<button class="btn primary block" id="dgo">${ic('calendar')}Save</button>`,root=>{
-    root.querySelector('#dgo').addEventListener('click',()=>{r.when=readWhen(root);render();openRun(id,true);toast(`On the calendar: ${whenStr(r.when)}.`)});
+    root.querySelector('#dgo').addEventListener('click',()=>{r.when=readWhen(root);emit('run.date_set',{run:r.id,note:whenStr(r.when)});render();openRun(id,true);toast(`On the calendar: ${whenStr(r.when)}.`)});
   });
 }
 function finishRun(r,spent){
-  const back=pending(r).length;
-  pending(r).forEach(x=>{x.st='returned';x.note=x.note||'Not done this time';logHist(item(x.id),`Back from ${runLabel(r)}`,'Not done this time','↩')});
-  r.open=false;
-  if(spent)S.costs.push({id:nid('k'),amount:spent,by:ME,note:runLabel(r),forRun:r.id,ago:0});
+  const a=newAction(),left=pending(r);
+  left.forEach(i=>{setRun(i,null);emit('run.item_returned',{item:i.id,run:r.id,note:'Not done this time'},a)});
+  r.open=false;emit('run.finished',{run:r.id},a);
+  if(spent){const c={id:nid('k'),amount:spent,by:ME,note:runLabel(r),forRun:r.id,ago:0};S.costs.push(c);emit('cost.added',{cost:c.id,run:r.id,member:ME,note:runLabel(r)},a)}
   closeSheet();render();
-  toast(`${r.kind==='visit'?'Visit':'Run'} finished.${back?` ${back} went back to the pool.`:''}${spent?` Logged ${money(spent)}.`:''}`);
+  toast(`${r.kind==='visit'?'Visit':'Run'} finished.${left.length?` ${left.length} went back to the pool.`:''}${spent?` Logged ${money(spent)}.`:''}`);
 }
 function openSpent(r){
   openSheet('Did you spend money?',`<b>${esc(runLabel(r))}</b>`,`<div class="field"><label class="lab" for="spent">Amount ($)</label><input type="text" id="spent" inputmode="decimal" autofocus placeholder="0.00"></div>
@@ -1012,7 +1108,7 @@ function openAddCost(id){
     <div class="field"><label class="lab" for="cby">Who paid?</label><select id="cby">${PEOPLE.map(p=>`<option value="${p.id}" ${p.id===ME?'selected':''}>${p.name}</option>`).join('')}</select></div>
     <button class="btn primary block" id="cgo">${ic('receipt')}Add cost</button>`,root=>{
     root.querySelector('#cgo').addEventListener('click',()=>{const v=parseFloat(root.querySelector('#camt').value);if(!(v>0)){toast('Enter an amount, like 189.00');return}
-      const c={id:nid('k'),amount:v,by:root.querySelector('#cby').value,note:i.title,forItem:i.id,ago:0};S.costs.push(c);copyText(`${i.title} — ${money(v)}`);render();openDetail(id,true);toast(`Added ${money(v)}. Copied for Splitwise.`,()=>{S.costs=S.costs.filter(x=>x!==c);render();openDetail(id,true)})});
+      const c={id:nid('k'),amount:v,by:root.querySelector('#cby').value,note:i.title,forItem:i.id,ago:0};S.costs.push(c);emit('cost.added',{cost:c.id,item:i.id,member:c.by,note:i.title});copyText(`${i.title} — ${money(v)}`);render();openDetail(id,true);toast(`Added ${money(v)}. Copied for Splitwise.`,()=>{S.costs=S.costs.filter(x=>x!==c);emit('cost.removed',{cost:c.id,note:'Undo'});render();openDetail(id,true)})});
   });
 }
 
@@ -1024,9 +1120,9 @@ function openFeel(id){
      <div><label class="lab" for="feelnote">Add a note (optional)</label><textarea id="feelnote" maxlength="280" placeholder="What’s going on?">${cur?esc(cur.note):''}</textarea></div>
      <button class="btn primary block" id="feelgo" ${pick?'':'disabled'}>Share with the house</button>${cur?`<button class="btn secondary block" id="feeldel">Remove my feeling</button>`:''}`,root=>{
     root.querySelectorAll('.feelopt').forEach(b=>b.addEventListener('click',()=>{pick=b.dataset.f;root.querySelectorAll('.feelopt').forEach(x=>x.setAttribute('aria-pressed',x===b));root.querySelector('#feelgo').disabled=false}));
-    root.querySelector('#feelgo').addEventListener('click',()=>{const was=inFeed(i),before=prio(i).tier;if(cur)i.earlier.push({by:ME,f:cur.f,note:cur.note,ago:'Just now'});i.feelings[ME]={f:pick,note:root.querySelector('#feelnote').value.trim()};closeSheet();render();const after=prio(i).tier;
+    root.querySelector('#feelgo').addEventListener('click',()=>{const was=inFeed(i),before=prio(i).tier;const next={f:pick,note:root.querySelector('#feelnote').value.trim()};emit('feeling.set',{item:i.id,changes:{previous:cur?{...cur}:null,next}});i.feelings[ME]=next;closeSheet();render();const after=prio(i).tier;
       toast(!was&&inFeed(i)?'Shared. It’s in the Home feed now. 💛':after!==before&&S.weights[pick]>0?`Shared. It moved up to ${TIER_LABEL[after].replace('●● ','')}. 💛`:'Shared. The house can see it. 💛')});
-    const del=root.querySelector('#feeldel');del&&del.addEventListener('click',()=>{i.earlier.push({by:ME,f:cur.f,note:cur.note,ago:'Just now'});delete i.feelings[ME];closeSheet();render();toast('Removed your feeling.')});
+    const del=root.querySelector('#feeldel');del&&del.addEventListener('click',()=>{emit('feeling.removed',{item:i.id,changes:{previous:{...cur}}});delete i.feelings[ME];closeSheet();render();toast('Removed your feeling.')});
   });
 }
 function openWeights(){
@@ -1042,13 +1138,20 @@ function openWeights(){
     root.querySelector('#wsave').addEventListener('click',()=>{
       const prev={...S.weights},prevN=S.weightsNotice,ch=Object.keys(draft).filter(k=>draft[k]!==prev[k]);
       if(!ch.length){closeSheet();return}
-      S.weights={...draft};S.weightsNotice=`You set ${ch.map(k=>`${FEEL[k].e} ${FEEL[k].label} to ${draft[k]>0?'+':''}${draft[k]}`).join(', ')}`;
+      emit('settings.feeling_weights_changed',{changes:Object.fromEntries(ch.map(k=>[k,[prev[k],draft[k]]]))});S.weights={...draft};S.weightsNotice=`You set ${ch.map(k=>`${FEEL[k].e} ${FEEL[k].label} to ${draft[k]>0?'+':''}${draft[k]}`).join(', ')}`;
       closeSheet();S.tab='home';render(false);toast('Feeling weights saved for the house.',()=>{S.weights=prev;S.weightsNotice=prevN;render()});
     });
   };
   openSheet('Feeling weights','How much each feeling raises an item’s priority.',body(),mount);
 }
 function top3(w){const saved=S.weights;S.weights=w;const l=sorted(S.items.filter(inFeed)).slice(0,3).map(i=>({title:i.title,tier:prio(i).tier}));S.weights=saved;return l}
+
+/* ---------- activity screen ---------- */
+function openActivity(){
+  const lines=activityLines();
+  openSheet('Activity','Append-only. Undo adds a new entry and never erases one. Bulk actions show as one line.',
+    lines.map(l=>`<div class="feel-row">${l.actor?av(l.actor,28,false):'<span></span>'}<div><div class="who" style="font-size:14px">${l.actor?person(l.actor).name+' ':'Roomies '}${esc(l.parts[0].text)}</div>${l.parts.slice(1).map(p=>`<div class="note">and ${esc(p.text)}</div>`).join('')}${l.parts.map(p=>p.note).filter(Boolean).map(n=>`<div class="note">“${esc(n)}”</div>`).join('')}<div class="note" style="font-size:12px">${l.when}</div></div></div>`).join('')||empty('check','Nothing yet.'),null,{kind:'activity'});
+}
 
 /* ---------- calendar ---------- */
 let calMonth=new Date(TODAY.getFullYear(),TODAY.getMonth(),1),calSel=new Date(TODAY);
@@ -1088,11 +1191,11 @@ function openAddForm(cat){
     go.addEventListener('click',()=>{
       const title=t.value.trim();
       if(cat==='need'){const ex=S.items.find(i=>i.cat==='need'&&!i.done&&i.title.toLowerCase()===title.toLowerCase());if(ex){closeSheet();openDetail(ex.id);toast(`“${ex.title}” is already on the list.`);return}}
-      const it={id:nid(cat[0]),cat,title,room:root.querySelector('#nroom').value||null,assignee:root.querySelector('#nwho').value||null,priority:'normal',feelings:{},earlier:[]};
+      const it={id:nid(cat[0]),cat,title,room:root.querySelector('#nroom').value||null,assignee:root.querySelector('#nwho').value||null,priority:'normal',feelings:{}};
       if(cat==='need')it.soon=root.querySelector('#nsoon').checked;
       if(cat==='chore'){const r=root.querySelector('#nrep').value;it.repeat=r?+r:null;it.last=0;it.lastBy=ME}
       if(cat==='task'){it.contact=root.querySelector('#ncontact').value||null;const d=root.querySelector('#nday').value;it.when=d!==''?{day:+d}:null}
-      S.items.push(it);closeSheet();S.tab={need:'needs',chore:'chores',task:'tasks'}[cat];render(false);toast(`Added “${it.title}”.`);
+      it.run=null;S.items.push(it);emit('item.created',{item:it.id});closeSheet();S.tab={need:'needs',chore:'chores',task:'tasks'}[cat];render(false);toast(`Added “${it.title}”.`);
     });
   });
 }
@@ -1100,7 +1203,7 @@ function addNeedQuick(title){
   title=title.trim();if(!title)return false;
   const ex=S.items.find(i=>i.cat==='need'&&!i.done&&i.title.toLowerCase()===title.toLowerCase());
   if(ex){toast(`“${ex.title}” is already on the list.`);return true}
-  S.items.push({id:nid('n'),cat:'need',title:title.replace(/^./,c=>c.toUpperCase()),priority:'normal',feelings:{},earlier:[]});toast(`Added “${title}”.`);return true;
+  const it={id:nid('n'),cat:'need',title:title.replace(/^./,c=>c.toUpperCase()),priority:'normal',feelings:{},run:null};S.items.push(it);emit('item.created',{item:it.id});toast(`Added “${title}”.`);return true;
 }
 
 /* ---------- done ---------- */
@@ -1113,14 +1216,15 @@ function markDone(id,btn,fromSheet){
   const i=item(id);if(!i||i.done)return;
   btn.classList.add('done');burst(btn);
   setTimeout(()=>{
-    let undo;
-    if(i.cat==='chore'){const prev={l:i.last,b:i.lastBy,f:i.feelings};i.last=0;i.lastBy=ME;i.feelings={};undo=()=>{i.last=prev.l;i.lastBy=prev.b;i.feelings=prev.f;render()}}
-    else{i.done=true;i.doneBy=ME;undo=()=>{i.done=false;i.doneBy=null;render()}}
+    let undo;const a=newAction(),r=i.run?run(i.run):null;
+    if(r){setRun(i,null);emit('run.item_done',{item:id,run:r.id},a)}
+    if(i.cat==='chore'){const prev={l:i.last,b:i.lastBy,f:i.feelings};i.last=0;i.lastBy=ME;i.feelings={};if(!r)emit('chore.done',{item:id},a);undo=()=>{i.last=prev.l;i.lastBy=prev.b;i.feelings=prev.f;emit('chore.undone',{item:id});render()}}
+    else{i.done=true;i.doneBy=ME;if(!r)emit('item.done',{item:id},a);undo=()=>{i.done=false;i.doneBy=null;emit('item.reopened',{item:id});render()}}
+    if(r)afterMove(r,a);
     if(fromSheet)closeSheet();render();
     toast(i.cat==='chore'?'Done. Thanks for taking it on.':i.cat==='need'?`Got “${i.title}”.`:'Done. Nice one.',undo);
   },300);
 }
-
 /* ---------- misc ---------- */
 let toastT;
 function toast(msg,undo){const t=document.getElementById('toast'),u=document.getElementById('toastUndo');document.getElementById('toastMsg').textContent=msg;u.hidden=!undo;u.onclick=undo?()=>{undo();t.classList.remove('on')}:null;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),3600)}
@@ -1136,7 +1240,7 @@ phone.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
   if(f.dataset.form==='addopt'){const p=poll(f.dataset.id),label=f.elements.label.value.trim(),note=f.elements.note.value.trim();
     if(!label){toast('Type the option first.');return}
     if(p.options.some(o=>o.label.toLowerCase()===label.toLowerCase())){toast('That option is already there.');return}
-    const o={id:nid('o'),label,note:note||undefined,by:ME};p.options.push(o);refresh();
+    const o={id:nid('o'),label,note:note||undefined,by:ME};p.options.push(o);emit('poll.option_added',{poll:p.id,option:o.id,note:label});refresh();
     toast(`Added “${label}”. Anyone who already voted can switch.`,()=>{p.options=p.options.filter(x=>x!==o);Object.keys(p.votes).forEach(u=>{if(p.votes[u]===o.id)delete p.votes[u]});refresh()})}
 });
 
@@ -1155,11 +1259,11 @@ phone.addEventListener('click',e=>{
     case 'room':openRoom(id);break;
     case 'close':closeSheet();break;
     case 'done':markDone(id,el,el.dataset.from==='sheet');break;
-    case 'soon':{const i=item(id);i.soon=!i.soon;render();break}
+    case 'soon':{const i=item(id);i.soon=!i.soon;emit('item.edited',{item:id,changes:{need_soon:[!i.soon,i.soon]}});render();break}
     case 'newpoll':openNewPoll(id);break;
     case 'handledby':openHandledBy(id);break;
-    case 'vote':{const p=poll(id);if(p.closed)break;p.votes[ME]===v?delete p.votes[ME]:p.votes[ME]=v;refresh();break}
-    case 'closepoll':{const p=poll(id);p.closed={ago:0};refresh();const r=pollResult(p);toast(r.none?'Closed with no votes.':r.tie?'It’s a tie. Talk it out?':`${r.winner.label} wins.`,()=>{p.closed=null;refresh()});break}
+    case 'vote':{const p=poll(id);if(p.closed)break;const was=p.votes[ME];if(was===v){delete p.votes[ME];emit('poll.vote_withdrawn',{poll:id})}else{p.votes[ME]=v;emit(was?'poll.vote_changed':'poll.voted',{poll:id,option:v,changes:was?{option:[was,v]}:undefined})}refresh();break}
+    case 'closepoll':{const p=poll(id);p.closed={ago:0};const r=pollResult(p);emit('poll.closed',{poll:id,option:r.winner?r.winner.id:undefined,payload:{result:r.none?'no_votes':r.tie?'tie':'winner'}});refresh();toast(r.none?'Closed with no votes.':r.tie?'It’s a tie. Talk it out?':`${r.winner.label} wins.`,()=>{p.closed=null;emit('poll.reopened',{poll:id});refresh()});break}
     case 'startrun':openStartRun();break;
     case 'planvisit':openPlanVisit();break;
     case 'newreq':openNewReq();break;
@@ -1174,6 +1278,7 @@ phone.addEventListener('click',e=>{
     case 'setdate':openSetDate(id);break;
     case 'addcost':openAddCost(id);break;
     case 'weights':openWeights();break;
+    case 'activity':openActivity();break;
     case 'calendar':calSel=new Date(TODAY);calMonth=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);openCalendar();break;
     case 'calnav':calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+(+v),1);openCalendar(true);break;
     case 'calday':calSel=new Date(v);openCalendar(true);break;
