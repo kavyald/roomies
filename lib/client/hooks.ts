@@ -2,7 +2,8 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { NewContact } from '../domain/contacts'
-import type { HouseId } from '../domain/ids'
+import type { HouseId, InviteId } from '../domain/ids'
+import type { NewInvite } from '../domain/invites'
 import { useAppClient } from './provider'
 import { keys } from './query-keys'
 
@@ -29,6 +30,31 @@ export const useRooms = (houseId: HouseId) => {
 export const useContacts = (houseId: HouseId) => {
   const { queries } = useAppClient()
   return useQuery({ queryKey: keys.contacts(houseId), queryFn: () => queries.contacts(houseId) })
+}
+
+export const useInvites = (houseId: HouseId) => {
+  const { queries } = useAppClient()
+  return useQuery({ queryKey: keys.invites(houseId), queryFn: () => queries.invites(houseId) })
+}
+
+export const useCreateInvite = (houseId: HouseId) => {
+  const { commands } = useAppClient()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewInvite) => commands.createInvite(input),
+    onSuccess: (r) => {
+      if (r.ok) return qc.invalidateQueries({ queryKey: keys.invites(houseId) })
+    },
+  })
+}
+
+export const useRevokeInvite = (houseId: HouseId) => {
+  const { commands } = useAppClient()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: InviteId) => commands.revokeInvite(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.invites(houseId) }),
+  })
 }
 
 const ACTIVITY_PAGE = 30

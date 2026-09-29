@@ -202,6 +202,10 @@ const reposFor = (trx: Trx): Repos => ({
         .executeTakeFirst()
       return r && inviteToDomain(r)
     },
+    listByHouse: async (houseId) =>
+      (
+        await trx.selectFrom('house_invites').selectAll().where('house_id', '=', houseId).execute()
+      ).map(inviteToDomain),
     save: async (i) => {
       const row = inviteToRow(i)
       await save(

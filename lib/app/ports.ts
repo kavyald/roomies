@@ -18,6 +18,22 @@ export interface IdGenerator {
   newId<K extends string>(): Id<K>
 }
 
+/** Invite tokens: random secrets that are stored only as hashes. */
+export interface Tokens {
+  /** A new unguessable token (128 bits, URL-safe). */
+  newToken(): string
+  hash(token: string): string
+}
+
+/**
+ * Counts attempts per key (e.g. "invite:start:<ip>") in fixed windows. Counts are kept even when
+ * the attempt fails, so it runs outside the use case's transaction.
+ */
+export interface RateLimiter {
+  /** Records one attempt; true while the key is within `limit` attempts per window. */
+  hit(key: string, rule: { limit: number; windowMs: number }, now: Instant): Promise<boolean>
+}
+
 /** What use cases need from configuration. Secrets for adapters stay in the composition root. */
 export type Config = {
   readonly setupToken: string
@@ -62,6 +78,7 @@ export interface ContactRepo {
 export interface InviteRepo {
   get(id: InviteId): Promise<Invite | undefined>
   findByTokenHash(tokenHash: string): Promise<Invite | undefined>
+  listByHouse(houseId: HouseId): Promise<Invite[]>
   save(invite: Invite): Promise<void>
 }
 
@@ -113,6 +130,8 @@ export interface HouseQueries {
   profiles(houseId: HouseId): Promise<Profile[]>
   rooms(houseId: HouseId): Promise<Room[]>
   contacts(houseId: HouseId): Promise<Contact[]>
+  /** The house's invites; admins only (others get none). */
+  invites(houseId: HouseId): Promise<Invite[]>
   /** Newest first, `limit` rows or a little more: an action is never split across pages. */
   activity(houseId: HouseId, page: { before?: number; limit: number }): Promise<ActivityPage>
 }
@@ -134,5 +153,7 @@ export type AppDeps = {
   readonly clock: Clock
   readonly ids: IdGenerator
   readonly auth: AuthGateway
+  readonly tokens: Tokens
+  readonly limiter: RateLimiter
   readonly config: Config
 }

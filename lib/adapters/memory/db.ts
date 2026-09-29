@@ -146,6 +146,8 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
       },
       findByTokenHash: async (hash) =>
         [...s.invites.values()].find((i) => i.tokenHash === hash && isAdmin(s, a, i.houseId)),
+      listByHouse: async (houseId) =>
+        [...s.invites.values()].filter((i) => i.houseId === houseId && isAdmin(s, a, houseId)),
       save: async (i) => {
         const old = s.invites.get(i.id)
         if (!isAdmin(s, a, i.houseId) || (old && !isAdmin(s, a, old.houseId))) deny('house_invites')

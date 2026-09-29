@@ -74,6 +74,22 @@ export const houseQueriesContract = (
       expect(await q.contacts(house.id)).toEqual([contacts[1], contacts[0]])
     })
 
+    it('shows invites to admins only', async () => {
+      const { house, admin, member } = await withPlaces()
+      const invite = {
+        id: h.ids.newId<'invite'>(),
+        houseId: house.id,
+        tokenHash: `q-${h.ids.newId()}`,
+        createdBy: admin,
+        expiresAt: T,
+        maxUses: 2,
+        uses: 1,
+      } as const
+      await h.uow.run(system(house.id), (r) => r.invites.save(invite as never))
+      expect(await h.queriesFor(admin, house.id).invites(house.id)).toEqual([invite])
+      expect(await h.queriesFor(member, house.id).invites(house.id)).toEqual([])
+    })
+
     it('pages activity newest first, never splitting an action', async () => {
       const { house, admin, member } = await withPlaces()
       const alone = (): DomainEvent => ({
@@ -120,5 +136,6 @@ export const houseQueriesContract = (
       expect(await q.rooms(house.id)).toEqual([])
       expect(await q.contacts(house.id)).toEqual([])
       expect(await q.activity(house.id, { limit: 10 })).toEqual({ rows: [], before: null })
+      expect(await q.invites(house.id)).toEqual([])
     })
   })

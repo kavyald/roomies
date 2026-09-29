@@ -17,6 +17,8 @@ export const fakeAppClient = (
   changes: manualChangeFeed(),
   commands: {
     createContact: async () => err('unexpected'),
+    createInvite: async () => err('unexpected'),
+    revokeInvite: async () => err('unexpected'),
     ...commands,
   },
 })

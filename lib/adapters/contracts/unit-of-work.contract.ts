@@ -192,6 +192,9 @@ export const unitOfWorkContract = (name: string, makeHarness: () => Promise<Unit
         )
         expect(byHash).toEqual(revoked)
         expect(await h.uow.run(system(house.id), (r) => r.invites.get(invite.id))).toEqual(revoked)
+        expect(
+          await h.uow.run(asMember(house.id, admin), (r) => r.invites.listByHouse(house.id)),
+        ).toEqual([revoked])
       })
     })
 

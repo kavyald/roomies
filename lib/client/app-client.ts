@@ -4,8 +4,9 @@
 
 import type { ChangeFeed, HouseQueries } from '../app/ports'
 import type { NewContact } from '../domain/contacts'
-import type { Contact } from '../domain/house'
-import type { UserId } from '../domain/ids'
+import type { Contact, Invite } from '../domain/house'
+import type { InviteId, UserId } from '../domain/ids'
+import type { NewInvite } from '../domain/invites'
 import type { Result } from '../domain/result'
 
 /** What any command can fail with, besides its own business errors. */
@@ -15,6 +16,12 @@ export type CommandResult<T, E extends string = never> = Result<T, E | CommandFa
 
 export type AppCommands = {
   createContact(input: NewContact): Promise<CommandResult<Contact, 'empty_name' | 'not_found'>>
+  createInvite(
+    input: NewInvite,
+  ): Promise<
+    CommandResult<{ invite: Invite; token: string }, 'not_admin' | 'bad_limits' | 'not_found'>
+  >
+  revokeInvite(id: InviteId): Promise<CommandResult<Invite, 'not_found' | 'already_revoked'>>
 }
 
 export type AppClient = {

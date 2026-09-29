@@ -6,7 +6,8 @@ import { Avatar } from '@/components/ui/Avatar'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { elementName } from '@/components/ui/elements'
-import { useContacts, useMembers, useProfiles, useRooms } from '@/lib/client/hooks'
+import { useContacts, useIsAdmin, useMembers, useProfiles, useRooms } from '@/lib/client/hooks'
+import { InvitesSection } from './InvitesSection'
 import type { HouseId } from '@/lib/domain/ids'
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -19,6 +20,7 @@ export function HouseScreen({ houseId }: { houseId: HouseId }) {
   const profiles = useProfiles(houseId)
   const rooms = useRooms(houseId)
   const contacts = useContacts(houseId)
+  const isAdmin = useIsAdmin(houseId)
 
   if (members.isError || profiles.isError || contacts.isError) {
     return (
@@ -62,6 +64,13 @@ export function HouseScreen({ houseId }: { houseId: HouseId }) {
             )
           })}
         </ListGroup>
+      )}
+
+      {isAdmin && (
+        <>
+          <SectionTitle>Invite a roommate</SectionTitle>
+          <InvitesSection houseId={houseId} />
+        </>
       )}
 
       <SectionTitle>Contacts</SectionTitle>

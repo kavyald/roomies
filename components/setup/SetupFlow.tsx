@@ -16,6 +16,7 @@ const MESSAGES: Record<string, string> = {
   empty_house_name: 'Give the house a name.',
   empty_owner_name: 'Add your name so roommates know who you are.',
   wrong_code: "That code didn't work. Check it and try again, or get a new one.",
+  rate_limited: 'Too many tries for now. Take a breather and try again in a bit.',
 }
 const fallback = "Couldn't reach the house. Check your connection and try again."
 

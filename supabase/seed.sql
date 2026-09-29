@@ -36,3 +36,27 @@ insert into public.houses (id, name, created_by, settings) values (
 );
 insert into public.house_members (house_id, user_id, role)
 values ('5eed0000-0000-4000-8000-000000000101', '5eed0000-0000-4000-8000-000000000001', 'admin');
+
+-- The apartment's rooms (FRONTEND §4.1; same list as lib/domain/rooms.ts).
+insert into public.rooms (id, house_id, name, floor, kind, element, sort_order) values
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Front door', 'first', 'entry', NULL, 0),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Hallway', 'first', 'common', NULL, 1),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Air', 'first', 'bedroom', 'air', 2),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Fire', 'first', 'bedroom', 'fire', 3),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Water', 'first', 'bedroom', 'water', 4),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Bathroom 1', 'first', 'bath', NULL, 5),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Bathroom 2', 'first', 'bath', NULL, 6),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Kitchen', 'first', 'common', NULL, 7),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Living room', 'first', 'common', NULL, 8),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Stairs', 'first', 'common', NULL, 9),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Downstairs living room', 'basement', 'common', NULL, 10),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Bathroom 3', 'basement', 'bath', NULL, 11),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Laundry', 'basement', 'utility', NULL, 12),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Craft room', 'basement', 'common', NULL, 13),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Earth', 'basement', 'bedroom', 'earth', 14),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Fitness space', 'basement', 'common', NULL, 15),
+  (gen_random_uuid(), '5eed0000-0000-4000-8000-000000000101', 'Garden', 'outside', 'outdoor', NULL, 16);
+
+-- The owner lives in Air.
+update public.house_members set room_id = (select id from public.rooms where name = 'Air' and house_id = '5eed0000-0000-4000-8000-000000000101')
+where user_id = '5eed0000-0000-4000-8000-000000000001';

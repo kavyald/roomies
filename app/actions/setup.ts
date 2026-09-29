@@ -6,7 +6,9 @@ import { err, ok, type Result } from '@/lib/domain/result'
 import type { SetupError } from '@/lib/domain/setup'
 import { emailSchema } from '@/lib/schemas/auth'
 import { newHouseSchema } from '@/lib/schemas/setup'
+import { requestIp } from '@/lib/server/ip'
 import { currentUserId } from '@/lib/server/session'
+import { SETUP_RATE } from '@/lib/app/invites'
 
 type Unavailable = 'invalid_token' | 'already_set_up'
 
@@ -14,10 +16,14 @@ type Unavailable = 'invalid_token' | 'already_set_up'
 export async function startSetup(
   token: string,
   rawEmail: unknown,
-): Promise<Result<void, Unavailable | 'invalid_email'>> {
+): Promise<Result<void, Unavailable | 'invalid_email' | 'rate_limited'>> {
   const email = emailSchema.safeParse(rawEmail)
   if (!email.success) return err('invalid_email')
-  const status = await makeSetupStatus(depsForJob())(token)
+  const deps = depsForJob()
+  if (!(await deps.limiter.hit(`setup:${await requestIp()}`, SETUP_RATE, deps.clock.now()))) {
+    return err('rate_limited')
+  }
+  const status = await makeSetupStatus(deps)(token)
   if (status !== 'available') return err(status)
   const auth = authForRequest()
   await auth.createUser(email.data) // already_exists is fine: they may be retrying

@@ -6,7 +6,10 @@ import { cryptoIds, seqIds, type SeqIds } from './adapters/ids'
 import { memoryAuth, type MemoryAuth } from './adapters/memory/auth'
 import { MemoryUnitOfWork } from './adapters/memory/db'
 import type { DB } from './adapters/postgres/schema'
+import { postgresRateLimiter } from './adapters/postgres/rate-limiter'
 import { createDb, PostgresUnitOfWork } from './adapters/postgres/unit-of-work'
+import { cryptoTokens, seqTokens } from './adapters/tokens'
+import { memoryRateLimiter } from './adapters/memory/rate-limiter'
 import { supabaseAuthGateway } from './adapters/supabase/auth-gateway'
 import { adminClient, anonClient } from './adapters/supabase/server'
 import type { AppDeps, AuthGateway, Config } from './app/ports'
@@ -44,6 +47,8 @@ const productionDeps = (env: EnvConfig): AppDeps => ({
   clock: systemClock,
   ids: cryptoIds,
   auth: authGateway(env),
+  tokens: cryptoTokens,
+  limiter: postgresRateLimiter(database(env)),
   config: appConfig(env),
 })
 
@@ -57,6 +62,8 @@ export type TestDeps = AppDeps & {
   readonly uow: MemoryUnitOfWork
   readonly clock: FixedClock
   readonly ids: SeqIds
+  readonly tokens: ReturnType<typeof seqTokens>
+  readonly limiter: ReturnType<typeof memoryRateLimiter>
   readonly auth: MemoryAuth
 }
 
@@ -71,6 +78,8 @@ export const depsForTest = (overrides: Partial<AppDeps> = {}): TestDeps => {
     ids,
     clock: fixedClock(TEST_NOW),
     auth: memoryAuth(uow, ids),
+    tokens: seqTokens(),
+    limiter: memoryRateLimiter(),
     config: { setupToken: 'test-setup-token-0123456789abcdef0123' },
     ...overrides,
   } as TestDeps

@@ -4,6 +4,7 @@ import { supabaseAuthGateway } from '../lib/adapters/supabase/auth-gateway'
 import { adminClient, anonClient } from '../lib/adapters/supabase/server'
 import { asOwner } from '../lib/testing/db'
 import { mintJwt } from '../lib/testing/jwt'
+import { APARTMENT_ROOMS } from '../lib/domain/rooms'
 
 const API_URL = process.env.TEST_SUPABASE_URL ?? 'http://127.0.0.1:54321'
 
@@ -34,6 +35,12 @@ export const anOwner = async (name = 'Kavya') => {
       houseId,
       userId,
     ])
+    for (const [i, r] of APARTMENT_ROOMS.entries()) {
+      await db.query(
+        'insert into rooms (id, house_id, name, floor, kind, element, sort_order) values ($1, $2, $3, $4, $5, $6, $7)',
+        [randomUUID(), houseId, r.name, r.floor, r.kind, r.element ?? null, i],
+      )
+    }
   })
   return { email, userId, houseId }
 }

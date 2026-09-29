@@ -17,6 +17,7 @@ export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQu
     }),
   rooms: (houseId) => uow.run(actor, (r) => r.rooms.listByHouse(houseId)),
   contacts: (houseId) => uow.run(actor, (r) => r.contacts.listByHouse(houseId)),
+  invites: (houseId) => uow.run(actor, (r) => r.invites.listByHouse(houseId)),
   activity: async (houseId, { before, limit }) => {
     // Reads go through the same rule as RLS: members of the house only.
     const visible = await uow.run(actor, (r) => r.houses.get(houseId))

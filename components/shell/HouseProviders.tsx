@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { createContactAction } from '@/app/actions/contacts'
+import { createInviteAction, revokeInviteAction } from '@/app/actions/invites'
 import { browserAppClient } from '@/lib/compose.client'
 import type { HouseId, UserId } from '@/lib/domain/ids'
 import { AppClientProvider } from '@/lib/client/provider'
@@ -17,7 +18,11 @@ export function HouseProviders({
   children: ReactNode
 }) {
   const [client] = useState(() =>
-    browserAppClient(me, { createContact: (input) => createContactAction(houseId, input) }),
+    browserAppClient(me, {
+      createContact: (input) => createContactAction(houseId, input),
+      createInvite: (input) => createInviteAction(houseId, input),
+      revokeInvite: (id) => revokeInviteAction(houseId, id),
+    }),
   )
   return <AppClientProvider client={client}>{children}</AppClientProvider>
 }

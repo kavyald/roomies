@@ -8,6 +8,7 @@ import {
   activityToDomain,
   contactToDomain,
   houseToDomain,
+  inviteToDomain,
   memberToDomain,
   profileToDomain,
   roomToDomain,
@@ -59,6 +60,15 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => ({
   contacts: (houseId) =>
     rows(sb.from('contacts').select('*').eq('house_id', houseId), contactToDomain).then((cs) =>
       cs.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())),
+    ),
+  invites: (houseId) =>
+    rows(
+      sb
+        .from('house_invites')
+        .select('*')
+        .eq('house_id', houseId)
+        .order('expires_at', { ascending: false }),
+      inviteToDomain,
     ),
   activity: async (houseId, { before, limit }) => {
     let q = sb.from('activity_events').select('*').eq('house_id', houseId)
