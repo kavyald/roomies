@@ -79,7 +79,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | Dates / recurrence | `date-fns` + `date-fns-tz`, `rrule` |
 | PWA | Hand-written service worker (push + minimal offline shell), or Serwist |
 | Push | `web-push` (VAPID) from a server route |
-| Email | Resend: Supabase custom SMTP for sign-in codes (required, since Supabase's built-in sender won't reach roommates). Reminder emails come later. |
+| Email | A dedicated house Gmail account as Supabase's custom SMTP (`smtp.gmail.com`, app password) for sign-in codes. Required, since Supabase's built-in sender won't reach roommates. Needs no domain. Resend + a custom domain is the upgrade path (A18). Reminder emails come later. |
 | Icons | Lucide |
 | Testing | Vitest (unit), Playwright with the iPhone 15 device profile (e2e), pgTAP or SQL tests for RLS |
 | Errors / monitoring | Sentry (free tier), Vercel Analytics |
@@ -109,7 +109,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
  └────────┬───────────┘   │  pg_cron + pg_net (calls /api/cron)  │
           │               └──────────────────────────────────────┘
           ▼
-   Web Push services (Apple / Google / Mozilla)    Resend (sign-in codes, via Supabase SMTP)
+   Web Push services (Apple / Google / Mozilla)    Gmail (sign-in codes, via Supabase SMTP)
 ```
 
 **Data access pattern [DECIDED] (revised in v1.0; see §4.1):**
@@ -256,10 +256,10 @@ Admin-only actions (invites, removing members, house settings) use an `is_admin(
 
 - **Physical location:** one Supabase project in the region you pick when creating it (e.g. `us-east-1`). The data is encrypted at rest and in transit (TLS). Only you, as the Supabase project owner, can see the raw tables in the dashboard.
 - **Who else touches it:**
-  - **Resend** sends the code emails, so it sees email addresses and the code in transit and keeps delivery logs.
+  - **Gmail** (a dedicated house account) sends the code emails, so it sees email addresses and codes, and keeps a copy of each in its Sent folder. Codes expire in 10 minutes, so the copies are harmless.
   - **Vercel** sees requests passing through the server routes, but it doesn't store user data beyond short-lived logs.
   - **Sentry** is configured to scrub emails and request bodies.
-- **Email sending needs Resend (or similar).** Supabase's built-in email service only delivers to your own team's addresses and is heavily rate-limited, so custom SMTP is required before roommates can sign in. Resend's free tier is enough.
+- **Email sending needs custom SMTP.** Supabase's built-in email service only delivers to your own team's addresses and is heavily rate-limited, so custom SMTP is required before roommates can sign in. v1 uses a Gmail account made just for this (2-step verification on, an app password as the SMTP password), which sends about 500 emails a day with no domain. Never use a personal Gmail: the app password can read and send that account's mail. If Google flags the account or the password changes, sign-in emails stop, so moving to Resend is a settings change in Supabase, not a code change (A18).
 - **Deleting an account:** a "Delete my account" option in settings removes the auth user and profile. Their name on past items becomes "Former roommate."
 
 ### 5.4 Other security decisions [DECIDED]
@@ -759,10 +759,10 @@ iPhone UX specifics:
 | Environments | `local` (Supabase CLI in Docker), `preview` (Vercel preview deploys → shared staging Supabase project), `prod` |
 | Migrations | Supabase CLI SQL migrations, checked in. Applied to staging on merge to `main`, then promoted to prod manually or on a tag. |
 | CI (GitHub Actions) | typecheck, lint (**`eslint-plugin-boundaries`**: `domain` imports nothing, `app` imports only `domain` and ports, and only `adapters` + `compose` import Supabase/Kysely/web-push), Vitest (domain + use cases with in-memory adapters), port contract tests against both the memory and Postgres adapters, RLS tests against local Supabase, Playwright smoke test (iPhone profile) on the preview URL |
-| Secrets | Vercel env vars (service-role key, `SETUP_TOKEN`, VAPID private key, Resend key, cron secret, Splitwise secret later). `.env.example` checked in. |
+| Secrets | Vercel env vars (service-role key, `SETUP_TOKEN`, VAPID private key, cron secret, Splitwise secret later). The Gmail app password lives only in Supabase's SMTP settings, never in the app. `.env.example` checked in. |
 | Backups | Supabase daily backups (Pro), or on the free tier a scheduled `pg_dump` via GitHub Actions to a private storage bucket, weekly |
 | Monitoring | Sentry (client + server), Supabase logs, a Vercel Cron failure alert, and an uptime ping (free UptimeRobot/Better Stack) |
-| Domain | `*.vercel.app` to start. A custom domain is ~$12/yr (PRD Q12). |
+| Domain | `*.vercel.app` for v1. A custom domain (~$12/yr) comes with the move to Resend (A18). |
 
 ---
 
@@ -772,9 +772,9 @@ iPhone UX specifics:
 |---|---|---|
 | Vercel Hobby | Fine for a personal, non-commercial project | Pro $20/mo |
 | Supabase Free | 500 MB DB, 1 GB storage, 50k MAU: plenty | Pro $25/mo |
-| Resend | 3k emails/mo free | — |
+| Gmail (SMTP) | ~500 emails/day free | — |
 | Sentry | 5k errors/mo free | — |
-| Domain | — | ~$12/yr |
+| Domain | Not needed (`*.vercel.app`) | ~$12/yr, with Resend later |
 | **Total** | **$0/mo** | ~$45/mo if both upgraded |
 
 **Watch out:** Supabase **pauses free projects after ~7 days of inactivity**. The cron jobs above hit the DB constantly, so the project never idles, but verify this. If it pauses, the "always on" requirement breaks, and upgrading to Pro is the fix.
@@ -812,7 +812,7 @@ iPhone UX specifics:
 | A3 | Auth method | Email 6-digit code, passkeys later | Default |
 | A4 | Extra house passcode on invites | No | Default |
 | A5 | Priority computed in client TS or SQL | Client TS for v1 | Default |
-| A6 | Accounts | New free accounts: GitHub, Vercel, Supabase, Resend | Default (no preference given) |
+| A6 | Accounts | New free accounts: GitHub, Vercel, Supabase, and a dedicated house Gmail for sending codes | Default (no preference given), Gmail per A18 |
 | A7 | Budget | Free tiers. Upgrade only if the Supabase pause or cron limits bite. | Owner |
 | A8 | Scope | One house (setup token for the first account), keep `house_id` everywhere | Owner |
 | A9 | Lock invites to specific emails? | No. Public sign-up off, accounts created only via a valid invite. | Owner |
@@ -824,3 +824,4 @@ iPhone UX specifics:
 | A15 | v1 storage | One `items` table (need / chore / task) with CHECKs. Polls, runs, costs, and feelings are their own tables. Detail tables come back per category only if one grows. | Owner (D18) |
 | A16 | v1 scope | Needs, chores, tasks, polls, runs, costs, feeling weights. Bills, belongings, rotations, outside-help stages, heads-ups, info, and email come later. | Owner (D13) |
 | A17 | History storage | `items.run_id` holds the current run. `activity_events` (typed subject columns, append-only, `action_id` grouping) is the only history store. `run_items` / `run_claims` dropped. | Owner |
+| A18 | Sign-in email sender | A dedicated house Gmail as Supabase custom SMTP, with the app on `*.vercel.app`. No domain in v1. Move to Resend + a custom domain when delivery logs or reminder emails are needed, or if Google flags the account. | Owner |

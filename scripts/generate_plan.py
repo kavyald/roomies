@@ -24,7 +24,7 @@ T = [
      "A GitHub Actions workflow runs typecheck, lint, and tests. `eslint-plugin-boundaries` enforces the layer rules: domain imports nothing, app imports only domain + ports, and only adapters/compose touch Supabase or Kysely.",
      "A PR that imports Supabase from `lib/domain` fails CI."),
     ("T03", "M0", "Supabase & email setup", "M", [],
-     "Local Supabase via the CLI, plus staging and prod projects. Auth: public sign-up off, 6-digit email code with a 10-min expiry, code-only template. Resend as custom SMTP.",
+     "Local Supabase via the CLI, plus staging and prod projects. Auth: public sign-up off, 6-digit email code with a 10-min expiry, code-only template. A dedicated house Gmail (2-step verification, app password) as custom SMTP.",
      "A code email arrives from staging for an existing user, and an unknown email gets nothing."),
     ("T04", "M0", "Domain primitives", "S", ["T01"],
      "Branded ids, `Instant`, `When`/`LocalDate`, `Cents`, `Result`, `Actor`, plus time-zone and money helpers, with unit tests (including DST).",

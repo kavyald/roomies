@@ -380,5 +380,6 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D25 | Items point at their current run. The activity log (typed columns, append-only) is the single store of history, including run moves. | Owner |
 | D26 | No "needed soon" flag on needs. Feelings and the needed-by date carry urgency. | Owner |
 | D27 | Heads-ups and the calendar icon are v2 (design parked in §13) | Owner |
+| D28 | Sign-in codes come from a house Gmail address, and the app lives at a `*.vercel.app` URL. No custom domain in v1. | Owner |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.

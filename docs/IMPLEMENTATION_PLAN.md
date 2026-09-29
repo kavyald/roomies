@@ -205,7 +205,7 @@ flowchart TD
   *Done when:* `pnpm dev`, `pnpm test`, and `pnpm lint` all pass on an empty app.
 - **T02 CI + architecture guardrails**: A GitHub Actions workflow runs typecheck, lint, and tests. `eslint-plugin-boundaries` enforces the layer rules: domain imports nothing, app imports only domain + ports, and only adapters/compose touch Supabase or Kysely.  
   *Done when:* A PR that imports Supabase from `lib/domain` fails CI.
-- **T03 Supabase & email setup**: Local Supabase via the CLI, plus staging and prod projects. Auth: public sign-up off, 6-digit email code with a 10-min expiry, code-only template. Resend as custom SMTP.  
+- **T03 Supabase & email setup**: Local Supabase via the CLI, plus staging and prod projects. Auth: public sign-up off, 6-digit email code with a 10-min expiry, code-only template. A dedicated house Gmail (2-step verification, app password) as custom SMTP.  
   *Done when:* A code email arrives from staging for an existing user, and an unknown email gets nothing.
 - **T04 Domain primitives**: Branded ids, `Instant`, `When`/`LocalDate`, `Cents`, `Result`, `Actor`, plus time-zone and money helpers, with unit tests (including DST).  
   *Done when:* The primitives are covered by tests, and no `Date.now()` appears in `lib/domain`.

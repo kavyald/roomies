@@ -52,7 +52,7 @@ Things to try: vote on "Which vacuum?", record the landlord's reply on the Landl
 
 - **Next.js** (App Router) + TypeScript + Tailwind, installable as a **PWA**
 - **Supabase**: Postgres with row-level security, email-code auth, Realtime, and pg_cron
-- **Vercel** for hosting, **Resend** for sign-in emails, **Web Push** for notifications
+- **Vercel** for hosting (a `*.vercel.app` URL), a house **Gmail** for sign-in emails, **Web Push** for notifications
 - **Ports & adapters** with dependency injection: a pure domain layer, use cases with injected dependencies, and adapters for Supabase, Postgres (Kysely), and push. See [Architecture §4.1](docs/ARCHITECTURE.md).
 
 Everything targets free tiers for one house of 2–8 people.
