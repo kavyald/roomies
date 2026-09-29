@@ -1,4 +1,4 @@
-import { actorUser, type Actor } from '../domain/actor'
+import { actorUser, type HouseActor } from '../domain/actor'
 import { createContact, type NewContact } from '../domain/contacts'
 import type { Contact } from '../domain/house'
 import { err, ok, type Result } from '../domain/result'
@@ -8,7 +8,7 @@ export type CreateContactError = 'empty_name' | 'not_found'
 
 export const makeCreateContact =
   ({ uow, clock, ids }: Pick<AppDeps, 'uow' | 'clock' | 'ids'>) =>
-  (actor: Actor, input: NewContact): Promise<Result<Contact, CreateContactError>> =>
+  (actor: HouseActor, input: NewContact): Promise<Result<Contact, CreateContactError>> =>
     uow.run(actor, async (repos) => {
       const house = await repos.houses.get(actor.houseId)
       if (!house) return err('not_found')

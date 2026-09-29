@@ -7,7 +7,9 @@ import { memoryAuth, type MemoryAuth } from './adapters/memory/auth'
 import { MemoryUnitOfWork } from './adapters/memory/db'
 import type { DB } from './adapters/postgres/schema'
 import { createDb, PostgresUnitOfWork } from './adapters/postgres/unit-of-work'
-import type { AppDeps, Config } from './app/ports'
+import { supabaseAuthGateway } from './adapters/supabase/auth-gateway'
+import { adminClient, anonClient } from './adapters/supabase/server'
+import type { AppDeps, AuthGateway, Config } from './app/ports'
 import { serverConfig, type EnvConfig } from './config'
 import type { Actor } from './domain/actor'
 import { instant } from './domain/time'
@@ -25,15 +27,23 @@ let db: Kysely<DB> | undefined
 /** One connection pool per server process. */
 const database = (env: EnvConfig): Kysely<DB> => (db ??= createDb(env.databaseUrl))
 
-const notYet = (task: string) => (): never => {
-  throw new Error(`Not wired yet: arrives in ${task}.`)
-}
+let auth: AuthGateway | undefined
+
+/** Supabase Auth, via the service role (create/delete users) and anon (send codes). */
+const authGateway = (env: EnvConfig): AuthGateway =>
+  (auth ??= supabaseAuthGateway(
+    adminClient(env.supabaseUrl, env.supabaseServiceRoleKey),
+    anonClient(env.supabaseUrl, env.public.supabaseAnonKey),
+  ))
+
+/** For entry points that act before anyone is signed in (sending a sign-in code). */
+export const authForRequest = (): AuthGateway => authGateway(serverConfig())
 
 const productionDeps = (env: EnvConfig): AppDeps => ({
   uow: new PostgresUnitOfWork(database(env)),
   clock: systemClock,
   ids: cryptoIds,
-  auth: { createUser: notYet('T13'), sendCode: notYet('T13'), deleteUser: notYet('T13') },
+  auth: authGateway(env),
   config: appConfig(env),
 })
 

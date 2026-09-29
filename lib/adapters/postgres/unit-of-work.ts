@@ -111,6 +111,15 @@ const reposFor = (trx: Trx): Repos => ({
           .orderBy('user_id')
           .execute()
       ).map(memberToDomain),
+    listForUser: async (userId) =>
+      (
+        await trx
+          .selectFrom('house_members')
+          .selectAll()
+          .where('user_id', '=', userId)
+          .orderBy('joined_at')
+          .execute()
+      ).map(memberToDomain),
     save: async (m) => {
       const row = memberToRow(m)
       await save(
@@ -245,7 +254,7 @@ export class PostgresUnitOfWork implements UnitOfWork {
   async transaction<T>(actor: Actor, fn: (trx: Trx) => Promise<T>): Promise<T> {
     try {
       return await this.db.transaction().execute(async (trx) => {
-        if (actor.kind === 'member') {
+        if (actor.kind !== 'system') {
           await sql`set local role authenticated`.execute(trx)
           const claims = JSON.stringify({ sub: actor.userId, role: 'authenticated' })
           await sql`select set_config('request.jwt.claims', ${claims}, true)`.execute(trx)

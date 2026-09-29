@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest'
 import { AccessDenied, type IdGenerator, type UnitOfWork } from '../../app/ports'
-import type { Actor } from '../../domain/actor'
+import type { Actor, HouseActor } from '../../domain/actor'
 import type { StoredActivityRow } from '../../domain/events'
 import {
   defaultHouseSettings,
@@ -30,8 +30,8 @@ export type UnitOfWorkHarness = {
 
 const T0 = instant(Date.UTC(2026, 8, 29, 16, 0))
 
-export const system = (houseId: HouseId): Actor => ({ kind: 'system', houseId })
-export const asMember = (houseId: HouseId, userId: UserId): Actor => ({
+export const system = (houseId: HouseId): HouseActor => ({ kind: 'system', houseId })
+export const asMember = (houseId: HouseId, userId: UserId): HouseActor => ({
   kind: 'member',
   houseId,
   userId,
@@ -259,6 +259,15 @@ export const unitOfWorkContract = (name: string, makeHarness: () => Promise<Unit
             await r.profiles.save({ ...p!, displayName: 'Not you' })
           }),
         ).rejects.toBeInstanceOf(AccessDenied)
+      })
+
+      it('a signed-in user outside any house context lists only their own memberships', async () => {
+        const mine = await seedHouse(h)
+        const theirs = await seedHouse(h)
+        const me: Actor = { kind: 'user', userId: mine.member }
+        const found = await h.uow.run(me, (r) => r.members.listForUser(mine.member))
+        expect(found.map((m) => m.houseId)).toEqual([mine.house.id])
+        expect(await h.uow.run(me, (r) => r.members.listForUser(theirs.member))).toEqual([])
       })
 
       it('someone who moved out sees only their own membership', async () => {

@@ -40,6 +40,8 @@ export interface ProfileRepo {
 export interface MemberRepo {
   get(houseId: HouseId, userId: UserId): Promise<Member | undefined>
   listByHouse(houseId: HouseId): Promise<Member[]>
+  /** Every house this user belongs or belonged to. */
+  listForUser(userId: UserId): Promise<Member[]>
   save(member: Member): Promise<void>
 }
 

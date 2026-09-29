@@ -2,12 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { AccessDenied } from '../app/ports'
 import { depsForTest } from '../compose'
-import type { Actor } from '../domain/actor'
+import type { HouseActor } from '../domain/actor'
 import type { HouseId, UserId } from '../domain/ids'
 import { ok } from '../domain/result'
 import { makeAction } from './action'
 
-const actor: Actor = { kind: 'member', userId: 'u1' as UserId, houseId: 'h1' as HouseId }
+const actor: HouseActor = { kind: 'member', userId: 'u1' as UserId, houseId: 'h1' as HouseId }
 const schema = z.object({ n: z.number() })
 const env = (overrides = {}) => ({
   currentActor: async () => actor,
@@ -18,7 +18,7 @@ const env = (overrides = {}) => ({
 
 describe('makeAction', () => {
   it('passes parsed input and the actor to the use case', async () => {
-    const run = vi.fn(async (_d, a: Actor, input: { n: number }) =>
+    const run = vi.fn(async (_d, a: HouseActor, input: { n: number }) =>
       ok({ doubled: input.n * 2, by: a.kind }),
     )
     expect(await makeAction(schema, run, env())({ n: 21 })).toEqual(

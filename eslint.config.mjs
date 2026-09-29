@@ -155,6 +155,7 @@ const envOnlyInConfig = {
   files: ['**/*.{ts,tsx}'],
   ignores: [
     'lib/config.ts',
+    'lib/testing/**',
     ...TEST_FILES,
     '*.config.{ts,mts}',
     'playwright.config.ts',

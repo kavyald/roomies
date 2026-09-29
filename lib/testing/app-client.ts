@@ -3,12 +3,12 @@
 import { manualChangeFeed, memoryHouseQueries } from '../adapters/memory/queries'
 import { MemoryUnitOfWork } from '../adapters/memory/db'
 import type { AppClient, AppCommands } from '../client/app-client'
-import type { Actor } from '../domain/actor'
+import type { HouseActor } from '../domain/actor'
 import { err } from '../domain/result'
 
 export const fakeAppClient = (
   uow: MemoryUnitOfWork,
-  actor: Actor,
+  actor: HouseActor,
   commands: Partial<AppCommands> = {},
 ): AppClient => ({
   queries: memoryHouseQueries(uow, actor),

@@ -5,20 +5,20 @@
 import type { z } from 'zod'
 import { AccessDenied, type AppDeps } from '../app/ports'
 import type { CommandResult } from '../client/app-client'
-import type { Actor } from '../domain/actor'
+import type { HouseActor } from '../domain/actor'
 import { err, type Result } from '../domain/result'
 
 export type ActionEnv = {
   /** The signed-in member acting in this house, or null. */
-  currentActor(): Promise<Actor | null>
-  deps(actor: Actor): AppDeps
+  currentActor(): Promise<HouseActor | null>
+  deps(actor: HouseActor): AppDeps
   log?(e: unknown): void
 }
 
 export const makeAction =
   <S extends z.ZodType, T, E extends string>(
     schema: S,
-    run: (deps: AppDeps, actor: Actor, input: z.infer<S>) => Promise<Result<T, E>>,
+    run: (deps: AppDeps, actor: HouseActor, input: z.infer<S>) => Promise<Result<T, E>>,
     env: ActionEnv,
   ) =>
   async (raw: unknown): Promise<CommandResult<T, E>> => {

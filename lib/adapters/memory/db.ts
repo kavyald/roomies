@@ -35,7 +35,7 @@ const memberKey = (houseId: HouseId, userId: UserId) => `${houseId}|${userId}`
 
 // ---- access rules (keep in sync with the RLS policies) -----------------------------
 
-const uid = (a: Actor): UserId | null => (a.kind === 'member' ? a.userId : null)
+const uid = (a: Actor): UserId | null => (a.kind === 'system' ? null : a.userId)
 
 const membership = (s: MemoryState, a: Actor, houseId: HouseId) => {
   const u = uid(a)
@@ -97,6 +97,10 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         [...s.members.values()].filter(
           (m) => m.houseId === houseId && (isMember(s, a, houseId) || m.userId === uid(a)),
         ),
+      listForUser: async (userId) =>
+        [...s.members.values()].filter(
+          (m) => m.userId === userId && (isMember(s, a, m.houseId) || m.userId === uid(a)),
+        ),
       save: async (m) => {
         if (!isAdmin(s, a, m.houseId)) deny('house_members')
         s.members.set(memberKey(m.houseId, m.userId), m)
@@ -144,7 +148,7 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
     events: {
       record: async (houseId, events, at) => {
         for (const e of events) {
-          if (!isMember(s, a, houseId) || (a.kind === 'member' && e.by !== a.userId)) {
+          if (!isMember(s, a, houseId) || (a.kind !== 'system' && e.by !== a.userId)) {
             deny('activity_events')
           }
           const id = (s.activity.at(-1)?.id ?? 0) + 1
