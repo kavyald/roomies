@@ -4,20 +4,20 @@ Read this first. It covers where the project stands, how the implementation plan
 
 ## Current state (as of 2026-09-29)
 
-**M0 (Foundations) is done** (T01–T13 + Q0 on `v1`). Next up: **M1**, starting with T14. The app signs in locally and shows the empty 5-tab shell; there are no features yet.
+**M0 (Foundations) and M1 (House & members) are done** (T01–T17 + Q0, Q1 on `v1`). Next up: **M2** (items), starting with T18. Locally you can set up the house (`/setup/<SETUP_TOKEN>` on an empty DB), invite roommates (House tab → Make an invite link), join through `/join/<token>` and pick a bedroom, manage roommates/rooms/contacts, read the Activity log, and delete your account. Needs, chores and tasks don't exist yet.
 
 ```
 docs/                        PRD, ARCHITECTURE (A1–A21), FRONTEND, TESTING, IMPLEMENTATION_PLAN (generated), mockup.html
 docs/BUILD_LOG.md            judgment calls, deviations and blockers, per task. Read it before changing anything it mentions.
-app/                         Next.js routes: /sign-in, / (routes you to your house), /h/[houseId]/{,needs,chores,tasks,house}, /dev/kit, /offline, actions/
+app/                         Next.js routes: /sign-in, /setup/[token], /join/[token], / (routes you to your house), /h/[houseId]/{,needs,chores,tasks,house,activity}, /dev/kit, /offline, actions/
 components/ui/               the UI kit (see /dev/kit in light + dark); components/shell, house, auth
-lib/domain/                  pure types + functions (ids, time/DST, money, result, actor, house, events, rooms)
-lib/app/                     ports.ts + use cases (createContact, whereTo)
+lib/domain/                  pure types + functions (ids, time/DST, money, result, actor, house, events, activity, format, rooms, setup, invites, members)
+lib/app/                     ports.ts + use cases (contacts, session/whereTo, setup, invites, house)
 lib/adapters/                memory/ (fakes with RLS-equivalent rules), postgres/ (Kysely UoW), supabase/ (HouseQueries, AuthGateway, server clients), contracts/
 lib/compose.ts               server composition root; lib/compose.client.ts is the browser one
 lib/client/                  AppClient, provider, TanStack hooks;  lib/server/ makeAction + session
 lib/testing/                 test-only helpers: builders, sampleHouse, asUser/asOwner (db.ts), Mailpit, JWT minting
-supabase/                    config.toml, migrations/, seed.sql (owner@roomies.test + "The apartment"), tests/ (RLS)
+supabase/                    config.toml, migrations/, seed.sql (owner@roomies.test + "The apartment" with its 17 rooms), tests/ (RLS, isolation, setup)
 e2e/                         Playwright journeys (iPhone 15 profile)
 proxy.ts                     Next 16's middleware: refreshes the session, guards /h/*
 ```
@@ -29,7 +29,10 @@ proxy.ts                     Next 16's middleware: refreshes the session, guards
   - TypeScript stays on 5.9 (typescript-eslint caps it), ESLint on 9.
   - In `supabase/config.toml`, `[auth.email] enable_signup` must stay `true` (it's the whole email provider); `[auth] enable_signup = false` blocks new accounts.
   - The server connects as `app_server` (no rights of its own) and switches to `authenticated` + JWT claims per transaction; repos save with update-then-insert, not upsert (RLS on upserts).
-  - `Actor` has a `user` kind (signed in, no house yet); use `HouseActor` for use cases that need a house.
+  - `Actor` has a `user` kind (signed in, no house yet); use `HouseActor` for use cases that need a house. Work done before someone is a member (setup status, invite lookup/accept) runs as the system actor with the nil-UUID house, after the use case checks the token itself.
+  - RLS additions beyond ARCHITECTURE: `can_claim_house` (the setup owner adds themselves as first admin), "members update own" (move out / change room, never your role), `rate_limits` (service role only). Each is mirrored in `lib/adapters/memory/db.ts`; keep them in sync.
+  - When a member leaves, record the event *before* updating the membership (they can't write the log afterwards).
+  - Never nest a control inside a row button: `ListRow`'s `trailing` sits beside it.
   - Port 3000 on this Mac is often taken by another project's server; `.claude/launch.json` (untracked) uses auto ports.
   - The disk once filled up and corrupted Docker's images. If `supabase start` shows unhealthy containers, check `df -h /` first.
 

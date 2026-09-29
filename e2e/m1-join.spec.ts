@@ -45,15 +45,32 @@ test('the owner invites, and a roommate joins with a code and picks their room',
   await expect(roommates.getByRole('button', { name: /Maya, Fire room/ })).toBeVisible()
   await expect(roommates).toContainText('Kavya')
 
-  // Everyone gets the join in the activity log.
+  // Everyone gets the join in the activity log, as one line (joining and picking a room are one
+  // action).
   await ownerPage.goto(`/h/${owner.houseId}/activity`)
-  await expect(ownerPage.getByRole('list', { name: 'Activity' })).toContainText(
-    'Maya joined the house',
-  )
+  const feed = ownerPage.getByRole('list', { name: 'Activity' })
+  await expect(feed).toContainText('Maya joined the house')
+  await expect(feed).not.toContainText('Maya moved into Fire')
 
   // The link keeps working for the other open rooms, and says how many are used.
   await ownerPage.goto(`/h/${owner.houseId}/house`)
   await expect(ownerPage.getByRole('list', { name: 'Invite links' })).toContainText('1 of 4 used')
+
+  // The owner removes Maya; she loses access right away.
+  await ownerPage
+    .getByRole('list', { name: 'Roommates' })
+    .getByRole('button', { name: /Maya/ })
+    .click()
+  const sheet = ownerPage.getByRole('dialog', { name: 'Maya' })
+  await sheet.getByRole('button', { name: 'Remove from the house' }).click()
+  await sheet.getByRole('button', { name: 'Remove Maya' }).click()
+  await expect(ownerPage.getByRole('list', { name: 'Roommates' })).not.toContainText('Maya')
+
+  await maya.goto(`/h/${owner.houseId}/house`)
+  await expect(maya).toHaveURL(/\/$/)
+  await expect(
+    maya.getByText("You're no longer a member of this house.", { exact: false }),
+  ).toBeVisible()
 
   await ownerCtx.close()
   await mayaCtx.close()
