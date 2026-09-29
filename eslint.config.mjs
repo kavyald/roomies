@@ -49,7 +49,7 @@ const layers = {
           allow('schemas', ['domain', 'schemas']),
           allow('client', ['domain', 'app', 'schemas', 'client']),
           allow('ui', ['domain', 'app', 'schemas', 'client', 'ui']),
-          allow('testing', ['domain', 'app', 'adapters', 'testing']),
+          allow('testing', ['domain', 'app', 'adapters', 'client', 'testing']),
         ],
       },
     ],
@@ -106,7 +106,7 @@ const importRules = [
   restrict(
     ['**/*.{ts,tsx}'],
     [...infraPackages, ...noTesting],
-    ['lib/adapters/**', 'lib/compose.ts', 'lib/testing/**'],
+    ['lib/adapters/**', 'lib/compose.ts', 'lib/compose.client.ts', 'lib/testing/**'],
   ),
   // The domain and use cases: plain TypeScript.
   restrict(

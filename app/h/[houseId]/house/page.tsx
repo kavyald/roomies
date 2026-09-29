@@ -1,14 +1,15 @@
-import { Users } from 'lucide-react'
 import { ScreenHeader } from '@/components/shell/ScreenHeader'
-import { EmptyState } from '@/components/ui/EmptyState'
+import { HouseScreen } from '@/components/house/HouseScreen'
+import type { HouseId } from '@/lib/domain/ids'
 
 export const metadata = { title: 'House · Roomies' }
 
-export default function HouseTabPage() {
+export default async function HouseTabPage({ params }: PageProps<'/h/[houseId]/house'>) {
+  const { houseId } = await params
   return (
     <main>
       <ScreenHeader title="House" />
-      <EmptyState icon={Users}>Your roommates, rooms, and contacts will live here.</EmptyState>
+      <HouseScreen houseId={houseId as HouseId} />
     </main>
   )
 }

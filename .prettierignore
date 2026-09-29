@@ -5,3 +5,4 @@ coverage/
 supabase/.temp/
 *.md
 scripts/
+.claude/
