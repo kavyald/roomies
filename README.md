@@ -46,7 +46,8 @@ Things to try: vote on "Which vacuum?", record the landlord's reply on the Landl
 | [PRD](docs/PRD.md) | Problem, the five concepts, feature specs, priority formula, invites and access, notifications, what's parked for later (§13), and the decision log |
 | [Architecture](docs/ARCHITECTURE.md) | Stack, auth and row-level security, the data model and domain types, the function catalog, the activity log schema, jobs, and ops |
 | [Frontend](docs/FRONTEND.md) | Visual language (inspired by Focus Friend), color system, the apartment's rooms, screens, copy voice, and motion |
-| [Implementation plan](docs/IMPLEMENTATION_PLAN.md) | 42 tasks across 6 milestones with sizes, dependencies, a dependency graph, and the critical path |
+| [Testing](docs/TESTING.md) | Test layers, tools, commands, CI, and what each milestone's test task proves |
+| [Implementation plan](docs/IMPLEMENTATION_PLAN.md) | 47 tasks across 6 milestones with sizes, dependencies, a dependency graph, and the critical path |
 
 ## Planned stack
 
@@ -68,9 +69,19 @@ Everything targets free tiers for one house of 2–8 people.
 | **M4 Notifications & polish** | Web push, reminders, polish, end-to-end tests |
 | **M5 Hosting & launch** | Everything that needs an outside account: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production |
 
-Roughly 55 working days for one person. M0–M4 run entirely on one Mac with no accounts; M5 is where the sign-ups happen. The critical path runs through the core plumbing, items, runs, and requests and visits. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
+Roughly 61 working days for one person, including a test task at the end of each milestone. M0–M4 run entirely on one Mac with no accounts; M5 is where the sign-ups happen. The critical path runs through the core plumbing, items, runs, and requests and visits. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
 
 Tasks are also tracked on the **roomies** board in Weyve.
+
+## Tests
+
+*Planned: lands with task Q0.* One command runs the whole suite (typecheck, lint, unit, use-case, component, contract, row-level security, and end-to-end tests on the iPhone profile):
+
+```bash
+pnpm install && pnpm test:all
+```
+
+It needs no accounts, only Docker Desktop running for local Supabase. See [docs/TESTING.md](docs/TESTING.md).
 
 ## Updating the plan
 
@@ -90,6 +101,7 @@ docs/
   ARCHITECTURE.md         system design and data model
   FRONTEND.md             visual design and screens
   IMPLEMENTATION_PLAN.md  generated task plan
+  TESTING.md              test suite plan
   mockup.html             clickable prototype
 scripts/
   generate_plan.py        source of truth for the task plan

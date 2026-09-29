@@ -81,7 +81,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | Push | `web-push` (VAPID) from a server route |
 | Email | A dedicated house Gmail account as Supabase's custom SMTP (`smtp.gmail.com`, app password) for sign-in codes. Required, since Supabase's built-in sender won't reach roommates. Needs no domain. Resend + a custom domain is the upgrade path (A18). Reminder emails come later. |
 | Icons | Lucide |
-| Testing | Vitest (unit), Playwright with the iPhone 15 device profile (e2e), pgTAP or SQL tests for RLS |
+| Testing | Vitest (unit, use case, component, contract, and RLS/constraint tests), Playwright with the iPhone 15 device profile (e2e) and axe. One command, `pnpm test:all`. See [TESTING.md](./TESTING.md). |
 | Errors / monitoring | Sentry (free tier), Vercel Analytics |
 
 ---
@@ -732,12 +732,15 @@ lib/
     supabase/          -- browser HouseQueries + ChangeFeed, AuthGateway
     push/ clock/ ids/
     memory/            -- in-memory fakes for every port (tests, Storybook)
+    contracts/         -- shared contract suites, run against memory + Postgres
   compose.ts           -- composition root: depsForRequest / depsForJob / depsForTest
   config.ts            -- loadConfig(env) (the only process.env reader)
   schemas/             -- Zod input schemas for entry points (derived from domain types)
   client/              -- AppClient interface + React context + hooks (useFeed, useFinishRun, …)
+  testing/             -- test-only: fixedClock, seqIds, builders, sampleHouse, asUser()
 supabase/
-  migrations/  seed.sql  tests/ (RLS tests)
+  migrations/  seed.sql  tests/ (RLS + constraint tests, Vitest)
+e2e/                   -- Playwright journeys per milestone (m0-sign-in … m4-notifications) + smoke
 public/
   manifest.webmanifest  icons/  sw.js
 ```
@@ -758,7 +761,7 @@ iPhone UX specifics:
 | Repo | Single repo (Next.js app + `supabase/` migrations). No monorepo tooling needed. |
 | Environments | `local` (Supabase CLI in Docker, no account; sign-in codes land in its local inbox) is the only environment through M4. M5 adds `preview` (Vercel preview deploys → shared staging Supabase project) and `prod` (A19). |
 | Migrations | Supabase CLI SQL migrations, checked in. Applied to staging on merge to `main`, then promoted to prod manually or on a tag. |
-| CI (GitHub Actions) | typecheck, lint (**`eslint-plugin-boundaries`**: `domain` imports nothing, `app` imports only `domain` and ports, and only `adapters` + `compose` import Supabase/Kysely/web-push), Vitest (domain + use cases with in-memory adapters), port contract tests against both the memory and Postgres adapters, RLS tests and the Playwright suite (iPhone profile) against local Supabase started in the CI job. From M5 (E4), Playwright also runs on the preview URL. |
+| CI (GitHub Actions) | typecheck, lint (**`eslint-plugin-boundaries`**: `domain` imports nothing, `app` imports only `domain` and ports, and only `adapters` + `compose` import Supabase/Kysely/web-push), Vitest (domain + use cases with in-memory adapters), port contract tests against both the memory and Postgres adapters, RLS tests and the Playwright suite (iPhone profile) against local Supabase started in the CI job. From M5 (E4), Playwright also runs on the preview URL. Jobs, commands, and coverage targets: [TESTING.md](./TESTING.md). |
 | Secrets | Vercel env vars (service-role key, `SETUP_TOKEN`, VAPID private key, cron secret, Splitwise secret later). The Gmail app password lives only in Supabase's SMTP settings, never in the app. `.env.example` checked in. |
 | Backups | Supabase daily backups (Pro), or on the free tier a scheduled `pg_dump` via GitHub Actions to a private storage bucket, weekly |
 | Monitoring | Sentry (client + server), Supabase logs, a Vercel Cron failure alert, and an uptime ping (free UptimeRobot/Better Stack) |
@@ -826,3 +829,4 @@ iPhone UX specifics:
 | A17 | History storage | `items.run_id` holds the current run. `activity_events` (typed subject columns, append-only, `action_id` grouping) is the only history store. `run_items` / `run_claims` dropped. | Owner |
 | A18 | Sign-in email sender | A dedicated house Gmail as Supabase custom SMTP, with the app on `*.vercel.app`. No domain in v1. Move to Resend + a custom domain when delivery logs or reminder emails are needed, or if Google flags the account. | Owner |
 | A19 | External services | Kept out of M0–M4. The core runs on local Supabase (CLI + Docker) with its local inbox. Hosted Supabase, the Gmail sender, Vercel, Sentry, and on-iPhone checks are the M5 "E" tasks, and no core task depends on them. | Owner |
+| A20 | Test suite | One runner (Vitest) for everything but E2E, plus Playwright. RLS tests in Vitest via `asUser()`, not pgTAP. One house per test for isolation. `pnpm test:all` is the gate, and each milestone ends with a test task (Q0–Q5). | Owner |

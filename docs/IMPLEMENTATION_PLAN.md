@@ -15,6 +15,7 @@
 - **Tasks are sized** S ≈ half a day, M ≈ 1–2 days, L ≈ 3 days, for one person. The estimates are only used to find the critical path.
 - **Dependencies are hard dependencies only**: a task can't start until the tasks it depends on are merged. Everything else can happen in any order.
 - **External services are their own milestone (M5).** M0–M4 run entirely on this Mac: local Supabase (Docker, no account) with a local inbox for sign-in codes. Everything that needs an account (hosted Supabase, the Gmail sender, Vercel, Sentry) or a real iPhone on a public URL is an **E** task in M5, and no core task depends on one. T12 and T39 moved there as E2 and E5.
+- **Every milestone ends with a test task (Q0–Q5).** Each task still ships its own unit and contract tests (definition of done). The Q task adds the tests that cross task boundaries (end-to-end journeys, RLS across tables, cross-feature rules), fills gaps against the milestone's exit criteria, and keeps `pnpm test:all` green. A milestone is done when its Q task passes; the next milestone's features don't wait on it. The suite itself is described in [TESTING.md](./TESTING.md). Q4 replaces the old T38.
 
 ### Definition of done (every task)
 
@@ -23,24 +24,25 @@
 3. New ports or adapters pass the shared contract tests on both memory and Postgres.
 4. Lint boundaries pass. No `process.env`, `new Date()`, or Supabase imports outside the allowed layers.
 5. It's checked locally at 375pt in light and dark, and uses the copy voice from FRONTEND §7.
+6. Its tests join `pnpm test:all`, following [TESTING.md](./TESTING.md).
 
 ---
 
 ## 2. Summary
 
-- **42 tasks** across **6 milestones**, about **55.5 working days** in total for one person.
-- **Critical path** (longest chain of dependencies, about **23 days**): T01 → T04 → T05 → T06 → T08 → T14 → T16 → T17 → T22 → T28 → T30 → T37 → T38 → E4 → E5.
-- **Without the external services** (M0–M4 only), the core is done after about **21 days**, ending at T38.
+- **47 tasks** across **6 milestones**, about **61 working days** in total for one person.
+- **Critical path** (longest chain of dependencies, about **23 days**): T01 → T04 → T05 → T06 → T08 → T14 → T16 → T17 → T22 → T28 → T30 → Q3 → Q4 → E4 → E5.
+- **Without the external services** (M0–M4 only), the core is done after about **21 days**, ending at Q4.
 - Everything off the critical path can fill gaps, e.g. while waiting on a review or on a roommate to test.
 
 | Milestone | Tasks | Est. days | Exit criteria |
 |---|---|---|---|
-| **M0 · Foundations** | T01–T13 (12, no T12) | 15 | The owner signs in locally (code from the local inbox) and sees the empty app shell. A stranger's email gets no code. |
-| **M1 · House & members** | T14–T17 (4) | 7.5 | The house exists with its rooms and contacts, and test roommates join locally through invite links. |
-| **M2 · Items: needs, chores, tasks** | T18–T26 (9) | 10.5 | Needs, chores, and tasks work end to end locally, and feelings re-rank the Home feed. |
-| **M3 · Polls, runs & calendar** | T27–T31 (5) | 10.5 | A grocery run (with a cost), a poll, and a super visit can each be completed locally. Dated things show on the calendar. |
-| **M4 · Notifications & polish** | T32–T38 (7) | 8.5 | Reminders and push work locally, and the E2E suite is green in CI. |
-| **M5 · Hosting & launch (external services)** | E1–E5 (5) | 3.5 | Everyone is on production from their phones, and the house uses it for real. |
+| **M0 · Foundations** | T01–T13 (no T12) + Q0 (13) | 16.5 | The owner signs in locally (code from the local inbox) and sees the empty app shell. A stranger's email gets no code. Q0 passes. |
+| **M1 · House & members** | T14–T17 + Q1 (5) | 8 | The house exists with its rooms and contacts, and test roommates join locally through invite links. Q1 passes. |
+| **M2 · Items: needs, chores, tasks** | T18–T26 + Q2 (10) | 12 | Needs, chores, and tasks work end to end locally, and feelings re-rank the Home feed. Q2 passes. |
+| **M3 · Polls, runs & calendar** | T27–T31 + Q3 (6) | 12 | A grocery run (with a cost), a poll, and a super visit can each be completed locally. Dated things show on the calendar. Q3 passes. |
+| **M4 · Notifications & polish** | T32–T37 + Q4 (7) | 8.5 | Reminders and push work locally, and `pnpm test:all` (Q4) is green on a fresh clone and in CI. |
+| **M5 · Hosting & launch (external services)** | E1–E5 + Q5 (6) | 4 | Everyone is on production from their phones, the smoke suite (Q5) passes against prod, and the house uses it for real. |
 
 ---
 
@@ -64,12 +66,14 @@ flowchart TD
     T10["T10 PWA shell + navigation"]
     T11["T11 AppClient + data layer"]
     T13["T13 Sign-in (returning users)"]
+    Q0["Q0 M0 tests + suite harness"]
   end
   subgraph M1["M1 · House & members"]
     T14["T14 Activity log"]
     T15["T15 House setup + rooms"]
     T16["T16 Invites + join flow"]
     T17["T17 House tab: members, rooms, contacts"]
+    Q1["Q1 M1 tests"]
   end
   subgraph M2["M2 · Items: needs, chores, tasks"]
     T18["T18 Items core"]
@@ -81,6 +85,7 @@ flowchart TD
     T24["T24 Priority + Home feed"]
     T25["T25 Feeling weights setting"]
     T26["T26 Realtime sync"]
+    Q2["Q2 M2 tests"]
   end
   subgraph M3["M3 · Polls, runs & calendar"]
     T27["T27 Polls"]
@@ -88,6 +93,7 @@ flowchart TD
     T29["T29 Costs"]
     T30["T30 Requests & visits"]
     T31["T31 Calendar + Coming up"]
+    Q3["Q3 M3 tests"]
   end
   subgraph M4["M4 · Notifications & polish"]
     T32["T32 Job runner"]
@@ -96,13 +102,14 @@ flowchart TD
     T35["T35 Reminder jobs"]
     T36["T36 Notification settings"]
     T37["T37 UX polish pass"]
-    T38["T38 E2E + accessibility"]
+    Q4["Q4 M4 tests + full suite"]
   end
   subgraph M5["M5 · Hosting & launch (external services)"]
     E1["E1 Hosted Supabase + Gmail sender"]
     E2["E2 Deploy pipeline"]
     E3["E3 Scheduled jobs on staging"]
     E4["E4 iPhone checks"]
+    Q5["Q5 Remote smoke suite"]
     E5["E5 Production launch"]
   end
   T01 --> T02
@@ -121,6 +128,10 @@ flowchart TD
   T03 --> T13
   T05 --> T13
   T09 --> T13
+  T02 --> Q0
+  T08 --> Q0
+  T11 --> Q0
+  T13 --> Q0
   T08 --> T14
   T08 --> T15
   T13 --> T15
@@ -128,6 +139,8 @@ flowchart TD
   T15 --> T16
   T11 --> T17
   T16 --> T17
+  Q0 --> Q1
+  T17 --> Q1
   T08 --> T18
   T14 --> T18
   T11 --> T19
@@ -145,6 +158,9 @@ flowchart TD
   T24 --> T25
   T11 --> T26
   T18 --> T26
+  Q1 --> Q2
+  T25 --> Q2
+  T26 --> Q2
   T19 --> T27
   T14 --> T27
   T20 --> T28
@@ -157,6 +173,11 @@ flowchart TD
   T20 --> T31
   T22 --> T31
   T28 --> T31
+  Q2 --> Q3
+  T27 --> Q3
+  T29 --> Q3
+  T30 --> Q3
+  T31 --> Q3
   T08 --> T32
   T14 --> T33
   T33 --> T34
@@ -174,8 +195,11 @@ flowchart TD
   T30 --> T37
   T31 --> T37
   T17 --> T37
-  T37 --> T38
-  T34 --> T38
+  Q3 --> Q4
+  T34 --> Q4
+  T35 --> Q4
+  T36 --> Q4
+  T37 --> Q4
   T07 --> E1
   T13 --> E1
   T02 --> E2
@@ -185,10 +209,13 @@ flowchart TD
   T35 --> E3
   E2 --> E4
   T34 --> E4
-  T38 --> E4
+  Q4 --> E4
+  Q4 --> Q5
+  E2 --> Q5
   E3 --> E5
   E4 --> E5
-  class T01,T04,T05,T06,T08,T14,T16,T17,T22,T28,T30,T37,T38,E4,E5 crit;
+  Q5 --> E5
+  class T01,T04,T05,T06,T08,T14,T16,T17,T22,T28,T30,Q3,Q4,E4,E5 crit;
 ```
 
 ---
@@ -197,22 +224,23 @@ flowchart TD
 
 ### M0 · Foundations
 
-**Exit:** The owner signs in locally (code from the local inbox) and sees the empty app shell. A stranger's email gets no code.
+**Exit:** The owner signs in locally (code from the local inbox) and sees the empty app shell. A stranger's email gets no code. Q0 passes.
 
 | ID | Task | Size | Depends on | Unblocks |
 |---|---|---|---|---|
 | T01 ⭑ | **Repo scaffold** | M | — | T02, T04, T05, T09 |
-| T02 | **CI + architecture guardrails** | S | T01 | E2 |
+| T02 | **CI + architecture guardrails** | S | T01 | Q0, E2 |
 | T03 | **Local Supabase** | M | — | T07, T13 |
 | T04 ⭑ | **Domain primitives** | S | T01 | T05, T06 |
 | T05 ⭑ | **Config + composition root** | S | T01, T04 | T06, T13 |
 | T06 ⭑ | **Ports + in-memory adapters** | M | T04, T05 | T08, T11 |
 | T07 | **Base schema + RLS** | M | T03 | T08, E1 |
-| T08 ⭑ | **Postgres UnitOfWork adapter** | M | T06, T07 | T14, T15, T18, T32 |
+| T08 ⭑ | **Postgres UnitOfWork adapter** | M | T06, T07 | Q0, T14, T15, T18, T32 |
 | T09 | **Design tokens + UI kit** | M | T01 | T10, T13 |
 | T10 | **PWA shell + navigation** | M | T09 | T11, T34 |
-| T11 | **AppClient + data layer** | M | T06, T10 | T17, T19, T26 |
-| T13 | **Sign-in (returning users)** | M | T03, T05, T09 | T15, E1 |
+| T11 | **AppClient + data layer** | M | T06, T10 | Q0, T17, T19, T26 |
+| T13 | **Sign-in (returning users)** | M | T03, T05, T09 | Q0, T15, E1 |
+| Q0 | **M0 tests + suite harness** | M | T02, T08, T11, T13 | Q1 |
 
 - **T01 Repo scaffold**: Next.js (App Router) + strict TypeScript + Tailwind v4 + Vitest + ESLint/Prettier, with the folder layout from Architecture §8 (`lib/domain`, `lib/app`, `lib/adapters`, `lib/client`, `compose.ts`, `config.ts`).  
   *Done when:* `pnpm dev`, `pnpm test`, and `pnpm lint` all pass on an empty app.
@@ -238,17 +266,20 @@ flowchart TD
   *Done when:* One screen reads through `useX()` hooks and renders with a fake AppClient in a component test.
 - **T13 Sign-in (returning users)**: An AuthGateway adapter (Supabase), `/sign-in` → 6-digit code screen with one-time-code autofill, session middleware, and sign out. The same message shows whether or not the email exists.  
   *Done when:* An existing user signs in locally with the code from the local inbox. An unknown email sees the neutral message and gets no code.
+- **Q0 M0 tests + suite harness**: The test harness from TESTING.md: Vitest projects (`unit`, `db`), `lib/testing/` (fixed clock, sequential ids, builders, the sample house), the `asUser()` RLS helper, a Playwright config (iPhone profile, `webServer`, a Mailpit helper that reads sign-in codes), the `pnpm test` / `test:db` / `test:e2e` / `test:all` scripts, and the full CI job (`supabase start` in GitHub Actions). Tests: the RLS-on-every-table check, UnitOfWork rollback, and `e2e/m0-sign-in`.  
+  *Done when:* `pnpm test:all` runs green locally and in CI. A known email signs in with the code from Mailpit, and an unknown email gets nothing.
 
 ### M1 · House & members
 
-**Exit:** The house exists with its rooms and contacts, and test roommates join locally through invite links.
+**Exit:** The house exists with its rooms and contacts, and test roommates join locally through invite links. Q1 passes.
 
 | ID | Task | Size | Depends on | Unblocks |
 |---|---|---|---|---|
 | T14 ⭑ | **Activity log** | M | T08 | T16, T18, T23, T27, T33 |
 | T15 | **House setup + rooms** | M | T08, T13 | T16 |
 | T16 ⭑ | **Invites + join flow** | L | T14, T15 | T17 |
-| T17 ⭑ | **House tab: members, rooms, contacts** | M | T11, T16 | T22, T37 |
+| T17 ⭑ | **House tab: members, rooms, contacts** | M | T11, T16 | Q1, T22, T37 |
+| Q1 | **M1 tests** | S | Q0, T17 | Q2 |
 
 - **T14 Activity log**: The `DomainEvent` union (catalog in Architecture §6.4), pure `activityRowFor` and `activityLine` (grouping by `action_id`), EventSink wiring, and the Activity screen with keyset pagination.  
   *Done when:* Any use case that returns events produces activity rows in the same transaction (rollback test included), and a 3-task bulk move shows as one feed line.
@@ -258,10 +289,12 @@ flowchart TD
   *Done when:* A roommate joins from a link. Expired, revoked, and used-up links are rejected, and everyone gets a `member.joined` entry.
 - **T17 House tab: members, rooms, contacts**: Element-colored avatars, the roommates list, rooms grouped by floor (rename, reorder), contacts CRUD with Copy number, remove member / moved out, and delete my account.  
   *Done when:* The super and landlord are saved. Removing a member revokes access (RLS test).
+- **Q1 M1 tests**: Cross-house isolation (a second house sees nothing of the first), setup-once, the invite validation table (expired, revoked, used up), removing a member revokes access, a bulk action shows as one activity line, and `e2e/m1-join` with two browser contexts (the owner invites, a roommate joins and picks a room).  
+  *Done when:* All M1 tests pass in `pnpm test:all`, including the two-person join journey.
 
 ### M2 · Items: needs, chores, tasks
 
-**Exit:** Needs, chores, and tasks work end to end locally, and feelings re-rank the Home feed.
+**Exit:** Needs, chores, and tasks work end to end locally, and feelings re-rank the Home feed. Q2 passes.
 
 | ID | Task | Size | Depends on | Unblocks |
 |---|---|---|---|---|
@@ -272,8 +305,9 @@ flowchart TD
 | T22 ⭑ | **Tasks tab** | S | T19, T17 | T24, T28, T30, T31, T35 |
 | T23 | **Feelings + notes** | M | T19, T14 | T24 |
 | T24 | **Priority + Home feed** | M | T20, T21, T22, T23 | T25 |
-| T25 | **Feeling weights setting** | S | T24 | T37 |
-| T26 | **Realtime sync** | S | T11, T18 | — |
+| T25 | **Feeling weights setting** | S | T24 | Q2, T37 |
+| T26 | **Realtime sync** | S | T11, T18 | Q2 |
+| Q2 | **M2 tests** | M | Q1, T25, T26 | Q3 |
 
 - **T18 Items core**: The `items` migration with its CHECKs, the `Need | Chore | Task` domain union, pure `createItem` (duplicate-need check) / `editItem` / `markDone` / `doChore`, the items repo with `toDomain`/`toRow`, and the use cases.  
   *Done when:* Each category's rules hold in both the domain and the database (a chore can't be done, a need can't repeat), tested on both adapters.
@@ -293,18 +327,21 @@ flowchart TD
   *Done when:* Setting 😰 to +40 re-ranks the feed for every member, and a non-admin can do it.
 - **T26 Realtime sync**: A `ChangeFeed` adapter (Supabase Realtime) filtered by house that invalidates the matching queries.  
   *Done when:* A change in one browser window appears in another within a couple of seconds.
+- **Q2 M2 tests**: Item CHECKs on both adapters, a priority table matching PRD §8.1, feeling weights re-ranking the feed, Realtime across two browser contexts, and `e2e/m2-items` (a duplicate need points to the first, Did it on a chore, a feeling re-ranks Home, changing a weight).  
+  *Done when:* All M2 tests pass in `pnpm test:all`, and the priority table covers every row of PRD §8.1.
 
 ### M3 · Polls, runs & calendar
 
-**Exit:** A grocery run (with a cost), a poll, and a super visit can each be completed locally. Dated things show on the calendar.
+**Exit:** A grocery run (with a cost), a poll, and a super visit can each be completed locally. Dated things show on the calendar. Q3 passes.
 
 | ID | Task | Size | Depends on | Unblocks |
 |---|---|---|---|---|
-| T27 | **Polls** | M | T19, T14 | T35 |
+| T27 | **Polls** | M | T19, T14 | Q3, T35 |
 | T28 ⭑ | **Runs (batches) + item actions** | L | T20, T21, T22 | T29, T30, T31, T35 |
-| T29 | **Costs** | M | T19, T28 | T37 |
-| T30 ⭑ | **Requests & visits** | L | T28, T22 | T37 |
-| T31 | **Calendar + Coming up** | M | T20, T22, T28 | T37 |
+| T29 | **Costs** | M | T19, T28 | Q3, T37 |
+| T30 ⭑ | **Requests & visits** | L | T28, T22 | Q3, T37 |
+| T31 | **Calendar + Coming up** | M | T20, T22, T28 | Q3, T37 |
+| Q3 ⭑ | **M3 tests** | M | Q2, T27, T29, T30, T31 | Q4 |
 
 - **T27 Polls**: `polls`, `poll_options`, `poll_votes`. Pure `createPoll` / `vote` / `closePoll` (most votes wins, a tie → "Tie"), the poll sheet, `addPollOption` (anyone, while open), "+ Poll about this" on items, standalone polls, and Open polls on Home.  
   *Done when:* "Which vacuum?" on a need and a standalone "House name?" both work, and a 2–2 result shows a tie.
@@ -316,20 +353,22 @@ flowchart TD
   *Done when:* Landlord list → sent → the reply is recorded by moving 2 tasks to a new visit and 1 back to the pool with a note. The request closes itself, and each task's history shows the path.
 - **T31 Calendar + Coming up**: The Coming up strip on Home (the next 7 days of dated tasks, needs, and runs) and the month calendar with a day list.  
   *Done when:* Dated items and runs show on the right days, and tapping one opens it.
+- **Q3 M3 tests**: One run per item (domain and database), move / back to the pool / hand to contact / done, a request closing itself, the visit feed rule, `itemPath` / `runHistory`, equal cost splits, calendar ranges across DST, and `e2e/m3-runs` (a grocery run with a cost, a poll tie, landlord request → reply → visit).  
+  *Done when:* All M3 tests pass in `pnpm test:all`, including the landlord request → visit journey.
 
 ### M4 · Notifications & polish
 
-**Exit:** Reminders and push work locally, and the E2E suite is green in CI.
+**Exit:** Reminders and push work locally, and `pnpm test:all` (Q4) is green on a fresh clone and in CI.
 
 | ID | Task | Size | Depends on | Unblocks |
 |---|---|---|---|---|
 | T32 | **Job runner** | S | T08 | T34, T35, E3 |
 | T33 | **Notification outbox** | M | T14 | T34, T35, T36 |
-| T34 | **Web push** | M | T33, T10, T32 | T38, E4 |
-| T35 | **Reminder jobs** | M | T32, T33, T21, T22, T27, T28 | E3 |
-| T36 | **Notification settings** | S | T33 | — |
-| T37 ⭑ | **UX polish pass** | M | T25, T29, T30, T31, T17 | T38 |
-| T38 ⭑ | **E2E + accessibility** | M | T37, T34 | E4 |
+| T34 | **Web push** | M | T33, T10, T32 | Q4, E4 |
+| T35 | **Reminder jobs** | M | T32, T33, T21, T22, T27, T28 | Q4, E3 |
+| T36 | **Notification settings** | S | T33 | Q4 |
+| T37 | **UX polish pass** | M | T25, T29, T30, T31, T17 | Q4 |
+| Q4 ⭑ | **M4 tests + full suite** | M | Q3, T34, T35, T36, T37 | E4, Q5 |
 
 - **T32 Job runner**: `/api/cron/*` with a secret header, `depsForJob()` (system actor), and a pg_cron + pg_net migration that calls the routes on schedule.  
   *Done when:* A local pg_cron schedule calls the local `/api/cron` route (via `host.docker.internal`) every 15 minutes and logs success.
@@ -343,20 +382,21 @@ flowchart TD
   *Done when:* Turning off a category stops those messages from being enqueued.
 - **T37 UX polish pass**: Empty states, a copy pass against the FRONTEND voice table, completion bursts, reduced motion, and dark mode checks.  
   *Done when:* Every screen has an empty state, and no copy uses "overdue," "failed," or "missed" about a person.
-- **T38 E2E + accessibility**: Playwright on the iPhone profile against the local stack (CI starts local Supabase in GitHub Actions): join, add a need, grocery run with a cost, poll with a tie, plan + finish a visit, share a feeling, change a feeling weight. Plus axe and a contrast check.  
-  *Done when:* The E2E suite is green in CI with no critical axe issues.
+- **Q4 M4 tests + full suite**: `notificationsFor` quiet hours, the outbox written in the same transaction, reminders idempotent under a fixed clock, the push sender dropping 410 subscriptions (fake), the copy lint, axe on every screen, and `e2e/m4-notifications`. Then the whole suite: every E2E journey (join, need, grocery run with a cost, poll tie, visit, feeling, feeling weight) on the iPhone profile, coverage targets enforced, and `pnpm test:all` documented in the README. Replaces T38.  
+  *Done when:* `pnpm install && pnpm test:all` is green on a fresh clone (with Docker running) and in CI, with no critical axe issues.
 
 ### M5 · Hosting & launch (external services)
 
-**Exit:** Everyone is on production from their phones, and the house uses it for real.
+**Exit:** Everyone is on production from their phones, the smoke suite (Q5) passes against prod, and the house uses it for real.
 
 | ID | Task | Size | Depends on | Unblocks |
 |---|---|---|---|---|
 | E1 | **Hosted Supabase + Gmail sender** | S | T07, T13 | E2 |
-| E2 | **Deploy pipeline** | S | T02, E1 | E3, E4 |
+| E2 | **Deploy pipeline** | S | T02, E1 | E3, E4, Q5 |
 | E3 | **Scheduled jobs on staging** | S | E2, T32, T35 | E5 |
-| E4 ⭑ | **iPhone checks** | M | E2, T34, T38 | E5 |
-| E5 ⭑ | **Production launch** | S | E3, E4 | — |
+| E4 ⭑ | **iPhone checks** | M | E2, T34, Q4 | E5 |
+| Q5 | **Remote smoke suite** | S | Q4, E2 | E5 |
+| E5 ⭑ | **Production launch** | S | E3, E4, Q5 | — |
 
 - **E1 Hosted Supabase + Gmail sender**: Create the staging and prod Supabase projects, link the CLI, push the migrations, and copy the auth settings from `supabase/config.toml`. A dedicated house Gmail (2-step verification, app password) as custom SMTP. Accounts: Supabase, Gmail.  
   *Done when:* A code email from staging reaches a real inbox, and an unknown email gets nothing.
@@ -366,6 +406,8 @@ flowchart TD
   *Done when:* The no-op job runs every 15 minutes on staging, and reminders fire from staging.
 - **E4 iPhone checks**: On a real iPhone: install the PWA from the Vercel URL, sign in with a real code, and receive a push. Run the E2E suite against the preview URL, and do a VoiceOver pass.  
   *Done when:* It installs and opens standalone, a push arrives within seconds, the E2E suite is green on the preview URL, and VoiceOver has no critical issues.
+- **Q5 Remote smoke suite**: `pnpm test:smoke`: a short Playwright journey run against `BASE_URL`. A CI job runs it against staging after each deploy, using a dedicated smoke house; against prod it runs read-only after launch.  
+  *Done when:* The smoke job runs after every staging deploy and fails the deploy check when the journey breaks.
 - **E5 Production launch**: Prod env on Vercel, a weekly `pg_dump` backup workflow, an uptime ping (optional UptimeRobot), the setup link for the owner, then invites to roommates.  
   *Done when:* All roommates are on prod and a backup restores into staging.
 
@@ -377,12 +419,12 @@ flowchart TD
 
 A valid order that follows every dependency, front-loads the critical path, and gets something usable to the house early:
 
-M0. T01 → T04 → T05 → T06 → T02 → T03 → T07 → T08 → T09 → T10 → T11 → T13
-M1. T14 → T15 → T16 → T17
-M2. T18 → T19 → T22 → T20 → T21 → T23 → T24 → T25 → T26
-M3. T28 → T30 → T27 → T29 → T31
-M4. T37 → T32 → T33 → T34 → T38 → T35 → T36
-M5. E1 → E2 → E4 → E3 → E5
+M0. T01 → T04 → T05 → T06 → T02 → T03 → T07 → T08 → T09 → T10 → T11 → T13 → Q0
+M1. T14 → T15 → T16 → T17 → Q1
+M2. T18 → T19 → T22 → T20 → T21 → T23 → T24 → T25 → T26 → Q2
+M3. T28 → T30 → T27 → T29 → T31 → Q3
+M4. T32 → T33 → T34 → T35 → T36 → T37 → Q4
+M5. E1 → E2 → E4 → E3 → Q5 → E5
 
 **Early-feedback checkpoints**
 - **After T20:** the needs list works. That's the first thing worth handing to roommates, even before chores and the feed. Roommates can only reach it once **E1 + E2** are done; they need just T02, T07, and T13, so pull them forward whenever you're ready to sign up for the accounts.
@@ -402,7 +444,8 @@ For a second contributor (or to interleave work), these groups have no dependenc
 | Needs / chores / tasks tabs | T20, T21, T22 | T19 (T22 also T17) |
 | Polls | T27 | T19, T14 |
 | Notifications | T33, T36, then T34 | T14 (T34 also T32, T10) |
-| External services (M5) | E1, E2, then E3, E4, E5 | E1 needs only T07 + T13, so it can start any time |
+| External services (M5) | E1, E2, then E3, E4, Q5, E5 | E1 needs only T07 + T13, so it can start any time |
+| Tests | Q0 → Q1 → Q2 → Q3 → Q4 | each needs its milestone's last tasks; M(n+1) features can start before Q(n) finishes |
 
 ---
 

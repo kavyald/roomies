@@ -7,12 +7,12 @@ import sys
 SIZE_DAYS = {"S": 0.5, "M": 1.5, "L": 3}
 
 MILESTONES = [
-    ("M0", "Foundations", "The owner signs in locally (code from the local inbox) and sees the empty app shell. A stranger's email gets no code."),
-    ("M1", "House & members", "The house exists with its rooms and contacts, and test roommates join locally through invite links."),
-    ("M2", "Items: needs, chores, tasks", "Needs, chores, and tasks work end to end locally, and feelings re-rank the Home feed."),
-    ("M3", "Polls, runs & calendar", "A grocery run (with a cost), a poll, and a super visit can each be completed locally. Dated things show on the calendar."),
-    ("M4", "Notifications & polish", "Reminders and push work locally, and the E2E suite is green in CI."),
-    ("M5", "Hosting & launch (external services)", "Everyone is on production from their phones, and the house uses it for real."),
+    ("M0", "Foundations", "The owner signs in locally (code from the local inbox) and sees the empty app shell. A stranger's email gets no code. Q0 passes."),
+    ("M1", "House & members", "The house exists with its rooms and contacts, and test roommates join locally through invite links. Q1 passes."),
+    ("M2", "Items: needs, chores, tasks", "Needs, chores, and tasks work end to end locally, and feelings re-rank the Home feed. Q2 passes."),
+    ("M3", "Polls, runs & calendar", "A grocery run (with a cost), a poll, and a super visit can each be completed locally. Dated things show on the calendar. Q3 passes."),
+    ("M4", "Notifications & polish", "Reminders and push work locally, and `pnpm test:all` (Q4) is green on a fresh clone and in CI."),
+    ("M5", "Hosting & launch (external services)", "Everyone is on production from their phones, the smoke suite (Q5) passes against prod, and the house uses it for real."),
 ]
 
 # id, milestone, title, size, depends_on, description, done_when
@@ -54,6 +54,9 @@ T = [
     ("T13", "M0", "Sign-in (returning users)", "M", ["T03", "T05", "T09"],
      "An AuthGateway adapter (Supabase), `/sign-in` → 6-digit code screen with one-time-code autofill, session middleware, and sign out. The same message shows whether or not the email exists.",
      "An existing user signs in locally with the code from the local inbox. An unknown email sees the neutral message and gets no code."),
+    ("Q0", "M0", "M0 tests + suite harness", "M", ["T02", "T08", "T11", "T13"],
+     "The test harness from TESTING.md: Vitest projects (`unit`, `db`), `lib/testing/` (fixed clock, sequential ids, builders, the sample house), the `asUser()` RLS helper, a Playwright config (iPhone profile, `webServer`, a Mailpit helper that reads sign-in codes), the `pnpm test` / `test:db` / `test:e2e` / `test:all` scripts, and the full CI job (`supabase start` in GitHub Actions). Tests: the RLS-on-every-table check, UnitOfWork rollback, and `e2e/m0-sign-in`.",
+     "`pnpm test:all` runs green locally and in CI. A known email signs in with the code from Mailpit, and an unknown email gets nothing."),
     # ---------------- M1
     ("T14", "M1", "Activity log", "M", ["T08"],
      "The `DomainEvent` union (catalog in Architecture §6.4), pure `activityRowFor` and `activityLine` (grouping by `action_id`), EventSink wiring, and the Activity screen with keyset pagination.",
@@ -67,6 +70,9 @@ T = [
     ("T17", "M1", "House tab: members, rooms, contacts", "M", ["T11", "T16"],
      "Element-colored avatars, the roommates list, rooms grouped by floor (rename, reorder), contacts CRUD with Copy number, remove member / moved out, and delete my account.",
      "The super and landlord are saved. Removing a member revokes access (RLS test)."),
+    ("Q1", "M1", "M1 tests", "S", ["Q0", "T17"],
+     "Cross-house isolation (a second house sees nothing of the first), setup-once, the invite validation table (expired, revoked, used up), removing a member revokes access, a bulk action shows as one activity line, and `e2e/m1-join` with two browser contexts (the owner invites, a roommate joins and picks a room).",
+     "All M1 tests pass in `pnpm test:all`, including the two-person join journey."),
     # ---------------- M2
     ("T18", "M2", "Items core", "M", ["T08", "T14"],
      "The `items` migration with its CHECKs, the `Need | Chore | Task` domain union, pure `createItem` (duplicate-need check) / `editItem` / `markDone` / `doChore`, the items repo with `toDomain`/`toRow`, and the use cases.",
@@ -95,6 +101,9 @@ T = [
     ("T26", "M2", "Realtime sync", "S", ["T11", "T18"],
      "A `ChangeFeed` adapter (Supabase Realtime) filtered by house that invalidates the matching queries.",
      "A change in one browser window appears in another within a couple of seconds."),
+    ("Q2", "M2", "M2 tests", "M", ["Q1", "T25", "T26"],
+     "Item CHECKs on both adapters, a priority table matching PRD §8.1, feeling weights re-ranking the feed, Realtime across two browser contexts, and `e2e/m2-items` (a duplicate need points to the first, Did it on a chore, a feeling re-ranks Home, changing a weight).",
+     "All M2 tests pass in `pnpm test:all`, and the priority table covers every row of PRD §8.1."),
     # ---------------- M3
     ("T27", "M3", "Polls", "M", ["T19", "T14"],
      "`polls`, `poll_options`, `poll_votes`. Pure `createPoll` / `vote` / `closePoll` (most votes wins, a tie → \"Tie\"), the poll sheet, `addPollOption` (anyone, while open), \"+ Poll about this\" on items, standalone polls, and Open polls on Home.",
@@ -111,6 +120,9 @@ T = [
     ("T31", "M3", "Calendar + Coming up", "M", ["T20", "T22", "T28"],
      "The Coming up strip on Home (the next 7 days of dated tasks, needs, and runs) and the month calendar with a day list.",
      "Dated items and runs show on the right days, and tapping one opens it."),
+    ("Q3", "M3", "M3 tests", "M", ["Q2", "T27", "T29", "T30", "T31"],
+     "One run per item (domain and database), move / back to the pool / hand to contact / done, a request closing itself, the visit feed rule, `itemPath` / `runHistory`, equal cost splits, calendar ranges across DST, and `e2e/m3-runs` (a grocery run with a cost, a poll tie, landlord request → reply → visit).",
+     "All M3 tests pass in `pnpm test:all`, including the landlord request → visit journey."),
     # ---------------- M4
     ("T32", "M4", "Job runner", "S", ["T08"],
      "`/api/cron/*` with a secret header, `depsForJob()` (system actor), and a pg_cron + pg_net migration that calls the routes on schedule.",
@@ -130,9 +142,9 @@ T = [
     ("T37", "M4", "UX polish pass", "M", ["T25", "T29", "T30", "T31", "T17"],
      "Empty states, a copy pass against the FRONTEND voice table, completion bursts, reduced motion, and dark mode checks.",
      "Every screen has an empty state, and no copy uses \"overdue,\" \"failed,\" or \"missed\" about a person."),
-    ("T38", "M4", "E2E + accessibility", "M", ["T37", "T34"],
-     "Playwright on the iPhone profile against the local stack (CI starts local Supabase in GitHub Actions): join, add a need, grocery run with a cost, poll with a tie, plan + finish a visit, share a feeling, change a feeling weight. Plus axe and a contrast check.",
-     "The E2E suite is green in CI with no critical axe issues."),
+    ("Q4", "M4", "M4 tests + full suite", "M", ["Q3", "T34", "T35", "T36", "T37"],
+     "`notificationsFor` quiet hours, the outbox written in the same transaction, reminders idempotent under a fixed clock, the push sender dropping 410 subscriptions (fake), the copy lint, axe on every screen, and `e2e/m4-notifications`. Then the whole suite: every E2E journey (join, need, grocery run with a cost, poll tie, visit, feeling, feeling weight) on the iPhone profile, coverage targets enforced, and `pnpm test:all` documented in the README. Replaces T38.",
+     "`pnpm install && pnpm test:all` is green on a fresh clone (with Docker running) and in CI, with no critical axe issues."),
     # ---------------- M5 (external services; nothing in M0–M4 depends on these)
     ("E1", "M5", "Hosted Supabase + Gmail sender", "S", ["T07", "T13"],
      "Create the staging and prod Supabase projects, link the CLI, push the migrations, and copy the auth settings from `supabase/config.toml`. A dedicated house Gmail (2-step verification, app password) as custom SMTP. Accounts: Supabase, Gmail.",
@@ -143,10 +155,13 @@ T = [
     ("E3", "M5", "Scheduled jobs on staging", "S", ["E2", "T32", "T35"],
      "Point pg_cron + pg_net at the Vercel URL, with the cron secret stored in Supabase.",
      "The no-op job runs every 15 minutes on staging, and reminders fire from staging."),
-    ("E4", "M5", "iPhone checks", "M", ["E2", "T34", "T38"],
+    ("E4", "M5", "iPhone checks", "M", ["E2", "T34", "Q4"],
      "On a real iPhone: install the PWA from the Vercel URL, sign in with a real code, and receive a push. Run the E2E suite against the preview URL, and do a VoiceOver pass.",
      "It installs and opens standalone, a push arrives within seconds, the E2E suite is green on the preview URL, and VoiceOver has no critical issues."),
-    ("E5", "M5", "Production launch", "S", ["E3", "E4"],
+    ("Q5", "M5", "Remote smoke suite", "S", ["Q4", "E2"],
+     "`pnpm test:smoke`: a short Playwright journey run against `BASE_URL`. A CI job runs it against staging after each deploy, using a dedicated smoke house; against prod it runs read-only after launch.",
+     "The smoke job runs after every staging deploy and fails the deploy check when the journey breaks."),
+    ("E5", "M5", "Production launch", "S", ["E3", "E4", "Q5"],
      "Prod env on Vercel, a weekly `pg_dump` backup workflow, an uptime ping (optional UptimeRobot), the setup link for the owner, then invites to roommates.",
      "All roommates are on prod and a backup restores into staging."),
 ]
@@ -158,6 +173,20 @@ for t in T:
     for d in t[4]:
         assert d in by, f"{t[0]} depends on unknown {d}"
         assert ids.index(d) < ids.index(t[0]), f"{t[0]} depends on later task {d}"
+
+# each milestone's Q task must come after every other task in that milestone
+def ancestors(i, seen=None):
+    seen = set() if seen is None else seen
+    for d in by[i][4]:
+        if d not in seen:
+            seen.add(d); ancestors(d, seen)
+    return seen
+for m, _, _ in MILESTONES:
+    q = "Q" + m[1:]
+    assert q in by and by[q][1] == m, f"{m} has no test task {q}"
+    rest = [t[0] for t in T if t[1] == m and t[0] != q and not t[0].startswith("E")]
+    missing = [i for i in rest if i not in ancestors(q)]
+    assert not missing, f"{q} does not cover {missing}"
 
 # earliest finish (days) and critical path
 ef, prev = {}, {}
@@ -186,25 +215,28 @@ w("- **Milestones follow the PRD release plan** (§12, v1 scope). Everything in 
 w("- **Each task is a vertical slice** (migration → domain types + pure functions → use case → adapter → UI → tests), so it can be demoed and merged on its own. The exceptions are the M0 plumbing tasks, which have nothing to show on screen.")
 w("- **Tasks are sized** S ≈ half a day, M ≈ 1–2 days, L ≈ 3 days, for one person. The estimates are only used to find the critical path.")
 w("- **Dependencies are hard dependencies only**: a task can't start until the tasks it depends on are merged. Everything else can happen in any order.")
-w("- **External services are their own milestone (M5).** M0–M4 run entirely on this Mac: local Supabase (Docker, no account) with a local inbox for sign-in codes. Everything that needs an account (hosted Supabase, the Gmail sender, Vercel, Sentry) or a real iPhone on a public URL is an **E** task in M5, and no core task depends on one. T12 and T39 moved there as E2 and E5.\n")
+w("- **External services are their own milestone (M5).** M0–M4 run entirely on this Mac: local Supabase (Docker, no account) with a local inbox for sign-in codes. Everything that needs an account (hosted Supabase, the Gmail sender, Vercel, Sentry) or a real iPhone on a public URL is an **E** task in M5, and no core task depends on one. T12 and T39 moved there as E2 and E5.")
+w("- **Every milestone ends with a test task (Q0–Q5).** Each task still ships its own unit and contract tests (definition of done). The Q task adds the tests that cross task boundaries (end-to-end journeys, RLS across tables, cross-feature rules), fills gaps against the milestone's exit criteria, and keeps `pnpm test:all` green. A milestone is done when its Q task passes; the next milestone's features don't wait on it. The suite itself is described in [TESTING.md](./TESTING.md). Q4 replaces the old T38.\n")
 w("### Definition of done (every task)\n")
 w("1. The migration (if any) has RLS on every new table, plus an RLS test.")
 w("2. Domain functions are pure, with unit tests. Use cases are tested against the in-memory adapters with a fixed clock.")
 w("3. New ports or adapters pass the shared contract tests on both memory and Postgres.")
 w("4. Lint boundaries pass. No `process.env`, `new Date()`, or Supabase imports outside the allowed layers.")
-w("5. It's checked locally at 375pt in light and dark, and uses the copy voice from FRONTEND §7.\n")
+w("5. It's checked locally at 375pt in light and dark, and uses the copy voice from FRONTEND §7.")
+w("6. Its tests join `pnpm test:all`, following [TESTING.md](./TESTING.md).\n")
 w("---\n")
 w("## 2. Summary\n")
 w(f"- **{len(T)} tasks** across **{len(MILESTONES)} milestones**, about **{total:g} working days** in total for one person.")
 w(f"- **Critical path** (longest chain of dependencies, about **{ef[end]:g} days**): " + " → ".join(f"{p}" for p in path) + ".")
-core_end = max((i for i in ids if not i.startswith("E")), key=ef.get)
+core_end = max((i for i in ids if by[i][1] != "M5"), key=ef.get)
 w(f"- **Without the external services** (M0–M4 only), the core is done after about **{ef[core_end]:g} days**, ending at {core_end}.")
 w("- Everything off the critical path can fill gaps, e.g. while waiting on a review or on a roommate to test.\n")
 w("| Milestone | Tasks | Est. days | Exit criteria |")
 w("|---|---|---|---|")
 for m, name, exitc in MILESTONES:
     ts = [t for t in T if t[1] == m]
-    w(f"| **{m} · {name}** | {ts[0][0]}–{ts[-1][0]} ({len(ts)}{', no T12' if m == 'M0' else ''}) | {sum(SIZE_DAYS[t[3]] for t in ts):g} | {exitc} |")
+    feats = [t[0] for t in ts if not t[0].startswith("Q")]
+    w(f"| **{m} · {name}** | {feats[0]}–{feats[-1]}{' (no T12)' if m == 'M0' else ''} + Q{m[1:]} ({len(ts)}) | {sum(SIZE_DAYS[t[3]] for t in ts):g} | {exitc} |")
 w("")
 w("---\n")
 w("## 3. Dependency graph\n")
@@ -271,7 +303,8 @@ w("| Local infra | T03, T07 | — |")
 w("| Needs / chores / tasks tabs | T20, T21, T22 | T19 (T22 also T17) |")
 w("| Polls | T27 | T19, T14 |")
 w("| Notifications | T33, T36, then T34 | T14 (T34 also T32, T10) |")
-w("| External services (M5) | E1, E2, then E3, E4, E5 | E1 needs only T07 + T13, so it can start any time |")
+w("| External services (M5) | E1, E2, then E3, E4, Q5, E5 | E1 needs only T07 + T13, so it can start any time |")
+w("| Tests | Q0 → Q1 → Q2 → Q3 → Q4 | each needs its milestone's last tasks; M(n+1) features can start before Q(n) finishes |")
 w("")
 w("---\n")
 w("## 7. Out of scope (later)\n")
