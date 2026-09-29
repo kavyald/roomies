@@ -109,7 +109,12 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
           m.role === 'admin' &&
           s.houses.get(m.houseId)?.createdBy === uid(a) &&
           ![...s.members.values()].some((x) => x.houseId === m.houseId)
-        if (!isAdmin(s, a, m.houseId) && !claimsNewHouse) deny('house_members')
+        // An active member may update their own row, but not their role (migration
+        // member_self_update).
+        const current = s.members.get(memberKey(m.houseId, m.userId))
+        const updatesSelf =
+          m.userId === uid(a) && current?.status.active === true && current.role === m.role
+        if (!isAdmin(s, a, m.houseId) && !claimsNewHouse && !updatesSelf) deny('house_members')
         s.members.set(memberKey(m.houseId, m.userId), m)
       },
     },

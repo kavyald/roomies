@@ -44,6 +44,29 @@ export const asUser = async <T>(userId: string, fn: (db: Db) => Promise<T>): Pro
   }
 }
 
+/** Like asUser, but commits: for changes a later step should see. */
+export const asUserCommitted = async <T>(
+  userId: string,
+  fn: (db: Db) => Promise<T>,
+): Promise<T> => {
+  const db = await pool.connect()
+  try {
+    await db.query('begin')
+    await db.query('set local role authenticated')
+    await db.query("select set_config('request.jwt.claims', $1, true)", [
+      JSON.stringify({ sub: userId, role: 'authenticated' }),
+    ])
+    const out = await fn(db)
+    await db.query('commit')
+    return out
+  } catch (e) {
+    await db.query('rollback')
+    throw e
+  } finally {
+    db.release()
+  }
+}
+
 /** Runs `fn` as a signed-out visitor (the `anon` role). Rolls back afterwards. */
 export const asAnon = async <T>(fn: (db: Db) => Promise<T>): Promise<T> => {
   const db = await pool.connect()

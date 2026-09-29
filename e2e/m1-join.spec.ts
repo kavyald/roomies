@@ -1,19 +1,6 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { latestCode } from '../lib/testing/mailpit'
-import { anOwner, freshEmail } from './support'
-
-const signIn = async (page: Page, email: string) => {
-  await page.goto('/sign-in')
-  await page.getByLabel('Your email').fill(email)
-  await page.getByRole('button', { name: 'Send me a code' }).click()
-  await page.getByLabel('6-digit code').fill(await latestCode(email))
-}
-
-const dismissInstallGuide = async (page: Page) => {
-  const guide = page.getByRole('dialog', { name: 'Add Roomies to your Home Screen' })
-  await guide.getByRole('button', { name: 'Maybe later' }).click()
-  await expect(guide).toBeHidden()
-}
+import { anOwner, dismissInstallGuide, freshEmail, signIn } from './support'
 
 test('the owner invites, and a roommate joins with a code and picks their room', async ({
   browser,
@@ -55,7 +42,7 @@ test('the owner invites, and a roommate joins with a code and picks their room',
   // Maya sees the house, and herself in Fire.
   await maya.goto(`/h/${owner.houseId}/house`)
   const roommates = maya.getByRole('list', { name: 'Roommates' })
-  await expect(roommates.getByRole('img', { name: 'Maya, Fire room' })).toBeVisible()
+  await expect(roommates.getByRole('button', { name: /Maya, Fire room/ })).toBeVisible()
   await expect(roommates).toContainText('Kavya')
 
   // Everyone gets the join in the activity log.

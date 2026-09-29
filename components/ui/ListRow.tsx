@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { cn } from './cn'
 
 /** Rows grouped in one rounded box (House tab lists, settings). */
 export function ListGroup({ children, label }: { children: ReactNode; label?: string }) {
@@ -24,6 +23,7 @@ export function ListRow({
   leading?: ReactNode
   title: ReactNode
   subtitle?: ReactNode
+  /** A control beside the row (e.g. "Copy number"): kept outside the row's own button. */
   trailing?: ReactNode
   onClick?: () => void
 }) {
@@ -36,21 +36,25 @@ export function ListRow({
           <span className="mt-px block text-[0.8rem] font-semibold text-ink-soft">{subtitle}</span>
         )}
       </span>
-      {trailing}
     </>
   )
-  const cls = cn(
-    'flex min-h-11 w-full items-center gap-3 border-b-[1.5px] border-line bg-card px-3.5 py-3 text-left',
-  )
   return (
-    <div role="listitem">
+    <div
+      role="listitem"
+      className="flex min-h-11 items-center gap-2 border-b-[1.5px] border-line bg-card pr-2"
+    >
       {onClick ? (
-        <button type="button" className={cls} onClick={onClick}>
+        <button
+          type="button"
+          className="flex min-h-11 flex-1 items-center gap-3 py-3 pl-3.5 text-left"
+          onClick={onClick}
+        >
           {body}
         </button>
       ) : (
-        <div className={cls}>{body}</div>
+        <div className="flex flex-1 items-center gap-3 py-3 pl-3.5">{body}</div>
       )}
+      {trailing}
     </div>
   )
 }

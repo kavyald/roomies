@@ -4,6 +4,7 @@ import {
   asAnon,
   asOwner,
   asUser,
+  asUserCommitted,
   newId,
   pool,
   refused,
@@ -161,10 +162,12 @@ describe('writing', () => {
           [newId(), mine.houseId, mine.member],
         ),
       ).toBe(INSUFFICIENT_PRIVILEGE)
-      const promote = await db.query(`update house_members set role = 'admin' where user_id = $1`, [
-        mine.member,
-      ])
-      expect(promote.rowCount).toBe(0)
+      // Their own row is theirs to update, but not their role.
+      expect(
+        await refused(db, `update house_members set role = 'admin' where user_id = $1`, [
+          mine.member,
+        ]),
+      ).toBe(INSUFFICIENT_PRIVILEGE)
       const rename = await db.query(`update profiles set display_name = 'Not you' where id = $1`, [
         mine.admin,
       ])
@@ -206,6 +209,61 @@ describe('writing', () => {
           [newId(), newcomer, { timezone: 'UTC', feeling_weights: {}, invite_ttl_days: 7 }],
         ),
       ).toBe(INSUFFICIENT_PRIVILEGE)
+    })
+  })
+})
+
+describe('changing your own membership', () => {
+  it('a member can move themselves out, but not make themselves an admin', async () => {
+    const h = await aDbHouse()
+    await asUser(h.member, async (db) => {
+      const promote = await refused(
+        db,
+        `update house_members set role = 'admin' where house_id = $1 and user_id = $2`,
+        [h.houseId, h.member],
+      )
+      expect(promote).toBe(INSUFFICIENT_PRIVILEGE)
+      const out = await db.query(
+        `update house_members set status = 'moved_out', left_at = now() where house_id = $1 and user_id = $2`,
+        [h.houseId, h.member],
+      )
+      expect(out.rowCount).toBe(1)
+    })
+  })
+
+  it("someone who moved out can't let themselves back in, and reads nothing", async () => {
+    const h = await aDbHouse()
+    await asOwner((db) =>
+      db.query(
+        `update house_members set status = 'moved_out', left_at = now() where house_id = $1 and user_id = $2`,
+        [h.houseId, h.member],
+      ),
+    )
+    await asUser(h.member, async (db) => {
+      const back = await db.query(
+        `update house_members set status = 'active', left_at = null where house_id = $1 and user_id = $2`,
+        [h.houseId, h.member],
+      )
+      expect(back.rowCount).toBe(0)
+      expect(await countIn(db, 'contacts', 'house_id', h.houseId)).toBe(0)
+      expect(await countIn(db, 'activity_events', 'house_id', h.houseId)).toBe(0)
+    })
+  })
+
+  it('an admin removing a member cuts off their access', async () => {
+    const h = await aDbHouse()
+    await asUserCommitted(h.admin, (db) =>
+      db.query(
+        `update house_members set status = 'moved_out', left_at = now() where house_id = $1 and user_id = $2`,
+        [h.houseId, h.member],
+      ),
+    )
+    await asUser(h.member, async (db) => {
+      for (const [table, col] of HOUSE_TABLES.filter(
+        ([t]) => t !== 'house_members' && t !== 'notifications_outbox',
+      )) {
+        expect({ table, n: await countIn(db, table, col, h.houseId) }).toEqual({ table, n: 0 })
+      }
     })
   })
 })

@@ -1,5 +1,7 @@
 // Shared setup for journeys: each test makes its own account and house (TESTING.md §4).
 import { randomUUID } from 'node:crypto'
+import { expect, type Page } from '@playwright/test'
+import { latestCode } from '../lib/testing/mailpit'
 import { supabaseAuthGateway } from '../lib/adapters/supabase/auth-gateway'
 import { adminClient, anonClient } from '../lib/adapters/supabase/server'
 import { asOwner } from '../lib/testing/db'
@@ -43,4 +45,27 @@ export const anOwner = async (name = 'Kavya') => {
     }
   })
   return { email, userId, houseId }
+}
+
+export const signIn = async (page: Page, email: string) => {
+  await page.goto('/sign-in')
+  await page.getByLabel('Your email').fill(email)
+  await page.getByRole('button', { name: 'Send me a code' }).click()
+  await page.getByLabel('6-digit code').fill(await latestCode(email))
+}
+
+export const dismissInstallGuide = async (page: Page) => {
+  const guide = page.getByRole('dialog', { name: 'Add Roomies to your Home Screen' })
+  await guide.getByRole('button', { name: 'Maybe later' }).click()
+  await expect(guide).toBeHidden()
+}
+
+/** Signs in as a fresh owner and opens their House tab. */
+export const ownerOnHouseTab = async (page: Page) => {
+  const owner = await anOwner('Kavya')
+  await signIn(page, owner.email)
+  await expect(page).toHaveURL(new RegExp(`/h/${owner.houseId}$`))
+  await dismissInstallGuide(page)
+  await page.goto(`/h/${owner.houseId}/house`)
+  return owner
 }

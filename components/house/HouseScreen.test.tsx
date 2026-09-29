@@ -62,8 +62,9 @@ describe('HouseScreen (reads through useX hooks with a fake AppClient)', () => {
     renderAs(deps, house.id, admin)
 
     const roommates = await screen.findByRole('list', { name: 'Roommates' })
-    expect(within(roommates).getByRole('img', { name: 'Wren, Water room' })).toBeTruthy()
-    expect(within(roommates).getByText('Kavya')).toBeTruthy()
+    // Admins can manage each roommate, so rows are buttons; the avatar's label is part of the name.
+    expect(await within(roommates).findByRole('button', { name: /Wren, Water room/ })).toBeTruthy()
+    expect(within(roommates).getByText('Kavya (you)')).toBeTruthy()
     expect(within(roommates).getByText('Admin')).toBeTruthy()
     const contacts = screen.getByRole('list', { name: 'Contacts' })
     expect(within(contacts).getByText('Super')).toBeTruthy()

@@ -4,8 +4,9 @@
 
 import type { ChangeFeed, HouseQueries } from '../app/ports'
 import type { NewContact } from '../domain/contacts'
-import type { Contact, Invite } from '../domain/house'
-import type { InviteId, UserId } from '../domain/ids'
+import type { ContactPatch } from '../domain/contacts'
+import type { Contact, Invite, Member, Role, Room } from '../domain/house'
+import type { ContactId, InviteId, RoomId, UserId } from '../domain/ids'
 import type { NewInvite } from '../domain/invites'
 import type { Result } from '../domain/result'
 
@@ -22,6 +23,32 @@ export type AppCommands = {
     CommandResult<{ invite: Invite; token: string }, 'not_admin' | 'bad_limits' | 'not_found'>
   >
   revokeInvite(id: InviteId): Promise<CommandResult<Invite, 'not_found' | 'already_revoked'>>
+  editContact(input: {
+    id: ContactId
+    patch: ContactPatch
+  }): Promise<CommandResult<Contact, 'not_found' | 'empty_name' | 'no_change'>>
+  removeContact(id: ContactId): Promise<CommandResult<Contact, 'not_found' | 'already_removed'>>
+  moveOut(input: {
+    userId: UserId
+    note?: string
+  }): Promise<
+    CommandResult<Member, 'not_found' | 'not_allowed' | 'already_moved_out' | 'last_admin'>
+  >
+  setRole(input: {
+    userId: UserId
+    role: Role
+  }): Promise<
+    CommandResult<Member, 'not_found' | 'not_allowed' | 'no_change' | 'last_admin' | 'not_active'>
+  >
+  renameRoom(input: {
+    roomId: RoomId
+    name: string
+  }): Promise<CommandResult<Room, 'not_found' | 'empty_name' | 'no_change'>>
+  moveRoom(input: {
+    roomId: RoomId
+    direction: 'up' | 'down'
+  }): Promise<CommandResult<Room[], 'not_found' | 'at_edge'>>
+  deleteAccount(): Promise<CommandResult<void, 'last_admin' | 'not_found'>>
 }
 
 export type AppClient = {

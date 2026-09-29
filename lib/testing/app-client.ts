@@ -19,6 +19,13 @@ export const fakeAppClient = (
     createContact: async () => err('unexpected'),
     createInvite: async () => err('unexpected'),
     revokeInvite: async () => err('unexpected'),
+    editContact: async () => err('unexpected'),
+    removeContact: async () => err('unexpected'),
+    moveOut: async () => err('unexpected'),
+    setRole: async () => err('unexpected'),
+    renameRoom: async () => err('unexpected'),
+    moveRoom: async () => err('unexpected'),
+    deleteAccount: async () => err('unexpected'),
     ...commands,
   },
 })
