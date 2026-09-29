@@ -1,9 +1,12 @@
 // Composition root: the one place concrete adapters are wired (ARCHITECTURE §4.1).
 
-import { fixedClock, type FixedClock } from './adapters/clock'
-import { seqIds, type SeqIds } from './adapters/ids'
+import type { Kysely } from 'kysely'
+import { fixedClock, systemClock, type FixedClock } from './adapters/clock'
+import { cryptoIds, seqIds, type SeqIds } from './adapters/ids'
 import { memoryAuth, type MemoryAuth } from './adapters/memory/auth'
 import { MemoryUnitOfWork } from './adapters/memory/db'
+import type { DB } from './adapters/postgres/schema'
+import { createDb, PostgresUnitOfWork } from './adapters/postgres/unit-of-work'
 import type { AppDeps, Config } from './app/ports'
 import { serverConfig, type EnvConfig } from './config'
 import type { Actor } from './domain/actor'
@@ -17,20 +20,28 @@ export const appConfig = (env: EnvConfig): Config => ({ setupToken: env.setupTok
 /** The signed-in user a request acts for. */
 export type RequestSession = { readonly actor: Actor }
 
-const notWiredYet = (): never => {
-  throw new Error('The Postgres UnitOfWork is wired in T08.')
+let db: Kysely<DB> | undefined
+
+/** One connection pool per server process. */
+const database = (env: EnvConfig): Kysely<DB> => (db ??= createDb(env.databaseUrl))
+
+const notYet = (task: string) => (): never => {
+  throw new Error(`Not wired yet: arrives in ${task}.`)
 }
 
-export const depsForRequest = (_session: RequestSession): AppDeps => {
-  appConfig(serverConfig())
-  return notWiredYet()
-}
+const productionDeps = (env: EnvConfig): AppDeps => ({
+  uow: new PostgresUnitOfWork(database(env)),
+  clock: systemClock,
+  ids: cryptoIds,
+  auth: { createUser: notYet('T13'), sendCode: notYet('T13'), deleteUser: notYet('T13') },
+  config: appConfig(env),
+})
 
-/** Scheduled jobs: same use cases, acting as Roomies (the system actor). */
-export const depsForJob = (): AppDeps => {
-  appConfig(serverConfig())
-  return notWiredYet()
-}
+/** A request from a signed-in user. Use cases take the actor per call; RLS applies to it. */
+export const depsForRequest = (_session: RequestSession): AppDeps => productionDeps(serverConfig())
+
+/** Scheduled jobs: same use cases, called with the system actor (service_role in Postgres). */
+export const depsForJob = (): AppDeps => productionDeps(serverConfig())
 
 export type TestDeps = AppDeps & {
   readonly uow: MemoryUnitOfWork

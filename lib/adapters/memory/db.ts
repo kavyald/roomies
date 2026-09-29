@@ -5,6 +5,7 @@
 import { AccessDenied, type Repos, type UnitOfWork } from '../../app/ports'
 import type { Actor } from '../../domain/actor'
 import { activityRowFor, type StoredActivityRow } from '../../domain/events'
+import { isFailedResult } from '../../domain/result'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
 import type { ContactId, HouseId, InviteId, RoomId, UserId } from '../../domain/ids'
 
@@ -60,10 +61,6 @@ const sharesAHouse = (s: MemoryState, a: Actor, other: UserId): boolean => {
 const deny = (what: string): never => {
   throw new AccessDenied(`Not allowed to write ${what}`)
 }
-
-/** Whether a resolved value is a failed Result, which rolls the transaction back. */
-export const isFailedResult = (v: unknown): boolean =>
-  typeof v === 'object' && v !== null && 'ok' in v && (v as { ok: unknown }).ok === false
 
 // ---- repos over one transaction's working copy ------------------------------------
 

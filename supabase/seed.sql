@@ -22,3 +22,7 @@ values (
   '{"sub":"5eed0000-0000-4000-8000-000000000001","email":"owner@roomies.test","email_verified":true}',
   now(), now(), now()
 );
+
+-- Local-only password for the server's database role (see migration app_server_role). Hosted
+-- projects set their own; this one only ever opens the Docker database on 127.0.0.1.
+alter role app_server with password 'app-server-local-only';
