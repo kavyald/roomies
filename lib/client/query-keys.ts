@@ -7,6 +7,7 @@ export const keys = {
   profiles: (houseId: HouseId) => ['house', houseId, 'profiles'] as const,
   rooms: (houseId: HouseId) => ['house', houseId, 'rooms'] as const,
   contacts: (houseId: HouseId) => ['house', houseId, 'contacts'] as const,
+  activity: (houseId: HouseId) => ['house', houseId, 'activity'] as const,
 }
 
 /** Which queries a changed table affects (used by the ChangeFeed, T26). */
@@ -22,6 +23,8 @@ export const keysForTable = (houseId: HouseId, table: string): readonly (readonl
       return [keys.rooms(houseId)]
     case 'contacts':
       return [keys.contacts(houseId)]
+    case 'activity_events':
+      return [keys.activity(houseId)]
     default:
       return [keys.house(houseId)] // everything for the house
   }

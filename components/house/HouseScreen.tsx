@@ -1,6 +1,7 @@
 'use client'
 
-import { Phone, Users } from 'lucide-react'
+import { ChevronRight, History, Phone, Users } from 'lucide-react'
+import Link from 'next/link'
 import { Avatar } from '@/components/ui/Avatar'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
@@ -75,6 +76,16 @@ export function HouseScreen({ houseId }: { houseId: HouseId }) {
             ))}
         </ListGroup>
       )}
+
+      <SectionTitle>History</SectionTitle>
+      <Link
+        href={`/h/${houseId}/activity`}
+        className="sticker flex min-h-11 items-center gap-3 rounded-[20px] border-[1.5px] border-outline bg-card px-3.5 py-3 font-bold"
+      >
+        <History aria-hidden className="size-5 text-ink-soft" />
+        <span className="flex-1">Activity</span>
+        <ChevronRight aria-hidden className="size-5 text-ink-soft" />
+      </Link>
     </>
   )
 }

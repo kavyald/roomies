@@ -2,7 +2,7 @@
 // lib/compose.ts wires the concrete ones. Repos grow as each feature adds its tables.
 
 import type { Actor } from '../domain/actor'
-import type { DomainEvent } from '../domain/events'
+import type { DomainEvent, StoredActivityRow } from '../domain/events'
 import type { Contact, House, Invite, Member, Profile, Room } from '../domain/house'
 import type { ContactId, HouseId, Id, InviteId, RoomId, UserId } from '../domain/ids'
 import type { Result } from '../domain/result'
@@ -111,7 +111,12 @@ export interface HouseQueries {
   profiles(houseId: HouseId): Promise<Profile[]>
   rooms(houseId: HouseId): Promise<Room[]>
   contacts(houseId: HouseId): Promise<Contact[]>
+  /** Newest first, `limit` rows or a little more: an action is never split across pages. */
+  activity(houseId: HouseId, page: { before?: number; limit: number }): Promise<ActivityPage>
 }
+
+/** `before` is the cursor for the next (older) page, or null at the start of history. */
+export type ActivityPage = { readonly rows: StoredActivityRow[]; readonly before: number | null }
 
 export type Change = { readonly table: string }
 export type Unsubscribe = () => void

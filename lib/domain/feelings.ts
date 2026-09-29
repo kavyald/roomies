@@ -1,4 +1,16 @@
+import type { ItemId, UserId } from './ids'
+import type { Instant } from './time'
+
 export type FeelingKind = 'anxious' | 'frustrated' | 'confused' | 'fine' | 'meh' | 'thanks'
+
+/** How one person feels about one item (ARCHITECTURE §6.3). Never about a person. */
+export type Feeling = {
+  readonly itemId: ItemId
+  readonly by: UserId
+  readonly kind: FeelingKind
+  readonly note?: string
+  readonly at: Instant
+}
 
 export const FEELING_KINDS: readonly FeelingKind[] = [
   'anxious',

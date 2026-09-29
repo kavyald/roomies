@@ -7,6 +7,7 @@ import { supabaseHouseQueries } from './adapters/supabase/house-queries'
 import type { ChangeFeed } from './app/ports'
 import type { AppClient, AppCommands } from './client/app-client'
 import { publicConfig } from './config'
+import type { UserId } from './domain/ids'
 
 let browserClient: SupabaseClient | undefined
 
@@ -18,7 +19,8 @@ const supabase = (): SupabaseClient => {
 /** Realtime arrives in T26; until then nothing pushes changes. */
 const noChanges: ChangeFeed = { subscribe: () => () => {} }
 
-export const browserAppClient = (commands: AppCommands): AppClient => ({
+export const browserAppClient = (me: UserId, commands: AppCommands): AppClient => ({
+  me,
   queries: supabaseHouseQueries(supabase()),
   changes: noChanges,
   commands,

@@ -5,6 +5,7 @@
 import type { ChangeFeed, HouseQueries } from '../app/ports'
 import type { NewContact } from '../domain/contacts'
 import type { Contact } from '../domain/house'
+import type { UserId } from '../domain/ids'
 import type { Result } from '../domain/result'
 
 /** What any command can fail with, besides its own business errors. */
@@ -17,6 +18,8 @@ export type AppCommands = {
 }
 
 export type AppClient = {
+  /** Who is using the app. */
+  readonly me: UserId
   readonly queries: HouseQueries
   readonly changes: ChangeFeed
   readonly commands: AppCommands

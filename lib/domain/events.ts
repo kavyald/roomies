@@ -1,5 +1,5 @@
 // Domain events: returned by domain functions, recorded by the EventSink in the same transaction
-// (ARCHITECTURE §6.3–6.4). Families for polls, runs, costs, and feelings join with their tasks.
+// (ARCHITECTURE §6.3–6.4). The union is the whole catalog, including kinds whose features come later.
 
 import type {
   ActionId,
@@ -13,6 +13,7 @@ import type {
   RunId,
   UserId,
 } from './ids'
+import type { Feeling } from './feelings'
 import type { Instant } from './time'
 
 export type FieldChanges = Readonly<Record<string, readonly [before: unknown, after: unknown]>>
@@ -47,6 +48,97 @@ export type DomainEvent = EventBase &
         readonly contactId: ContactId | null
         readonly changes: FieldChanges
       }
+    // feelings
+    | {
+        readonly kind: 'feeling.set'
+        readonly itemId: ItemId
+        readonly changes: { readonly previous: Feeling | null; readonly next: Feeling }
+      }
+    | {
+        readonly kind: 'feeling.removed'
+        readonly itemId: ItemId
+        readonly changes: { readonly previous: Feeling }
+      }
+    // polls
+    | {
+        readonly kind: 'poll.created' | 'poll.reopened' | 'poll.vote_withdrawn'
+        readonly pollId: PollId
+        readonly itemId?: ItemId
+      }
+    | {
+        readonly kind: 'poll.option_added' | 'poll.voted'
+        readonly pollId: PollId
+        readonly optionId: OptionId
+        readonly note?: string
+      }
+    | {
+        readonly kind: 'poll.vote_changed' | 'poll.deadline_changed'
+        readonly pollId: PollId
+        readonly optionId?: OptionId
+        readonly changes: FieldChanges
+      }
+    | {
+        readonly kind: 'poll.closed'
+        readonly pollId: PollId
+        readonly optionId?: OptionId
+        readonly payload: { readonly result: 'winner' | 'tie' | 'no_votes' }
+      }
+    // runs (one event per item; a bulk action shares one actionId)
+    | {
+        readonly kind: 'run.created' | 'request.closed'
+        readonly runId: RunId
+        readonly contactId?: ContactId
+      }
+    | {
+        readonly kind: 'run.item_added' | 'run.item_done'
+        readonly runId: RunId
+        readonly itemId: ItemId
+      }
+    | {
+        readonly kind: 'run.item_returned'
+        readonly runId: RunId
+        readonly itemId: ItemId
+        readonly note: string
+      }
+    | {
+        readonly kind: 'run.item_moved'
+        readonly runId: RunId
+        readonly toRunId: RunId
+        readonly itemId: ItemId
+        readonly note?: string
+      }
+    | {
+        readonly kind: 'run.renamed' | 'run.date_set'
+        readonly runId: RunId
+        readonly changes: FieldChanges
+      }
+    | {
+        readonly kind: 'run.point_person_changed'
+        readonly runId: RunId
+        readonly memberId: UserId
+        readonly changes: FieldChanges
+      }
+    | {
+        readonly kind: 'request.sent'
+        readonly runId: RunId
+        readonly contactId: ContactId
+        readonly payload: { readonly via: string; readonly message: string }
+      }
+    | {
+        readonly kind: 'run.finished'
+        readonly runId: RunId
+        readonly payload: { readonly done: number; readonly returned: number }
+      }
+    // money
+    | {
+        readonly kind: 'cost.added' | 'cost.splitwise_copied'
+        readonly costId: CostId
+        readonly itemId?: ItemId
+        readonly runId?: RunId
+        readonly memberId?: UserId
+      }
+    | { readonly kind: 'cost.edited'; readonly costId: CostId; readonly changes: FieldChanges }
+    | { readonly kind: 'cost.removed'; readonly costId: CostId; readonly note?: string }
     // house, people, places
     | { readonly kind: 'house.created' }
     | { readonly kind: 'settings.feeling_weights_changed'; readonly changes: FieldChanges }

@@ -4,6 +4,7 @@ import { manualChangeFeed, memoryHouseQueries } from '../adapters/memory/queries
 import { MemoryUnitOfWork } from '../adapters/memory/db'
 import type { AppClient, AppCommands } from '../client/app-client'
 import type { HouseActor } from '../domain/actor'
+import type { UserId } from '../domain/ids'
 import { err } from '../domain/result'
 
 export const fakeAppClient = (
@@ -11,6 +12,7 @@ export const fakeAppClient = (
   actor: HouseActor,
   commands: Partial<AppCommands> = {},
 ): AppClient => ({
+  me: actor.kind === 'member' ? actor.userId : ('system' as UserId),
   queries: memoryHouseQueries(uow, actor),
   changes: manualChangeFeed(),
   commands: {

@@ -5,7 +5,11 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import type { HouseQueries } from '../../app/ports'
 import type { Contact, Room } from '../../domain/house'
 import type { HouseId, UserId } from '../../domain/ids'
+import type { DomainEvent } from '../../domain/events'
+import { instant } from '../../domain/time'
 import { seedHouse, system, type UnitOfWorkHarness } from './unit-of-work.contract'
+
+const T = instant(Date.UTC(2026, 8, 29, 16, 0))
 
 export type HouseQueriesHarness = UnitOfWorkHarness & {
   /** Reads as this user, the way the browser does. */
@@ -70,6 +74,42 @@ export const houseQueriesContract = (
       expect(await q.contacts(house.id)).toEqual([contacts[1], contacts[0]])
     })
 
+    it('pages activity newest first, never splitting an action', async () => {
+      const { house, admin, member } = await withPlaces()
+      const alone = (): DomainEvent => ({
+        kind: 'house.created',
+        actionId: h.ids.newId(),
+        by: admin,
+      })
+      const bulk = h.ids.newId<'action'>()
+      const joined = (who: UserId): DomainEvent => ({
+        kind: 'member.joined',
+        memberId: who,
+        actionId: bulk as never,
+        by: admin,
+      })
+      await h.uow.run(system(house.id), async (r) => {
+        await r.events.record(house.id, [alone()], T) // oldest
+        await r.events.record(house.id, [joined(admin), joined(member), joined(admin)], T)
+        await r.events.record(house.id, [alone()], T) // newest
+      })
+
+      const q = h.queriesFor(member, house.id)
+      const first = await q.activity(house.id, { limit: 2 })
+      expect(first.rows.map((r) => r.kind)).toEqual([
+        'house.created',
+        'member.joined',
+        'member.joined',
+        'member.joined',
+      ])
+      expect(first.before).not.toBeNull()
+      const second = await q.activity(house.id, { before: first.before!, limit: 2 })
+      expect(second).toEqual({
+        rows: [expect.objectContaining({ kind: 'house.created' })],
+        before: null,
+      })
+    })
+
     it('a member of another house reads nothing of this one', async () => {
       const { house } = await withPlaces()
       const other = await seedHouse(h)
@@ -79,5 +119,6 @@ export const houseQueriesContract = (
       expect(await q.profiles(house.id)).toEqual([])
       expect(await q.rooms(house.id)).toEqual([])
       expect(await q.contacts(house.id)).toEqual([])
+      expect(await q.activity(house.id, { limit: 10 })).toEqual({ rows: [], before: null })
     })
   })

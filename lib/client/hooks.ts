@@ -1,6 +1,6 @@
 'use client'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { NewContact } from '../domain/contacts'
 import type { HouseId } from '../domain/ids'
 import { useAppClient } from './provider'
@@ -29,6 +29,29 @@ export const useRooms = (houseId: HouseId) => {
 export const useContacts = (houseId: HouseId) => {
   const { queries } = useAppClient()
   return useQuery({ queryKey: keys.contacts(houseId), queryFn: () => queries.contacts(houseId) })
+}
+
+const ACTIVITY_PAGE = 30
+
+/** The activity log, a page at a time (newest first). */
+export const useActivity = (houseId: HouseId) => {
+  const { queries } = useAppClient()
+  return useInfiniteQuery({
+    queryKey: keys.activity(houseId),
+    initialPageParam: undefined as number | undefined,
+    queryFn: ({ pageParam }) =>
+      queries.activity(houseId, { before: pageParam, limit: ACTIVITY_PAGE }),
+    getNextPageParam: (last) => last.before ?? undefined,
+  })
+}
+
+/** Whether the person using the app is an admin of this house. */
+export const useIsAdmin = (houseId: HouseId): boolean => {
+  const { me } = useAppClient()
+  const members = useMembers(houseId)
+  return (
+    members.data?.some((m) => m.userId === me && m.role === 'admin' && m.status.active) ?? false
+  )
 }
 
 /** Resolves to the command's Result; refreshes the house's contacts when it worked. */

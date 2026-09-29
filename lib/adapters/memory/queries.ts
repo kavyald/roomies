@@ -1,5 +1,6 @@
 import type { Change, ChangeFeed, HouseQueries } from '../../app/ports'
 import type { Actor } from '../../domain/actor'
+import { pageAtActionBoundary } from '../../domain/activity'
 import type { Profile } from '../../domain/house'
 import type { HouseId } from '../../domain/ids'
 import type { MemoryUnitOfWork } from './db'
@@ -16,6 +17,15 @@ export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQu
     }),
   rooms: (houseId) => uow.run(actor, (r) => r.rooms.listByHouse(houseId)),
   contacts: (houseId) => uow.run(actor, (r) => r.contacts.listByHouse(houseId)),
+  activity: async (houseId, { before, limit }) => {
+    // Reads go through the same rule as RLS: members of the house only.
+    const visible = await uow.run(actor, (r) => r.houses.get(houseId))
+    if (!visible) return { rows: [], before: null }
+    const rows = uow.state.activity
+      .filter((a) => a.houseId === houseId && (before === undefined || a.id < before))
+      .sort((a, b) => b.id - a.id)
+    return pageAtActionBoundary(rows, limit)
+  },
 })
 
 export type ManualChangeFeed = ChangeFeed & { emit(houseId: HouseId, change: Change): void }

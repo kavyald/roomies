@@ -5,6 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { HouseQueries } from '../../app/ports'
 import {
+  activityToDomain,
   contactToDomain,
   houseToDomain,
   memberToDomain,
@@ -59,4 +60,24 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => ({
     rows(sb.from('contacts').select('*').eq('house_id', houseId), contactToDomain).then((cs) =>
       cs.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())),
     ),
+  activity: async (houseId, { before, limit }) => {
+    let q = sb.from('activity_events').select('*').eq('house_id', houseId)
+    if (before !== undefined) q = q.lt('id', before)
+    const page = await rows(q.order('id', { ascending: false }).limit(limit), activityToDomain)
+    if (page.length < limit) return { rows: page, before: null }
+    // Finish the last action, so a bulk action never spans two pages.
+    const last = page.at(-1)!
+    const rest = await rows(
+      sb
+        .from('activity_events')
+        .select('*')
+        .eq('house_id', houseId)
+        .eq('action_id', last.actionId)
+        .lt('id', last.id)
+        .order('id', { ascending: false }),
+      activityToDomain,
+    )
+    const all = [...page, ...rest]
+    return { rows: all, before: all.at(-1)!.id }
+  },
 })

@@ -71,3 +71,31 @@ describe('createContact (sample use case, end to end on memory adapters)', () =>
     })
   })
 })
+
+describe('createContact: activity is part of the same transaction', () => {
+  it("if the activity row can't be written, the contact isn't saved either", async () => {
+    const { deps, house, member } = await setup()
+    const failingEvents: typeof deps.uow = Object.assign(
+      Object.create(Object.getPrototypeOf(deps.uow)),
+      deps.uow,
+      {
+        run: <T>(
+          actor: Parameters<typeof deps.uow.run>[0],
+          fn: Parameters<typeof deps.uow.run<T>>[1],
+        ) =>
+          deps.uow.run(actor, (repos) =>
+            fn({
+              ...repos,
+              events: { record: async () => Promise.reject(new Error('activity insert failed')) },
+            }),
+          ),
+      },
+    )
+    const createContact = makeCreateContact({ ...deps, uow: failingEvents })
+    await expect(createContact(asMember(house.id, member), { name: 'Plumber' })).rejects.toThrow(
+      'activity insert failed',
+    )
+    expect(deps.uow.state.contacts.size).toBe(0)
+    expect(deps.uow.state.activity).toEqual([])
+  })
+})
