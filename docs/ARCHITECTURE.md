@@ -519,7 +519,7 @@ create index on activity_events (action_id);                                    
 - **Append-only.** RLS lets members **read** their house's rows. There's no update/delete policy, and the app role has no `UPDATE`/`DELETE` grant. Undo writes a new event (`item.reopened`, `chore.undone`, `poll.reopened`). It never removes one.
 - **Written by `EventSink` in the same transaction** as the change. No triggers.
 - **One row per subject.** A bulk action writes one row per item, sharing an `action_id`. The Activity screen groups rows by `action_id` into one line ("Kavya moved 3 tasks to Landlord visit").
-- **Queried fields are columns, never `payload`.** `changes` holds field diffs (varying shape), and `payload` holds versioned extras (`{"v":1, …}`). Sizing: about 205 bytes/row with typed columns vs. about 300 with subjects in JSON, which works out to roughly **30 MB after ~5 years** for one house (T07 measures the real numbers).
+- **Queried fields are columns, never `payload`.** `changes` holds field diffs (varying shape), and `payload` holds versioned extras (`{"v":1, …}`). Sizing, measured in T07 (`pnpm db:sizing`): 148–264 bytes per row depending on kind (feelings with a note are the largest), about **405 bytes/row on disk** including the six indexes and page overhead. At 50 events a day that's roughly **37 MB after 5 years** for one house (the pre-build estimate was ~30 MB).
 - **Deleted accounts** keep their rows. The profile is anonymized and shows as "Former roommate."
 - `activityRowFor(event)` is pure (it maps a `DomainEvent` to a row), and `activityLine(rows)` is pure (it groups by `action_id` and phrases the feed line).
 

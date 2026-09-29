@@ -71,6 +71,8 @@ export type Contact = {
   readonly name: string
   readonly phone?: string
   readonly note?: string
+  /** Contacts are archived, never deleted: activity rows point at them. */
+  readonly archivedAt?: Instant
 }
 
 export type Invite = {

@@ -96,7 +96,10 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         const m = s.members.get(memberKey(houseId, userId))
         return m && (isMember(s, a, houseId) || userId === uid(a)) ? m : undefined
       },
-      listByHouse: async (houseId) => visible(s.members.values(), houseId),
+      listByHouse: async (houseId) =>
+        [...s.members.values()].filter(
+          (m) => m.houseId === houseId && (isMember(s, a, houseId) || m.userId === uid(a)),
+        ),
       save: async (m) => {
         if (!isAdmin(s, a, m.houseId)) deny('house_members')
         s.members.set(memberKey(m.houseId, m.userId), m)
