@@ -320,11 +320,12 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 
 | Milestone | Scope | Exit criteria |
 |---|---|---|
-| **M0: Foundations** | Repo, CI, hosting, database, email codes, sign-in, PWA shell, UI kit | The owner signs in on an iPhone |
-| **M1: House & members** | Setup + rooms, invites, join, members, activity log | All roommates have joined |
-| **M2: Items** | Needs, chores, tasks, feelings, priority feed, feeling-weights setting | The house uses the needs list and chores for a week |
-| **M3: Polls & runs** | Polls, runs (grocery, order, visit, event), costs, calendar | One grocery run, one poll, and one super visit completed |
-| **M4: Notifications & launch** | Push, reminders, polish, production | Everyone gets a reminder on their phone, running on production |
+| **M0: Foundations** | Repo, CI, local database, email codes, sign-in, PWA shell, UI kit | The owner signs in locally |
+| **M1: House & members** | Setup + rooms, invites, join, members, activity log | Test roommates join locally through invite links |
+| **M2: Items** | Needs, chores, tasks, feelings, priority feed, feeling-weights setting | Items work end to end locally, and feelings re-rank the feed |
+| **M3: Polls & runs** | Polls, runs (grocery, order, visit, event), costs, calendar | A grocery run, a poll, and a super visit can each be completed locally |
+| **M4: Notifications & polish** | Push, reminders, polish, end-to-end tests | Reminders and push work locally, and the E2E suite is green in CI |
+| **M5: Hosting & launch** | The external services: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production | Everyone is on production from their phones |
 
 The details are in [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md).
 
@@ -381,5 +382,6 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D26 | No "needed soon" flag on needs. Feelings and the needed-by date carry urgency. | Owner |
 | D27 | Heads-ups and the calendar icon are v2 (design parked in §13) | Owner |
 | D28 | Sign-in codes come from a house Gmail address, and the app lives at a `*.vercel.app` URL. No custom domain in v1. | Owner |
+| D29 | Everything that needs an outside account is its own, later milestone (M5). M0–M4 are built and checked entirely on one Mac. | Owner |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.

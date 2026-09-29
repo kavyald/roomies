@@ -46,7 +46,7 @@ Things to try: vote on "Which vacuum?", record the landlord's reply on the Landl
 | [PRD](docs/PRD.md) | Problem, the five concepts, feature specs, priority formula, invites and access, notifications, what's parked for later (§13), and the decision log |
 | [Architecture](docs/ARCHITECTURE.md) | Stack, auth and row-level security, the data model and domain types, the function catalog, the activity log schema, jobs, and ops |
 | [Frontend](docs/FRONTEND.md) | Visual language (inspired by Focus Friend), color system, the apartment's rooms, screens, copy voice, and motion |
-| [Implementation plan](docs/IMPLEMENTATION_PLAN.md) | 39 tasks across 5 milestones with sizes, dependencies, a dependency graph, and the critical path |
+| [Implementation plan](docs/IMPLEMENTATION_PLAN.md) | 42 tasks across 6 milestones with sizes, dependencies, a dependency graph, and the critical path |
 
 ## Planned stack
 
@@ -61,13 +61,14 @@ Everything targets free tiers for one house of 2–8 people.
 
 | Milestone | Scope |
 |---|---|
-| **M0 Foundations** | Repo, CI, Supabase, sign-in, PWA shell, UI kit |
+| **M0 Foundations** | Repo, CI, local Supabase, sign-in, PWA shell, UI kit |
 | **M1 House & members** | House setup with rooms, invites, members, activity log |
 | **M2 Items** | Needs, chores, tasks, feelings, priority feed, feeling weights |
 | **M3 Polls, runs & calendar** | Polls, runs, requests and visits, costs, calendar |
-| **M4 Notifications & launch** | Web push, reminders, polish, end-to-end tests, production |
+| **M4 Notifications & polish** | Web push, reminders, polish, end-to-end tests |
+| **M5 Hosting & launch** | Everything that needs an outside account: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production |
 
-Roughly 53 working days for one person. The critical path runs through the core plumbing, items, runs, and requests and visits. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
+Roughly 55 working days for one person. M0–M4 run entirely on one Mac with no accounts; M5 is where the sign-ups happen. The critical path runs through the core plumbing, items, runs, and requests and visits. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
 
 Tasks are also tracked on the **roomies** board in Weyve.
 

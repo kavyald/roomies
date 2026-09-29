@@ -756,9 +756,9 @@ iPhone UX specifics:
 | Item | Decision |
 |---|---|
 | Repo | Single repo (Next.js app + `supabase/` migrations). No monorepo tooling needed. |
-| Environments | `local` (Supabase CLI in Docker), `preview` (Vercel preview deploys → shared staging Supabase project), `prod` |
+| Environments | `local` (Supabase CLI in Docker, no account; sign-in codes land in its local inbox) is the only environment through M4. M5 adds `preview` (Vercel preview deploys → shared staging Supabase project) and `prod` (A19). |
 | Migrations | Supabase CLI SQL migrations, checked in. Applied to staging on merge to `main`, then promoted to prod manually or on a tag. |
-| CI (GitHub Actions) | typecheck, lint (**`eslint-plugin-boundaries`**: `domain` imports nothing, `app` imports only `domain` and ports, and only `adapters` + `compose` import Supabase/Kysely/web-push), Vitest (domain + use cases with in-memory adapters), port contract tests against both the memory and Postgres adapters, RLS tests against local Supabase, Playwright smoke test (iPhone profile) on the preview URL |
+| CI (GitHub Actions) | typecheck, lint (**`eslint-plugin-boundaries`**: `domain` imports nothing, `app` imports only `domain` and ports, and only `adapters` + `compose` import Supabase/Kysely/web-push), Vitest (domain + use cases with in-memory adapters), port contract tests against both the memory and Postgres adapters, RLS tests and the Playwright suite (iPhone profile) against local Supabase started in the CI job. From M5 (E4), Playwright also runs on the preview URL. |
 | Secrets | Vercel env vars (service-role key, `SETUP_TOKEN`, VAPID private key, cron secret, Splitwise secret later). The Gmail app password lives only in Supabase's SMTP settings, never in the app. `.env.example` checked in. |
 | Backups | Supabase daily backups (Pro), or on the free tier a scheduled `pg_dump` via GitHub Actions to a private storage bucket, weekly |
 | Monitoring | Sentry (client + server), Supabase logs, a Vercel Cron failure alert, and an uptime ping (free UptimeRobot/Better Stack) |
@@ -825,3 +825,4 @@ iPhone UX specifics:
 | A16 | v1 scope | Needs, chores, tasks, polls, runs, costs, feeling weights. Bills, belongings, rotations, outside-help stages, heads-ups, info, and email come later. | Owner (D13) |
 | A17 | History storage | `items.run_id` holds the current run. `activity_events` (typed subject columns, append-only, `action_id` grouping) is the only history store. `run_items` / `run_claims` dropped. | Owner |
 | A18 | Sign-in email sender | A dedicated house Gmail as Supabase custom SMTP, with the app on `*.vercel.app`. No domain in v1. Move to Resend + a custom domain when delivery logs or reminder emails are needed, or if Google flags the account. | Owner |
+| A19 | External services | Kept out of M0–M4. The core runs on local Supabase (CLI + Docker) with its local inbox. Hosted Supabase, the Gmail sender, Vercel, Sentry, and on-iPhone checks are the M5 "E" tasks, and no core task depends on them. | Owner |

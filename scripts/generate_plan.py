@@ -7,11 +7,12 @@ import sys
 SIZE_DAYS = {"S": 0.5, "M": 1.5, "L": 3}
 
 MILESTONES = [
-    ("M0", "Foundations", "The owner signs in on an iPhone and sees the empty app shell. A stranger's email gets no code."),
-    ("M1", "House & members", "The house exists with its rooms and contacts, and all roommates have joined through invite links."),
-    ("M2", "Items: needs, chores, tasks", "The house uses the needs list and chores for a week, and feelings re-rank the Home feed."),
-    ("M3", "Polls, runs & calendar", "One grocery run (with a cost), one poll, and one super visit are completed. Dated things show on the calendar."),
-    ("M4", "Notifications & launch", "Everyone gets reminders on their phone, and the house runs on production."),
+    ("M0", "Foundations", "The owner signs in locally (code from the local inbox) and sees the empty app shell. A stranger's email gets no code."),
+    ("M1", "House & members", "The house exists with its rooms and contacts, and test roommates join locally through invite links."),
+    ("M2", "Items: needs, chores, tasks", "Needs, chores, and tasks work end to end locally, and feelings re-rank the Home feed."),
+    ("M3", "Polls, runs & calendar", "A grocery run (with a cost), a poll, and a super visit can each be completed locally. Dated things show on the calendar."),
+    ("M4", "Notifications & polish", "Reminders and push work locally, and the E2E suite is green in CI."),
+    ("M5", "Hosting & launch (external services)", "Everyone is on production from their phones, and the house uses it for real."),
 ]
 
 # id, milestone, title, size, depends_on, description, done_when
@@ -23,9 +24,9 @@ T = [
     ("T02", "M0", "CI + architecture guardrails", "S", ["T01"],
      "A GitHub Actions workflow runs typecheck, lint, and tests. `eslint-plugin-boundaries` enforces the layer rules: domain imports nothing, app imports only domain + ports, and only adapters/compose touch Supabase or Kysely.",
      "A PR that imports Supabase from `lib/domain` fails CI."),
-    ("T03", "M0", "Supabase & email setup", "M", [],
-     "Local Supabase via the CLI, plus staging and prod projects. Auth: public sign-up off, 6-digit email code with a 10-min expiry, code-only template. A dedicated house Gmail (2-step verification, app password) as custom SMTP.",
-     "A code email arrives from staging for an existing user, and an unknown email gets nothing."),
+    ("T03", "M0", "Local Supabase", "M", [],
+     "The Supabase CLI stack on this Mac (Docker, no account). Auth settings in `supabase/config.toml`: public sign-up off, 6-digit email code with a 10-min expiry, code-only template. Sign-in emails land in the local inbox (Mailpit). `supabase/seed.sql` for sample data.",
+     "A code for an existing user shows up in the local inbox, and an unknown email gets nothing."),
     ("T04", "M0", "Domain primitives", "S", ["T01"],
      "Branded ids, `Instant`, `When`/`LocalDate`, `Cents`, `Result`, `Actor`, plus time-zone and money helpers, with unit tests (including DST).",
      "The primitives are covered by tests, and no `Date.now()` appears in `lib/domain`."),
@@ -46,16 +47,13 @@ T = [
      "A `/dev/kit` page shows every component in light and dark at 375pt, passing a contrast check."),
     ("T10", "M0", "PWA shell + navigation", "M", ["T09"],
      "Manifest, icons, a service worker that caches the app shell, safe areas, the 5-tab layout (Home, Needs, Chores, Tasks, House) with empty screens, and the Add-to-Home-Screen guide.",
-     "It installs to the iPhone Home Screen and opens standalone with the tab bar above the home indicator."),
+     "The manifest and service worker pass Chrome's installability check on localhost, and at the iPhone viewport the tab bar clears the home-indicator safe area."),
     ("T11", "M0", "AppClient + data layer", "M", ["T06", "T10"],
      "The `AppClient` interface + React context, TanStack Query setup, the Supabase browser adapter for `HouseQueries`, and a server-action helper that validates input and maps `Result`.",
      "One screen reads through `useX()` hooks and renders with a fake AppClient in a component test."),
-    ("T12", "M0", "Deploy pipeline", "S", ["T02", "T03"],
-     "The Vercel project in the same region as Supabase, env vars per environment, preview deploys against staging, migrations applied on merge, and Sentry.",
-     "Merging to main deploys staging automatically with migrations applied."),
     ("T13", "M0", "Sign-in (returning users)", "M", ["T03", "T05", "T09"],
      "An AuthGateway adapter (Supabase), `/sign-in` → 6-digit code screen with one-time-code autofill, session middleware, and sign out. The same message shows whether or not the email exists.",
-     "An existing user signs in on iPhone. An unknown email sees the neutral message and gets no code."),
+     "An existing user signs in locally with the code from the local inbox. An unknown email sees the neutral message and gets no code."),
     # ---------------- M1
     ("T14", "M1", "Activity log", "M", ["T08"],
      "The `DomainEvent` union (catalog in Architecture §6.4), pure `activityRowFor` and `activityLine` (grouping by `action_id`), EventSink wiring, and the Activity screen with keyset pagination.",
@@ -96,7 +94,7 @@ T = [
      "Setting 😰 to +40 re-ranks the feed for every member, and a non-admin can do it."),
     ("T26", "M2", "Realtime sync", "S", ["T11", "T18"],
      "A `ChangeFeed` adapter (Supabase Realtime) filtered by house that invalidates the matching queries.",
-     "A change on one phone appears on another within a couple of seconds."),
+     "A change in one browser window appears in another within a couple of seconds."),
     # ---------------- M3
     ("T27", "M3", "Polls", "M", ["T19", "T14"],
      "`polls`, `poll_options`, `poll_votes`. Pure `createPoll` / `vote` / `closePoll` (most votes wins, a tie → \"Tie\"), the poll sheet, `addPollOption` (anyone, while open), \"+ Poll about this\" on items, standalone polls, and Open polls on Home.",
@@ -114,15 +112,15 @@ T = [
      "The Coming up strip on Home (the next 7 days of dated tasks, needs, and runs) and the month calendar with a day list.",
      "Dated items and runs show on the right days, and tapping one opens it."),
     # ---------------- M4
-    ("T32", "M4", "Job runner", "S", ["T08", "T12"],
+    ("T32", "M4", "Job runner", "S", ["T08"],
      "`/api/cron/*` with a secret header, `depsForJob()` (system actor), and a pg_cron + pg_net migration that calls the routes on schedule.",
-     "A no-op job runs every 15 minutes on staging and logs success."),
+     "A local pg_cron schedule calls the local `/api/cron` route (via `host.docker.internal`) every 15 minutes and logs success."),
     ("T33", "M4", "Notification outbox", "M", ["T14"],
      "Pure `notificationsFor` (per-category prefs, quiet hours in the house timezone), `notification_prefs`, and EventSink writing outbox rows in the same transaction.",
      "Table tests cover quiet hours, and a 😰 feeling enqueues a message for the assignee."),
     ("T34", "M4", "Web push", "M", ["T33", "T10", "T32"],
      "VAPID keys, the enable-notifications flow, the service worker `push` / `notificationclick`, a PushSender adapter (drops 404/410 subscriptions), and `sendNotifications` (right after commit + every 5 min).",
-     "An installed iPhone receives a push within seconds of being assigned something."),
+     "Desktop Chrome on localhost receives a push within seconds of being assigned something."),
     ("T35", "M4", "Reminder jobs", "M", ["T32", "T33", "T21", "T22", "T27", "T28"],
      "`runReminders` (due tasks and chores, polls closing tomorrow, dated runs tomorrow) and `closeDuePolls`, all with an injected clock.",
      "Each job has fixed-clock tests and is idempotent when run twice."),
@@ -133,10 +131,23 @@ T = [
      "Empty states, a copy pass against the FRONTEND voice table, completion bursts, reduced motion, and dark mode checks.",
      "Every screen has an empty state, and no copy uses \"overdue,\" \"failed,\" or \"missed\" about a person."),
     ("T38", "M4", "E2E + accessibility", "M", ["T37", "T34"],
-     "Playwright on the iPhone profile: join, add a need, grocery run with a cost, poll with a tie, plan + finish a visit, share a feeling, change a feeling weight. Plus a VoiceOver pass and a contrast check.",
-     "E2E suite green on the preview URL, with no critical VoiceOver issues."),
-    ("T39", "M4", "Production launch", "S", ["T38", "T35", "T12"],
-     "Prod project and env, a weekly `pg_dump` backup workflow, an uptime ping, the setup link for the owner, then invites to roommates.",
+     "Playwright on the iPhone profile against the local stack (CI starts local Supabase in GitHub Actions): join, add a need, grocery run with a cost, poll with a tie, plan + finish a visit, share a feeling, change a feeling weight. Plus axe and a contrast check.",
+     "The E2E suite is green in CI with no critical axe issues."),
+    # ---------------- M5 (external services; nothing in M0–M4 depends on these)
+    ("E1", "M5", "Hosted Supabase + Gmail sender", "S", ["T07", "T13"],
+     "Create the staging and prod Supabase projects, link the CLI, push the migrations, and copy the auth settings from `supabase/config.toml`. A dedicated house Gmail (2-step verification, app password) as custom SMTP. Accounts: Supabase, Gmail.",
+     "A code email from staging reaches a real inbox, and an unknown email gets nothing."),
+    ("E2", "M5", "Deploy pipeline", "S", ["T02", "E1"],
+     "The Vercel project (a `*.vercel.app` URL) in the same region as Supabase, env vars per environment, preview deploys against staging, migrations applied on merge, and Sentry (optional). Accounts: Vercel, Sentry.",
+     "Merging to main deploys staging automatically with migrations applied."),
+    ("E3", "M5", "Scheduled jobs on staging", "S", ["E2", "T32", "T35"],
+     "Point pg_cron + pg_net at the Vercel URL, with the cron secret stored in Supabase.",
+     "The no-op job runs every 15 minutes on staging, and reminders fire from staging."),
+    ("E4", "M5", "iPhone checks", "M", ["E2", "T34", "T38"],
+     "On a real iPhone: install the PWA from the Vercel URL, sign in with a real code, and receive a push. Run the E2E suite against the preview URL, and do a VoiceOver pass.",
+     "It installs and opens standalone, a push arrives within seconds, the E2E suite is green on the preview URL, and VoiceOver has no critical issues."),
+    ("E5", "M5", "Production launch", "S", ["E3", "E4"],
+     "Prod env on Vercel, a weekly `pg_dump` backup workflow, an uptime ping (optional UptimeRobot), the setup link for the owner, then invites to roommates.",
      "All roommates are on prod and a backup restores into staging."),
 ]
 
@@ -174,23 +185,26 @@ w("## 1. How the work is divided\n")
 w("- **Milestones follow the PRD release plan** (§12, v1 scope). Everything in PRD §13 (bills, belongings, rotations, outside-help stages, heads-ups, info, email) is out of this plan.")
 w("- **Each task is a vertical slice** (migration → domain types + pure functions → use case → adapter → UI → tests), so it can be demoed and merged on its own. The exceptions are the M0 plumbing tasks, which have nothing to show on screen.")
 w("- **Tasks are sized** S ≈ half a day, M ≈ 1–2 days, L ≈ 3 days, for one person. The estimates are only used to find the critical path.")
-w("- **Dependencies are hard dependencies only**: a task can't start until the tasks it depends on are merged. Everything else can happen in any order.\n")
+w("- **Dependencies are hard dependencies only**: a task can't start until the tasks it depends on are merged. Everything else can happen in any order.")
+w("- **External services are their own milestone (M5).** M0–M4 run entirely on this Mac: local Supabase (Docker, no account) with a local inbox for sign-in codes. Everything that needs an account (hosted Supabase, the Gmail sender, Vercel, Sentry) or a real iPhone on a public URL is an **E** task in M5, and no core task depends on one. T12 and T39 moved there as E2 and E5.\n")
 w("### Definition of done (every task)\n")
 w("1. The migration (if any) has RLS on every new table, plus an RLS test.")
 w("2. Domain functions are pure, with unit tests. Use cases are tested against the in-memory adapters with a fixed clock.")
 w("3. New ports or adapters pass the shared contract tests on both memory and Postgres.")
 w("4. Lint boundaries pass. No `process.env`, `new Date()`, or Supabase imports outside the allowed layers.")
-w("5. It's deployed to a preview, checked at 375pt in light and dark, and uses the copy voice from FRONTEND §7.\n")
+w("5. It's checked locally at 375pt in light and dark, and uses the copy voice from FRONTEND §7.\n")
 w("---\n")
 w("## 2. Summary\n")
 w(f"- **{len(T)} tasks** across **{len(MILESTONES)} milestones**, about **{total:g} working days** in total for one person.")
 w(f"- **Critical path** (longest chain of dependencies, about **{ef[end]:g} days**): " + " → ".join(f"{p}" for p in path) + ".")
+core_end = max((i for i in ids if not i.startswith("E")), key=ef.get)
+w(f"- **Without the external services** (M0–M4 only), the core is done after about **{ef[core_end]:g} days**, ending at {core_end}.")
 w("- Everything off the critical path can fill gaps, e.g. while waiting on a review or on a roommate to test.\n")
 w("| Milestone | Tasks | Est. days | Exit criteria |")
 w("|---|---|---|---|")
 for m, name, exitc in MILESTONES:
     ts = [t for t in T if t[1] == m]
-    w(f"| **{m} · {name}** | {ts[0][0]}–{ts[-1][0]} ({len(ts)}) | {sum(SIZE_DAYS[t[3]] for t in ts):g} | {exitc} |")
+    w(f"| **{m} · {name}** | {ts[0][0]}–{ts[-1][0]} ({len(ts)}{', no T12' if m == 'M0' else ''}) | {sum(SIZE_DAYS[t[3]] for t in ts):g} | {exitc} |")
 w("")
 w("---\n")
 w("## 3. Dependency graph\n")
@@ -244,7 +258,7 @@ for m, name, _ in MILESTONES:
     w(f"{m}. " + " → ".join(seq))
 w("")
 w("**Early-feedback checkpoints**")
-w("- **After T20:** the needs list works. That's the first thing worth handing to roommates, even before chores and the feed.")
+w("- **After T20:** the needs list works. That's the first thing worth handing to roommates, even before chores and the feed. Roommates can only reach it once **E1 + E2** are done; they need just T02, T07, and T13, so pull them forward whenever you're ready to sign up for the accounts.")
 w("- **After T28–T29:** grocery runs with costs work, which is the first real weekly use.")
 w("- **After M2:** if people forget to open the app, pull **T32–T34** (push) ahead of M3. They only depend on M0 tasks plus T14.\n")
 w("---\n")
@@ -253,10 +267,11 @@ w("For a second contributor (or to interleave work), these groups have no depend
 w("| Track | Tasks | Needs first |")
 w("|---|---|---|")
 w("| UI kit & shell | T09, T10 | T01 |")
-w("| Infra & deploy | T03, T07, T12 | — |")
+w("| Local infra | T03, T07 | — |")
 w("| Needs / chores / tasks tabs | T20, T21, T22 | T19 (T22 also T17) |")
 w("| Polls | T27 | T19, T14 |")
 w("| Notifications | T33, T36, then T34 | T14 (T34 also T32, T10) |")
+w("| External services (M5) | E1, E2, then E3, E4, E5 | E1 needs only T07 + T13, so it can start any time |")
 w("")
 w("---\n")
 w("## 7. Out of scope (later)\n")
