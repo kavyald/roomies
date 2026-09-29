@@ -1,17 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
-import { ownerOnHouseTab } from './support'
-
-/** + → tile → title → Add: three taps and a title. */
-const addWithThreeTaps = async (page: Page, tile: string, title: string) => {
-  await page.getByRole('button', { name: 'Add', exact: true }).click() // 1
-  await page
-    .getByRole('dialog', { name: 'Add something' })
-    .getByRole('button', { name: new RegExp(`^${tile}`) })
-    .click() // 2
-  const sheet = page.getByRole('dialog')
-  await sheet.getByRole('textbox').first().fill(title)
-  await sheet.getByRole('button', { name: 'Add', exact: true }).click() // 3
-}
+import { expect, test } from '@playwright/test'
+import { addWithThreeTaps, ownerOnHouseTab } from './support'
 
 test('a need, a chore, and a task can each be added with just a title in 3 taps, and opened', async ({
   page,

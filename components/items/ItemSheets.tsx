@@ -29,6 +29,7 @@ import { relativeTime } from '@/lib/domain/format'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
 import type { Category, Item, ItemPatch } from '@/lib/domain/items'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
+import { HandledByPicker } from './HandledByPicker'
 import { ItemForm, toNewItem, valuesFrom, type ItemFormValues } from './ItemForm'
 import { CATEGORY, scheduleLabel, whenLabel } from './meta'
 
@@ -208,6 +209,7 @@ function ItemDetailSheet({
   const copy = useCopy()
   const [editing, setEditing] = useState(false)
   const [confirmArchive, setConfirmArchive] = useState(false)
+  const [pickingHandler, setPickingHandler] = useState(false)
   const edit = useEditItem(houseId)
   const done = useMarkDone(houseId)
   const reopen = useReopenItem(houseId)
@@ -307,10 +309,19 @@ function ItemDetailSheet({
     ])
   }
   if (item.category === 'task') {
+    const change = (label: string) => (
+      <button
+        type="button"
+        className="min-h-11 text-sm font-extrabold text-accent-ink"
+        onClick={() => setPickingHandler((p) => !p)}
+      >
+        {label}
+      </button>
+    )
     rows.push([
       'Handled by',
       contact ? (
-        <span className="flex flex-wrap items-center gap-2">
+        <span className="flex flex-wrap items-center gap-x-2">
           {contact.name}
           {contact.phone && (
             <>
@@ -324,9 +335,12 @@ function ItemDetailSheet({
               </button>
             </>
           )}
+          {change('Change')}
         </span>
       ) : (
-        'One of us'
+        <span className="flex flex-wrap items-center gap-x-2">
+          One of us {!item.archivedAt && change('Needs outside help?')}
+        </span>
       ),
     ])
   }
@@ -380,6 +394,9 @@ function ItemDetailSheet({
       )}
       {item.note && (
         <p className="m-0 rounded-2xl bg-paper px-3.5 py-3 leading-snug">{item.note}</p>
+      )}
+      {pickingHandler && item.category === 'task' && (
+        <HandledByPicker houseId={houseId} task={item} onDone={() => setPickingHandler(false)} />
       )}
 
       {primary && (

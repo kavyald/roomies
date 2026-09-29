@@ -69,3 +69,17 @@ export const ownerOnHouseTab = async (page: Page) => {
   await page.goto(`/h/${owner.houseId}/house`)
   return owner
 }
+
+/** + → tile → title → Add: three taps and a title. */
+export const addWithThreeTaps = async (page: Page, tile: string, title: string) => {
+  await page.getByRole('button', { name: 'Add', exact: true }).click() // 1
+  await page
+    .getByRole('dialog', { name: 'Add something' })
+    .getByRole('button', { name: new RegExp(`^${tile}`) })
+    .click() // 2
+  const sheet = page.getByRole('dialog')
+  await sheet.getByRole('textbox').first().fill(title)
+  await sheet.getByRole('button', { name: 'Add', exact: true }).click() // 3
+  // The sheet closes once the house has it (added, or pointed at the one already there).
+  await expect(sheet).toBeHidden()
+}

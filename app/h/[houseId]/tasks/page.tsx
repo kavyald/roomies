@@ -1,14 +1,15 @@
-import { CheckCircle } from 'lucide-react'
 import { ScreenHeader } from '@/components/shell/ScreenHeader'
-import { EmptyState } from '@/components/ui/EmptyState'
+import { TasksScreen } from '@/components/tasks/TasksScreen'
+import type { HouseId } from '@/lib/domain/ids'
 
 export const metadata = { title: 'Tasks · Roomies' }
 
-export default function TasksPage() {
+export default async function TasksPage({ params }: PageProps<'/h/[houseId]/tasks'>) {
+  const { houseId } = await params
   return (
     <main>
       <ScreenHeader title="Tasks" />
-      <EmptyState icon={CheckCircle}>No tasks yet. Add one when something needs doing.</EmptyState>
+      <TasksScreen houseId={houseId as HouseId} />
     </main>
   )
 }
