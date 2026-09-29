@@ -6,7 +6,9 @@ import type { ChangeFeed, HouseQueries } from '../app/ports'
 import type { NewContact } from '../domain/contacts'
 import type { ContactPatch } from '../domain/contacts'
 import type { Contact, Invite, Member, Role, Room } from '../domain/house'
-import type { ContactId, InviteId, RoomId, UserId } from '../domain/ids'
+import type { ReferenceError } from '../app/items'
+import type { ContactId, InviteId, ItemId, RoomId, UserId } from '../domain/ids'
+import type { Item, ItemError, ItemPatch, NewItem } from '../domain/items'
 import type { NewInvite } from '../domain/invites'
 import type { Result } from '../domain/result'
 
@@ -49,6 +51,26 @@ export type AppCommands = {
     direction: 'up' | 'down'
   }): Promise<CommandResult<Room[], 'not_found' | 'at_edge'>>
   deleteAccount(): Promise<CommandResult<void, 'last_admin' | 'not_found'>>
+  createItem(
+    input: NewItem,
+  ): Promise<CommandResult<Item, ItemError | ReferenceError | 'duplicate_need' | 'not_found'>>
+  editItem(input: {
+    id: ItemId
+    patch: ItemPatch
+  }): Promise<
+    CommandResult<Item, ItemError | ReferenceError | 'duplicate_need' | 'no_change' | 'not_found'>
+  >
+  markDone(
+    id: ItemId,
+  ): Promise<CommandResult<Item, 'already_done' | 'archived' | 'not_for_chores' | 'not_found'>>
+  reopenItem(
+    id: ItemId,
+  ): Promise<CommandResult<Item, 'not_done' | 'duplicate_need' | 'not_for_chores' | 'not_found'>>
+  doChore(id: ItemId): Promise<CommandResult<Item, 'archived' | 'not_a_chore' | 'not_found'>>
+  archiveItem(id: ItemId): Promise<CommandResult<Item, 'already_archived' | 'not_found'>>
+  restoreItem(
+    id: ItemId,
+  ): Promise<CommandResult<Item, 'not_archived' | 'duplicate_need' | 'not_found'>>
 }
 
 export type AppClient = {

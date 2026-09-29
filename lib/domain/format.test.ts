@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { relativeTime } from './format'
+import { describeWhen, relativeTime } from './format'
 import { instantAt, plusMs, type LocalDate, type LocalTime } from './time'
 
 const NY = 'America/New_York'
@@ -23,5 +23,24 @@ describe('relativeTime', () => {
   it('counts days on the house calendar, across a DST change', () => {
     const afterFallBack = at('2026-11-02', '08:00')
     expect(relativeTime(at('2026-11-01', '00:30'), afterFallBack, NY)).toBe('Yesterday')
+  })
+})
+
+describe('describeWhen', () => {
+  const on = (date: string, time?: string) => ({
+    date: date as LocalDate,
+    ...(time && { time: time as LocalTime }),
+  })
+  it.each([
+    [on('2026-09-29'), 'Today'],
+    [on('2026-09-30', '10:00'), 'Tomorrow 10:00'],
+    [on('2026-09-28'), 'Yesterday'],
+    [on('2026-10-01', '10:00'), 'Thu 10:00'],
+    [on('2026-10-05'), 'Mon'],
+    [on('2026-10-06'), 'Oct 6'],
+    [on('2026-09-20'), 'Sep 20'],
+    [on('2027-01-05'), 'Jan 5, 2027'],
+  ])('%j → %s', (when, expected) => {
+    expect(describeWhen(when, now, NY)).toBe(expected)
   })
 })

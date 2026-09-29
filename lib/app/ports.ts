@@ -146,6 +146,8 @@ export interface HouseQueries {
   profiles(houseId: HouseId): Promise<Profile[]>
   rooms(houseId: HouseId): Promise<Room[]>
   contacts(houseId: HouseId): Promise<Contact[]>
+  /** The house's items (needs, chores, tasks), archived ones included. */
+  items(houseId: HouseId): Promise<Item[]>
   /** The house's invites; admins only (others get none). */
   invites(houseId: HouseId): Promise<Invite[]>
   /** Newest first, `limit` rows or a little more: an action is never split across pages. */

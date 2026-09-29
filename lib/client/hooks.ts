@@ -3,7 +3,8 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { NewContact } from '../domain/contacts'
 import type { AppCommands } from './app-client'
-import type { ContactId, HouseId, InviteId } from '../domain/ids'
+import type { ContactId, HouseId, InviteId, ItemId } from '../domain/ids'
+import type { NewItem } from '../domain/items'
 import type { NewInvite } from '../domain/invites'
 import { useAppClient } from './provider'
 import { keys } from './query-keys'
@@ -81,6 +82,34 @@ const useHouseCommand = <I, R extends { ok: boolean }>(
     },
   })
 }
+
+export const useItems = (houseId: HouseId) => {
+  const { queries } = useAppClient()
+  return useQuery({ queryKey: keys.items(houseId), queryFn: () => queries.items(houseId) })
+}
+
+/** One item, from the house's item list (so it updates with it). */
+export const useItem = (houseId: HouseId, id: ItemId | null) => {
+  const items = useItems(houseId)
+  return id ? items.data?.find((i) => i.id === id) : undefined
+}
+
+export const useCreateItem = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: NewItem) => c.createItem(i), ['items'])
+export const useEditItem = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Parameters<AppCommands['editItem']>[0]) => c.editItem(i), [
+    'items',
+  ])
+export const useMarkDone = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, id: ItemId) => c.markDone(id), ['items'])
+export const useReopenItem = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, id: ItemId) => c.reopenItem(id), ['items'])
+export const useDoChore = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, id: ItemId) => c.doChore(id), ['items'])
+export const useArchiveItem = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, id: ItemId) => c.archiveItem(id), ['items'])
+export const useRestoreItem = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, id: ItemId) => c.restoreItem(id), ['items'])
 
 export const useEditContact = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Parameters<AppCommands['editContact']>[0]) => c.editContact(i), [

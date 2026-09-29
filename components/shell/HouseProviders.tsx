@@ -12,6 +12,16 @@ import {
   setRoleAction,
 } from '@/app/actions/house'
 import { createInviteAction, revokeInviteAction } from '@/app/actions/invites'
+import {
+  archiveItemAction,
+  createItemAction,
+  doChoreAction,
+  editItemAction,
+  markDoneAction,
+  reopenItemAction,
+  restoreItemAction,
+} from '@/app/actions/items'
+import { ItemSheetsProvider } from '@/components/items/ItemSheets'
 import { browserAppClient } from '@/lib/compose.client'
 import type { HouseId, UserId } from '@/lib/domain/ids'
 import { AppClientProvider } from '@/lib/client/provider'
@@ -38,7 +48,18 @@ export function HouseProviders({
       renameRoom: (input) => renameRoomAction(houseId, input),
       moveRoom: (input) => moveRoomAction(houseId, input),
       deleteAccount: () => deleteAccountAction(houseId),
+      createItem: (input) => createItemAction(houseId, input),
+      editItem: (input) => editItemAction(houseId, input),
+      markDone: (id) => markDoneAction(houseId, id),
+      reopenItem: (id) => reopenItemAction(houseId, id),
+      doChore: (id) => doChoreAction(houseId, id),
+      archiveItem: (id) => archiveItemAction(houseId, id),
+      restoreItem: (id) => restoreItemAction(houseId, id),
     }),
   )
-  return <AppClientProvider client={client}>{children}</AppClientProvider>
+  return (
+    <AppClientProvider client={client}>
+      <ItemSheetsProvider houseId={houseId}>{children}</ItemSheetsProvider>
+    </AppClientProvider>
+  )
 }

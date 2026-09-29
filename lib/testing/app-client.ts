@@ -26,6 +26,13 @@ export const fakeAppClient = (
     renameRoom: async () => err('unexpected'),
     moveRoom: async () => err('unexpected'),
     deleteAccount: async () => err('unexpected'),
+    createItem: async () => err('unexpected'),
+    editItem: async () => err('unexpected'),
+    markDone: async () => err('unexpected'),
+    reopenItem: async () => err('unexpected'),
+    doChore: async () => err('unexpected'),
+    archiveItem: async () => err('unexpected'),
+    restoreItem: async () => err('unexpected'),
     ...commands,
   },
 })

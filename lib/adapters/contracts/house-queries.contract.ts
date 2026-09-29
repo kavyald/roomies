@@ -74,6 +74,24 @@ export const houseQueriesContract = (
       expect(await q.contacts(house.id)).toEqual([contacts[1], contacts[0]])
     })
 
+    it('reads items with their dates as the house sees them', async () => {
+      const { house, member } = await withPlaces()
+      const item = {
+        id: h.ids.newId<'item'>(),
+        houseId: house.id,
+        category: 'task',
+        title: 'Fix the latch',
+        priority: 'normal',
+        when: { date: '2026-11-01', time: '01:30' }, // the repeated hour at fall-back
+        createdBy: member,
+        createdAt: T,
+      } as const
+      await h.uow.run(system(house.id), (r) => r.items.save(item as never))
+      expect(await h.queriesFor(member, house.id).items(house.id)).toEqual([item])
+      const stranger = await seedHouse(h)
+      expect(await h.queriesFor(stranger.member, stranger.house.id).items(house.id)).toEqual([])
+    })
+
     it('shows invites to admins only', async () => {
       const { house, admin, member } = await withPlaces()
       const invite = {
