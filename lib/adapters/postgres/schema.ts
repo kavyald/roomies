@@ -75,6 +75,31 @@ export type ContactsTable = {
   archived_at: Timestamp | null
 }
 
+export type ItemsTable = {
+  id: string
+  house_id: string
+  category: 'need' | 'chore' | 'task'
+  title: string
+  note: string | null
+  room_id: string | null
+  assignee_id: string | null
+  when_at: Timestamp | null
+  when_has_time: boolean
+  priority: 'low' | 'normal' | 'high' | 'urgent'
+  repeat_days: number | null
+  last_done_at: Timestamp | null
+  last_done_by: string | null
+  contact_id: string | null
+  done_at: Timestamp | null
+  done_by: string | null
+  run_id: string | null
+  run_kind: 'batch' | 'request' | 'visit' | null
+  created_by: string
+  created_at: Timestamp
+  updated_at: Generated<Timestamp>
+  archived_at: Timestamp | null
+}
+
 export type ActivityEventsTable = {
   id: Generated<ColumnType<string, never, never>> // bigserial comes back as a string
   house_id: string
@@ -117,6 +142,7 @@ export type DB = {
   house_members: HouseMembersTable
   house_invites: HouseInvitesTable
   contacts: ContactsTable
+  items: ItemsTable
   activity_events: ActivityEventsTable
   notifications_outbox: NotificationsOutboxTable
 }

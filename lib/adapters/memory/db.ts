@@ -2,12 +2,13 @@
 // and swaps it in on commit. Access rules mirror the RLS policies in supabase/migrations, so a use
 // case that reaches across houses fails here the same way it fails in Postgres.
 
-import { AccessDenied, type Repos, type UnitOfWork } from '../../app/ports'
+import { AccessDenied, ConstraintViolation, type Repos, type UnitOfWork } from '../../app/ports'
 import type { Actor } from '../../domain/actor'
 import { activityRowFor, type StoredActivityRow } from '../../domain/events'
 import { isFailedResult } from '../../domain/result'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
-import type { ContactId, HouseId, InviteId, RoomId, UserId } from '../../domain/ids'
+import type { ContactId, HouseId, InviteId, ItemId, RoomId, UserId } from '../../domain/ids'
+import { sameNeed, type Item, type Need } from '../../domain/items'
 
 export type MemoryState = {
   users: Map<UserId, { email: string }>
@@ -17,6 +18,7 @@ export type MemoryState = {
   rooms: Map<RoomId, Room>
   contacts: Map<ContactId, Contact>
   invites: Map<InviteId, Invite>
+  items: Map<ItemId, Item>
   activity: StoredActivityRow[]
 }
 
@@ -28,6 +30,7 @@ export const emptyState = (): MemoryState => ({
   rooms: new Map(),
   contacts: new Map(),
   invites: new Map(),
+  items: new Map(),
   activity: [],
 })
 
@@ -159,6 +162,24 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         s.invites.set(i.id, i)
       },
     },
+    items: {
+      get: async (id) => {
+        const i = s.items.get(id)
+        return i && isMember(s, a, i.houseId) ? i : undefined
+      },
+      listByHouse: async (houseId) => visible(s.items.values(), houseId),
+      openNeeds: async (houseId) =>
+        visible(s.items.values(), houseId).filter(
+          (i): i is Need => i.category === 'need' && !i.done && !i.archivedAt,
+        ),
+      save: async (item) => {
+        const old = s.items.get(item.id)
+        if (!isMember(s, a, item.houseId) || (old && !isMember(s, a, old.houseId))) deny('items')
+        if (!old && a.kind !== 'system' && item.createdBy !== uid(a)) deny('items')
+        checkItem(s, item)
+        s.items.set(item.id, item)
+      },
+    },
     events: {
       record: async (houseId, events, at) => {
         for (const e of events) {
@@ -170,6 +191,40 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         }
       },
     },
+  }
+}
+
+// ---- data rules (keep in sync with the items migration's CHECKs and unique index) ---------------
+
+const refuse = (rule: string): never => {
+  throw new ConstraintViolation(`items: ${rule}`)
+}
+
+const checkItem = (s: MemoryState, item: Item): void => {
+  const i = item as Item & {
+    repeatDays?: unknown
+    lastDone?: unknown
+    contactId?: unknown
+    done?: unknown
+  }
+  if (!i.title.trim() || i.title.trim().length > 120) refuse('title')
+  if (i.category !== 'chore' && (i.repeatDays != null || i.lastDone)) refuse('chore-only fields')
+  if (i.category !== 'task' && i.contactId) refuse('task-only contact')
+  if (i.category === 'chore' && i.done) refuse('chores are never done')
+  if (i.run && (i.done || i.archivedAt)) refuse('done or archived items are not on a run')
+  if (i.run && i.run.kind !== 'batch' && i.category !== 'task')
+    refuse('requests and visits hold tasks only')
+  if (i.category === 'need' && !i.done && !i.archivedAt) {
+    const clash = [...s.items.values()].some(
+      (o) =>
+        o.id !== i.id &&
+        o.houseId === i.houseId &&
+        o.category === 'need' &&
+        !o.done &&
+        !o.archivedAt &&
+        sameNeed(o.title, i.title),
+    )
+    if (clash) refuse('an open need with this title already exists')
   }
 }
 

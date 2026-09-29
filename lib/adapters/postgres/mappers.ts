@@ -5,13 +5,23 @@ import type { StoredActivityRow } from '../../domain/events'
 import type { FeelingWeights } from '../../domain/feelings'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
 import { asId } from '../../domain/ids'
-import { instant, type Instant, type LocalTime } from '../../domain/time'
+import type { Done, Item } from '../../domain/items'
+import {
+  instant,
+  instantOfWhen,
+  localDateOf,
+  localTimeOf,
+  type Instant,
+  type LocalTime,
+  type When,
+} from '../../domain/time'
 import type {
   ActivityEventsTable,
   ContactsTable,
   HouseInvitesTable,
   HouseMembersTable,
   HousesTable,
+  ItemsTable,
   ProfilesTable,
   RoomsTable,
 } from './schema'
@@ -202,3 +212,87 @@ export const activityToDomain = (r: Selectable<ActivityEventsTable>): StoredActi
     changes: r.changes ?? undefined,
     payload: r.payload as StoredActivityRow['payload'],
   })
+
+// ---- items -------------------------------------------------------------------------------------
+// `when` is stored as an instant plus "has a time"; a date alone is the start of that day in the
+// house's time zone, so it reads back as the same date.
+
+export const itemToDomain = (r: Selectable<ItemsTable>, tz: string): Item => {
+  const when: When | undefined = r.when_at
+    ? {
+        date: localDateOf(toInstant(r.when_at), tz),
+        ...(r.when_has_time && { time: localTimeOf(toInstant(r.when_at), tz) }),
+      }
+    : undefined
+  const base = compact({
+    id: asId<'item'>(r.id),
+    houseId: asId<'house'>(r.house_id),
+    title: r.title,
+    note: r.note ?? undefined,
+    roomId: r.room_id ? asId<'room'>(r.room_id) : undefined,
+    assignee: r.assignee_id ? asId<'user'>(r.assignee_id) : undefined,
+    when,
+    priority: r.priority,
+    run: r.run_id && r.run_kind ? { id: asId<'run'>(r.run_id), kind: r.run_kind } : undefined,
+    createdBy: asId<'user'>(r.created_by),
+    createdAt: toInstant(r.created_at),
+    archivedAt: optInstant(r.archived_at),
+  })
+  const done =
+    r.done_at && r.done_by ? { at: toInstant(r.done_at), by: asId<'user'>(r.done_by) } : undefined
+  switch (r.category) {
+    case 'chore':
+      return compact({
+        ...base,
+        category: 'chore' as const,
+        repeatDays: r.repeat_days,
+        lastDone:
+          r.last_done_at && r.last_done_by
+            ? { at: toInstant(r.last_done_at), by: asId<'user'>(r.last_done_by) }
+            : undefined,
+      })
+    case 'task':
+      return compact({
+        ...base,
+        category: 'task' as const,
+        contactId: r.contact_id ? asId<'contact'>(r.contact_id) : undefined,
+        done,
+      })
+    default:
+      return compact({ ...base, category: 'need' as const, done })
+  }
+}
+
+export const itemToRow = (i: Item, tz: string) => {
+  // Fields outside the item's category are read loosely, so a malformed object still reaches the
+  // database, whose CHECKs refuse it.
+  const loose = i as Item & {
+    repeatDays?: number | null
+    lastDone?: Done
+    contactId?: string
+    done?: Done
+  }
+  return {
+    id: i.id,
+    house_id: i.houseId,
+    category: i.category,
+    title: i.title,
+    note: i.note ?? null,
+    room_id: i.roomId ?? null,
+    assignee_id: i.assignee ?? null,
+    when_at: i.when ? toDate(instantOfWhen(i.when, tz)) : null,
+    when_has_time: Boolean(i.when?.time),
+    priority: i.priority,
+    repeat_days: loose.repeatDays ?? null,
+    last_done_at: loose.lastDone ? toDate(loose.lastDone.at) : null,
+    last_done_by: loose.lastDone?.by ?? null,
+    contact_id: loose.contactId ?? null,
+    done_at: loose.done ? toDate(loose.done.at) : null,
+    done_by: loose.done?.by ?? null,
+    run_id: i.run?.id ?? null,
+    run_kind: i.run?.kind ?? null,
+    created_by: i.createdBy,
+    created_at: toDate(i.createdAt),
+    archived_at: i.archivedAt ? toDate(i.archivedAt) : null,
+  }
+}

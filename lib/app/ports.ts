@@ -4,7 +4,8 @@
 import type { Actor } from '../domain/actor'
 import type { DomainEvent, StoredActivityRow } from '../domain/events'
 import type { Contact, House, Invite, Member, Profile, Room } from '../domain/house'
-import type { ContactId, HouseId, Id, InviteId, RoomId, UserId } from '../domain/ids'
+import type { ContactId, HouseId, Id, InviteId, ItemId, RoomId, UserId } from '../domain/ids'
+import type { Item, Need } from '../domain/items'
 import type { Result } from '../domain/result'
 import type { Instant } from '../domain/time'
 
@@ -82,6 +83,15 @@ export interface InviteRepo {
   save(invite: Invite): Promise<void>
 }
 
+export interface ItemRepo {
+  get(id: ItemId): Promise<Item | undefined>
+  /** Every item in the house, archived ones included. */
+  listByHouse(houseId: HouseId): Promise<Item[]>
+  /** Needs that are open (not done, not archived): what "already on the list" is checked against. */
+  openNeeds(houseId: HouseId): Promise<Need[]>
+  save(item: Item): Promise<void>
+}
+
 /** Writes activity (and, from T33, outbox) rows in the same transaction as the change. */
 export interface EventSink {
   record(houseId: HouseId, events: readonly DomainEvent[], at: Instant): Promise<void>
@@ -94,6 +104,7 @@ export interface Repos {
   readonly rooms: RoomRepo
   readonly contacts: ContactRepo
   readonly invites: InviteRepo
+  readonly items: ItemRepo
   readonly events: EventSink
 }
 
@@ -104,6 +115,11 @@ export interface Repos {
  */
 export interface UnitOfWork {
   run<T>(actor: Actor, fn: (repos: Repos) => Promise<T>): Promise<T>
+}
+
+/** Thrown when a write breaks a data rule (a CHECK or unique constraint in Postgres). */
+export class ConstraintViolation extends Error {
+  override name = 'ConstraintViolation'
 }
 
 /** Thrown by a UnitOfWork when a write breaks an access rule (RLS in Postgres). */
