@@ -1,14 +1,15 @@
-import { ShoppingBag } from 'lucide-react'
+import { NeedsScreen } from '@/components/needs/NeedsScreen'
 import { ScreenHeader } from '@/components/shell/ScreenHeader'
-import { EmptyState } from '@/components/ui/EmptyState'
+import type { HouseId } from '@/lib/domain/ids'
 
 export const metadata = { title: 'Needs · Roomies' }
 
-export default function NeedsPage() {
+export default async function NeedsPage({ params }: PageProps<'/h/[houseId]/needs'>) {
+  const { houseId } = await params
   return (
     <main>
       <ScreenHeader title="Needs" />
-      <EmptyState icon={ShoppingBag}>Nothing to buy. Nice.</EmptyState>
+      <NeedsScreen houseId={houseId as HouseId} />
     </main>
   )
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { asId, type ContactId, type HouseId, type ItemId, type UserId } from './ids'
 import type { Item, Task } from './items'
-import { taskList } from './lists'
+import { needList, taskList } from './lists'
 import { instant, type LocalDate, type LocalTime } from './time'
 
 const me = asId<'user'>('me') as UserId
@@ -45,5 +45,36 @@ describe('taskList', () => {
   it('filters to mine and to outside help', () => {
     expect(taskList(items, 'mine', me).map((x) => x.title)).toEqual(['Wed', 'Undated new'])
     expect(taskList(items, 'outside', me).map((x) => x.title)).toEqual(['Thu 10:00'])
+  })
+})
+
+describe('needList', () => {
+  const n = (title: string, o: Partial<Task> = {}, created = 0) =>
+    ({ ...t(title, o, created), category: 'need' }) as Item
+  const needs: Item[] = [
+    n('Old', {}, 1),
+    n('New', {}, 3),
+    n('By Friday', { when: { date: '2026-10-02' as LocalDate } }),
+    n('By Wednesday', { when: { date: '2026-09-30' as LocalDate } }),
+    n('Got it', { done: { at: instant(5), by: me } } as never),
+    n('Anxious about', {}, 0),
+  ]
+
+  it('puts needs with a feeling first, then needed-by, then newest', () => {
+    const score = (id: string) => (id === 'Anxious about' ? 20 : 0)
+    expect(needList(needs, score as never).map((x) => x.title)).toEqual([
+      'Anxious about',
+      'By Wednesday',
+      'By Friday',
+      'New',
+      'Old',
+    ])
+    expect(needList(needs).map((x) => x.title)).toEqual([
+      'By Wednesday',
+      'By Friday',
+      'New',
+      'Old',
+      'Anxious about',
+    ])
   })
 })
