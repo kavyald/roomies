@@ -70,6 +70,12 @@ const reposFor = (trx: Trx): Repos => ({
     },
     any: async () =>
       (await trx.selectFrom('houses').select('id').limit(1).executeTakeFirst()) !== undefined,
+    setupAvailable: async () => {
+      const { rows } = await sql<{ ok: boolean }>`select public.no_house_exists() as ok`.execute(
+        trx,
+      )
+      return rows[0]?.ok === true
+    },
     save: async (house) => {
       const row = houseToRow(house)
       await save(

@@ -4,9 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition, type FormEvent } from 'react'
 import { requestCode, verifyCode } from '@/app/actions/auth'
 import { Button } from '@/components/ui/Button'
-
-const inputClass =
-  'w-full rounded-[14px] border-[1.5px] border-line bg-paper px-3.5 py-3 text-base text-ink placeholder:text-ink-soft'
+import { CodeField, inputClass } from './fields'
 
 /** Returning sign-in: email → 6-digit code (ARCHITECTURE §5.1). Codes only, no links. */
 export function SignInForm() {
@@ -83,28 +81,7 @@ export function SignInForm() {
       <p role="status" className="m-0 leading-snug">
         If you have an account, we sent a code to <b>{email}</b>. It works for 10 minutes.
       </p>
-      <div className="grid gap-1.5">
-        <label htmlFor="code" className="text-[0.8rem] font-extrabold text-ink-soft">
-          6-digit code
-        </label>
-        <input
-          id="code"
-          name="code"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          pattern="[0-9]*"
-          maxLength={6}
-          required
-          autoFocus
-          value={code}
-          onChange={(e) => {
-            const digits = e.target.value.replace(/\D/g, '').slice(0, 6)
-            setCode(digits)
-            if (digits.length === 6) check(digits) // autofill fills all six at once
-          }}
-          className={`${inputClass} text-center text-[1.75rem] font-extrabold tracking-[0.5em] tabular-nums`}
-        />
-      </div>
+      <CodeField value={code} onChange={setCode} onComplete={check} />
       {message && (
         <p role="alert" className="m-0 font-bold text-ink-soft">
           {message}

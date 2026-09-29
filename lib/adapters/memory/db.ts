@@ -72,6 +72,7 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
     houses: {
       get: async (id) => (s.houses.has(id) && isMember(s, a, id) ? s.houses.get(id) : undefined),
       any: async () => [...s.houses.keys()].some((id) => isMember(s, a, id)),
+      setupAvailable: async () => s.houses.size === 0,
       save: async (house) => {
         const exists = s.houses.has(house.id)
         const allowed = exists
@@ -102,7 +103,13 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
           (m) => m.userId === userId && (isMember(s, a, m.houseId) || m.userId === uid(a)),
         ),
       save: async (m) => {
-        if (!isAdmin(s, a, m.houseId)) deny('house_members')
+        // The house's creator may add themselves as its first admin (migration house_setup).
+        const claimsNewHouse =
+          m.userId === uid(a) &&
+          m.role === 'admin' &&
+          s.houses.get(m.houseId)?.createdBy === uid(a) &&
+          ![...s.members.values()].some((x) => x.houseId === m.houseId)
+        if (!isAdmin(s, a, m.houseId) && !claimsNewHouse) deny('house_members')
         s.members.set(memberKey(m.houseId, m.userId), m)
       },
     },

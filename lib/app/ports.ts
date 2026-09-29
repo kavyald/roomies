@@ -27,8 +27,10 @@ export type Config = {
 
 export interface HouseRepo {
   get(id: HouseId): Promise<House | undefined>
-  /** Whether any house exists (the setup route works only once). */
+  /** Whether this actor can see any house. */
   any(): Promise<boolean>
+  /** Whether no house exists at all, so /setup still works. Answered outside RLS. */
+  setupAvailable(): Promise<boolean>
   save(house: House): Promise<void>
 }
 
