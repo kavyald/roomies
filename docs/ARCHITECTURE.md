@@ -159,9 +159,9 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 
 | Port | Methods (abridged) | Production adapter | Test adapter |
 |---|---|---|---|
-| `UnitOfWork` | `run<T>(actor, fn: (repos: Repos) => Promise<T>): Promise<T>`, one transaction per call | Postgres: `begin` → `set local role authenticated` + `set_config('request.jwt.claims', …)` so **RLS still applies** → `commit` | in-memory (copy-on-write) |
+| `UnitOfWork` | `run<T>(actor, fn: (repos: Repos) => Promise<T>): Promise<T>`, one transaction per call. It rolls back when `fn` throws **or resolves to a failed `Result`** (A21). | Postgres: `begin` → `set local role authenticated` + `set_config('request.jwt.claims', …)` so **RLS still applies** → `commit` | in-memory (copy-on-write) |
 | `Repos` (inside a UoW) | `items`, `feelings`, `polls`, `runs`, `costs`, `settings`, `members`, `invites`, `contacts`: each with `get` / `find…` / `save` | Kysely queries | Maps |
-| `EventSink` (inside a UoW) | `record(events: DomainEvent[])`: writes `activity_events` + `notifications_outbox` in the **same transaction** (transactional outbox) | Postgres | array |
+| `EventSink` (inside a UoW) | `record(houseId, events: DomainEvent[], at: Instant)`: stamps rows with the injected clock's `at` (A21), and writes `activity_events` + `notifications_outbox` in the **same transaction** (transactional outbox) | Postgres | array |
 | `Clock` | `now(): Instant` | `systemClock` | `fixedClock(t)` |
 | `IdGenerator` | `newId<K>(): Id<K>` | `crypto.randomUUID` | sequential |
 | `HouseQueries` (read side) | `feed(houseId)`, `needs(houseId)`, `chores(houseId)`, `tasks(houseId)`, `openPolls(houseId)`, `openRuns(houseId)`, `calendar(houseId, range)`, `item(id)`, … returning domain types | Supabase browser client (RLS) | fixtures |
@@ -645,7 +645,7 @@ export const makeFinishRun = ({ uow, clock, ids }: Pick<AppDeps, 'uow' | 'clock'
         const r = domain.addCost({ amount: input.spentCents, for: { run: run.id } }, actorUser(actor), now, ids.newId())
         if (r.ok) { cost = r.value.cost; await repos.costs.save(cost); events.push(...r.value.events) }
       }
-      repos.events.record(events)                                                            // activity + outbox, same tx
+      await repos.events.record(run.houseId, events, now)                                    // activity + outbox, same tx
       return ok({ run: finished, cost })
     })
 ```
@@ -830,3 +830,4 @@ iPhone UX specifics:
 | A18 | Sign-in email sender | A dedicated house Gmail as Supabase custom SMTP, with the app on `*.vercel.app`. No domain in v1. Move to Resend + a custom domain when delivery logs or reminder emails are needed, or if Google flags the account. | Owner |
 | A19 | External services | Kept out of M0–M4. The core runs on local Supabase (CLI + Docker) with its local inbox. Hosted Supabase, the Gmail sender, Vercel, Sentry, and on-iPhone checks are the M5 "E" tasks, and no core task depends on them. | Owner |
 | A20 | Test suite | One runner (Vitest) for everything but E2E, plus Playwright. RLS tests in Vitest via `asUser()`, not pgTAP. One house per test for isolation. `pnpm test:all` is the gate, and each milestone ends with a test task (Q0–Q5). | Owner |
+| A21 | UnitOfWork and EventSink details (T06) | `uow.run` also rolls back when the use case resolves to `{ ok: false }`, so bailing out halfway never leaves partial writes. `EventSink.record(houseId, events, at)` takes the house and the injected `now`, so activity times come from the same clock as the rest of the use case (no `default now()` drift in tests). | Build (T06) |

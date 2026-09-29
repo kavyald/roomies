@@ -30,7 +30,7 @@ export type PublicConfig = {
   readonly supabaseAnonKey: string
 }
 
-export type Config = ServerConfig & { readonly public: PublicConfig }
+export type EnvConfig = ServerConfig & { readonly public: PublicConfig }
 
 export class ConfigError extends Error {
   override name = 'ConfigError'
@@ -63,7 +63,7 @@ export const loadPublicConfig = (env: Env): PublicConfig => {
   }
 }
 
-export const loadConfig = (env: Env): Config => {
+export const loadConfig = (env: Env): EnvConfig => {
   const e = clean(env)
   const s = parse(serverSchema.extend(publicSchema.shape), e)
   return {
@@ -75,10 +75,10 @@ export const loadConfig = (env: Env): Config => {
   }
 }
 
-let cached: Config | undefined
+let cached: EnvConfig | undefined
 
 /** Server config from process.env, validated once. */
-export const serverConfig = (): Config => (cached ??= loadConfig(process.env))
+export const serverConfig = (): EnvConfig => (cached ??= loadConfig(process.env))
 
 /**
  * Browser config. Next inlines NEXT_PUBLIC_ values at build time only when they're written out
