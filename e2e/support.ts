@@ -83,3 +83,32 @@ export const addWithThreeTaps = async (page: Page, tile: string, title: string) 
   // The sheet closes once the house has it (added, or pointed at the one already there).
   await expect(sheet).toBeHidden()
 }
+
+/** Puts an item straight into the database (for states the UI can't make, like "9 days ago"). */
+export const anItem = async (
+  owner: { houseId: string; userId: string },
+  o: {
+    category: 'need' | 'chore' | 'task'
+    title: string
+    repeatDays?: number
+    lastDoneDaysAgo?: number
+  },
+) => {
+  const id = randomUUID()
+  await asOwner((db) =>
+    db.query(
+      `insert into items (id, house_id, category, title, repeat_days, last_done_at, last_done_by, created_by)
+       values ($1, $2, $3, $4, $5, now() - make_interval(days => $6::int), case when $6::int is null then null else $7::uuid end, $7)`,
+      [
+        id,
+        owner.houseId,
+        o.category,
+        o.title,
+        o.repeatDays ?? null,
+        o.lastDoneDaysAgo ?? null,
+        owner.userId,
+      ],
+    ),
+  )
+  return id
+}

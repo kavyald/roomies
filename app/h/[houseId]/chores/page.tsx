@@ -1,14 +1,15 @@
-import { Sparkles } from 'lucide-react'
+import { ChoresScreen } from '@/components/chores/ChoresScreen'
 import { ScreenHeader } from '@/components/shell/ScreenHeader'
-import { EmptyState } from '@/components/ui/EmptyState'
+import type { HouseId } from '@/lib/domain/ids'
 
 export const metadata = { title: 'Chores · Roomies' }
 
-export default function ChoresPage() {
+export default async function ChoresPage({ params }: PageProps<'/h/[houseId]/chores'>) {
+  const { houseId } = await params
   return (
     <main>
       <ScreenHeader title="Chores" />
-      <EmptyState icon={Sparkles}>Nothing to do. Enjoy the quiet.</EmptyState>
+      <ChoresScreen houseId={houseId as HouseId} />
     </main>
   )
 }

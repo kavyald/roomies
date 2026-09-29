@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { asId, type ContactId, type HouseId, type ItemId, type UserId } from './ids'
 import type { Item, Task } from './items'
-import { needList, taskList } from './lists'
+import {
+  choreLateness,
+  choreList,
+  daysAgo,
+  daysSinceDone,
+  isChoreDue,
+  needList,
+  taskList,
+} from './lists'
+import type { Chore } from './items'
+import { instantAt, MS_PER_DAY, plusMs } from './time'
 import { instant, type LocalDate, type LocalTime } from './time'
 
 const me = asId<'user'>('me') as UserId
@@ -76,5 +86,59 @@ describe('needList', () => {
       'Old',
       'Anxious about',
     ])
+  })
+})
+
+describe('chores', () => {
+  const NY = 'America/New_York'
+  const now = instantAt('2026-09-29' as LocalDate, '12:00' as LocalTime, NY)
+  const ago = (days: number) => ({ at: plusMs(now, -days * MS_PER_DAY), by: me })
+  const c = (title: string, repeatDays: number | null, lastDoneDays?: number): Chore =>
+    ({
+      ...t(title),
+      category: 'chore',
+      repeatDays,
+      ...(lastDoneDays !== undefined && { lastDone: ago(lastDoneDays) }),
+    }) as Chore
+
+  const chores = [
+    c('Weekly, 3 days ago', 7, 3),
+    c('Weekly, 9 days ago', 7, 9),
+    c('As needed, long ago', null, 30),
+    c('Every 3 days, 4 ago', 3, 4),
+    c('As needed, recent', null, 1),
+    c('As needed, never', null),
+  ]
+
+  it('puts the chore furthest past its rhythm first, and as-needed ones last', () => {
+    expect(choreList(chores, now, NY).map((x) => x.title)).toEqual([
+      'Every 3 days, 4 ago', // 4/3
+      'Weekly, 9 days ago', // 9/7
+      'Weekly, 3 days ago',
+      'As needed, never',
+      'As needed, long ago',
+      'As needed, recent',
+    ])
+  })
+
+  it('an every-7-days chore last done 9 days ago is due; doing it today resets it', () => {
+    const late = c('Trash', 7, 9)
+    expect(daysSinceDone(late, now, NY)).toBe(9)
+    expect(isChoreDue(late, now, NY)).toBe(true)
+    const reset = { ...late, lastDone: { at: now, by: me } }
+    expect(isChoreDue(reset, now, NY)).toBe(false)
+    expect(choreList([c('Other', 7, 8), reset], now, NY).map((x) => x.title)).toEqual([
+      'Other',
+      'Trash',
+    ])
+  })
+
+  it('never-done repeating chores rank first; as-needed chores are never "due"', () => {
+    expect(choreLateness(c('New', 7), now, NY)).toBe(Number.POSITIVE_INFINITY)
+    expect(isChoreDue(c('Descale', null, 100), now, NY)).toBe(false)
+  })
+
+  it('says how long ago plainly', () => {
+    expect([0, 1, 9].map(daysAgo)).toEqual(['today', 'yesterday', '9 days ago'])
   })
 })
