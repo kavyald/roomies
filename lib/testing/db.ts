@@ -82,7 +82,7 @@ export type TestHouse = {
 }
 
 /** A house with an admin, a member, a room, a contact, an invite and one activity row. */
-export const aHouse = async (): Promise<TestHouse> => {
+export const aDbHouse = async (): Promise<TestHouse> => {
   const h: TestHouse = {
     houseId: newId(),
     admin: newId(),

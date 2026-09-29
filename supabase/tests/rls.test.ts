@@ -1,5 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { aHouse, asAnon, asOwner, asUser, newId, pool, refused, type TestHouse } from './db'
+import {
+  aDbHouse,
+  asAnon,
+  asOwner,
+  asUser,
+  newId,
+  pool,
+  refused,
+  type TestHouse,
+} from '../../lib/testing/db'
 
 // Every house-scoped table, with the column that ties a row to its house.
 const HOUSE_TABLES = [
@@ -18,12 +27,17 @@ let mine: TestHouse
 let theirs: TestHouse
 
 beforeAll(async () => {
-  ;[mine, theirs] = await Promise.all([aHouse(), aHouse()])
+  ;[mine, theirs] = await Promise.all([aDbHouse(), aDbHouse()])
 })
 
 afterAll(() => pool.end())
 
-const countIn = async (db: import('./db').Db, table: string, col: string, houseId: string) =>
+const countIn = async (
+  db: import('../../lib/testing/db').Db,
+  table: string,
+  col: string,
+  houseId: string,
+) =>
   Number(
     (await db.query(`select count(*) from ${table} where ${col} = $1`, [houseId])).rows[0].count,
   )
@@ -98,7 +112,7 @@ describe('reading', () => {
   })
 
   it('someone who moved out sees only their own membership row', async () => {
-    const h = await aHouse()
+    const h = await aDbHouse()
     await asOwner((db) =>
       db.query(
         `update house_members set status = 'moved_out', left_at = now() where house_id = $1 and user_id = $2`,

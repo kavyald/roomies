@@ -10,12 +10,15 @@
     "typecheck": "next typegen && tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run --project unit",
+    "test": "vitest run --project unit --coverage",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "test:db": "vitest run --project db",
-    "db:sizing": "node scripts/activity-sizing.mjs"
+    "db:sizing": "node scripts/activity-sizing.mjs",
+    "test:e2e": "playwright test",
+    "test:all": "sh scripts/test-all.sh",
+    "env:local": "node scripts/env-local.mjs"
   },
   "packageManager": "pnpm@10.18.0",
   "engines": {
@@ -35,6 +38,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",

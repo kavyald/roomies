@@ -4,28 +4,44 @@ Read this first. It covers where the project stands, how the implementation plan
 
 ## Current state (as of 2026-09-29)
 
-**Planning is done. There's no app code yet.** The repo has only docs, a clickable prototype, and the plan generator:
+**M0 (Foundations) is done** (T01–T13 + Q0 on `v1`). Next up: **M1**, starting with T14. The app signs in locally and shows the empty 5-tab shell; there are no features yet.
 
 ```
-docs/PRD.md                  product rules: the five concepts, feature specs, priority, decision log (D1–D29)
-docs/ARCHITECTURE.md         stack, auth + RLS, schema, domain types, activity log, function catalog, folder layout (A1–A20)
-docs/FRONTEND.md             colors, rooms, screens, copy voice, motion
-docs/TESTING.md              test layers, commands, isolation, CI, what each milestone's test task proves
-docs/IMPLEMENTATION_PLAN.md  GENERATED task plan: 47 tasks, dependencies, critical path
-docs/mockup.html             clickable iPhone prototype; the reference for screens and behavior
-scripts/generate_plan.py     source of truth for the task list
-README.md                    overview
+docs/                        PRD, ARCHITECTURE (A1–A21), FRONTEND, TESTING, IMPLEMENTATION_PLAN (generated), mockup.html
+docs/BUILD_LOG.md            judgment calls, deviations and blockers, per task. Read it before changing anything it mentions.
+app/                         Next.js routes: /sign-in, / (routes you to your house), /h/[houseId]/{,needs,chores,tasks,house}, /dev/kit, /offline, actions/
+components/ui/               the UI kit (see /dev/kit in light + dark); components/shell, house, auth
+lib/domain/                  pure types + functions (ids, time/DST, money, result, actor, house, events, rooms)
+lib/app/                     ports.ts + use cases (createContact, whereTo)
+lib/adapters/                memory/ (fakes with RLS-equivalent rules), postgres/ (Kysely UoW), supabase/ (HouseQueries, AuthGateway, server clients), contracts/
+lib/compose.ts               server composition root; lib/compose.client.ts is the browser one
+lib/client/                  AppClient, provider, TanStack hooks;  lib/server/ makeAction + session
+lib/testing/                 test-only helpers: builders, sampleHouse, asUser/asOwner (db.ts), Mailpit, JWT minting
+supabase/                    config.toml, migrations/, seed.sql (owner@roomies.test + "The apartment"), tests/ (RLS)
+e2e/                         Playwright journeys (iPhone 15 profile)
+proxy.ts                     Next 16's middleware: refreshes the session, guards /h/*
 ```
+
+- **Run it:** `pnpm supabase start`, then `pnpm env:local` (writes `.env.local` from `supabase status`), then `pnpm dev`. Sign in as `owner@roomies.test`; the code arrives in Mailpit at http://127.0.0.1:54324.
+- **Test it:** `pnpm test` (unit + coverage), `pnpm test:db`, `pnpm test:e2e`, or `pnpm test:all` for everything (about a minute; resets the local DB).
+- **Surprises so far** (details in BUILD_LOG):
+  - Next 16: `middleware.ts` is now `proxy.ts`, request APIs are async only, and `next dev` refuses a second dev server in the same folder. `AGENTS.md` holds the Next agent block so `next dev` leaves this file alone; read `node_modules/next/dist/docs/` before using a Next API.
+  - TypeScript stays on 5.9 (typescript-eslint caps it), ESLint on 9.
+  - In `supabase/config.toml`, `[auth.email] enable_signup` must stay `true` (it's the whole email provider); `[auth] enable_signup = false` blocks new accounts.
+  - The server connects as `app_server` (no rights of its own) and switches to `authenticated` + JWT claims per transaction; repos save with update-then-insert, not upsert (RLS on upserts).
+  - `Actor` has a `user` kind (signed in, no house yet); use `HouseActor` for use cases that need a house.
+  - Port 3000 on this Mac is often taken by another project's server; `.claude/launch.json` (untracked) uses auto ports.
+  - The disk once filled up and corrupted Docker's images. If `supabase start` shows unhealthy containers, check `df -h /` first.
 
 - **Roomies** is a phone-first PWA for one house of roommates. It covers needs, chores, tasks, polls and runs (batch, request, visit), with feelings that raise an item's priority.
 - **Stack (decided):** Next.js App Router, TypeScript, Tailwind v4, and Supabase (Postgres + RLS, email-code auth, Realtime, pg_cron), accessed with Kysely through a UnitOfWork. The code follows ports and adapters with dependency injection. Tests use Vitest and Playwright.
 - **Branches:**
   - `main` holds the planning docs.
-  - `v1` exists on GitHub, currently the same as `main`. **All build work happens on `v1`.**
+  - `v1` holds the build. **All build work happens on `v1`.**
 - **This Mac:**
   - Node 22 and pnpm 10.
   - Docker Desktop is installed, but it isn't always running.
-  - There's no global Supabase CLI. T01 adds it as a dev dependency, so run it as `pnpm supabase …`.
+  - There's no global Supabase CLI. It's a dev dependency, so run it as `pnpm supabase …`.
 - **Repo visibility:** `kavyald/roomies` is **public**. Never commit secrets. `.env` and `.env.local` are gitignored.
 
 Update this section as the build progresses: which milestone is done, what exists, and anything surprising.

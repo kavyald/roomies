@@ -13,6 +13,17 @@ const DB_TESTS = [
 export default defineConfig({
   resolve: { alias },
   test: {
+    // TESTING.md §5: domain ≥95% of lines, use cases ≥90% (UI is covered by the E2E journeys).
+    coverage: {
+      provider: 'v8',
+      include: ['lib/domain/**/*.ts', 'lib/app/**/*.ts'],
+      exclude: ['**/*.test.ts'],
+      reporter: ['text-summary'],
+      thresholds: {
+        'lib/domain/**/*.ts': { lines: 95 },
+        'lib/app/**/*.ts': { lines: 90 },
+      },
+    },
     projects: [
       {
         resolve: { alias },
@@ -27,6 +38,7 @@ export default defineConfig({
         test: {
           name: 'db',
           include: DB_TESTS,
+          globalSetup: ['lib/testing/db-global-setup.ts'],
           testTimeout: 20_000,
           hookTimeout: 30_000,
         },
