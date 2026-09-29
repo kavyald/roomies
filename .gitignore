@@ -2,3 +2,21 @@
 node_modules/
 .env
 .env.local
+.env*.local
+
+# next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+
+# testing
+/coverage
+/test-results/
+/playwright-report/
+
+# misc
+*.pem
+.vercel
+.pnpm-debug.log*

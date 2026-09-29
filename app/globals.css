@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+
+:root {
+  --paper: #fbf5ea;
+  --ink: #3b2f2a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #211a16;
+    --ink: #f5ebdd;
+  }
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: ui-rounded, 'Nunito', system-ui, sans-serif;
+}
