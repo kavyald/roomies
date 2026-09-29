@@ -94,3 +94,6 @@ export const publicConfig = (): PublicConfig =>
 export const checkConfigAtStartup = (): void => {
   if (process.env.NEXT_RUNTIME === 'nodejs') serverConfig()
 }
+
+/** Developer-only pages such as /dev/kit exist outside production builds only. */
+export const devToolsEnabled = (): boolean => process.env.NODE_ENV !== 'production'
