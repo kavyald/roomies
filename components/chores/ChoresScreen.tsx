@@ -8,7 +8,7 @@ import { ItemCard } from '@/components/items/ItemCard'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { useToast } from '@/components/ui/Toast'
+import { useCelebrate, useToast } from '@/components/ui/Toast'
 import { useDoChore, useHouse, useItems, useFeelingsByItem } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
@@ -23,6 +23,7 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   const { openItem, openAdd } = useItemSheets()
   const did = useDoChore(houseId)
   const toast = useToast()
+  const celebrate = useCelebrate()
   const now = useNow()
 
   if (items.isError) {
@@ -68,6 +69,7 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
             checkLabel={`Did it: ${c.title}`}
             onCheck={async () => {
               const r = await did.mutateAsync(c.id)
+              if (r.ok) celebrate()
               toast(r.ok ? 'Did it. Thanks! 💛' : "Couldn't record that. Try again.")
             }}
           />

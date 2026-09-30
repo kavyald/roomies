@@ -11,7 +11,7 @@ import { onRunLabel, RUN_ICON } from '@/components/runs/meta'
 import { Button } from '@/components/ui/Button'
 import { Chip, RoomChip } from '@/components/ui/Chip'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { useToast } from '@/components/ui/Toast'
+import { useCelebrate, useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
 import {
   useCreateItem,
@@ -41,6 +41,7 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
   const done = useMarkDone(houseId)
   const reopen = useReopenItem(houseId)
   const toast = useToast()
+  const celebrate = useCelebrate()
   const now = useNow()
   const polls = usePolls(houseId)
   const openPollItems = new Set(
@@ -76,6 +77,7 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
   const gotIt = async (id: ItemId, name: string) => {
     const r = await done.mutateAsync(id)
     if (!r.ok) return toast("Couldn't check it off. Try again.")
+    celebrate()
     toast(`Got ${name}.`, {
       label: 'Undo',
       onClick: async () => {

@@ -7,7 +7,7 @@ import { CATEGORY } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
-import { useToast } from '@/components/ui/Toast'
+import { useCelebrate, useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
 import {
   useFinishRun,
@@ -105,6 +105,7 @@ function RunSheetFor({
   const ctx = useCardContext(houseId)
   const now = useNow()
   const toast = useToast()
+  const celebrate = useCelebrate()
   const done = useMarkRunItemsDone(houseId)
   const move = useMoveRunItems(houseId)
   const toNewVisit = useMoveToNewVisit(houseId)
@@ -258,7 +259,10 @@ function RunSheetFor({
               disabled={busy || chosen.length === 0}
               onClick={async () =>
                 say(
-                  (await done.mutateAsync({ runId: run.id, itemIds: chosen })).ok,
+                  await done.mutateAsync({ runId: run.id, itemIds: chosen }).then((r) => {
+                    if (r.ok) celebrate()
+                    return r.ok
+                  }),
                   chosen.length === 1
                     ? `${doneLabel}. 💛`
                     : `${chosen.length} ${doneLabel.toLowerCase()}. 💛`,
@@ -501,6 +505,7 @@ function FinishRun({
 }) {
   const finish = useFinishRun(houseId)
   const toast = useToast()
+  const celebrate = useCelebrate()
   const splitwise = useSplitwise(houseId)
   const cost = useCostFields(houseId, 'run-cost')
   const [asking, setAsking] = useState(false)
@@ -511,6 +516,7 @@ function FinishRun({
       ...(spent && { spent: spent.amount, paidBy: spent.paidBy, note: spent.note }),
     })
     if (!r.ok) return toast("Couldn't finish it. Try again.")
+    celebrate()
     const back =
       left === 0 ? '' : ` ${left === 1 ? '1 thing went' : `${left} things went`} back to the pool.`
     const recorded = r.value.cost

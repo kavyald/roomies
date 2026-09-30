@@ -10,7 +10,7 @@ import { useCardContext } from '@/components/items/useCardContext'
 import { TierChip } from '@/components/ui/Chip'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { useToast } from '@/components/ui/Toast'
+import { useCelebrate, useToast } from '@/components/ui/Toast'
 import {
   useDoChore,
   useFeelingsByItem,
@@ -54,6 +54,7 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   const reopen = useReopenItem(houseId)
   const did = useDoChore(houseId)
   const toast = useToast()
+  const celebrate = useCelebrate()
   const now = useNow()
   const [filter, setFilter] = useState<FeedFilter>('all')
 
@@ -80,9 +81,11 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   const check = async (item: Item) => {
     if (item.category === 'chore') {
       const r = await did.mutateAsync(item.id)
+      if (r.ok) celebrate()
       return toast(r.ok ? 'Did it. Thanks! 💛' : "Couldn't record that. Try again.")
     }
     const r = await done.mutateAsync(item.id)
+    if (r.ok) celebrate()
     toast(
       r.ok
         ? item.category === 'need'

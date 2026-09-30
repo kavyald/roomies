@@ -11,7 +11,7 @@ import { RequestsAndVisits } from '@/components/runs/RequestsAndVisits'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { useToast } from '@/components/ui/Toast'
+import { useCelebrate, useToast } from '@/components/ui/Toast'
 import {
   useHouse,
   useItems,
@@ -41,6 +41,7 @@ export function TasksScreen({ houseId }: { houseId: HouseId }) {
   const done = useMarkDone(houseId)
   const reopen = useReopenItem(houseId)
   const toast = useToast()
+  const celebrate = useCelebrate()
   const now = useNow()
   const [filter, setFilter] = useState<TaskFilter>('all')
 
@@ -100,6 +101,7 @@ export function TasksScreen({ houseId }: { houseId: HouseId }) {
                 checkLabel={`Done: ${t.title}`}
                 onCheck={async () => {
                   const r = await done.mutateAsync(t.id)
+                  if (r.ok) celebrate()
                   toast(
                     r.ok ? 'Done. 💛' : "Couldn't mark it done. Try again.",
                     r.ok ? { label: 'Undo', onClick: () => reopen.mutate(t.id) } : undefined,

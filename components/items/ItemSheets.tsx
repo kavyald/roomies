@@ -6,7 +6,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Chip, RoomChip } from '@/components/ui/Chip'
 import { Sheet } from '@/components/ui/Sheet'
-import { useToast } from '@/components/ui/Toast'
+import { useCelebrate, useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
 import { useCopy } from '@/components/house/useCopy'
 import {
@@ -301,6 +301,7 @@ function ItemDetailSheet({
   const contacts = useContacts(houseId)
   const now = useNow()
   const toast = useToast()
+  const celebrate = useCelebrate()
   const copy = useCopy()
   const [editing, setEditing] = useState(false)
   const [confirmArchive, setConfirmArchive] = useState(false)
@@ -487,7 +488,11 @@ function ItemDetailSheet({
     : item.category === 'chore'
       ? {
           label: 'Did it',
-          run: async () => say(await did.mutateAsync(item.id), 'Nice. Marked as done today.'),
+          run: async () => {
+            const r = await did.mutateAsync(item.id)
+            if (r.ok) celebrate()
+            say(r, 'Nice. Marked as done today.')
+          },
         }
       : isDone
         ? {
@@ -498,7 +503,10 @@ function ItemDetailSheet({
             label: item.category === 'need' ? 'Got it' : 'Done',
             run: async () =>
               say(
-                await done.mutateAsync(item.id),
+                await done.mutateAsync(item.id).then((r) => {
+                  if (r.ok) celebrate()
+                  return r
+                }),
                 item.category === 'need' ? 'Got it. 💛' : 'Done. 💛',
                 () => reopen.mutate(item.id),
               ),

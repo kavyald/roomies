@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Avatar, initials } from './Avatar'
 import { TierChip } from './Chip'
 import { SegmentedControl } from './SegmentedControl'
+import { ToastProvider, useCelebrate } from './Toast'
 import { useState } from 'react'
 
 afterEach(cleanup)
@@ -62,5 +63,30 @@ describe('SegmentedControl', () => {
     await userEvent.click(all)
     expect(all.getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByRole('button', { name: 'Mine' }).getAttribute('aria-pressed')).toBe('false')
+  })
+})
+
+describe('completion burst', () => {
+  it('is decorative, skipped with reduced motion, and clears itself', async () => {
+    vi.useFakeTimers()
+    function Done() {
+      const celebrate = useCelebrate()
+      return (
+        <button type="button" onClick={celebrate}>
+          Did it
+        </button>
+      )
+    }
+    const { container } = render(
+      <ToastProvider>
+        <Done />
+      </ToastProvider>,
+    )
+    act(() => screen.getByRole('button', { name: 'Did it' }).click())
+    const burst = container.querySelector('[aria-hidden].motion-reduce\\:hidden')
+    expect(burst?.children).toHaveLength(10)
+    act(() => vi.advanceTimersByTime(800))
+    expect(container.querySelector('.motion-reduce\\:hidden')).toBeNull()
+    vi.useRealTimers()
   })
 })
