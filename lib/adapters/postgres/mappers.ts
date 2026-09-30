@@ -2,7 +2,7 @@
 
 import type { Selectable } from 'kysely'
 import type { StoredActivityRow } from '../../domain/events'
-import type { Feeling, FeelingWeights } from '../../domain/feelings'
+import { feelingWeightsFrom, type Feeling } from '../../domain/feelings'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
 import { asId } from '../../domain/ids'
 import type { Done, Item } from '../../domain/items'
@@ -73,7 +73,7 @@ export const houseToDomain = (r: Selectable<HousesTable>): House =>
     unit: r.unit ?? undefined,
     settings: {
       timezone: r.settings.timezone,
-      feelingWeights: r.settings.feeling_weights as FeelingWeights,
+      feelingWeights: feelingWeightsFrom(r.settings.feeling_weights),
       inviteTtlDays: r.settings.invite_ttl_days,
     },
     createdBy: asId<'user'>(r.created_by),

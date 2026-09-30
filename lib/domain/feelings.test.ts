@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { StoredActivityRow } from './events'
 import {
+  feelingWeightsFrom,
   DEFAULT_FEELING_WEIGHTS,
   earlierFeelings,
   feelingCounts,
@@ -110,5 +111,15 @@ describe('scores and counts', () => {
       { kind: 'anxious', count: 2 },
       { kind: 'meh', count: 1 },
     ])
+  })
+})
+
+describe('feelingWeightsFrom', () => {
+  it('keeps stored weights and fills in the defaults for missing or malformed ones', () => {
+    expect(feelingWeightsFrom({})).toEqual(DEFAULT_FEELING_WEIGHTS)
+    expect(feelingWeightsFrom({ anxious: 40, meh: 'x', fine: null, extra: 3 })).toEqual({
+      ...DEFAULT_FEELING_WEIGHTS,
+      anxious: 40,
+    })
   })
 })

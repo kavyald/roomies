@@ -218,6 +218,23 @@ export function ItemForm({
             </div>
           )}
 
+          {category !== 'need' && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="item-priority">Priority</Label>
+              <select
+                id="item-priority"
+                className={inputClass}
+                value={v.priority}
+                onChange={(e) => set('priority', e.target.value as Priority)}
+              >
+                <option value="low">Low</option>
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+          )}
+
           {category === 'task' && (
             <div className="grid gap-1.5">
               <Label htmlFor="item-contact">Handled by</Label>

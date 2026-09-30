@@ -3,6 +3,7 @@
 import { Sparkles } from 'lucide-react'
 import { FeelingCounts } from '@/components/items/Feelings'
 import { useItemSheets } from '@/components/items/ItemSheets'
+import { choreMeta } from '@/components/items/meta'
 import { ItemCard } from '@/components/items/ItemCard'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Button } from '@/components/ui/Button'
@@ -11,9 +12,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useDoChore, useHouse, useItems, useFeelingsByItem } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
-import type { Chore } from '@/lib/domain/items'
-import { choreList, daysAgo, daysSinceDone, isChoreDue } from '@/lib/domain/lists'
-import type { Instant } from '@/lib/domain/time'
+import { choreList } from '@/lib/domain/lists'
 
 /** Chores (FRONTEND §5.6): furthest past their rhythm first, with one-tap Did it. */
 export function ChoresScreen({ houseId }: { houseId: HouseId }) {
@@ -37,17 +36,6 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
 
   const tz = house.data?.settings.timezone ?? 'UTC'
   const chores = choreList(items.data, now, tz)
-  const meta = (c: Chore, at: Instant) => {
-    const days = daysSinceDone(c, at, tz)
-    if (days === null) return 'Not done yet'
-    const who = ctx.person(c.lastDone!.by)?.name ?? 'Former roommate'
-    const base = `Last done ${daysAgo(days)} · ${who}`
-    // Describe the chore's state, never a person's (FRONTEND §7).
-    return isChoreDue(c, at, tz) && c.repeatDays && days - c.repeatDays >= 2
-      ? `${base} · This one's been waiting a bit`
-      : base
-  }
-
   if (chores.length === 0) {
     return (
       <EmptyState
@@ -75,7 +63,7 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
                 <FeelingCounts feelings={feelingsBy.get(c.id)!} />
               ) : undefined
             }
-            meta={meta(c, now)}
+            meta={choreMeta(c, now, tz, (u) => ctx.person(u)?.name)}
             onOpen={() => openItem(c.id)}
             checkLabel={`Did it: ${c.title}`}
             onCheck={async () => {

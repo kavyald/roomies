@@ -1,14 +1,15 @@
-import { Heart } from 'lucide-react'
+import { HomeScreen } from '@/components/home/HomeScreen'
 import { ScreenHeader } from '@/components/shell/ScreenHeader'
-import { EmptyState } from '@/components/ui/EmptyState'
+import type { HouseId } from '@/lib/domain/ids'
 
 export const metadata = { title: 'Home · Roomies' }
 
-export default function HouseHomePage() {
+export default async function HouseHomePage({ params }: PageProps<'/h/[houseId]'>) {
+  const { houseId } = await params
   return (
     <main>
       <ScreenHeader title="Home" />
-      <EmptyState icon={Heart}>Nothing needs attention right now. Enjoy the quiet.</EmptyState>
+      <HomeScreen houseId={houseId as HouseId} />
     </main>
   )
 }

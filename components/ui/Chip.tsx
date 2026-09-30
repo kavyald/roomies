@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import type { Element } from '@/lib/domain/house'
+import type { Tier } from '@/lib/domain/priority'
 import { cn } from './cn'
 import { elementClasses, elementIcon } from './elements'
 
@@ -26,8 +27,6 @@ export function RoomChip({ name, element }: { name: string; element?: Element })
     </span>
   )
 }
-
-export type Tier = 'top' | 'high' | 'normal' | 'low'
 
 /** Priority tier. Always carries the word; color is never the only signal (FRONTEND §3.1). */
 export function TierChip({ tier }: { tier: Tier }) {

@@ -35,6 +35,15 @@ export const DEFAULT_FEELING_WEIGHTS: FeelingWeights = {
   thanks: 0,
 }
 
+/** Stored weights, with any missing or malformed one falling back to its default. */
+export const feelingWeightsFrom = (stored: Readonly<Record<string, unknown>>): FeelingWeights =>
+  Object.fromEntries(
+    FEELING_KINDS.map((k) => {
+      const w = stored[k]
+      return [k, typeof w === 'number' && Number.isFinite(w) ? w : DEFAULT_FEELING_WEIGHTS[k]]
+    }),
+  ) as FeelingWeights
+
 // ---- sharing a feeling (PRD §7) ------------------------------------------------------------------
 
 export const FEELING_META: Record<FeelingKind, { emoji: string; label: string; blurb: string }> = {

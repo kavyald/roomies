@@ -27,12 +27,13 @@ import {
 import { useNow } from '@/lib/client/use-now'
 import { relativeTime } from '@/lib/domain/format'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
-import type { Category, Item, ItemPatch } from '@/lib/domain/items'
+import { isOpen, type Category, type Item, type ItemPatch } from '@/lib/domain/items'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
 import { HouseFeels } from './Feelings'
 import { HandledByPicker } from './HandledByPicker'
 import { ItemForm, toNewItem, valuesFrom, type ItemFormValues } from './ItemForm'
 import { CATEGORY, scheduleLabel, whenLabel } from './meta'
+import { WhyHere } from './WhyHere'
 
 type Sheets = { openAdd(category?: Category): void; openItem(id: ItemId): void }
 const SheetsContext = createContext<Sheets>({ openAdd: () => {}, openItem: () => {} })
@@ -407,6 +408,9 @@ function ItemDetailSheet({
           return name ? { name, element: elementOf(u) } : undefined
         }}
       />
+      {isOpen(item) && (
+        <WhyHere houseId={houseId} item={item} name={(u) => nameOf(u) ?? 'Former roommate'} />
+      )}
 
       {primary && (
         <Button block disabled={busy} onClick={primary.run}>
