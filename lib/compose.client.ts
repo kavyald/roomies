@@ -4,7 +4,7 @@
 import { createBrowserClient } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabaseHouseQueries } from './adapters/supabase/house-queries'
-import type { ChangeFeed } from './app/ports'
+import { supabaseChangeFeed } from './adapters/supabase/change-feed'
 import type { AppClient, AppCommands } from './client/app-client'
 import { publicConfig } from './config'
 import type { UserId } from './domain/ids'
@@ -16,12 +16,9 @@ const supabase = (): SupabaseClient => {
   return (browserClient ??= createBrowserClient(supabaseUrl, supabaseAnonKey))
 }
 
-/** Realtime arrives in T26; until then nothing pushes changes. */
-const noChanges: ChangeFeed = { subscribe: () => () => {} }
-
 export const browserAppClient = (me: UserId, commands: AppCommands): AppClient => ({
   me,
   queries: supabaseHouseQueries(supabase()),
-  changes: noChanges,
+  changes: supabaseChangeFeed(supabase()),
   commands,
 })

@@ -1,6 +1,6 @@
 // A fake AppClient over the in-memory adapters, for component tests (ARCHITECTURE §4.1).
 
-import { manualChangeFeed, memoryHouseQueries } from '../adapters/memory/queries'
+import { memoryChangeFeed, memoryHouseQueries } from '../adapters/memory/queries'
 import { MemoryUnitOfWork } from '../adapters/memory/db'
 import type { AppClient, AppCommands } from '../client/app-client'
 import type { HouseActor } from '../domain/actor'
@@ -14,7 +14,7 @@ export const fakeAppClient = (
 ): AppClient => ({
   me: actor.kind === 'member' ? actor.userId : ('system' as UserId),
   queries: memoryHouseQueries(uow, actor),
-  changes: manualChangeFeed(),
+  changes: memoryChangeFeed(uow, actor),
   commands: {
     createContact: async () => err('unexpected'),
     createInvite: async () => err('unexpected'),

@@ -278,16 +278,28 @@ export class MemoryUnitOfWork implements UnitOfWork {
   state: MemoryState = emptyState()
   private queue: Promise<unknown> = Promise.resolve()
 
+  private listeners = new Set<(rows: readonly StoredActivityRow[]) => void>()
+
   run<T>(actor: Actor, fn: (repos: Repos) => Promise<T>): Promise<T> {
     // One transaction at a time, like serializable isolation.
     const next = this.queue.then(async () => {
       const working = structuredClone(this.state)
       const result = await fn(reposFor(working, actor))
-      if (!isFailedResult(result)) this.state = working
+      if (!isFailedResult(result)) {
+        const added = working.activity.slice(this.state.activity.length)
+        this.state = working
+        if (added.length) this.listeners.forEach((l) => l(added))
+      }
       return result
     })
     this.queue = next.catch(() => undefined)
     return next
+  }
+
+  /** Activity rows as each transaction commits (what the memory ChangeFeed listens to). */
+  onCommit(listener: (rows: readonly StoredActivityRow[]) => void): () => void {
+    this.listeners.add(listener)
+    return () => void this.listeners.delete(listener)
   }
 
   /** Auth users live outside the app tables (Supabase Auth owns them in production). */

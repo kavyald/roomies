@@ -1,7 +1,7 @@
 'use client'
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import type { Feeling, FeelingWeights } from '../domain/feelings'
 import type { NewContact } from '../domain/contacts'
 import type { AppCommands } from './app-client'
@@ -9,7 +9,7 @@ import type { ContactId, HouseId, InviteId, ItemId } from '../domain/ids'
 import type { NewItem } from '../domain/items'
 import type { NewInvite } from '../domain/invites'
 import { useAppClient } from './provider'
-import { keys } from './query-keys'
+import { keys, keysForTable } from './query-keys'
 
 export const useHouse = (houseId: HouseId) => {
   const { queries } = useAppClient()
@@ -185,6 +185,23 @@ export const useActivity = (houseId: HouseId) => {
       queries.activity(houseId, { before: pageParam, limit: ACTIVITY_PAGE }),
     getNextPageParam: (last) => last.before ?? undefined,
   })
+}
+
+/**
+ * Refreshes the house's queries when a change lands (ours or a roommate's): whatever the changed
+ * table feeds, plus the activity log (T26).
+ */
+export const useLiveUpdates = (houseId: HouseId) => {
+  const { changes } = useAppClient()
+  const qc = useQueryClient()
+  useEffect(
+    () =>
+      changes.subscribe(houseId, (change) => {
+        for (const queryKey of [...keysForTable(houseId, change.table), keys.activity(houseId)])
+          void qc.invalidateQueries({ queryKey })
+      }),
+    [changes, houseId, qc],
+  )
 }
 
 /** Whether the person using the app is an admin of this house. */

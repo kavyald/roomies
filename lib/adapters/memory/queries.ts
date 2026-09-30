@@ -1,10 +1,10 @@
-import type { Change, ChangeFeed, HouseQueries } from '../../app/ports'
+import type { ChangeFeed, HouseQueries } from '../../app/ports'
 import type { Actor } from '../../domain/actor'
 import { pageAtActionBoundary } from '../../domain/activity'
 import type { Profile } from '../../domain/house'
 import type { StoredActivityRow } from '../../domain/events'
-import type { HouseId } from '../../domain/ids'
 import type { MemoryUnitOfWork } from './db'
+import { changeForKind } from '../change-for-kind'
 
 /** Reads as `actor`, through the same access rules as writes. */
 export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQueries => ({
@@ -55,18 +55,19 @@ export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQu
   },
 })
 
-export type ManualChangeFeed = ChangeFeed & { emit(houseId: HouseId, change: Change): void }
-
-/** A ChangeFeed that fires only when a test calls `emit`. */
-export const manualChangeFeed = (): ManualChangeFeed => {
-  const listeners = new Map<HouseId, Set<(c: Change) => void>>()
-  return {
-    subscribe: (houseId, onChange) => {
-      const set = listeners.get(houseId) ?? new Set()
-      set.add(onChange)
-      listeners.set(houseId, set)
-      return () => void set.delete(onChange)
-    },
-    emit: (houseId, change) => listeners.get(houseId)?.forEach((f) => f(change)),
-  }
-}
+/**
+ * A ChangeFeed over the memory UnitOfWork: activity committed in the house, seen by `actor` only
+ * while they can read the house (the same rule RLS applies to Realtime).
+ */
+export const memoryChangeFeed = (uow: MemoryUnitOfWork, actor: Actor): ChangeFeed => ({
+  subscribe: (houseId, onChange) =>
+    uow.onCommit((rows) => {
+      if (!rows.some((r) => r.houseId === houseId)) return
+      void uow
+        .run(actor, (r) => r.houses.get(houseId))
+        .then((visible) => {
+          if (!visible) return
+          for (const row of rows) if (row.houseId === houseId) onChange(changeForKind(row.kind))
+        })
+    }),
+})

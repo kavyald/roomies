@@ -26,7 +26,14 @@ import {
 import { ItemSheetsProvider } from '@/components/items/ItemSheets'
 import { browserAppClient } from '@/lib/compose.client'
 import type { HouseId, UserId } from '@/lib/domain/ids'
+import { useLiveUpdates } from '@/lib/client/hooks'
 import { AppClientProvider } from '@/lib/client/provider'
+
+/** Keeps the house's screens current while someone else changes things (T26). */
+function LiveUpdates({ houseId }: { houseId: HouseId }) {
+  useLiveUpdates(houseId)
+  return null
+}
 
 /** Everything under /h/[houseId] reads and writes through one AppClient for that house. */
 export function HouseProviders({
@@ -63,6 +70,7 @@ export function HouseProviders({
   )
   return (
     <AppClientProvider client={client}>
+      <LiveUpdates houseId={houseId} />
       <ItemSheetsProvider houseId={houseId}>{children}</ItemSheetsProvider>
     </AppClientProvider>
   )

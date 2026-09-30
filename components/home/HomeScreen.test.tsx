@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import { asMember, seedHouse, system } from '@/lib/adapters/contracts/unit-of-work.contract'
 import { depsForTest } from '@/lib/compose'
+import { makeCreateItem } from '@/lib/app/items'
+import { useLiveUpdates } from '@/lib/client/hooks'
 import { AppClientProvider, makeQueryClient } from '@/lib/client/provider'
 import type { UserId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
@@ -71,5 +73,41 @@ describe('HomeScreen: Needs attention', () => {
         .getAllByRole('listitem')
         .map((c) => c.textContent),
     ).toEqual([expect.stringMatching(/Fix the leak/)])
+  })
+})
+
+describe('live updates', () => {
+  it("a roommate's new task shows up on Home without a reload", async () => {
+    const deps = depsForTest()
+    const { house, admin, member } = await seedHouse({
+      uow: deps.uow,
+      ids: deps.ids,
+      createUser: async () => deps.ids.newId<'user'>() as UserId,
+      activity: async () => [],
+    })
+    function Live() {
+      useLiveUpdates(house.id)
+      return null
+    }
+    render(
+      <AppClientProvider
+        client={fakeAppClient(deps.uow, asMember(house.id, admin))}
+        queryClient={makeQueryClient()}
+      >
+        <Live />
+        <HomeScreen houseId={house.id} />
+      </AppClientProvider>,
+    )
+    expect(
+      await screen.findByText('Nothing needs attention right now. Enjoy the quiet.'),
+    ).toBeTruthy()
+
+    const r = await makeCreateItem(deps)(asMember(house.id, member), {
+      category: 'task',
+      title: 'Bleed the radiators',
+    })
+    expect(r.ok).toBe(true)
+    const feed = await screen.findByRole('list', { name: 'Needs attention' })
+    expect(within(feed).getByText('Bleed the radiators')).toBeTruthy()
   })
 })

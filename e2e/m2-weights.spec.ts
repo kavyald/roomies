@@ -54,8 +54,7 @@ test('a roommate who is not an admin sets 😰 to +40, and the feed re-ranks for
     samPage.getByRole('status').filter({ hasText: 'The feed is re-ranked for everyone.' }),
   ).toBeVisible()
 
-  // Kavya's feed re-ranks (on reload until realtime lands in T26), with a card saying why.
-  await kavya.reload()
+  // Kavya's feed re-ranks live (no reload), with a card saying why.
   await expect(feed.first()).toContainText('Toilet paper')
   await expect(feed.first()).toContainText('High') // Normal 25 + 😰 40 = 65
   await expect(kavya.getByRole('complementary', { name: 'Feeling weights changed' })).toContainText(
