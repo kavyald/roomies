@@ -13,8 +13,9 @@ import type {
   RunId,
   UserId,
 } from './ids'
-import type { EventKind, StoredActivityRow } from './events'
+import type { EventKind, FieldChanges, StoredActivityRow } from './events'
 import type { Instant } from './time'
+import { describeWeightsChange } from './weights'
 
 /** Names for the things rows point at. Anything unknown gets a gentle generic word. */
 export type ActivityNames = {
@@ -201,7 +202,7 @@ export const activityLine = (
       case 'house.created':
         return `${actor} set up the house`
       case 'settings.feeling_weights_changed':
-        return `${actor} changed the feeling weights`
+        return `${actor} ${describeWeightsChange(r.changes as FieldChanges | undefined)}`
       case 'invite.created':
         return `${actor} made an invite link`
       case 'invite.revoked':

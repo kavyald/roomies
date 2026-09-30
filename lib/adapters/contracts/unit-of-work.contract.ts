@@ -2,7 +2,12 @@
 // Each test builds its own house, so the suite can share a database without cleanup.
 
 import { beforeAll, describe, expect, it } from 'vitest'
-import { AccessDenied, type IdGenerator, type UnitOfWork } from '../../app/ports'
+import {
+  AccessDenied,
+  ConstraintViolation,
+  type IdGenerator,
+  type UnitOfWork,
+} from '../../app/ports'
 import type { Actor, HouseActor } from '../../domain/actor'
 import type { StoredActivityRow } from '../../domain/events'
 import {
@@ -262,6 +267,41 @@ export const unitOfWorkContract = (name: string, makeHarness: () => Promise<Unit
             await r.profiles.save({ ...p!, displayName: 'Not you' })
           }),
         ).rejects.toBeInstanceOf(AccessDenied)
+      })
+
+      it('any member may change the feeling weights, but only admins change the rest of the house', async () => {
+        const { house, admin, member } = await seedHouse(h)
+        const me = asMember(house.id, member)
+        const withWeights = (weights: Partial<House['settings']['feelingWeights']>) => ({
+          ...house,
+          settings: {
+            ...house.settings,
+            feelingWeights: { ...house.settings.feelingWeights, ...weights },
+          },
+        })
+        await h.uow.run(me, (r) => r.houses.save(withWeights({ anxious: 40 })))
+        expect(
+          (await h.uow.run(me, (r) => r.houses.get(house.id)))?.settings.feelingWeights.anxious,
+        ).toBe(40)
+        await expect(
+          h.uow.run(me, (r) =>
+            r.houses.save({ ...withWeights({ anxious: 40 }), name: 'Mine now' }),
+          ),
+        ).rejects.toBeInstanceOf(AccessDenied)
+        await expect(
+          h.uow.run(me, (r) =>
+            r.houses.save({
+              ...withWeights({ anxious: 40 }),
+              settings: { ...withWeights({ anxious: 40 }).settings, timezone: 'UTC' },
+            }),
+          ),
+        ).rejects.toBeInstanceOf(AccessDenied)
+        await h.uow.run(asMember(house.id, admin), (r) =>
+          r.houses.save({ ...withWeights({ anxious: 40 }), name: 'Ours' }),
+        )
+        await expect(
+          h.uow.run(me, (r) => r.houses.save({ ...withWeights({ anxious: 45 }), name: 'Ours' })),
+        ).rejects.toBeInstanceOf(ConstraintViolation)
       })
 
       it('a signed-in user outside any house context lists only their own memberships', async () => {

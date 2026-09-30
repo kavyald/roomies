@@ -268,6 +268,48 @@ describe('changing your own membership', () => {
   })
 })
 
+describe('feeling weights (any member) vs. the rest of the house (admins)', () => {
+  const setAnxious = `update houses set settings = jsonb_set(settings, '{feeling_weights,anxious}', $2::jsonb) where id = $1`
+
+  it('a member who is not an admin can change the weights, and only the weights', async () => {
+    await asUser(mine.member, async (db) => {
+      expect((await db.query(setAnxious, [mine.houseId, '40'])).rowCount).toBe(1)
+      expect(
+        await refused(db, `update houses set name = 'Mine now' where id = $1`, [mine.houseId]),
+      ).toBe(INSUFFICIENT_PRIVILEGE)
+      expect(
+        await refused(
+          db,
+          `update houses set settings = jsonb_set(settings, '{timezone}', '"UTC"') where id = $1`,
+          [mine.houseId],
+        ),
+      ).toBe(INSUFFICIENT_PRIVILEGE)
+    })
+    await asUser(mine.admin, async (db) => {
+      expect(
+        (await db.query(`update houses set name = 'Ours' where id = $1`, [mine.houseId])).rowCount,
+      ).toBe(1)
+    })
+  })
+
+  it("nobody changes another house's weights", async () => {
+    await asUser(mine.member, async (db) => {
+      expect((await db.query(setAnxious, [theirs.houseId, '40'])).rowCount).toBe(0)
+    })
+  })
+
+  it('weights stay between -20 and +40, in steps of 5', async () => {
+    await asUser(mine.member, async (db) => {
+      for (const w of ['45', '-25', '12', '"high"']) {
+        expect({ w, code: await refused(db, setAnxious, [mine.houseId, w]) }).toEqual({
+          w,
+          code: '23514',
+        })
+      }
+    })
+  })
+})
+
 describe('activity is append-only', () => {
   it('members cannot update or delete activity rows', async () => {
     await asUser(mine.member, async (db) => {

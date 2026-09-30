@@ -5,8 +5,8 @@
 import type { ChangeFeed, HouseQueries } from '../app/ports'
 import type { NewContact } from '../domain/contacts'
 import type { ContactPatch } from '../domain/contacts'
-import type { Feeling, FeelingKind } from '../domain/feelings'
-import type { Contact, Invite, Member, Role, Room } from '../domain/house'
+import type { Feeling, FeelingKind, FeelingWeights } from '../domain/feelings'
+import type { Contact, House, Invite, Member, Role, Room } from '../domain/house'
 import type { ReferenceError } from '../app/items'
 import type { ContactId, InviteId, ItemId, RoomId, UserId } from '../domain/ids'
 import type { Item, ItemError, ItemPatch, NewItem } from '../domain/items'
@@ -72,6 +72,9 @@ export type AppCommands = {
   restoreItem(
     id: ItemId,
   ): Promise<CommandResult<Item, 'not_archived' | 'duplicate_need' | 'not_found'>>
+  setFeelingWeights(
+    weights: FeelingWeights,
+  ): Promise<CommandResult<House, 'not_found' | 'out_of_range' | 'no_change'>>
   setFeeling(input: {
     itemId: ItemId
     kind: FeelingKind | null

@@ -177,6 +177,11 @@ describe('activityLine: every kind', () => {
     ['cost.removed', { costId: id('c') }, 'Kavya removed a cost'],
     ['house.created', {}, 'Kavya set up the house'],
     ['settings.feeling_weights_changed', {}, 'Kavya changed the feeling weights'],
+    [
+      'settings.feeling_weights_changed',
+      { changes: { anxious: [20, 30] } },
+      'Kavya set 😰 Anxious to +30',
+    ],
     ['member.joined', { memberId: MAYA, actorId: MAYA }, 'Maya joined the house'],
     ['member.room_changed', { memberId: MAYA, roomId: id('fire') }, 'Maya moved into Fire'],
     [

@@ -6,12 +6,14 @@ import {
   makeMoveOut,
   makeMoveRoom,
   makeRenameRoom,
+  makeSetFeelingWeights,
   makeSetRole,
 } from '@/lib/app/house'
 import { depsForRequest } from '@/lib/compose'
 import type { ContactId, HouseId, RoomId, UserId } from '@/lib/domain/ids'
 import {
   editContactSchema,
+  feelingWeightsSchema,
   idSchema,
   moveOutSchema,
   moveRoomSchema,
@@ -73,6 +75,14 @@ export async function moveRoomAction(houseId: HouseId, input: unknown) {
     moveRoomSchema,
     (deps, actor, i) =>
       makeMoveRoom(deps)(actor, { roomId: i.roomId as RoomId, direction: i.direction }),
+    env(houseId),
+  )(input)
+}
+
+export async function setFeelingWeightsAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    feelingWeightsSchema,
+    (deps, actor, i) => makeSetFeelingWeights(deps)(actor, i),
     env(houseId),
   )(input)
 }

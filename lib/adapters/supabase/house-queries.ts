@@ -103,6 +103,19 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => {
           .order('expires_at', { ascending: false }),
         inviteToDomain,
       ),
+    latestActivity: async (houseId, kind) => {
+      const [row] = await rows(
+        sb
+          .from('activity_events')
+          .select('*')
+          .eq('house_id', houseId)
+          .eq('kind', kind)
+          .order('id', { ascending: false })
+          .limit(1),
+        activityToDomain,
+      )
+      return row
+    },
     activity: async (houseId, { before, limit }) => {
       let q = sb.from('activity_events').select('*').eq('house_id', houseId)
       if (before !== undefined) q = q.lt('id', before)

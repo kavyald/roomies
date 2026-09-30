@@ -2,11 +2,13 @@
 
 import type { AppDeps } from './ports'
 import { actorUser, type HouseActor } from '../domain/actor'
-import type { Member, Role, Room } from '../domain/house'
+import type { FeelingWeights } from '../domain/feelings'
+import type { House, Member, Role, Room } from '../domain/house'
 import type { RoomId, UserId } from '../domain/ids'
 import { anonymizeProfile, moveOut, setRole } from '../domain/members'
 import { err, ok, type Result } from '../domain/result'
 import { moveRoom, renameRoom } from '../domain/rooms'
+import { setFeelingWeights } from '../domain/weights'
 
 /** "I moved out" (target = me) or an admin removing someone. RLS lets only those two through. */
 export const makeMoveOut =
@@ -110,3 +112,21 @@ export const makeDeleteAccount =
     await auth.deleteUser(me)
     return ok(undefined)
   }
+
+/** House → Settings → Feeling weights (PRD §8.2). Any member; it re-ranks the feed for everyone. */
+export const makeSetFeelingWeights =
+  ({ uow, clock, ids }: Pick<AppDeps, 'uow' | 'clock' | 'ids'>) =>
+  (
+    actor: HouseActor,
+    weights: FeelingWeights,
+  ): Promise<Result<House, 'not_found' | 'out_of_range' | 'no_change'>> =>
+    uow.run(actor, async (repos) => {
+      const house = await repos.houses.get(actor.houseId)
+      const by = actorUser(actor)
+      if (!house || !by) return err('not_found')
+      const r = setFeelingWeights(house, weights, { by, actionId: ids.newId() })
+      if (!r.ok) return r
+      await repos.houses.save(r.value.house)
+      await repos.events.record(house.id, r.value.events, clock.now())
+      return ok(r.value.house)
+    })

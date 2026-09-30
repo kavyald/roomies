@@ -112,3 +112,19 @@ export const anItem = async (
   )
   return id
 }
+
+/** A real account that's already a (non-admin) member of the owner's house. */
+export const aRoommate = async (owner: { houseId: string }, name = 'Sam') => {
+  const email = freshEmail(name.toLowerCase())
+  const r = await auth.createUser(email)
+  if (!r.ok) throw new Error(r.error)
+  const userId = r.value
+  await asOwner(async (db) => {
+    await db.query('insert into profiles (id, display_name) values ($1, $2)', [userId, name])
+    await db.query(
+      "insert into house_members (house_id, user_id, role) values ($1, $2, 'member')",
+      [owner.houseId, userId],
+    )
+  })
+  return { email, userId }
+}

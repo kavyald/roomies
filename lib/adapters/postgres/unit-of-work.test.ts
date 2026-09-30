@@ -73,3 +73,27 @@ describe('Postgres UnitOfWork: the session inside a transaction', () => {
     })
   })
 })
+
+describe('Postgres UnitOfWork: saving a house', () => {
+  it('a member can save new weights on a house whose created_at has microseconds', async () => {
+    const { house, member } = await seedHouse(harness)
+    await owner.query(
+      `update houses set created_at = '2026-09-29 12:00:00.123456+00' where id = $1`,
+      [house.id],
+    )
+    const stored = await uow.run(asMember(house.id, member), (r) => r.houses.get(house.id))
+    const next = {
+      ...stored!,
+      settings: {
+        ...stored!.settings,
+        feelingWeights: { ...stored!.settings.feelingWeights, anxious: 40 },
+      },
+    }
+    await uow.run(asMember(house.id, member), (r) => r.houses.save(next))
+    const { rows } = await owner.query(
+      `select settings->'feeling_weights'->>'anxious' as anxious, created_at::text from houses where id = $1`,
+      [house.id],
+    )
+    expect(rows[0]).toEqual({ anxious: '40', created_at: '2026-09-29 12:00:00.123456+00' })
+  })
+})

@@ -11,6 +11,8 @@ export const keys = {
   invites: (houseId: HouseId) => ['house', houseId, 'invites'] as const,
   items: (houseId: HouseId) => ['house', houseId, 'items'] as const,
   feelings: (houseId: HouseId) => ['house', houseId, 'feelings'] as const,
+  /** Under activity, so anything that writes to the log refreshes it. */
+  weightsChange: (houseId: HouseId) => ['house', houseId, 'activity', 'weights'] as const,
   itemActivity: (houseId: HouseId, itemId: string) =>
     ['house', houseId, 'activity', 'item', itemId] as const,
 }

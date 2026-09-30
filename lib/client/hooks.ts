@@ -2,7 +2,7 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import type { Feeling } from '../domain/feelings'
+import type { Feeling, FeelingWeights } from '../domain/feelings'
 import type { NewContact } from '../domain/contacts'
 import type { AppCommands } from './app-client'
 import type { ContactId, HouseId, InviteId, ItemId } from '../domain/ids'
@@ -112,6 +112,19 @@ export const useItemActivity = (houseId: HouseId, itemId: ItemId) => {
     queryFn: () => queries.itemActivity(houseId, itemId),
   })
 }
+
+/** The latest change to the feeling weights, for the Home card. */
+export const useLatestWeightsChange = (houseId: HouseId) => {
+  const { queries } = useAppClient()
+  return useQuery({
+    queryKey: keys.weightsChange(houseId),
+    queryFn: async () =>
+      (await queries.latestActivity(houseId, 'settings.feeling_weights_changed')) ?? null,
+  })
+}
+
+export const useSetFeelingWeights = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, w: FeelingWeights) => c.setFeelingWeights(w), ['house'])
 
 export const useSetFeeling = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Parameters<AppCommands['setFeeling']>[0]) => c.setFeeling(i), [

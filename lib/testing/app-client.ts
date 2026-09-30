@@ -34,6 +34,7 @@ export const fakeAppClient = (
     archiveItem: async () => err('unexpected'),
     restoreItem: async () => err('unexpected'),
     setFeeling: async () => err('unexpected'),
+    setFeelingWeights: async () => err('unexpected'),
     ...commands,
   },
 })

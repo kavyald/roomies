@@ -24,6 +24,7 @@ import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
 import { homeFeed, type FeedFilter } from '@/lib/domain/priority'
+import { WeightsChangedCard } from './WeightsChangedCard'
 
 const EMPTY: Record<FeedFilter, string> = {
   all: 'Nothing needs attention right now. Enjoy the quiet.',
@@ -85,48 +86,51 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   }
 
   return (
-    <section aria-labelledby="needs-attention" className="grid gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 id="needs-attention" className="m-0 text-lg font-extrabold">
-          Needs attention
-        </h2>
-        <SegmentedControl
-          label="Whose items"
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: 'mine', label: 'Mine' },
-            { value: 'all', label: 'All' },
-          ]}
-        />
-      </div>
-      {feed.length === 0 ? (
-        <EmptyState icon={Heart}>{EMPTY[filter]}</EmptyState>
-      ) : (
-        <ul aria-label="Needs attention" className="m-0 grid list-none gap-3 p-0">
-          {feed.map(({ item, tier }) => {
-            const feelings = feelingsBy.get(item.id)
-            return (
-              <li key={item.id}>
-                <ItemCard
-                  item={item}
-                  ctx={ctx}
-                  top={
-                    <span className="flex items-center justify-between gap-2">
-                      <TierChip tier={tier} />
-                      {feelings?.length ? <FeelingCounts feelings={feelings} /> : null}
-                    </span>
-                  }
-                  meta={itemMeta(item, now, tz, (u) => ctx.person(u)?.name)}
-                  onOpen={() => openItem(item.id)}
-                  checkLabel={`${CHECK[item.category]}: ${item.title}`}
-                  onCheck={() => check(item)}
-                />
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </section>
+    <div className="grid gap-4">
+      <WeightsChangedCard houseId={houseId} />
+      <section aria-labelledby="needs-attention" className="grid gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="needs-attention" className="m-0 text-lg font-extrabold">
+            Needs attention
+          </h2>
+          <SegmentedControl
+            label="Whose items"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: 'mine', label: 'Mine' },
+              { value: 'all', label: 'All' },
+            ]}
+          />
+        </div>
+        {feed.length === 0 ? (
+          <EmptyState icon={Heart}>{EMPTY[filter]}</EmptyState>
+        ) : (
+          <ul aria-label="Needs attention" className="m-0 grid list-none gap-3 p-0">
+            {feed.map(({ item, tier }) => {
+              const feelings = feelingsBy.get(item.id)
+              return (
+                <li key={item.id}>
+                  <ItemCard
+                    item={item}
+                    ctx={ctx}
+                    top={
+                      <span className="flex items-center justify-between gap-2">
+                        <TierChip tier={tier} />
+                        {feelings?.length ? <FeelingCounts feelings={feelings} /> : null}
+                      </span>
+                    }
+                    meta={itemMeta(item, now, tz, (u) => ctx.person(u)?.name)}
+                    onOpen={() => openItem(item.id)}
+                    checkLabel={`${CHECK[item.category]}: ${item.title}`}
+                    onCheck={() => check(item)}
+                  />
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </section>
+    </div>
   )
 }

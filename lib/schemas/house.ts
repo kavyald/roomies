@@ -14,3 +14,12 @@ export const setRoleSchema = z.object({ userId: z.uuid(), role: z.enum(['admin',
 export const renameRoomSchema = z.object({ roomId: z.uuid(), name: z.string().max(60) })
 export const moveRoomSchema = z.object({ roomId: z.uuid(), direction: z.enum(['up', 'down']) })
 export const nothingSchema = z.undefined()
+const weight = z.number().int()
+export const feelingWeightsSchema = z.object({
+  anxious: weight,
+  frustrated: weight,
+  confused: weight,
+  fine: weight,
+  meh: weight,
+  thanks: weight,
+})

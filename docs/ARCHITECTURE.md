@@ -227,7 +227,7 @@ create policy "members edit"  on items for update using (is_member(house_id)) wi
 -- no delete policy: soft-delete via archived_at only
 ```
 
-Admin-only actions (invites, removing members, house settings) use an `is_admin(house_id)` policy.
+Admin-only actions (invites, removing members, house settings) use an `is_admin(house_id)` policy. The one exception is **feeling weights**, which any member may change (PRD §8.2): a second update policy on `houses` lets a member save the row only when nothing but `settings.feeling_weights` differs from the stored row (A22).
 
 **[DECIDED] A4:** no extra "house passcode" on invites. Joins notify everyone, links expire and can be revoked, and admins can remove people in one tap.
 
@@ -831,3 +831,4 @@ iPhone UX specifics:
 | A19 | External services | Kept out of M0–M4. The core runs on local Supabase (CLI + Docker) with its local inbox. Hosted Supabase, the Gmail sender, Vercel, Sentry, and on-iPhone checks are the M5 "E" tasks, and no core task depends on them. | Owner |
 | A20 | Test suite | One runner (Vitest) for everything but E2E, plus Playwright. RLS tests in Vitest via `asUser()`, not pgTAP. One house per test for isolation. `pnpm test:all` is the gate, and each milestone ends with a test task (Q0–Q5). | Owner |
 | A21 | UnitOfWork and EventSink details (T06) | `uow.run` also rolls back when the use case resolves to `{ ok: false }`, so bailing out halfway never leaves partial writes. `EventSink.record(houseId, events, at)` takes the house and the injected `now`, so activity times come from the same clock as the rest of the use case (no `default now()` drift in tests). | Build (T06) |
+| A22 | Who can change feeling weights (T25) | Any active member, through the policy "houses members set feeling weights": its WITH CHECK calls `only_feeling_weights_changed(...)`, a stable security-definer helper that compares the new row with the stored one minus `feeling_weights`. A CHECK (`valid_feeling_weights`) keeps each weight a known feeling, −20…+40 in steps of 5. Both are integrity rules like `is_member`, not logic RPCs. House saves never rewrite `created_by` / `created_at`. | Build (T25), per PRD §8.2 (owner) |

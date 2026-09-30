@@ -108,8 +108,12 @@ const reposFor = (trx: Trx): Repos => {
       },
       save: async (house) => {
         const row = houseToRow(house)
+        // Never rewrite who made the house or when: the stored time has microseconds a JS Date
+        // lacks, and the weights policy compares everything but the weights.
+        const { id: _id, created_by: _by, created_at: _at, ...editable } = row
         await save(
-          () => trx.updateTable('houses').set(row).where('id', '=', house.id).executeTakeFirst(),
+          () =>
+            trx.updateTable('houses').set(editable).where('id', '=', house.id).executeTakeFirst(),
           () => trx.insertInto('houses').values(row).execute(),
         )
       },

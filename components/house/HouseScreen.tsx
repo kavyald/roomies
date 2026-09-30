@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useContacts, useIsAdmin, useMembers, useProfiles } from '@/lib/client/hooks'
 import type { HouseId } from '@/lib/domain/ids'
 import { ContactsSection } from './ContactsSection'
+import { FeelingWeightsSection } from './FeelingWeightsSection'
 import { InvitesSection } from './InvitesSection'
 import { RoommatesSection } from './RoommatesSection'
 import { RoomsSection } from './RoomsSection'
@@ -48,6 +49,9 @@ export function HouseScreen({ houseId }: { houseId: HouseId }) {
 
       <SectionTitle>Rooms</SectionTitle>
       <RoomsSection houseId={houseId} />
+
+      <SectionTitle>Settings</SectionTitle>
+      <FeelingWeightsSection houseId={houseId} />
 
       <SectionTitle>History</SectionTitle>
       <Link

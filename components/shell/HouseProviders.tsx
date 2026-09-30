@@ -9,6 +9,7 @@ import {
   moveRoomAction,
   removeContactAction,
   renameRoomAction,
+  setFeelingWeightsAction,
   setRoleAction,
 } from '@/app/actions/house'
 import { createInviteAction, revokeInviteAction } from '@/app/actions/invites'
@@ -57,6 +58,7 @@ export function HouseProviders({
       archiveItem: (id) => archiveItemAction(houseId, id),
       restoreItem: (id) => restoreItemAction(houseId, id),
       setFeeling: (input) => setFeelingAction(houseId, input),
+      setFeelingWeights: (weights) => setFeelingWeightsAction(houseId, weights),
     }),
   )
   return (

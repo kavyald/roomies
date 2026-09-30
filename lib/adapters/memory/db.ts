@@ -10,6 +10,7 @@ import type { Contact, House, Invite, Member, Profile, Room } from '../../domain
 import type { ContactId, HouseId, InviteId, ItemId, RoomId, UserId } from '../../domain/ids'
 import type { Feeling } from '../../domain/feelings'
 import { sameNeed, type Item, type Need } from '../../domain/items'
+import { isValidWeight } from '../../domain/weights'
 
 export type MemoryState = {
   users: Map<UserId, { email: string }>
@@ -55,6 +56,21 @@ export const isMember = (s: MemoryState, a: Actor, houseId: HouseId): boolean =>
 export const isAdmin = (s: MemoryState, a: Actor, houseId: HouseId): boolean =>
   a.kind === 'system' || membership(s, a, houseId)?.role === 'admin'
 
+/** Everything but `settings.feelingWeights` is the same (policy "houses members set feeling weights"). */
+const onlyFeelingWeightsChanged = (before: House, after: House): boolean => {
+  const rest = (h: House) =>
+    JSON.stringify([
+      h.id,
+      h.name,
+      h.address ?? null,
+      h.unit ?? null,
+      h.createdBy,
+      h.createdAt,
+      { ...h.settings, feelingWeights: null },
+    ])
+  return rest(before) === rest(after)
+}
+
 const sharesAHouse = (s: MemoryState, a: Actor, other: UserId): boolean => {
   const me = uid(a)
   if (!me) return true
@@ -81,9 +97,14 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
       setupAvailable: async () => s.houses.size === 0,
       save: async (house) => {
         const exists = s.houses.has(house.id)
+        // Admins edit the house; any member may change just the feeling weights (migration
+        // feeling_weights).
         const allowed = exists
-          ? isAdmin(s, a, house.id)
+          ? isAdmin(s, a, house.id) ||
+            (isMember(s, a, house.id) && onlyFeelingWeightsChanged(s.houses.get(house.id)!, house))
           : a.kind === 'system' || (s.houses.size === 0 && house.createdBy === uid(a))
+        if (!Object.values(house.settings.feelingWeights).every(isValidWeight))
+          throw new ConstraintViolation('houses_feeling_weights_valid')
         if (!allowed) deny('houses')
         s.houses.set(house.id, house)
       },

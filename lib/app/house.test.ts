@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { asMember } from '../adapters/contracts/unit-of-work.contract'
 import { depsForTest } from '../compose'
+import { DEFAULT_FEELING_WEIGHTS } from '../domain/feelings'
 import type { UserId } from '../domain/ids'
 import { sampleHouse } from '../testing/sample-house'
 import { makeEditContact, makeRemoveContact } from './contacts'
-import { makeDeleteAccount, makeMoveOut, makeMoveRoom, makeRenameRoom, makeSetRole } from './house'
+import {
+  makeDeleteAccount,
+  makeMoveOut,
+  makeMoveRoom,
+  makeRenameRoom,
+  makeSetFeelingWeights,
+  makeSetRole,
+} from './house'
 
 const setup = async () => {
   const deps = depsForTest()
@@ -115,5 +123,34 @@ describe('rooms and contacts', () => {
       'contact.edited',
       'contact.removed',
     ])
+  })
+})
+
+describe('feeling weights', () => {
+  it('any member (not just an admin) can change them, and the house hears about it', async () => {
+    const { deps, s, as } = await setup()
+    const r = await makeSetFeelingWeights(deps)(as('Sam'), {
+      ...DEFAULT_FEELING_WEIGHTS,
+      anxious: 40,
+    })
+    expect(r.ok && r.value.settings.feelingWeights.anxious).toBe(40)
+    expect(deps.uow.state.houses.get(s.house.id)?.settings.feelingWeights.anxious).toBe(40)
+    expect(deps.uow.state.activity.at(-1)).toMatchObject({
+      kind: 'settings.feeling_weights_changed',
+      actorId: s.people.Sam,
+      changes: { anxious: [20, 40] },
+    })
+  })
+
+  it('refuses out-of-range weights and no-op saves without writing anything', async () => {
+    const { deps, as } = await setup()
+    const before = deps.uow.state.activity.length
+    const set = makeSetFeelingWeights(deps)
+    expect(await set(as('Sam'), { ...DEFAULT_FEELING_WEIGHTS, anxious: 50 })).toEqual({
+      ok: false,
+      error: 'out_of_range',
+    })
+    expect(await set(as('Sam'), DEFAULT_FEELING_WEIGHTS)).toEqual({ ok: false, error: 'no_change' })
+    expect(deps.uow.state.activity.length).toBe(before)
   })
 })

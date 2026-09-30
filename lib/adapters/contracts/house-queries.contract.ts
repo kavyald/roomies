@@ -181,6 +181,37 @@ export const houseQueriesContract = (
       })
     })
 
+    it('finds the latest activity of one kind', async () => {
+      const { house, admin, member } = await withPlaces()
+      const weights = (anxious: number): DomainEvent => ({
+        kind: 'settings.feeling_weights_changed',
+        changes: { anxious: [20, anxious] },
+        actionId: h.ids.newId(),
+        by: admin,
+      })
+      const q = h.queriesFor(member, house.id)
+      expect(await q.latestActivity(house.id, 'settings.feeling_weights_changed')).toBeUndefined()
+      await h.uow.run(system(house.id), async (r) => {
+        await r.events.record(house.id, [weights(30)], T)
+        await r.events.record(house.id, [weights(40)], T)
+        await r.events.record(
+          house.id,
+          [{ kind: 'house.created', actionId: h.ids.newId(), by: admin }],
+          T,
+        )
+      })
+      expect(await q.latestActivity(house.id, 'settings.feeling_weights_changed')).toMatchObject({
+        kind: 'settings.feeling_weights_changed',
+        changes: { anxious: [20, 40] },
+      })
+      const other = await seedHouse(h)
+      expect(
+        await h
+          .queriesFor(other.member, other.house.id)
+          .latestActivity(house.id, 'settings.feeling_weights_changed'),
+      ).toBeUndefined()
+    })
+
     it('a member of another house reads nothing of this one', async () => {
       const { house } = await withPlaces()
       const other = await seedHouse(h)
