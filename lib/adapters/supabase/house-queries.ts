@@ -7,6 +7,7 @@ import type { HouseQueries } from '../../app/ports'
 import {
   activityToDomain,
   contactToDomain,
+  costToDomain,
   feelingToDomain,
   houseToDomain,
   inviteToDomain,
@@ -84,6 +85,8 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => {
         itemToDomain(r, tz),
       )
     },
+    costs: (houseId) =>
+      rows(sb.from('costs').select('*').eq('house_id', houseId).order('created_at'), costToDomain),
     polls: async (houseId) => {
       const byHouse = (table: string) =>
         sb.from(table).select('*').eq('house_id', houseId) as unknown as PromiseLike<{

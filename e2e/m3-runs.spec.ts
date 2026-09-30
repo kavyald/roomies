@@ -55,6 +55,8 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
   await expect(run).toContainText('Back in the pool · We have some')
 
   await run.getByRole('button', { name: 'Finish' }).click()
+  await expect(run).toContainText('Did you spend money?')
+  await run.getByRole('button', { name: 'No, just finish' }).click()
   await expect(
     page.getByRole('status').filter({ hasText: 'Finished. 1 thing went back to the pool.' }),
   ).toBeVisible()

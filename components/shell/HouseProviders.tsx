@@ -23,6 +23,7 @@ import {
   restoreItemAction,
   setFeelingAction,
 } from '@/app/actions/items'
+import { addCostAction, copiedToSplitwiseAction } from '@/app/actions/costs'
 import {
   addPollOptionAction,
   closePollAction,
@@ -104,6 +105,8 @@ export function HouseProviders({
       vote: (input) => voteAction(houseId, input),
       addPollOption: (input) => addPollOptionAction(houseId, input),
       closePoll: (input) => closePollAction(houseId, input),
+      addCost: (input) => addCostAction(houseId, input),
+      copiedToSplitwise: (input) => copiedToSplitwiseAction(houseId, input),
     }),
   )
   return (

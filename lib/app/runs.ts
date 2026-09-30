@@ -1,11 +1,14 @@
 // Run use cases (ARCHITECTURE §7.2 table): load the run and the selected items → pure domain
 // function → save → record events, in one transaction, acting as the member (RLS applies).
 
+import { checkCostRefs } from './costs'
 import type { AppDeps, Repos } from './ports'
 import { actorUser, type HouseActor } from '../domain/actor'
+import { addCost, type Cost } from '../domain/costs'
 import type { DomainEvent } from '../domain/events'
 import type { ActionId, ContactId, ItemId, RunId, UserId } from '../domain/ids'
 import type { Item } from '../domain/items'
+import type { Cents } from '../domain/money'
 import { err, ok, type Result } from '../domain/result'
 import {
   addToRequest,
@@ -171,19 +174,41 @@ export const makeReturnToPool = (deps: Deps) =>
     },
   )
 
-/** Finish a batch or visit: whatever's left goes back to the pool. */
+/**
+ * Finish a batch or visit: whatever's left goes back to the pool. A batch can say what was spent
+ * ("Did you spend money?"), which records one cost on the run.
+ */
 export const makeFinishRun = (deps: Deps) =>
-  inTx(deps, async (actor, input: { runId: RunId }, ctx) => {
-    const run = await loadRun(ctx.repos, actor, input.runId)
-    if (!run) return err('not_found')
-    const stillOn = await ctx.repos.items.onRun(run.id)
-    const history = await ctx.repos.events.forRun(actor.houseId, run.id)
-    const { done } = runProgress(runLedger(run.id, runSteps(history), stillOn))
-    const r = finishRun(run, stillOn, { ...ctx, doneOnRun: done })
-    if (!r.ok) return r
-    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
-    return ok(r.value.run as Run)
-  })
+  inTx(
+    deps,
+    async (actor, input: { runId: RunId; spent?: Cents; paidBy?: UserId; note?: string }, ctx) => {
+      const run = await loadRun(ctx.repos, actor, input.runId)
+      if (!run) return err('not_found')
+      const stillOn = await ctx.repos.items.onRun(run.id)
+      const history = await ctx.repos.events.forRun(actor.houseId, run.id)
+      const { done } = runProgress(runLedger(run.id, runSteps(history), stillOn))
+      const r = finishRun(run, stillOn, { ...ctx, doneOnRun: done })
+      if (!r.ok) return r
+      let cost: Cost | undefined
+      const events = [...r.value.events]
+      if (input.spent) {
+        const bad = await checkCostRefs(ctx.repos, actor, { paidBy: input.paidBy })
+        if (bad) return err(bad)
+        const c = addCost(
+          { amount: input.spent, paidBy: input.paidBy, note: input.note, for: { run: run.id } },
+          { ...ctx, id: deps.ids.newId(), houseId: actor.houseId },
+        )
+        if (!c.ok) return c
+        cost = c.value.cost
+        events.push(...c.value.events)
+      }
+      for (const run of [r.value.run]) await ctx.repos.runs.save(run)
+      for (const item of r.value.items) await ctx.repos.items.save(item)
+      if (cost) await ctx.repos.costs.add(cost)
+      await ctx.repos.events.record(actor.houseId, events, ctx.now)
+      return ok({ run: r.value.run as Run, ...(cost && { cost }) })
+    },
+  )
 
 // ---- requests and visits (T30) ----------------------------------------------------------------
 

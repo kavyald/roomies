@@ -6,6 +6,8 @@ import { feelingWeightsFrom, type Feeling } from '../../domain/feelings'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
 import { asId } from '../../domain/ids'
 import type { Done, Item } from '../../domain/items'
+import type { Cost } from '../../domain/costs'
+import type { Cents } from '../../domain/money'
 import type { Poll, PollOption } from '../../domain/polls'
 import type { Run } from '../../domain/runs'
 import {
@@ -20,6 +22,7 @@ import {
 import type {
   ActivityEventsTable,
   ContactsTable,
+  CostsTable,
   FeelingsTable,
   HouseInvitesTable,
   HouseMembersTable,
@@ -303,6 +306,36 @@ export const itemToRow = (i: Item, tz: string) => {
     archived_at: i.archivedAt ? toDate(i.archivedAt) : null,
   }
 }
+
+// ---- costs --------------------------------------------------------------------------------------
+
+export const costToDomain = (r: Selectable<CostsTable>): Cost =>
+  compact({
+    id: asId<'cost'>(r.id),
+    houseId: asId<'house'>(r.house_id),
+    amount: r.amount_cents as Cents,
+    paidBy: asId<'user'>(r.paid_by),
+    note: r.note ?? undefined,
+    for: r.item_id
+      ? { item: asId<'item'>(r.item_id) }
+      : r.run_id
+        ? { run: asId<'run'>(r.run_id) }
+        : undefined,
+    createdBy: asId<'user'>(r.created_by),
+    createdAt: toInstant(r.created_at),
+  })
+
+export const costToRow = (c: Cost) => ({
+  id: c.id,
+  house_id: c.houseId,
+  amount_cents: c.amount,
+  paid_by: c.paidBy,
+  note: c.note ?? null,
+  item_id: c.for && 'item' in c.for ? c.for.item : null,
+  run_id: c.for && 'run' in c.for ? c.for.run : null,
+  created_by: c.createdBy,
+  created_at: toDate(c.createdAt),
+})
 
 // ---- polls --------------------------------------------------------------------------------------
 

@@ -24,7 +24,12 @@ export const returnToPoolSchema = z.object({
   note,
   clearContact: z.boolean(),
 })
-export const finishRunSchema = z.object({ runId: z.uuid() })
+export const finishRunSchema = z.object({
+  runId: z.uuid(),
+  spent: z.number().int().optional(),
+  paidBy: z.uuid().optional(),
+  note,
+})
 export const startRequestSchema = z.object({ contactId: z.uuid(), itemIds: ids })
 export const planVisitSchema = z.object({
   contactId: z.uuid(),

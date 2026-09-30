@@ -113,7 +113,7 @@ describe('runs, end to end on the memory adapters', () => {
     expect(item(soap!).run).toBeUndefined()
 
     const finished = await finish(as('Kavya'), { runId: g })
-    expect(finished).toMatchObject({ ok: true, value: { state: { open: false } } })
+    expect(finished).toMatchObject({ ok: true, value: { run: { state: { open: false } } } })
     expect(item(bread!).run).toBeUndefined()
     expect(deps.uow.state.activity.at(-1)).toMatchObject({
       kind: 'run.finished',

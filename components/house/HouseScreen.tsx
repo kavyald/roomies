@@ -9,6 +9,7 @@ import { FeelingWeightsSection } from './FeelingWeightsSection'
 import { InvitesSection } from './InvitesSection'
 import { RoommatesSection } from './RoommatesSection'
 import { RoomsSection } from './RoomsSection'
+import { SpentThisMonth } from './SpentThisMonth'
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="mt-6 mb-2.5 text-[1.0625rem] font-extrabold">{children}</h2>
@@ -49,6 +50,9 @@ export function HouseScreen({ houseId }: { houseId: HouseId }) {
 
       <SectionTitle>Rooms</SectionTitle>
       <RoomsSection houseId={houseId} />
+
+      <SectionTitle>Money</SectionTitle>
+      <SpentThisMonth houseId={houseId} />
 
       <SectionTitle>Settings</SectionTitle>
       <FeelingWeightsSection houseId={houseId} />

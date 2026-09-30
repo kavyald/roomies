@@ -23,8 +23,9 @@ import {
 } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import { describeWhen } from '@/lib/domain/format'
-import type { HouseId, ItemId, RunId } from '@/lib/domain/ids'
+import type { HouseId, ItemId, RunId, UserId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
+import type { Cents } from '@/lib/domain/money'
 import {
   isRunOpen,
   runLedger,
@@ -34,6 +35,8 @@ import {
   type Run,
 } from '@/lib/domain/runs'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
+import { useCostFields } from '@/components/costs/CostForm'
+import { useSplitwise } from '@/components/costs/useSplitwise'
 import { useContactChoice } from './ContactChoice'
 import { requestStage } from './meta'
 import { AddMore, SendRequest, VisitDate } from './RunExtras'
@@ -416,24 +419,13 @@ function RunSheetFor({
       )}
 
       {open && run.kind !== 'request' && (
-        <Button
-          variant={pending.length === 0 ? 'primary' : 'secondary'}
-          block
-          disabled={busy}
-          onClick={async () => {
-            const left = pending.length
-            const r = await finish.mutateAsync({ runId: run.id })
-            if (!r.ok) return toast("Couldn't finish it. Try again.")
-            toast(
-              left === 0
-                ? 'Finished. Thanks! 💛'
-                : `Finished. ${left === 1 ? '1 thing went' : `${left} things went`} back to the pool.`,
-            )
-            onClose()
-          }}
-        >
-          Finish
-        </Button>
+        <FinishRun
+          houseId={houseId}
+          run={run}
+          left={pending.length}
+          label={label}
+          onFinished={onClose}
+        />
       )}
 
       {run.kind === 'request' && (
@@ -488,4 +480,75 @@ const outcome = (
     case 'pending':
       return 'Still on it'
   }
+}
+
+/**
+ * Finish: anything left goes back to the pool. A batch first asks "Did you spend money?" and
+ * records one cost on the run (PRD §6.6).
+ */
+function FinishRun({
+  houseId,
+  run,
+  left,
+  label,
+  onFinished,
+}: {
+  houseId: HouseId
+  run: Run
+  left: number
+  label: string
+  onFinished: () => void
+}) {
+  const finish = useFinishRun(houseId)
+  const toast = useToast()
+  const splitwise = useSplitwise(houseId)
+  const cost = useCostFields(houseId, 'run-cost')
+  const [asking, setAsking] = useState(false)
+
+  const go = async (spent?: { amount: Cents; paidBy: UserId; note?: string }) => {
+    const r = await finish.mutateAsync({
+      runId: run.id,
+      ...(spent && { spent: spent.amount, paidBy: spent.paidBy, note: spent.note }),
+    })
+    if (!r.ok) return toast("Couldn't finish it. Try again.")
+    const back =
+      left === 0 ? '' : ` ${left === 1 ? '1 thing went' : `${left} things went`} back to the pool.`
+    const recorded = r.value.cost
+    toast(
+      `Finished.${back || ' Thanks! 💛'}`,
+      recorded ? { label: 'Open Splitwise', onClick: () => splitwise(recorded, label) } : undefined,
+    )
+    onFinished()
+  }
+
+  if (run.kind === 'batch' && asking) {
+    return (
+      <div className="grid gap-2.5 rounded-2xl bg-paper p-3">
+        <p className="m-0 font-extrabold">Did you spend money?</p>
+        {cost.fields}
+        <Button
+          disabled={finish.isPending || !cost.valid}
+          onClick={() => {
+            const v = cost.value()
+            if (v) void go(v)
+          }}
+        >
+          Save and finish
+        </Button>
+        <Button variant="secondary" disabled={finish.isPending} onClick={() => go()}>
+          No, just finish
+        </Button>
+      </div>
+    )
+  }
+  return (
+    <Button
+      variant={left === 0 ? 'primary' : 'secondary'}
+      block
+      disabled={finish.isPending}
+      onClick={() => (run.kind === 'batch' ? setAsking(true) : go())}
+    >
+      Finish
+    </Button>
+  )
 }

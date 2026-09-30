@@ -15,6 +15,8 @@ import {
   activityToDomain,
   contactToDomain,
   contactToRow,
+  costToDomain,
+  costToRow,
   houseToDomain,
   houseToRow,
   inviteToDomain,
@@ -327,6 +329,23 @@ const reposFor = (trx: Trx): Repos => {
         await save(
           () => trx.updateTable('runs').set(editable).where('id', '=', run.id).executeTakeFirst(),
           () => trx.insertInto('runs').values(row).execute(),
+        )
+      },
+    },
+    costs: {
+      listByHouse: async (houseId) =>
+        (
+          await trx
+            .selectFrom('costs')
+            .selectAll()
+            .where('house_id', '=', houseId)
+            .orderBy('created_at')
+            .execute()
+        ).map(costToDomain),
+      add: async (cost) => {
+        await save(
+          async () => ({ numUpdatedRows: BigInt(0) }),
+          () => trx.insertInto('costs').values(costToRow(cost)).execute(),
         )
       },
     },

@@ -28,6 +28,7 @@ import {
 import { useNow } from '@/lib/client/use-now'
 import { relativeTime } from '@/lib/domain/format'
 import type { HouseId, ItemId, PollId, RunId } from '@/lib/domain/ids'
+import { ItemCosts } from '@/components/costs/ItemCosts'
 import { ItemPolls } from '@/components/polls/ItemPolls'
 import { NewPollSheet } from '@/components/polls/NewPollSheet'
 import { PollSheet } from '@/components/polls/PollSheet'
@@ -540,6 +541,7 @@ function ItemDetailSheet({
         <WhyHere houseId={houseId} item={item} name={(u) => nameOf(u) ?? 'Former roommate'} />
       )}
       <ItemPolls houseId={houseId} item={item} />
+      <ItemCosts houseId={houseId} item={item} />
       <ItemRunPath houseId={houseId} itemId={item.id} />
 
       {primary && (

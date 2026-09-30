@@ -17,6 +17,7 @@ import type {
   RunId,
   UserId,
 } from '../../domain/ids'
+import type { Cost } from '../../domain/costs'
 import type { Poll, PollOption } from '../../domain/polls'
 import type { Feeling } from '../../domain/feelings'
 import { sameNeed, type Item, type Need } from '../../domain/items'
@@ -35,6 +36,7 @@ export type MemoryState = {
   feelings: Map<string, { houseId: HouseId; feeling: Feeling }>
   runs: Map<RunId, Run>
   polls: Map<PollId, Poll>
+  costs: Cost[]
   activity: StoredActivityRow[]
 }
 
@@ -50,6 +52,7 @@ export const emptyState = (): MemoryState => ({
   feelings: new Map(),
   runs: new Map(),
   polls: new Map(),
+  costs: [],
   activity: [],
 })
 
@@ -255,6 +258,22 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         if (run.title !== undefined && !(run.title.trim() && run.title.trim().length <= 80))
           throw new ConstraintViolation('runs: title')
         s.runs.set(run.id, run)
+      },
+    },
+    costs: {
+      listByHouse: async (houseId) => visible(s.costs, houseId),
+      add: async (cost) => {
+        if (!isMember(s, a, cost.houseId)) deny('costs')
+        if (a.kind !== 'system' && cost.createdBy !== uid(a)) deny('costs')
+        if (s.costs.some((c) => c.id === cost.id)) deny('costs')
+        if (!(cost.amount > 0 && cost.amount <= 10_000_000))
+          throw new ConstraintViolation('costs: amount')
+        const f = cost.for
+        if (f && 'item' in f && s.items.get(f.item)?.houseId !== cost.houseId)
+          throw new ConstraintViolation('costs: item not in house')
+        if (f && 'run' in f && !s.runs.has(f.run))
+          throw new ConstraintViolation('costs: no such run')
+        s.costs.push(cost)
       },
     },
     polls: {

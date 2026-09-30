@@ -15,6 +15,7 @@ import type {
   RunId,
   UserId,
 } from '../domain/ids'
+import type { Cost } from '../domain/costs'
 import type { Poll, PollOption, Vote } from '../domain/polls'
 import type { Feeling } from '../domain/feelings'
 import type { Item, Need } from '../domain/items'
@@ -123,6 +124,12 @@ export interface PollRepo {
   saveState(poll: Poll): Promise<void>
 }
 
+/** Costs are recorded, never edited or deleted in v1. */
+export interface CostRepo {
+  listByHouse(houseId: HouseId): Promise<Cost[]>
+  add(cost: Cost): Promise<void>
+}
+
 export interface RunRepo {
   get(id: RunId): Promise<Run | undefined>
   listByHouse(houseId: HouseId): Promise<Run[]>
@@ -154,6 +161,7 @@ export interface Repos {
   readonly feelings: FeelingRepo
   readonly runs: RunRepo
   readonly polls: PollRepo
+  readonly costs: CostRepo
   readonly events: EventSink
 }
 
@@ -207,6 +215,8 @@ export interface HouseQueries {
   latestActivity(houseId: HouseId, kind: EventKind): Promise<StoredActivityRow | undefined>
   /** The house's polls, open and closed, with their options and votes. */
   polls(houseId: HouseId): Promise<Poll[]>
+  /** The house's costs, oldest first. */
+  costs(houseId: HouseId): Promise<Cost[]>
   /** The house's runs, open ones and finished ones. */
   runs(houseId: HouseId): Promise<Run[]>
   /** A run's story (rows on it or moved into it), oldest first. */

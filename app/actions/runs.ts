@@ -17,6 +17,7 @@ import {
 } from '@/lib/app/runs'
 import { depsForRequest } from '@/lib/compose'
 import type { ContactId, HouseId, ItemId, RunId, UserId } from '@/lib/domain/ids'
+import type { Cents } from '@/lib/domain/money'
 import type { When } from '@/lib/domain/time'
 import {
   addToRequestSchema,
@@ -107,7 +108,13 @@ export async function returnToPoolAction(houseId: HouseId, input: unknown) {
 export async function finishRunAction(houseId: HouseId, input: unknown) {
   return makeAction(
     finishRunSchema,
-    (deps, actor, i) => makeFinishRun(deps)(actor, { runId: i.runId as RunId }),
+    (deps, actor, i) =>
+      makeFinishRun(deps)(actor, {
+        runId: i.runId as RunId,
+        ...(i.spent !== undefined && { spent: i.spent as Cents }),
+        ...(i.paidBy && { paidBy: i.paidBy as UserId }),
+        note: i.note,
+      }),
     env(houseId),
   )(input)
 }

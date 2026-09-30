@@ -52,6 +52,8 @@ export const fakeAppClient = (
     vote: async () => err('unexpected'),
     addPollOption: async () => err('unexpected'),
     closePoll: async () => err('unexpected'),
+    addCost: async () => err('unexpected'),
+    copiedToSplitwise: async () => err('unexpected'),
     ...commands,
   },
 })

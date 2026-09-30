@@ -146,7 +146,7 @@ export const useRunActivity = (houseId: HouseId, runId: RunId) => {
 }
 
 type Cmd<K extends keyof AppCommands> = Parameters<AppCommands[K]>[0]
-const RUN_AFFECTS: HouseKey[] = ['runs', 'items']
+const RUN_AFFECTS: HouseKey[] = ['runs', 'items', 'costs']
 export const useStartRun = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'startRun'>) => c.startRun(i), RUN_AFFECTS)
 export const useAddToRun = (houseId: HouseId) =>
@@ -173,6 +173,15 @@ export const useMoveToNewVisit = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'moveToNewVisit'>) => c.moveToNewVisit(i), RUN_AFFECTS)
 export const useSetVisitDate = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'setVisitDate'>) => c.setVisitDate(i), RUN_AFFECTS)
+
+export const useCosts = (houseId: HouseId) => {
+  const { queries } = useAppClient()
+  return useQuery({ queryKey: keys.costs(houseId), queryFn: () => queries.costs(houseId) })
+}
+export const useAddCost = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'addCost'>) => c.addCost(i), ['costs'])
+export const useCopiedToSplitwise = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'copiedToSplitwise'>) => c.copiedToSplitwise(i), [])
 
 export const usePolls = (houseId: HouseId) => {
   const { queries } = useAppClient()

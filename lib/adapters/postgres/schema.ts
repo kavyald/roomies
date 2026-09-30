@@ -149,6 +149,18 @@ export type PollVotesTable = {
   voted_at: Timestamp
 }
 
+export type CostsTable = {
+  id: string
+  house_id: string
+  amount_cents: number
+  paid_by: string
+  note: string | null
+  item_id: string | null
+  run_id: string | null
+  created_by: string
+  created_at: Timestamp
+}
+
 export type FeelingsTable = {
   item_id: string
   user_id: string
@@ -204,6 +216,7 @@ export type DB = {
   feelings: FeelingsTable
   runs: RunsTable
   polls: PollsTable
+  costs: CostsTable
   poll_options: PollOptionsTable
   poll_votes: PollVotesTable
   activity_events: ActivityEventsTable

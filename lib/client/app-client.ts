@@ -10,6 +10,7 @@ import type { Contact, House, Invite, Member, Role, Room } from '../domain/house
 import type { ReferenceError } from '../app/items'
 import type {
   ContactId,
+  CostId,
   InviteId,
   ItemId,
   OptionId,
@@ -18,6 +19,8 @@ import type {
   RunId,
   UserId,
 } from '../domain/ids'
+import type { Cost } from '../domain/costs'
+import type { Cents } from '../domain/money'
 import type { Poll, PollResult } from '../domain/polls'
 import type { NewRun, Run, SentVia } from '../domain/runs'
 import type { When } from '../domain/time'
@@ -140,7 +143,34 @@ export type AppCommands = {
   }): Promise<CommandResult<Run, 'nothing_selected' | 'not_on_run' | 'not_found'>>
   finishRun(input: {
     runId: RunId
-  }): Promise<CommandResult<Run, 'finished' | 'not_finishable' | 'not_found'>>
+    spent?: Cents
+    paidBy?: UserId
+    note?: string
+  }): Promise<
+    CommandResult<
+      { run: Run; cost?: Cost },
+      | 'finished'
+      | 'not_finishable'
+      | 'not_found'
+      | 'unknown_member'
+      | 'not_positive'
+      | 'too_large'
+      | 'note_too_long'
+    >
+  >
+  addCost(input: {
+    amount: Cents
+    paidBy?: UserId
+    note?: string
+    itemId?: ItemId
+    runId?: RunId
+  }): Promise<
+    CommandResult<
+      Cost,
+      'unknown_member' | 'not_found' | 'not_positive' | 'too_large' | 'note_too_long'
+    >
+  >
+  copiedToSplitwise(input: { costId: CostId }): Promise<CommandResult<Cost, 'not_found'>>
   startRequest(input: {
     contactId: ContactId
     itemIds: ItemId[]
