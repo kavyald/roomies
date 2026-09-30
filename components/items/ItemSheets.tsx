@@ -27,7 +27,10 @@ import {
 } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import { relativeTime } from '@/lib/domain/format'
-import type { HouseId, ItemId, RunId } from '@/lib/domain/ids'
+import type { HouseId, ItemId, PollId, RunId } from '@/lib/domain/ids'
+import { ItemPolls } from '@/components/polls/ItemPolls'
+import { NewPollSheet } from '@/components/polls/NewPollSheet'
+import { PollSheet } from '@/components/polls/PollSheet'
 import { RunSheet } from '@/components/runs/RunSheet'
 import { StartRunSheet } from '@/components/runs/StartRunSheet'
 import { ItemRunPath } from '@/components/runs/ItemRunPath'
@@ -45,12 +48,16 @@ type Sheets = {
   openItem(id: ItemId): void
   openRun(id: RunId): void
   startRun(): void
+  openPoll(id: PollId): void
+  newPoll(about?: { id: ItemId; title: string }): void
 }
 const SheetsContext = createContext<Sheets>({
   openAdd: () => {},
   openItem: () => {},
   openRun: () => {},
   startRun: () => {},
+  openPoll: () => {},
+  newPoll: () => {},
 })
 
 /** Opens the "+" sheet or an item's detail sheet from anywhere in the house. */
@@ -77,6 +84,8 @@ export function ItemSheetsProvider({
   const [openId, setOpenId] = useState<ItemId | null>(null)
   const [runId, setRunId] = useState<RunId | null>(null)
   const [starting, setStarting] = useState(false)
+  const [pollId, setPollId] = useState<PollId | null>(null)
+  const [newPoll, setNewPoll] = useState<{ about?: { id: ItemId; title: string } } | null>(null)
   const sheets = useMemo<Sheets>(
     () => ({
       openAdd: (category) => setAdding({ category }),
@@ -89,6 +98,14 @@ export function ItemSheetsProvider({
         setRunId(id)
       },
       startRun: () => setStarting(true),
+      openPoll: (id) => {
+        setOpenId(null)
+        setPollId(id)
+      },
+      newPoll: (about) => {
+        setOpenId(null)
+        setNewPoll({ about })
+      },
     }),
     [],
   )
@@ -104,10 +121,40 @@ export function ItemSheetsProvider({
             setAdding(null)
             setOpenId(id)
           }}
+          onPoll={() => {
+            setAdding(null)
+            setNewPoll({})
+          }}
+          onRun={() => {
+            setAdding(null)
+            setStarting(true)
+          }}
         />
       )}
       {openId && <ItemDetailSheet houseId={houseId} id={openId} onClose={() => setOpenId(null)} />}
       {runId && <RunSheet houseId={houseId} runId={runId} onClose={() => setRunId(null)} />}
+      {pollId && (
+        <PollSheet
+          houseId={houseId}
+          pollId={pollId}
+          onClose={() => setPollId(null)}
+          onOpenItem={(id) => {
+            setPollId(null)
+            setOpenId(id)
+          }}
+        />
+      )}
+      {newPoll && (
+        <NewPollSheet
+          houseId={houseId}
+          about={newPoll.about}
+          onClose={() => setNewPoll(null)}
+          onCreated={(id) => {
+            setNewPoll(null)
+            setPollId(id)
+          }}
+        />
+      )}
       {starting && (
         <StartRunSheet
           houseId={houseId}
@@ -129,11 +176,15 @@ function AddSheet({
   initialCategory,
   onClose,
   onOpen,
+  onPoll,
+  onRun,
 }: {
   houseId: HouseId
   initialCategory?: Category
   onClose: () => void
   onOpen: (id: ItemId) => void
+  onPoll: () => void
+  onRun: () => void
 }) {
   const [category, setCategory] = useState<Category | null>(initialCategory ?? null)
   const create = useCreateItem(houseId)
@@ -167,8 +218,8 @@ function AddSheet({
       { key: 'need', label: 'A need', blurb: 'Something to buy', icon: CATEGORY.need.icon },
       { key: 'chore', label: 'A chore', blurb: 'Ongoing upkeep', icon: CATEGORY.chore.icon },
       { key: 'task', label: 'A task', blurb: 'A one-off', icon: CATEGORY.task.icon },
-      { key: 'poll', label: 'A poll', blurb: 'Coming soon', icon: BarChart3, soon: true },
-      { key: 'run', label: 'A run', blurb: 'Coming soon', icon: ShoppingCart, soon: true },
+      { key: 'poll', label: 'A poll', blurb: 'A question', icon: BarChart3 },
+      { key: 'run', label: 'A run', blurb: 'A batch', icon: ShoppingCart },
     ]
     return (
       <Sheet open onOpenChange={(o) => !o && onClose()} title="Add something">
@@ -178,7 +229,9 @@ function AddSheet({
               key={t.key}
               type="button"
               disabled={t.soon}
-              onClick={() => setCategory(t.key as Category)}
+              onClick={() =>
+                t.key === 'poll' ? onPoll() : t.key === 'run' ? onRun() : setCategory(t.key)
+              }
               className="sticker grid gap-2 rounded-[20px] bg-paper px-3.5 py-4 text-left font-extrabold shadow-[inset_0_0_0_1.5px_var(--line),0_2px_0_var(--line)] disabled:opacity-50"
             >
               <t.icon aria-hidden className="size-[26px] text-accent-ink" />
@@ -486,6 +539,7 @@ function ItemDetailSheet({
       {isOpen(item) && (
         <WhyHere houseId={houseId} item={item} name={(u) => nameOf(u) ?? 'Former roommate'} />
       )}
+      <ItemPolls houseId={houseId} item={item} />
       <ItemRunPath houseId={houseId} itemId={item.id} />
 
       {primary && (

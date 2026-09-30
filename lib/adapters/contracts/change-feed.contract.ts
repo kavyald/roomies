@@ -32,10 +32,7 @@ export const changeFeedContract = (name: string, make: () => Promise<ChangeFeedH
         h.feedFor(mine.member, mine.house.id).subscribe(mine.house.id, (c) => heard.push(c)),
       )
 
-      const record = (
-        houseId: HouseId,
-        kind: 'house.created' | 'settings.feeling_weights_changed',
-      ) =>
+      const record = (houseId: HouseId, kind: 'house.created' | 'invite.created') =>
         h.uow.run(system(houseId), (r) =>
           r.events.record(
             houseId,
@@ -44,7 +41,7 @@ export const changeFeedContract = (name: string, make: () => Promise<ChangeFeedH
                 kind,
                 actionId: h.ids.newId(),
                 by: null,
-                ...(kind !== 'house.created' && { changes: {} }),
+                ...(kind === 'invite.created' && { payload: {} }),
               } as DomainEvent,
             ],
             T,
@@ -58,13 +55,14 @@ export const changeFeedContract = (name: string, make: () => Promise<ChangeFeedH
       }
       expect(heard[0]).toEqual({ table: 'houses' })
 
-      // Another house's change first, then ours: only ours arrives.
-      heard.length = 0
-      await record(theirs.house.id, 'house.created')
-      await record(mine.house.id, 'settings.feeling_weights_changed')
-      for (let i = 0; i < 40 && heard.length === 0; i++) await sleep(100)
+      // Another house's change first, then ours (a different kind, so stragglers from the loop
+      // above can't be mistaken for it): only ours arrives.
+      await record(theirs.house.id, 'invite.created')
+      await record(mine.house.id, 'invite.created')
+      const invites = () => heard.filter((c) => c.table === 'house_invites')
+      for (let i = 0; i < 40 && invites().length === 0; i++) await sleep(100)
       await sleep(300)
-      expect(heard).toEqual([{ table: 'houses' }])
+      expect(invites()).toEqual([{ table: 'house_invites' }])
     })
 
     it('stops after unsubscribing', async () => {

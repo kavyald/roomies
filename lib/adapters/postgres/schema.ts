@@ -118,6 +118,37 @@ export type RunsTable = {
   updated_at: Generated<Timestamp>
 }
 
+export type PollsTable = {
+  id: string
+  house_id: string
+  question: string
+  item_id: string | null
+  closes_at: Timestamp | null
+  closed_at: Timestamp | null
+  created_by: string
+  created_at: Timestamp
+  updated_at: Generated<Timestamp>
+}
+
+export type PollOptionsTable = {
+  id: string
+  poll_id: string
+  house_id: string
+  label: string
+  note: string | null
+  added_by: string
+  added_at: Timestamp
+  sort_order: number
+}
+
+export type PollVotesTable = {
+  poll_id: string
+  user_id: string
+  house_id: string
+  option_id: string
+  voted_at: Timestamp
+}
+
 export type FeelingsTable = {
   item_id: string
   user_id: string
@@ -172,6 +203,9 @@ export type DB = {
   items: ItemsTable
   feelings: FeelingsTable
   runs: RunsTable
+  polls: PollsTable
+  poll_options: PollOptionsTable
+  poll_votes: PollVotesTable
   activity_events: ActivityEventsTable
   notifications_outbox: NotificationsOutboxTable
 }

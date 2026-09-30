@@ -24,6 +24,12 @@ import {
   setFeelingAction,
 } from '@/app/actions/items'
 import {
+  addPollOptionAction,
+  closePollAction,
+  createPollAction,
+  voteAction,
+} from '@/app/actions/polls'
+import {
   addToRequestAction,
   addToRunAction,
   handToContactAction,
@@ -94,6 +100,10 @@ export function HouseProviders({
       handToContact: (input) => handToContactAction(houseId, input),
       moveToNewVisit: (input) => moveToNewVisitAction(houseId, input),
       setVisitDate: (input) => setVisitDateAction(houseId, input),
+      createPoll: (input) => createPollAction(houseId, input),
+      vote: (input) => voteAction(houseId, input),
+      addPollOption: (input) => addPollOptionAction(houseId, input),
+      closePoll: (input) => closePollAction(houseId, input),
     }),
   )
   return (

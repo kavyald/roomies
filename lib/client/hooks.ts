@@ -174,6 +174,19 @@ export const useMoveToNewVisit = (houseId: HouseId) =>
 export const useSetVisitDate = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'setVisitDate'>) => c.setVisitDate(i), RUN_AFFECTS)
 
+export const usePolls = (houseId: HouseId) => {
+  const { queries } = useAppClient()
+  return useQuery({ queryKey: keys.polls(houseId), queryFn: () => queries.polls(houseId) })
+}
+export const useCreatePoll = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'createPoll'>) => c.createPoll(i), ['polls'])
+export const useVote = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'vote'>) => c.vote(i), ['polls'])
+export const useAddPollOption = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'addPollOption'>) => c.addPollOption(i), ['polls'])
+export const useClosePoll = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'closePoll'>) => c.closePoll(i), ['polls'])
+
 export const useCreateItem = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: NewItem) => c.createItem(i), ['items'])
 export const useEditItem = (houseId: HouseId) =>

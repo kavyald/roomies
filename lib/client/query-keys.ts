@@ -12,6 +12,7 @@ export const keys = {
   items: (houseId: HouseId) => ['house', houseId, 'items'] as const,
   feelings: (houseId: HouseId) => ['house', houseId, 'feelings'] as const,
   runs: (houseId: HouseId) => ['house', houseId, 'runs'] as const,
+  polls: (houseId: HouseId) => ['house', houseId, 'polls'] as const,
   /** Under activity, so anything that writes to the log refreshes it. */
   weightsChange: (houseId: HouseId) => ['house', houseId, 'activity', 'weights'] as const,
   runActivity: (houseId: HouseId, runId: string) =>
@@ -37,6 +38,8 @@ export const keysForTable = (houseId: HouseId, table: string): readonly (readonl
       return [keys.feelings(houseId), keys.activity(houseId)]
     case 'items':
       return [keys.items(houseId)]
+    case 'polls':
+      return [keys.polls(houseId)]
     case 'runs':
       return [keys.runs(houseId), keys.items(houseId)]
     case 'house_invites':

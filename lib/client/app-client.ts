@@ -8,7 +8,17 @@ import type { ContactPatch } from '../domain/contacts'
 import type { Feeling, FeelingKind, FeelingWeights } from '../domain/feelings'
 import type { Contact, House, Invite, Member, Role, Room } from '../domain/house'
 import type { ReferenceError } from '../app/items'
-import type { ContactId, InviteId, ItemId, RoomId, RunId, UserId } from '../domain/ids'
+import type {
+  ContactId,
+  InviteId,
+  ItemId,
+  OptionId,
+  PollId,
+  RoomId,
+  RunId,
+  UserId,
+} from '../domain/ids'
+import type { Poll, PollResult } from '../domain/polls'
 import type { NewRun, Run, SentVia } from '../domain/runs'
 import type { When } from '../domain/time'
 
@@ -172,6 +182,46 @@ export type AppCommands = {
     runId: RunId
     when: When | null
   }): Promise<CommandResult<Run, 'not_a_visit' | 'no_change' | 'not_found'>>
+  createPoll(input: {
+    question: string
+    itemId?: ItemId
+    options: { label: string; note?: string }[]
+    closesAt?: string
+  }): Promise<
+    CommandResult<
+      Poll,
+      | 'empty_question'
+      | 'question_too_long'
+      | 'needs_two_options'
+      | 'duplicate_label'
+      | 'empty_label'
+      | 'label_too_long'
+      | 'note_too_long'
+      | 'not_found'
+    >
+  >
+  vote(input: {
+    pollId: PollId
+    optionId: OptionId
+  }): Promise<CommandResult<Poll, 'closed' | 'unknown_option' | 'no_change' | 'not_found'>>
+  addPollOption(input: {
+    pollId: PollId
+    label: string
+    note?: string
+  }): Promise<
+    CommandResult<
+      Poll,
+      | 'closed'
+      | 'duplicate_label'
+      | 'empty_label'
+      | 'label_too_long'
+      | 'note_too_long'
+      | 'not_found'
+    >
+  >
+  closePoll(input: {
+    pollId: PollId
+  }): Promise<CommandResult<{ poll: Poll; result: PollResult }, 'already_closed' | 'not_found'>>
   setFeelingWeights(
     weights: FeelingWeights,
   ): Promise<CommandResult<House, 'not_found' | 'out_of_range' | 'no_change'>>

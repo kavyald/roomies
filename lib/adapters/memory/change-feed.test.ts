@@ -28,6 +28,7 @@ describe('changeForKind', () => {
     expect(changeForKind('contact.added').table).toBe('contacts')
     expect(changeForKind('invite.created').table).toBe('house_invites')
     expect(changeForKind('settings.feeling_weights_changed').table).toBe('houses')
-    expect(changeForKind('poll.opened').table).toBe('unknown')
+    expect(changeForKind('poll.voted').table).toBe('polls')
+    expect(changeForKind('cost.added').table).toBe('unknown')
   })
 })

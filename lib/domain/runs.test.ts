@@ -15,6 +15,7 @@ import {
   addToRun,
   finishRun,
   handToContact,
+  inArrivalOrder,
   planVisit,
   requestMessage,
   sendRequest,
@@ -460,3 +461,15 @@ describe('requests and visits', () => {
 })
 
 const g = () => batch()
+
+describe('inArrivalOrder', () => {
+  it('orders items the way they came onto the run; strangers go last', () => {
+    const ledger = [
+      { itemId: 'Leak' as ItemId, state: { at: 'pending' as const } },
+      { itemId: 'Mold' as ItemId, state: { at: 'pending' as const } },
+    ]
+    expect(
+      inArrivalOrder([task('Other'), task('Mold'), task('Leak')], ledger).map((t) => t.title),
+    ).toEqual(['Leak', 'Mold', 'Other'])
+  })
+})

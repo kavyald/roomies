@@ -13,6 +13,7 @@ import {
   itemToDomain,
   memberToDomain,
   profileToDomain,
+  pollToDomain,
   roomToDomain,
   runToDomain,
 } from '../postgres/mappers'
@@ -82,6 +83,23 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => {
       return rows(sb.from('items').select('*').eq('house_id', houseId).order('created_at'), (r) =>
         itemToDomain(r, tz),
       )
+    },
+    polls: async (houseId) => {
+      const byHouse = (table: string) =>
+        sb.from(table).select('*').eq('house_id', houseId) as unknown as PromiseLike<{
+          data: never[] | null
+          error: { message: string } | null
+        }>
+      const [polls, options, votes] = await Promise.all([
+        rows(byHouse('polls'), (r) => r),
+        rows(byHouse('poll_options'), (r) => r),
+        rows(byHouse('poll_votes'), (r) => r),
+      ])
+      return polls
+        .sort((a: { created_at: string }, b: { created_at: string }) =>
+          a.created_at.localeCompare(b.created_at),
+        )
+        .map((p) => pollToDomain(p, options, votes))
     },
     runs: async (houseId) => {
       const tz = await tzOf(houseId)

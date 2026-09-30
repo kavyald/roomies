@@ -35,6 +35,7 @@ export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQu
       .sort((a, b) => b.id - a.id)
   },
   runs: (houseId) => uow.run(actor, (r) => r.runs.listByHouse(houseId)),
+  polls: (houseId) => uow.run(actor, (r) => r.polls.listByHouse(houseId)),
   runActivity: async (houseId, runId) => {
     const visible = await uow.run(actor, (r) => r.houses.get(houseId))
     if (!visible) return []

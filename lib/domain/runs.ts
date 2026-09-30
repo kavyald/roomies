@@ -387,6 +387,17 @@ export const runLedger = (
   return [...state].map(([itemId, s]) => ({ itemId, state: s }))
 }
 
+/** Items in the order they came onto the run (what a request's numbered list follows). */
+export const inArrivalOrder = <I extends Item>(
+  items: readonly I[],
+  ledger: readonly LedgerEntry[],
+): I[] => {
+  const at = new Map(ledger.map((e, i) => [e.itemId as string, i]))
+  return [...items].sort(
+    (a, b) => (at.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (at.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+  )
+}
+
 /** "1/3": how many of the items that came on the run are done. */
 export const runProgress = (ledger: readonly LedgerEntry[]): { done: number; total: number } => ({
   done: ledger.filter((e) => e.state.at === 'done').length,

@@ -12,6 +12,7 @@ import {
   useHouse,
   useItems,
   useRooms,
+  useRunActivity,
   useSendRequest,
   useSetVisitDate,
 } from '@/lib/client/hooks'
@@ -19,7 +20,15 @@ import { useNow } from '@/lib/client/use-now'
 import { describeWhen } from '@/lib/domain/format'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
 import type { Task } from '@/lib/domain/items'
-import { requestMessage, type Request, type SentVia, type Visit } from '@/lib/domain/runs'
+import {
+  inArrivalOrder,
+  requestMessage,
+  runLedger,
+  runSteps,
+  type Request,
+  type SentVia,
+  type Visit,
+} from '@/lib/domain/runs'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
 
 const VIA_OPTIONS: { value: SentVia; label: string }[] = [
@@ -114,7 +123,9 @@ export function SendRequest({
   const [open, setOpen] = useState(false)
   const [via, setVia] = useState<SentVia>('text')
 
-  const onIt = (items.data ?? []).filter((i) => i.run?.id === run.id)
+  const activity = useRunActivity(houseId, run.id)
+  const onRun = (items.data ?? []).filter((i) => i.run?.id === run.id)
+  const onIt = inArrivalOrder(onRun, runLedger(run.id, runSteps(activity.data ?? []), onRun))
   const roomName = new Map((rooms.data ?? []).map((r) => [r.id as string, r.name]))
   const contact = contacts.data?.find((c) => c.id === run.contactId)
   const message = requestMessage(

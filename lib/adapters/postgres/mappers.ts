@@ -6,6 +6,7 @@ import { feelingWeightsFrom, type Feeling } from '../../domain/feelings'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
 import { asId } from '../../domain/ids'
 import type { Done, Item } from '../../domain/items'
+import type { Poll, PollOption } from '../../domain/polls'
 import type { Run } from '../../domain/runs'
 import {
   instant,
@@ -25,6 +26,9 @@ import type {
   HousesTable,
   ItemsTable,
   ProfilesTable,
+  PollOptionsTable,
+  PollsTable,
+  PollVotesTable,
   RoomsTable,
   RunsTable,
 } from './schema'
@@ -299,6 +303,56 @@ export const itemToRow = (i: Item, tz: string) => {
     archived_at: i.archivedAt ? toDate(i.archivedAt) : null,
   }
 }
+
+// ---- polls --------------------------------------------------------------------------------------
+
+export const pollToDomain = (
+  r: Selectable<PollsTable>,
+  options: readonly Selectable<PollOptionsTable>[],
+  votes: readonly Selectable<PollVotesTable>[],
+): Poll =>
+  compact({
+    id: asId<'poll'>(r.id),
+    houseId: asId<'house'>(r.house_id),
+    question: r.question,
+    itemId: r.item_id ? asId<'item'>(r.item_id) : undefined,
+    options: [...options]
+      .filter((o) => o.poll_id === r.id)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((o) =>
+        compact({
+          id: asId<'option'>(o.id),
+          label: o.label,
+          note: o.note ?? undefined,
+          addedBy: asId<'user'>(o.added_by),
+          addedAt: toInstant(o.added_at),
+        }),
+      ),
+    votes: votes
+      .filter((v) => v.poll_id === r.id)
+      .map((v) => ({
+        user: asId<'user'>(v.user_id),
+        option: asId<'option'>(v.option_id),
+        at: toInstant(v.voted_at),
+      })),
+    closesAt: optInstant(r.closes_at),
+    createdBy: asId<'user'>(r.created_by),
+    createdAt: toInstant(r.created_at),
+    state: r.closed_at
+      ? { open: false as const, closedAt: toInstant(r.closed_at) }
+      : { open: true as const },
+  })
+
+export const pollOptionToRow = (p: Poll, o: PollOption, sortOrder: number) => ({
+  id: o.id,
+  poll_id: p.id,
+  house_id: p.houseId,
+  label: o.label,
+  note: o.note ?? null,
+  added_by: o.addedBy,
+  added_at: toDate(o.addedAt),
+  sort_order: sortOrder,
+})
 
 // ---- runs ---------------------------------------------------------------------------------------
 

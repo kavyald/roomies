@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Plus, ShoppingBag, ShoppingCart } from 'lucide-react'
+import { BarChart3, Check, Plus, ShoppingBag, ShoppingCart } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
 import { FeelingCounts } from '@/components/items/Feelings'
@@ -20,6 +20,7 @@ import {
   useMarkDone,
   useReopenItem,
   useFeelingsByItem,
+  usePolls,
 } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
@@ -41,6 +42,10 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
   const reopen = useReopenItem(houseId)
   const toast = useToast()
   const now = useNow()
+  const polls = usePolls(houseId)
+  const openPollItems = new Set(
+    (polls.data ?? []).filter((p) => p.state.open && p.itemId).map((p) => p.itemId as string),
+  )
   const [title, setTitle] = useState('')
   const [highlight, setHighlight] = useState<ItemId | null>(null)
   const rows = useRef(new Map<string, HTMLLIElement>())
@@ -129,6 +134,7 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
             const room = n.roomId ? ctx.rooms.get(n.roomId) : undefined
             const when = whenLabel(n, now, tz)
             const onRun = n.run ? ctx.run(n.run.id) : undefined
+            const polled = openPollItems.has(n.id)
             return (
               <li
                 key={n.id}
@@ -160,13 +166,14 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
                     <span className="font-bold">{n.title}</span>
                     <FeelingCounts feelings={feelingsBy.get(n.id) ?? []} />
                   </span>
-                  {(n.note || room || when || onRun) && (
+                  {(n.note || room || when || onRun || polled) && (
                     <span className="flex flex-wrap items-center gap-1.5 text-[0.8rem] font-semibold text-ink-soft">
                       {onRun && (
                         <Chip icon={RUN_ICON[onRun.run.kind]}>
                           {onRunLabel(onRun.run, onRun.label)}
                         </Chip>
                       )}
+                      {polled && <Chip icon={BarChart3}>Poll</Chip>}
                       {room && <RoomChip name={room.name} element={room.element} />}
                       {when && <span>{when}</span>}
                       {n.note && <span className="truncate">{n.note}</span>}

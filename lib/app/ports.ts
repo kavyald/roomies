@@ -4,7 +4,18 @@
 import type { Actor } from '../domain/actor'
 import type { DomainEvent, EventKind, StoredActivityRow } from '../domain/events'
 import type { Contact, House, Invite, Member, Profile, Room } from '../domain/house'
-import type { ContactId, HouseId, Id, InviteId, ItemId, RoomId, RunId, UserId } from '../domain/ids'
+import type {
+  ContactId,
+  HouseId,
+  Id,
+  InviteId,
+  ItemId,
+  PollId,
+  RoomId,
+  RunId,
+  UserId,
+} from '../domain/ids'
+import type { Poll, PollOption, Vote } from '../domain/polls'
 import type { Feeling } from '../domain/feelings'
 import type { Item, Need } from '../domain/items'
 import type { Result } from '../domain/result'
@@ -96,6 +107,22 @@ export interface ItemRepo {
   save(item: Item): Promise<void>
 }
 
+/**
+ * Polls are saved piece by piece, because each piece has its own rule: anyone adds an option or
+ * casts their own vote while it's open; opening and closing is the poll row.
+ */
+export interface PollRepo {
+  get(id: PollId): Promise<Poll | undefined>
+  listByHouse(houseId: HouseId): Promise<Poll[]>
+  /** A new poll with its first options. */
+  create(poll: Poll): Promise<void>
+  addOption(poll: Poll, option: PollOption): Promise<void>
+  /** Casts or changes this member's vote. */
+  setVote(poll: Poll, vote: Vote): Promise<void>
+  /** Its deadline and whether it's closed. */
+  saveState(poll: Poll): Promise<void>
+}
+
 export interface RunRepo {
   get(id: RunId): Promise<Run | undefined>
   listByHouse(houseId: HouseId): Promise<Run[]>
@@ -126,6 +153,7 @@ export interface Repos {
   readonly items: ItemRepo
   readonly feelings: FeelingRepo
   readonly runs: RunRepo
+  readonly polls: PollRepo
   readonly events: EventSink
 }
 
@@ -177,6 +205,8 @@ export interface HouseQueries {
   invites(houseId: HouseId): Promise<Invite[]>
   /** The house's most recent activity row of one kind (the Home card for a weights change). */
   latestActivity(houseId: HouseId, kind: EventKind): Promise<StoredActivityRow | undefined>
+  /** The house's polls, open and closed, with their options and votes. */
+  polls(houseId: HouseId): Promise<Poll[]>
   /** The house's runs, open ones and finished ones. */
   runs(houseId: HouseId): Promise<Run[]>
   /** A run's story (rows on it or moved into it), oldest first. */

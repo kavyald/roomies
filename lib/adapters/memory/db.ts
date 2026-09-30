@@ -7,7 +7,17 @@ import type { Actor } from '../../domain/actor'
 import { activityRowFor, type StoredActivityRow } from '../../domain/events'
 import { isFailedResult } from '../../domain/result'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
-import type { ContactId, HouseId, InviteId, ItemId, RoomId, RunId, UserId } from '../../domain/ids'
+import type {
+  ContactId,
+  HouseId,
+  InviteId,
+  ItemId,
+  PollId,
+  RoomId,
+  RunId,
+  UserId,
+} from '../../domain/ids'
+import type { Poll, PollOption } from '../../domain/polls'
 import type { Feeling } from '../../domain/feelings'
 import { sameNeed, type Item, type Need } from '../../domain/items'
 import type { Run } from '../../domain/runs'
@@ -24,6 +34,7 @@ export type MemoryState = {
   items: Map<ItemId, Item>
   feelings: Map<string, { houseId: HouseId; feeling: Feeling }>
   runs: Map<RunId, Run>
+  polls: Map<PollId, Poll>
   activity: StoredActivityRow[]
 }
 
@@ -38,6 +49,7 @@ export const emptyState = (): MemoryState => ({
   items: new Map(),
   feelings: new Map(),
   runs: new Map(),
+  polls: new Map(),
   activity: [],
 })
 
@@ -245,6 +257,51 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         s.runs.set(run.id, run)
       },
     },
+    polls: {
+      get: async (id) => {
+        const p = s.polls.get(id)
+        return p && isMember(s, a, p.houseId) ? p : undefined
+      },
+      listByHouse: async (houseId) => visible(s.polls.values(), houseId),
+      create: async (poll) => {
+        if (!isMember(s, a, poll.houseId)) deny('polls')
+        if (a.kind !== 'system' && poll.createdBy !== uid(a)) deny('polls')
+        if (s.polls.has(poll.id)) deny('polls')
+        if (poll.itemId && s.items.get(poll.itemId)?.houseId !== poll.houseId)
+          throw new ConstraintViolation('polls: item not in house')
+        poll.options.forEach((o, i) => checkOption(poll.options.slice(0, i), o))
+        s.polls.set(poll.id, { ...poll, votes: [] })
+      },
+      addOption: async (poll, option) => {
+        const stored = s.polls.get(poll.id)
+        if (!stored || !isMember(s, a, stored.houseId)) deny('poll_options')
+        if (a.kind !== 'system' && option.addedBy !== uid(a)) deny('poll_options')
+        if (!stored!.state.open) deny('poll_options') // "poll options add while open"
+        checkOption(stored!.options, option)
+        s.polls.set(poll.id, { ...stored!, options: [...stored!.options, option] })
+      },
+      setVote: async (poll, vote) => {
+        const stored = s.polls.get(poll.id)
+        if (!stored || !isMember(s, a, stored.houseId)) deny('poll_votes')
+        if (a.kind !== 'system' && vote.user !== uid(a)) deny('poll_votes')
+        if (!stored!.state.open) deny('poll_votes')
+        if (!stored!.options.some((o) => o.id === vote.option))
+          throw new ConstraintViolation('poll_votes: option not in poll')
+        s.polls.set(poll.id, {
+          ...stored!,
+          votes: [...stored!.votes.filter((v) => v.user !== vote.user), vote],
+        })
+      },
+      saveState: async (poll) => {
+        const stored = s.polls.get(poll.id)
+        if (!stored || !isMember(s, a, stored.houseId)) deny('polls')
+        s.polls.set(poll.id, {
+          ...stored!,
+          state: poll.state,
+          ...(poll.closesAt ? { closesAt: poll.closesAt } : { closesAt: undefined }),
+        })
+      },
+    },
     events: {
       forRun: async (houseId, runId) =>
         isMember(s, a, houseId)
@@ -265,7 +322,16 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
   }
 }
 
-// ---- data rules (keep in sync with the items migration's CHECKs and unique index) ---------------
+// ---- data rules (keep in sync with the migrations' CHECKs and unique indexes) -------------------
+
+/** poll_options: a 1–80 character label, unique in its poll (any case). */
+const checkOption = (existing: readonly PollOption[], o: PollOption): void => {
+  const label = o.label.trim()
+  if (!label || label.length > 80) throw new ConstraintViolation('poll_options: label')
+  if (o.note && o.note.length > 280) throw new ConstraintViolation('poll_options: note')
+  if (existing.some((x) => x.label.trim().toLowerCase() === label.toLowerCase()))
+    throw new ConstraintViolation('poll_options: duplicate label')
+}
 
 const refuse = (rule: string): never => {
   throw new ConstraintViolation(`items: ${rule}`)

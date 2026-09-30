@@ -48,6 +48,10 @@ export const fakeAppClient = (
     handToContact: async () => err('unexpected'),
     moveToNewVisit: async () => err('unexpected'),
     setVisitDate: async () => err('unexpected'),
+    createPoll: async () => err('unexpected'),
+    vote: async () => err('unexpected'),
+    addPollOption: async () => err('unexpected'),
+    closePoll: async () => err('unexpected'),
     ...commands,
   },
 })

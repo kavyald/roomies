@@ -12,6 +12,7 @@ import {
   addToRun,
   finishRun,
   handToContact,
+  inArrivalOrder,
   markRunItemsDone,
   moveRunItems,
   planVisit,
@@ -269,7 +270,9 @@ export const makeSendRequest = (deps: Deps) =>
   inTx(deps, async (actor, input: { runId: RunId; via: SentVia }, ctx) => {
     const run = await loadRun(ctx.repos, actor, input.runId)
     if (!run) return err('not_found')
-    const tasks = await ctx.repos.items.onRun(run.id)
+    const onRun = await ctx.repos.items.onRun(run.id)
+    const history = await ctx.repos.events.forRun(actor.houseId, run.id)
+    const tasks = inArrivalOrder(onRun, runLedger(run.id, runSteps(history), onRun))
     const message = await composeMessage(ctx.repos, actor, run, tasks)
     const r = sendRequest(run, input.via, message, tasks.length, ctx)
     if (!r.ok) return r

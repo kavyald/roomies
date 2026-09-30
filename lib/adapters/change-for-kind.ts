@@ -12,6 +12,7 @@ const TABLE_BY_PREFIX: Record<string, string> = {
   house: 'houses',
   settings: 'houses',
   run: 'runs',
+  poll: 'polls',
   request: 'runs',
 }
 

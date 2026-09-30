@@ -181,6 +181,35 @@ export const houseQueriesContract = (
       })
     })
 
+    it("reads the house's polls with their options and votes", async () => {
+      const { house, admin, member } = await withPlaces()
+      const poll = {
+        id: h.ids.newId<'poll'>(),
+        houseId: house.id,
+        question: 'House name?',
+        options: [
+          { id: h.ids.newId<'option'>(), label: 'The Nest', addedBy: member, addedAt: T },
+          { id: h.ids.newId<'option'>(), label: 'Burrow', addedBy: member, addedAt: T },
+        ],
+        votes: [] as { user: typeof admin; option: string; at: typeof T }[],
+        createdBy: member,
+        createdAt: T,
+        state: { open: true as const },
+      }
+      await h.uow.run(system(house.id), async (r) => {
+        await r.polls.create(poll as never)
+        await r.polls.setVote(poll as never, { user: admin, option: poll.options[1]!.id, at: T })
+      })
+      const [read] = await h.queriesFor(member, house.id).polls(house.id)
+      expect(read).toMatchObject({
+        question: 'House name?',
+        options: [{ label: 'The Nest' }, { label: 'Burrow' }],
+        votes: [{ user: admin, option: poll.options[1]!.id }],
+      })
+      const stranger = await seedHouse(h)
+      expect(await h.queriesFor(stranger.member, stranger.house.id).polls(house.id)).toEqual([])
+    })
+
     it("reads the house's runs and a run's story, including items moved into it", async () => {
       const { house, member } = await withPlaces()
       const run = (title: string) => ({

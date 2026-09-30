@@ -28,6 +28,8 @@ import {
   profileToDomain,
   profileToRow,
   roomToDomain,
+  pollOptionToRow,
+  pollToDomain,
   roomToRow,
   runToDomain,
   runToRow,
@@ -326,6 +328,95 @@ const reposFor = (trx: Trx): Repos => {
           () => trx.updateTable('runs').set(editable).where('id', '=', run.id).executeTakeFirst(),
           () => trx.insertInto('runs').values(row).execute(),
         )
+      },
+    },
+    polls: {
+      get: async (id) => {
+        const r = await trx.selectFrom('polls').selectAll().where('id', '=', id).executeTakeFirst()
+        if (!r) return undefined
+        const [options, votes] = await Promise.all([
+          trx.selectFrom('poll_options').selectAll().where('poll_id', '=', id).execute(),
+          trx.selectFrom('poll_votes').selectAll().where('poll_id', '=', id).execute(),
+        ])
+        return pollToDomain(r, options, votes)
+      },
+      listByHouse: async (houseId) => {
+        const [polls, options, votes] = await Promise.all([
+          trx
+            .selectFrom('polls')
+            .selectAll()
+            .where('house_id', '=', houseId)
+            .orderBy('created_at')
+            .execute(),
+          trx.selectFrom('poll_options').selectAll().where('house_id', '=', houseId).execute(),
+          trx.selectFrom('poll_votes').selectAll().where('house_id', '=', houseId).execute(),
+        ])
+        return polls.map((p) => pollToDomain(p, options, votes))
+      },
+      create: async (poll) => {
+        await save(
+          async () => ({ numUpdatedRows: BigInt(0) }),
+          () =>
+            trx
+              .insertInto('polls')
+              .values({
+                id: poll.id,
+                house_id: poll.houseId,
+                question: poll.question,
+                item_id: poll.itemId ?? null,
+                closes_at: poll.closesAt ? toDate(poll.closesAt) : null,
+                closed_at: poll.state.open ? null : toDate(poll.state.closedAt),
+                created_by: poll.createdBy,
+                created_at: toDate(poll.createdAt),
+              })
+              .execute(),
+        )
+        if (poll.options.length)
+          await trx
+            .insertInto('poll_options')
+            .values(poll.options.map((o, i) => pollOptionToRow(poll, o, i)))
+            .execute()
+      },
+      addOption: async (poll, option) => {
+        const { count } = await trx
+          .selectFrom('poll_options')
+          .select((e) => e.fn.countAll<string>().as('count'))
+          .where('poll_id', '=', poll.id)
+          .executeTakeFirstOrThrow()
+        await trx
+          .insertInto('poll_options')
+          .values(pollOptionToRow(poll, option, Number(count)))
+          .execute()
+      },
+      setVote: async (poll, vote) => {
+        const row = {
+          poll_id: poll.id,
+          user_id: vote.user,
+          house_id: poll.houseId,
+          option_id: vote.option,
+          voted_at: toDate(vote.at),
+        }
+        await save(
+          () =>
+            trx
+              .updateTable('poll_votes')
+              .set({ option_id: row.option_id, voted_at: row.voted_at })
+              .where('poll_id', '=', poll.id)
+              .where('user_id', '=', vote.user)
+              .executeTakeFirst(),
+          () => trx.insertInto('poll_votes').values(row).execute(),
+        )
+      },
+      saveState: async (poll) => {
+        const r = await trx
+          .updateTable('polls')
+          .set({
+            closes_at: poll.closesAt ? toDate(poll.closesAt) : null,
+            closed_at: poll.state.open ? null : toDate(poll.state.closedAt),
+          })
+          .where('id', '=', poll.id)
+          .executeTakeFirst()
+        if (Number(r.numUpdatedRows) === 0) throw new AccessDenied('polls')
       },
     },
     feelings: {
