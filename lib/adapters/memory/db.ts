@@ -253,6 +253,12 @@ const checkItem = (s: MemoryState, item: Item): void => {
   }
   if (!i.title.trim() || i.title.trim().length > 120) refuse('title')
   if (i.category !== 'chore' && (i.repeatDays != null || i.lastDone)) refuse('chore-only fields')
+  if (
+    i.category === 'chore' &&
+    i.repeatDays != null &&
+    !(Number.isInteger(i.repeatDays) && Number(i.repeatDays) >= 1 && Number(i.repeatDays) <= 365)
+  )
+    refuse('repeat days are 1 to 365')
   if (i.category !== 'task' && i.contactId) refuse('task-only contact')
   if (i.category === 'chore' && i.done) refuse('chores are never done')
   if (i.run && (i.done || i.archivedAt)) refuse('done or archived items are not on a run')

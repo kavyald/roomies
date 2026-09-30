@@ -125,6 +125,20 @@ export const itemsContract = (name: string, makeHarness: () => Promise<UnitOfWor
       ).rejects.toBeInstanceOf(ConstraintViolation)
     })
 
+    it('titles are 1–120 characters, and a chore repeats every 1–365 days', async () => {
+      const { need, put } = await setup()
+      await expect(put(need('   '))).rejects.toBeInstanceOf(ConstraintViolation)
+      await expect(put(need('x'.repeat(121)))).rejects.toBeInstanceOf(ConstraintViolation)
+      await put(need('x'.repeat(120)))
+      const chore = (title: string, repeatDays: number | null) =>
+        ({ ...need(title), category: 'chore', repeatDays }) as unknown as Item
+      await put(chore('Water the plants', 365))
+      await put(chore('Descale the kettle', null))
+      for (const days of [0, 366]) {
+        await expect(put(chore(`Every ${days}`, days))).rejects.toBeInstanceOf(ConstraintViolation)
+      }
+    })
+
     it('keeps one current feeling per member per item, in their own name', async () => {
       const { house, member, admin, need, put } = await setup()
       const n = need('Radiator parts')

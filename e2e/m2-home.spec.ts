@@ -39,10 +39,7 @@ test('an as-needed chore shows on Home only after someone shares a feeling, and 
   await expect(cards.nth(1)).toContainText('Descale the kettle')
   await expect(cards.nth(1)).toContainText('Normal')
   await expect(cards.nth(1)).toContainText('😤1')
-  await cards
-    .nth(1)
-    .getByRole('button', { name: /^Normal/ })
-    .click()
+  await cards.nth(1).getByRole('button', { name: 'Descale the kettle', exact: true }).click()
   const why = page
     .getByRole('dialog', { name: 'Descale the kettle' })
     .getByRole('region', { name: 'Why is this here?' })

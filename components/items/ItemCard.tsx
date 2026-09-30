@@ -1,7 +1,7 @@
 'use client'
 
 import { Check, Phone } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Chip, RoomChip } from '@/components/ui/Chip'
 import { cn } from '@/components/ui/cn'
@@ -45,17 +45,26 @@ export function ItemCard({
     item.category === 'task' && item.contactId ? ctx.contacts.get(item.contactId) : undefined
   const assignee = item.assignee ? ctx.person(item.assignee) : undefined
   const Icon = CATEGORY[item.category].icon
+  // VoiceOver reads the title first; the tier, chips and meta line follow as the description.
+  const id = useId()
 
   return (
     <article className="sticker flex items-start gap-2 rounded-[20px] border-[1.5px] border-outline bg-card pr-2.5">
       <button
         type="button"
         onClick={onOpen}
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-top ${id}-chips ${id}-meta`}
         className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] gap-2 px-3.5 pt-3.5 pb-3 text-left"
       >
-        {top}
-        <h3 className="m-0 text-[1.0625rem] leading-tight font-bold text-balance">{item.title}</h3>
-        <span className="flex flex-wrap gap-1.5">
+        {top && <span id={`${id}-top`}>{top}</span>}
+        <h3
+          id={`${id}-title`}
+          className="m-0 text-[1.0625rem] leading-tight font-bold text-balance"
+        >
+          {item.title}
+        </h3>
+        <span id={`${id}-chips`} className="flex flex-wrap gap-1.5">
           {!hideCategory && (
             <Chip icon={Icon}>
               {item.category === 'chore' ? scheduleLabel(item) : CATEGORY[item.category].label}
@@ -65,7 +74,10 @@ export function ItemCard({
           {room && <RoomChip name={room.name} element={room.element} />}
         </span>
         {(assignee || meta) && (
-          <span className="flex min-h-6 items-center gap-2 text-[0.8rem] leading-snug font-semibold text-ink-soft">
+          <span
+            id={`${id}-meta`}
+            className="flex min-h-6 items-center gap-2 text-[0.8rem] leading-snug font-semibold text-ink-soft"
+          >
             {assignee && <Avatar name={assignee.name} element={assignee.element} size={20} />}
             <span className="min-w-0">{meta}</span>
           </span>

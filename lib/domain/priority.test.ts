@@ -114,6 +114,14 @@ describe('scorePriority (PRD §8.1)', () => {
     expect(score(item, typeof feelings === 'function' ? feelings(item) : feelings)).toBe(expected)
   })
 
+  it('clamps to 0–100 (a raw score of −30 is 0)', () => {
+    const a = task('a', { priority: 'low' })
+    const weights = { ...DEFAULT_FEELING_WEIGHTS, meh: -20 }
+    const s = scorePriority(a, [felt(a, 'meh'), felt(a, 'meh', me)], weights, NOW, TZ)
+    expect(s).toMatchObject({ score: 0, tier: 'low' })
+    expect(s.breakdown.reduce((n, p) => n + p.points, 0)).toBe(-30)
+  })
+
   it('uses the house weights, and only counts feelings about this item', () => {
     const a = task('a')
     const b = task('b')
