@@ -15,6 +15,7 @@ export const fakeAppClient = (
   me: actor.kind === 'member' ? actor.userId : ('system' as UserId),
   queries: memoryHouseQueries(uow, actor),
   changes: memoryChangeFeed(uow, actor),
+  vapidPublicKey: 'test-vapid-key',
   commands: {
     createContact: async () => err('unexpected'),
     createInvite: async () => err('unexpected'),
@@ -54,6 +55,7 @@ export const fakeAppClient = (
     closePoll: async () => err('unexpected'),
     addCost: async () => err('unexpected'),
     copiedToSplitwise: async () => err('unexpected'),
+    savePushSubscription: async () => err('unexpected'),
     ...commands,
   },
 })

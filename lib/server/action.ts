@@ -13,6 +13,8 @@ export type ActionEnv = {
   currentActor(): Promise<HouseActor | null>
   deps(actor: HouseActor): AppDeps
   log?(e: unknown): void
+  /** Runs after a successful change (e.g. sending the notifications it enqueued). */
+  afterSuccess?(): void
 }
 
 export const makeAction =
@@ -27,7 +29,9 @@ export const makeAction =
     try {
       const actor = await env.currentActor()
       if (!actor) return err('not_signed_in')
-      return await run(env.deps(actor), actor, parsed.data)
+      const result = await run(env.deps(actor), actor, parsed.data)
+      if (result.ok) env.afterSuccess?.()
+      return result
     } catch (e) {
       if (e instanceof AccessDenied) return err('not_allowed')
       ;(env.log ?? console.error)(e)

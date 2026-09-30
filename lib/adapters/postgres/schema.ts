@@ -191,6 +191,18 @@ export type ActivityEventsTable = {
   payload: Json<Record<string, unknown>>
 }
 
+export type PushSubscriptionsTable = {
+  id: string
+  user_id: string
+  endpoint: string
+  p256dh: string
+  auth: string
+  user_agent: string | null
+  created_at: Timestamp
+  last_ok_at: Timestamp | null
+  gone_at: Timestamp | null
+}
+
 export type NotificationPrefsTable = {
   user_id: string
   category: string
@@ -229,4 +241,5 @@ export type DB = {
   activity_events: ActivityEventsTable
   notifications_outbox: NotificationsOutboxTable
   notification_prefs: NotificationPrefsTable
+  push_subscriptions: PushSubscriptionsTable
 }

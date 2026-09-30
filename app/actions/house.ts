@@ -1,5 +1,6 @@
 'use server'
 
+import { houseEnv } from './env'
 import { makeEditContact, makeRemoveContact } from '@/lib/app/contacts'
 import {
   makeDeleteAccount,
@@ -9,7 +10,6 @@ import {
   makeSetFeelingWeights,
   makeSetRole,
 } from '@/lib/app/house'
-import { depsForRequest } from '@/lib/compose'
 import type { ContactId, HouseId, RoomId, UserId } from '@/lib/domain/ids'
 import {
   editContactSchema,
@@ -22,18 +22,13 @@ import {
   setRoleSchema,
 } from '@/lib/schemas/house'
 import { makeAction } from '@/lib/server/action'
-import { currentActor, requestSupabase } from '@/lib/server/session'
-
-const env = (houseId: HouseId) => ({
-  currentActor: () => currentActor(houseId),
-  deps: (actor: Parameters<typeof depsForRequest>[0]['actor']) => depsForRequest({ actor }),
-})
+import { requestSupabase } from '@/lib/server/session'
 
 export async function editContactAction(houseId: HouseId, input: unknown) {
   return makeAction(
     editContactSchema,
     (deps, actor, i) => makeEditContact(deps)(actor, { id: i.id as ContactId, patch: i.patch }),
-    env(houseId),
+    houseEnv(houseId),
   )(input)
 }
 
@@ -41,7 +36,7 @@ export async function removeContactAction(houseId: HouseId, id: unknown) {
   return makeAction(
     idSchema,
     (deps, actor, i) => makeRemoveContact(deps)(actor, i as ContactId),
-    env(houseId),
+    houseEnv(houseId),
   )(id)
 }
 
@@ -50,7 +45,7 @@ export async function moveOutAction(houseId: HouseId, input: unknown) {
     moveOutSchema,
     (deps, actor, i) =>
       makeMoveOut(deps)(actor, { userId: i.userId as UserId, ...(i.note && { note: i.note }) }),
-    env(houseId),
+    houseEnv(houseId),
   )(input)
 }
 
@@ -58,7 +53,7 @@ export async function setRoleAction(houseId: HouseId, input: unknown) {
   return makeAction(
     setRoleSchema,
     (deps, actor, i) => makeSetRole(deps)(actor, { userId: i.userId as UserId, role: i.role }),
-    env(houseId),
+    houseEnv(houseId),
   )(input)
 }
 
@@ -66,7 +61,7 @@ export async function renameRoomAction(houseId: HouseId, input: unknown) {
   return makeAction(
     renameRoomSchema,
     (deps, actor, i) => makeRenameRoom(deps)(actor, { roomId: i.roomId as RoomId, name: i.name }),
-    env(houseId),
+    houseEnv(houseId),
   )(input)
 }
 
@@ -75,7 +70,7 @@ export async function moveRoomAction(houseId: HouseId, input: unknown) {
     moveRoomSchema,
     (deps, actor, i) =>
       makeMoveRoom(deps)(actor, { roomId: i.roomId as RoomId, direction: i.direction }),
-    env(houseId),
+    houseEnv(houseId),
   )(input)
 }
 
@@ -83,7 +78,7 @@ export async function setFeelingWeightsAction(houseId: HouseId, input: unknown) 
   return makeAction(
     feelingWeightsSchema,
     (deps, actor, i) => makeSetFeelingWeights(deps)(actor, i),
-    env(houseId),
+    houseEnv(houseId),
   )(input)
 }
 
@@ -92,7 +87,7 @@ export async function deleteAccountAction(houseId: HouseId) {
   const r = await makeAction(
     nothingSchema,
     (deps, actor) => makeDeleteAccount(deps)(actor),
-    env(houseId),
+    houseEnv(houseId),
   )(undefined)
   if (r.ok) await (await requestSupabase()).auth.signOut()
   return r

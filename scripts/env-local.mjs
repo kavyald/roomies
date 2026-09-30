@@ -2,13 +2,22 @@
 // exists (pass --force to overwrite); an existing file only gains keys it's missing. Local values
 // only; never used for hosted projects.
 import { execSync } from 'node:child_process'
+import webpush from 'web-push'
 import { randomBytes } from 'node:crypto'
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 const secret = () => randomBytes(24).toString('hex')
 
+const vapid = webpush.generateVAPIDKeys()
+const vapidSubject = 'mailto:roomies@localhost.test'
+
 // Keys added after a checkout may already have written .env.local.
-const LATER_KEYS = { CRON_SECRET: secret }
+const LATER_KEYS = {
+  CRON_SECRET: secret,
+  VAPID_PRIVATE_KEY: () => vapid.privateKey,
+  VAPID_SUBJECT: () => vapidSubject,
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: () => vapid.publicKey,
+}
 
 if (existsSync('.env.local') && !process.argv.includes('--force')) {
   const current = readFileSync('.env.local', 'utf8')
@@ -44,8 +53,11 @@ SUPABASE_URL=${status.API_URL}
 SUPABASE_SERVICE_ROLE_KEY=${status.SERVICE_ROLE_KEY}
 SETUP_TOKEN=${secret()}
 CRON_SECRET=${secret()}
+VAPID_PRIVATE_KEY=${vapid.privateKey}
+VAPID_SUBJECT=${vapidSubject}
 NEXT_PUBLIC_SUPABASE_URL=${status.API_URL}
 NEXT_PUBLIC_SUPABASE_ANON_KEY=${status.ANON_KEY}
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=${vapid.publicKey}
 `,
 )
 console.log('Wrote .env.local')

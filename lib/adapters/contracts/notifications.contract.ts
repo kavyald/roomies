@@ -81,6 +81,87 @@ export const notificationsContract = (
       ).rejects.toBeInstanceOf(AccessDenied)
     })
 
+    it('browsers are yours: saved and read in your own name; the system sends', async () => {
+      const { house, admin, member } = await seedHouse(h)
+      const sub = (endpoint: string, userId = member) => ({
+        id: h.ids.newId<'item'>() as string,
+        userId,
+        endpoint,
+        keys: { p256dh: 'p', auth: 'a' },
+        createdAt: T,
+      })
+      const endpoint = `https://push.example/${h.ids.newId()}`
+      const me = asMember(house.id, member)
+      await h.uow.run(me, (r) => r.pushSubscriptions.save(sub(endpoint)))
+      // The same browser again only refreshes it.
+      await h.uow.run(me, (r) =>
+        r.pushSubscriptions.save({ ...sub(endpoint), keys: { p256dh: 'p2', auth: 'a2' } }),
+      )
+      await expect(
+        h.uow.run(me, (r) => r.pushSubscriptions.save(sub(`${endpoint}-x`, admin))),
+      ).rejects.toBeInstanceOf(AccessDenied)
+      const mine = await h.uow.run(me, (r) => r.pushSubscriptions.forUsers([member, admin]))
+      expect(mine.map((x) => [x.endpoint, x.keys.p256dh])).toEqual([[endpoint, 'p2']])
+      expect(
+        await h.uow.run(asMember(house.id, admin), (r) => r.pushSubscriptions.forUsers([member])),
+      ).toEqual([])
+
+      const sys = system(house.id)
+      const [found] = await h.uow.run(sys, (r) => r.pushSubscriptions.forUsers([member]))
+      await h.uow.run(sys, (r) => r.pushSubscriptions.markOk(found!.id, T))
+      await h.uow.run(sys, (r) => r.pushSubscriptions.markGone(found!.id, T))
+      expect(await h.uow.run(sys, (r) => r.pushSubscriptions.forUsers([member]))).toEqual([])
+      // Turning notifications on again brings the browser back.
+      await h.uow.run(me, (r) => r.pushSubscriptions.save(sub(endpoint)))
+      expect(await h.uow.run(sys, (r) => r.pushSubscriptions.forUsers([member]))).toHaveLength(1)
+    })
+
+    it('members see only their own messages; only the system marks them sent', async () => {
+      const { house, admin, member } = await seedHouse(h)
+      const later = instant(T.epochMs + 60 * 60 * 1000)
+      await h.uow.run(asMember(house.id, member), (r) =>
+        r.notifications.enqueue([
+          {
+            userId: member,
+            houseId: house.id,
+            category: 'people',
+            title: 'Now',
+            body: '',
+            url: '/',
+            sendAfter: T,
+          },
+          {
+            userId: member,
+            houseId: house.id,
+            category: 'people',
+            title: 'Later',
+            body: '',
+            url: '/',
+            sendAfter: later,
+          },
+        ]),
+      )
+      const own = await h.uow.run(asMember(house.id, member), (r) => r.notifications.pending(T, 10))
+      expect(own.map((m) => [m.userId, m.title])).toEqual([[member, 'Now']])
+      const theirs = await h.uow.run(asMember(house.id, admin), (r) =>
+        r.notifications.pending(T, 10),
+      )
+      expect(theirs.filter((m) => m.houseId === house.id)).toEqual([])
+      await expect(
+        h.uow.run(asMember(house.id, member), (r) => r.notifications.markSent(own[0]!.id, T, null)),
+      ).rejects.toBeInstanceOf(Error)
+      const sys = system(house.id)
+      const due = (await h.uow.run(sys, (r) => r.notifications.pending(T, 1000))).filter(
+        (m) => m.houseId === house.id,
+      )
+      expect(due.map((m) => m.title)).toEqual(['Now'])
+      await h.uow.run(sys, (r) => r.notifications.markSent(due[0]!.id, T, null))
+      const after = (await h.uow.run(sys, (r) => r.notifications.pending(later, 1000))).filter(
+        (m) => m.houseId === house.id,
+      )
+      expect(after.map((m) => m.title)).toEqual(['Later'])
+    })
+
     it('messages are written with the events, and rolled back with them', async () => {
       const { house, admin, member } = await seedHouse(h)
       const item = {

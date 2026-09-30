@@ -131,7 +131,22 @@ export const createItem = (
         : { ...base, category: 'need' }
   return ok({
     item,
-    events: [{ kind: 'item.created', itemId: item.id, actionId: ctx.actionId, by: ctx.by }],
+    events: [
+      { kind: 'item.created', itemId: item.id, actionId: ctx.actionId, by: ctx.by },
+      // Handing it to someone as you add it is an assignment too (they hear about it, PRD §11).
+      ...(input.assignee && input.assignee !== ctx.by
+        ? [
+            {
+              kind: 'item.assigned' as const,
+              itemId: item.id,
+              memberId: input.assignee,
+              changes: { assignee: [null, input.assignee] as const },
+              actionId: ctx.actionId,
+              by: ctx.by,
+            },
+          ]
+        : []),
+    ],
   })
 }
 

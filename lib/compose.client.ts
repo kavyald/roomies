@@ -21,4 +21,5 @@ export const browserAppClient = (me: UserId, commands: AppCommands): AppClient =
   queries: supabaseHouseQueries(supabase()),
   changes: supabaseChangeFeed(supabase()),
   commands,
+  vapidPublicKey: publicConfig().vapidPublicKey,
 })

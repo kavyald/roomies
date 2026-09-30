@@ -23,6 +23,7 @@ import {
   type NotificationCategory,
   type OutboxMessage,
 } from '../../domain/notifications'
+import type { PushSubscription } from '../../domain/push'
 import type { Instant } from '../../domain/time'
 import type { Poll, PollOption } from '../../domain/polls'
 import type { Feeling } from '../../domain/feelings'
@@ -44,7 +45,8 @@ export type MemoryState = {
   polls: Map<PollId, Poll>
   costs: Cost[]
   prefs: Map<string, boolean>
-  outbox: (OutboxMessage & { id: number; sentAt?: Instant })[]
+  outbox: (OutboxMessage & { id: number; sentAt?: Instant; error?: string })[]
+  pushSubs: Map<string, PushSubscription>
   activity: StoredActivityRow[]
 }
 
@@ -63,6 +65,7 @@ export const emptyState = (): MemoryState => ({
   costs: [],
   prefs: new Map(),
   outbox: [],
+  pushSubs: new Map(),
   activity: [],
 })
 
@@ -290,6 +293,51 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
           if (!isMember(s, a, m.houseId)) deny('notifications_outbox')
           s.outbox.push({ ...m, id: (s.outbox.at(-1)?.id ?? 0) + 1 })
         }
+      },
+      // "outbox read own": members see their own messages; marking sent is the system's job.
+      pending: async (now, limit) =>
+        s.outbox
+          .filter((m) => !m.sentAt && m.sendAfter.epochMs <= now.epochMs)
+          .filter((m) => a.kind === 'system' || m.userId === uid(a))
+          .slice(0, limit)
+          .map(({ sentAt: _s, error: _e, ...m }) => m),
+      markSent: async (id, at, error) => {
+        if (a.kind !== 'system') deny('notifications_outbox')
+        const m = s.outbox.find((x) => x.id === id)
+        if (m) {
+          m.sentAt = at
+          if (error) m.error = error
+        }
+      },
+    },
+    pushSubscriptions: {
+      save: async (sub) => {
+        if (a.kind !== 'system' && sub.userId !== uid(a)) deny('push_subscriptions')
+        const same = [...s.pushSubs.values()].find((x) => x.endpoint === sub.endpoint)
+        if (same && same.userId !== sub.userId) deny('push_subscriptions')
+        if (same) {
+          const { goneAt: _g, ...rest } = same
+          s.pushSubs.set(same.id, {
+            ...rest,
+            keys: sub.keys,
+            ...(sub.userAgent && { userAgent: sub.userAgent }),
+          })
+        } else s.pushSubs.set(sub.id, sub)
+      },
+      forUsers: async (userIds) =>
+        [...s.pushSubs.values()].filter(
+          (x) =>
+            userIds.includes(x.userId) && !x.goneAt && (a.kind === 'system' || x.userId === uid(a)),
+        ),
+      markOk: async (id, at) => {
+        const x = s.pushSubs.get(id)
+        if (x && (a.kind === 'system' || x.userId === uid(a)))
+          s.pushSubs.set(id, { ...x, lastOkAt: at })
+      },
+      markGone: async (id, at) => {
+        const x = s.pushSubs.get(id)
+        if (x && (a.kind === 'system' || x.userId === uid(a)))
+          s.pushSubs.set(id, { ...x, goneAt: at })
       },
     },
     costs: {

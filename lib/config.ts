@@ -10,11 +10,14 @@ const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   SETUP_TOKEN: z.string().min(32, 'must be at least 32 characters'),
   CRON_SECRET: z.string().min(32, 'must be at least 32 characters'),
+  VAPID_PRIVATE_KEY: z.string().min(1),
+  VAPID_SUBJECT: z.string().regex(/^(mailto:|https:)/, 'must start with mailto: or https:'),
 })
 
 const publicSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: url,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1),
 })
 
 /** Values only the server may see. */
@@ -25,12 +28,16 @@ export type ServerConfig = {
   readonly setupToken: string
   /** Shared with pg_cron, which sends it as `x-cron-secret` (never in the repo). */
   readonly cronSecret: string
+  /** Web Push (VAPID): the private half signs pushes; the public half is in PublicConfig. */
+  readonly vapidPrivateKey: string
+  readonly vapidSubject: string
 }
 
 /** Values that are safe to ship to the browser. */
 export type PublicConfig = {
   readonly supabaseUrl: string
   readonly supabaseAnonKey: string
+  readonly vapidPublicKey: string
 }
 
 export type EnvConfig = ServerConfig & { readonly public: PublicConfig }
@@ -63,6 +70,7 @@ export const loadPublicConfig = (env: Env): PublicConfig => {
   return {
     supabaseUrl: p.NEXT_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: p.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    vapidPublicKey: p.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
   }
 }
 
@@ -75,6 +83,8 @@ export const loadConfig = (env: Env): EnvConfig => {
     supabaseServiceRoleKey: s.SUPABASE_SERVICE_ROLE_KEY,
     setupToken: s.SETUP_TOKEN,
     cronSecret: s.CRON_SECRET,
+    vapidPrivateKey: s.VAPID_PRIVATE_KEY,
+    vapidSubject: s.VAPID_SUBJECT,
     public: loadPublicConfig(e),
   }
 }
@@ -92,6 +102,7 @@ export const publicConfig = (): PublicConfig =>
   loadPublicConfig({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
   })
 
 /** Called from instrumentation.ts so a bad environment stops the server at startup. */

@@ -24,6 +24,7 @@ import {
   setFeelingAction,
 } from '@/app/actions/items'
 import { addCostAction, copiedToSplitwiseAction } from '@/app/actions/costs'
+import { savePushSubscriptionAction } from '@/app/actions/push'
 import {
   addPollOptionAction,
   closePollAction,
@@ -107,6 +108,7 @@ export function HouseProviders({
       closePoll: (input) => closePollAction(houseId, input),
       addCost: (input) => addCostAction(houseId, input),
       copiedToSplitwise: (input) => copiedToSplitwiseAction(houseId, input),
+      savePushSubscription: (input) => savePushSubscriptionAction(houseId, input),
     }),
   )
   return (

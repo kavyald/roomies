@@ -17,6 +17,7 @@ import type {
 } from '../domain/ids'
 import type { Cost } from '../domain/costs'
 import type { NotificationCategory, OutboxMessage } from '../domain/notifications'
+import type { PendingMessage, PushOutcome, PushSubscription } from '../domain/push'
 import type { Poll, PollOption, Vote } from '../domain/polls'
 import type { Feeling } from '../domain/feelings'
 import type { Item, Need } from '../domain/items'
@@ -132,6 +133,26 @@ export interface NotificationRepo {
   setEnabled(userId: UserId, category: NotificationCategory, enabled: boolean): Promise<void>
   /** Written in the same transaction as the events that caused them. */
   enqueue(messages: readonly OutboxMessage[]): Promise<void>
+  /** Messages due by `now` and not sent yet, oldest first (the sender runs as the system). */
+  pending(now: Instant, limit: number): Promise<PendingMessage[]>
+  /** Done with a message: delivered (error null) or given up on, with why. */
+  markSent(id: number, at: Instant, error: string | null): Promise<void>
+}
+
+/** Browsers that turned notifications on. */
+export interface PushSubscriptionRepo {
+  /** Adds this browser, or refreshes it (same endpoint) for the same person. */
+  save(sub: PushSubscription): Promise<void>
+  /** Their browsers that still work. */
+  forUsers(userIds: readonly UserId[]): Promise<PushSubscription[]>
+  markOk(id: string, at: Instant): Promise<void>
+  /** The push service said it's gone (404/410): stop sending to it. */
+  markGone(id: string, at: Instant): Promise<void>
+}
+
+/** Delivers one push (web-push in production, a fake in tests). */
+export interface PushSender {
+  send(sub: PushSubscription, payload: string): Promise<PushOutcome>
 }
 
 /** Costs are recorded, never edited or deleted in v1. */
@@ -173,6 +194,7 @@ export interface Repos {
   readonly polls: PollRepo
   readonly costs: CostRepo
   readonly notifications: NotificationRepo
+  readonly pushSubscriptions: PushSubscriptionRepo
   readonly events: EventSink
 }
 
@@ -255,5 +277,6 @@ export type AppDeps = {
   readonly auth: AuthGateway
   readonly tokens: Tokens
   readonly limiter: RateLimiter
+  readonly push: PushSender
   readonly config: Config
 }

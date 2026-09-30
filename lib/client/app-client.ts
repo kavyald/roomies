@@ -252,6 +252,10 @@ export type AppCommands = {
   closePoll(input: {
     pollId: PollId
   }): Promise<CommandResult<{ poll: Poll; result: PollResult }, 'already_closed' | 'not_found'>>
+  savePushSubscription(input: {
+    endpoint: string
+    keys: { p256dh: string; auth: string }
+  }): Promise<CommandResult<true, 'invalid_subscription' | 'not_found'>>
   setFeelingWeights(
     weights: FeelingWeights,
   ): Promise<CommandResult<House, 'not_found' | 'out_of_range' | 'no_change'>>
@@ -268,4 +272,6 @@ export type AppClient = {
   readonly queries: HouseQueries
   readonly changes: ChangeFeed
   readonly commands: AppCommands
+  /** The house's Web Push (VAPID) public key, for subscribing this browser. */
+  readonly vapidPublicKey: string
 }

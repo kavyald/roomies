@@ -7,7 +7,7 @@
 import { Kysely, PostgresDialect, sql, type Transaction } from 'kysely'
 import pg from 'pg'
 import { AccessDenied, ConstraintViolation, type Repos, type UnitOfWork } from '../../app/ports'
-import type { UserId } from '../../domain/ids'
+import type { HouseId, UserId } from '../../domain/ids'
 import type { Need } from '../../domain/items'
 import type { NotificationCategory } from '../../domain/notifications'
 import type { Actor } from '../../domain/actor'
@@ -38,6 +38,7 @@ import {
   runToDomain,
   runToRow,
   toDate,
+  toInstant,
 } from './mappers'
 import type { DB } from './schema'
 
@@ -381,6 +382,98 @@ const reposFor = (trx: Trx): Repos => {
               send_after: toDate(m.sendAfter),
             })),
           )
+          .execute()
+      },
+      pending: async (now, limit) =>
+        (
+          await trx
+            .selectFrom('notifications_outbox')
+            .selectAll()
+            .where('sent_at', 'is', null)
+            .where('send_after', '<=', toDate(now))
+            .orderBy('id')
+            .limit(limit)
+            .execute()
+        ).map((r) => ({
+          id: Number(r.id),
+          userId: r.user_id as UserId,
+          houseId: r.house_id as HouseId,
+          category: r.category as NotificationCategory,
+          title: r.title,
+          body: r.body,
+          url: r.url,
+          sendAfter: toInstant(r.send_after),
+        })),
+      markSent: async (id, at, error) => {
+        const r = await trx
+          .updateTable('notifications_outbox')
+          .set({ sent_at: toDate(at), error })
+          .where('id', '=', String(id) as never)
+          .executeTakeFirst()
+        if (Number(r.numUpdatedRows) === 0) throw new AccessDenied('notifications_outbox')
+      },
+    },
+    pushSubscriptions: {
+      save: async (sub) => {
+        await save(
+          () =>
+            trx
+              .updateTable('push_subscriptions')
+              .set({
+                p256dh: sub.keys.p256dh,
+                auth: sub.keys.auth,
+                user_agent: sub.userAgent ?? null,
+                gone_at: null,
+              })
+              .where('endpoint', '=', sub.endpoint)
+              .where('user_id', '=', sub.userId)
+              .executeTakeFirst(),
+          () =>
+            trx
+              .insertInto('push_subscriptions')
+              .values({
+                id: sub.id,
+                user_id: sub.userId,
+                endpoint: sub.endpoint,
+                p256dh: sub.keys.p256dh,
+                auth: sub.keys.auth,
+                user_agent: sub.userAgent ?? null,
+                created_at: toDate(sub.createdAt),
+              })
+              .execute(),
+        )
+      },
+      forUsers: async (userIds) =>
+        userIds.length === 0
+          ? []
+          : (
+              await trx
+                .selectFrom('push_subscriptions')
+                .selectAll()
+                .where('user_id', 'in', [...userIds])
+                .where('gone_at', 'is', null)
+                .execute()
+            ).map((r) => ({
+              id: r.id,
+              userId: r.user_id as UserId,
+              endpoint: r.endpoint,
+              keys: { p256dh: r.p256dh, auth: r.auth },
+              ...(r.user_agent && { userAgent: r.user_agent }),
+              createdAt: toInstant(r.created_at),
+              ...(r.last_ok_at && { lastOkAt: toInstant(r.last_ok_at) }),
+            })),
+      markOk: async (id, at) => {
+        await trx
+          .updateTable('push_subscriptions')
+          .set({ last_ok_at: toDate(at) })
+          .where('id', '=', id)
+          .execute()
+      },
+      markGone: async (id, at) => {
+        await trx
+          .updateTable('push_subscriptions')
+          .set({ gone_at: toDate(at) })
+          .where('id', '=', id)
           .execute()
       },
     },

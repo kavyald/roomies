@@ -7,6 +7,9 @@ const good = {
   SUPABASE_SERVICE_ROLE_KEY: 'service-key',
   SETUP_TOKEN: 'x'.repeat(32),
   CRON_SECRET: 'c'.repeat(32),
+  VAPID_PRIVATE_KEY: 'private-key',
+  VAPID_SUBJECT: 'mailto:house@example.com',
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: 'public-key',
   NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321',
   NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key',
 }
@@ -27,7 +30,12 @@ describe('loadConfig', () => {
     expect(c.databaseUrl).toBe(good.DATABASE_URL)
     expect(c.setupToken).toHaveLength(32)
     expect(c.cronSecret).toBe('c'.repeat(32))
-    expect(c.public).toEqual({ supabaseUrl: good.SUPABASE_URL, supabaseAnonKey: 'anon-key' })
+    expect(c.public).toEqual({
+      supabaseUrl: good.SUPABASE_URL,
+      supabaseAnonKey: 'anon-key',
+      vapidPublicKey: 'public-key',
+    })
+    expect(c.vapidSubject).toBe('mailto:house@example.com')
   })
 
   it('names every missing variable', () => {

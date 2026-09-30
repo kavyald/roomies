@@ -7,6 +7,7 @@ import type { HouseId } from '@/lib/domain/ids'
 import { ContactsSection } from './ContactsSection'
 import { FeelingWeightsSection } from './FeelingWeightsSection'
 import { InvitesSection } from './InvitesSection'
+import { PushSettings } from './PushSettings'
 import { RoommatesSection } from './RoommatesSection'
 import { RoomsSection } from './RoomsSection'
 import { SpentThisMonth } from './SpentThisMonth'
@@ -55,7 +56,10 @@ export function HouseScreen({ houseId }: { houseId: HouseId }) {
       <SpentThisMonth houseId={houseId} />
 
       <SectionTitle>Settings</SectionTitle>
-      <FeelingWeightsSection houseId={houseId} />
+      <div className="grid gap-3">
+        <PushSettings />
+        <FeelingWeightsSection houseId={houseId} />
+      </div>
 
       <SectionTitle>History</SectionTitle>
       <Link

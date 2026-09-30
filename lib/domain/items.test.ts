@@ -50,6 +50,14 @@ const chore: Chore = { ...need('Trash'), category: 'chore', repeatDays: 7 }
 const task: Task = { ...need('Latch'), category: 'task' }
 
 describe('createItem', () => {
+  it('adding something already handed to someone else tells them (an assignment)', () => {
+    const r = createItem({ category: 'task', title: 'Fix the latch', assignee: wren }, ctx())
+    expect(r.ok && r.value.events.map((e) => e.kind)).toEqual(['item.created', 'item.assigned'])
+    expect(r.ok && r.value.events[1]).toMatchObject({ memberId: wren, by: kavya })
+    const mine = createItem({ category: 'task', title: 'Fix the latch', assignee: kavya }, ctx())
+    expect(mine.ok && mine.value.events.map((e) => e.kind)).toEqual(['item.created'])
+  })
+
   it('needs only a title, trimmed', () => {
     const r = createItem({ category: 'need', title: '  tomatoes ' }, ctx())
     expect(r.ok && r.value.item).toEqual({

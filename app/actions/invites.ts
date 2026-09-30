@@ -1,5 +1,6 @@
 'use server'
 
+import { houseEnv } from './env'
 import {
   makeAcceptInvite,
   makeCreateInvite,
@@ -7,7 +8,7 @@ import {
   makeStartInvite,
   type AcceptError,
 } from '@/lib/app/invites'
-import { authForRequest, depsForJob, depsForRequest } from '@/lib/compose'
+import { authForRequest, depsForJob } from '@/lib/compose'
 import type { HouseId, InviteId, RoomId } from '@/lib/domain/ids'
 import type { InviteProblem } from '@/lib/domain/invites'
 import { err, type Result } from '@/lib/domain/result'
@@ -15,18 +16,13 @@ import { emailSchema } from '@/lib/schemas/auth'
 import { inviteIdSchema, joinSchema, newInviteSchema } from '@/lib/schemas/invites'
 import { makeAction } from '@/lib/server/action'
 import { requestIp } from '@/lib/server/ip'
-import { currentActor, currentUserId } from '@/lib/server/session'
-
-const env = (houseId: HouseId) => ({
-  currentActor: () => currentActor(houseId),
-  deps: (actor: Parameters<typeof depsForRequest>[0]['actor']) => depsForRequest({ actor }),
-})
+import { currentUserId } from '@/lib/server/session'
 
 export async function createInviteAction(houseId: HouseId, input: unknown) {
   return makeAction(
     newInviteSchema,
     (deps, actor, i) => makeCreateInvite(deps)(actor, i),
-    env(houseId),
+    houseEnv(houseId),
   )(input)
 }
 
@@ -34,7 +30,7 @@ export async function revokeInviteAction(houseId: HouseId, id: unknown) {
   return makeAction(
     inviteIdSchema,
     (deps, actor, i) => makeRevokeInvite(deps)(actor, i as InviteId),
-    env(houseId),
+    houseEnv(houseId),
   )(id)
 }
 

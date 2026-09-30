@@ -8,11 +8,14 @@ import { MemoryUnitOfWork } from './adapters/memory/db'
 import type { DB } from './adapters/postgres/schema'
 import { postgresRateLimiter } from './adapters/postgres/rate-limiter'
 import { createDb, PostgresUnitOfWork } from './adapters/postgres/unit-of-work'
+import { fakePush, type FakePush } from './adapters/push/fake'
+import { webPushSender } from './adapters/push/web-push'
 import { cryptoTokens, seqTokens } from './adapters/tokens'
 import { memoryRateLimiter } from './adapters/memory/rate-limiter'
 import { supabaseAuthGateway } from './adapters/supabase/auth-gateway'
 import { adminClient, anonClient } from './adapters/supabase/server'
 import { withNotifications } from './app/notify'
+import { makeSendNotifications } from './app/push'
 import type { AppDeps, AuthGateway, Config } from './app/ports'
 import { serverConfig, type EnvConfig } from './config'
 import type { Actor } from './domain/actor'
@@ -50,6 +53,11 @@ const productionDeps = (env: EnvConfig): AppDeps => ({
   auth: authGateway(env),
   tokens: cryptoTokens,
   limiter: postgresRateLimiter(database(env)),
+  push: webPushSender({
+    subject: env.vapidSubject,
+    publicKey: env.public.vapidPublicKey,
+    privateKey: env.vapidPrivateKey,
+  }),
   config: appConfig(env),
 })
 
@@ -59,6 +67,16 @@ export const depsForRequest = (_session: RequestSession): AppDeps => productionD
 /** Scheduled jobs: same use cases, called with the system actor (service_role in Postgres). */
 export const depsForJob = (): AppDeps => productionDeps(serverConfig())
 
+/** Sends whatever notifications are due (called right after a change, and by the 5-minute job). */
+export const sendNotificationsNow = async (): Promise<void> => {
+  try {
+    const r = await makeSendNotifications(depsForJob())()
+    if (r.ok && r.value.messages > 0) console.log(`[push] ${JSON.stringify(r.value)}`)
+  } catch (e) {
+    console.error('[push] sending failed', e)
+  }
+}
+
 export type TestDeps = AppDeps & {
   readonly uow: MemoryUnitOfWork
   readonly clock: FixedClock
@@ -66,6 +84,7 @@ export type TestDeps = AppDeps & {
   readonly tokens: ReturnType<typeof seqTokens>
   readonly limiter: ReturnType<typeof memoryRateLimiter>
   readonly auth: MemoryAuth
+  readonly push: FakePush
 }
 
 export const TEST_NOW = instant(Date.UTC(2026, 8, 29, 16, 0)) // Tue 2026-09-29 12:00 in New York
@@ -81,6 +100,7 @@ export const depsForTest = (overrides: Partial<AppDeps> = {}): TestDeps => {
     auth: memoryAuth(uow, ids),
     tokens: seqTokens(),
     limiter: memoryRateLimiter(),
+    push: fakePush(),
     config: { setupToken: 'test-setup-token-0123456789abcdef0123' },
     ...overrides,
   } as TestDeps
