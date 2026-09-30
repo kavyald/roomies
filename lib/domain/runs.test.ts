@@ -26,6 +26,7 @@ import {
   markRunItemsDone,
   moveRunItems,
   returnToPool,
+  runLabel,
   runLedger,
   runProgress,
   runSteps,
@@ -471,5 +472,20 @@ describe('inArrivalOrder', () => {
     expect(
       inArrivalOrder([task('Other'), task('Mold'), task('Leak')], ledger).map((t) => t.title),
     ).toEqual(['Leak', 'Mold', 'Other'])
+  })
+})
+
+describe('runLabel', () => {
+  const names = {
+    person: (id: string) => (id === kavya ? 'Kavya' : undefined),
+    contact: (id: string) => (id === landlord ? 'Landlord' : undefined),
+  }
+  it('uses the title, or names it after the runner or the contact', () => {
+    expect(runLabel(batch('g', { title: 'Groceries' }), names)).toBe('Groceries')
+    expect(runLabel(batch(), names)).toBe("Kavya's run")
+    expect(runLabel(batch('x', { runner: wren }), names)).toBe("Someone's run")
+    expect(runLabel(visit(), names)).toBe('Landlord visit')
+    expect(runLabel(request(), names)).toBe('Landlord request')
+    expect(runLabel({ ...visit(), contactId: 'gone' as ContactId }, names)).toBe('Contact visit')
   })
 })

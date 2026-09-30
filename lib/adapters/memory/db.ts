@@ -18,6 +18,12 @@ import type {
   UserId,
 } from '../../domain/ids'
 import type { Cost } from '../../domain/costs'
+import {
+  NOTIFICATION_CATEGORIES,
+  type NotificationCategory,
+  type OutboxMessage,
+} from '../../domain/notifications'
+import type { Instant } from '../../domain/time'
 import type { Poll, PollOption } from '../../domain/polls'
 import type { Feeling } from '../../domain/feelings'
 import { sameNeed, type Item, type Need } from '../../domain/items'
@@ -37,6 +43,8 @@ export type MemoryState = {
   runs: Map<RunId, Run>
   polls: Map<PollId, Poll>
   costs: Cost[]
+  prefs: Map<string, boolean>
+  outbox: (OutboxMessage & { id: number; sentAt?: Instant })[]
   activity: StoredActivityRow[]
 }
 
@@ -53,6 +61,8 @@ export const emptyState = (): MemoryState => ({
   runs: new Map(),
   polls: new Map(),
   costs: [],
+  prefs: new Map(),
+  outbox: [],
   activity: [],
 })
 
@@ -258,6 +268,28 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         if (run.title !== undefined && !(run.title.trim() && run.title.trim().length <= 80))
           throw new ConstraintViolation('runs: title')
         s.runs.set(run.id, run)
+      },
+    },
+    notifications: {
+      offFor: async (userIds) => {
+        const off = new Map<UserId, Set<NotificationCategory>>()
+        for (const u of userIds) {
+          // "notification prefs read": your own, or people you live with.
+          if (a.kind !== 'system' && u !== uid(a) && !sharesAHouse(s, a, u)) continue
+          const cats = NOTIFICATION_CATEGORIES.filter((c) => s.prefs.get(`${u}|${c}`) === false)
+          if (cats.length) off.set(u, new Set(cats))
+        }
+        return off
+      },
+      setEnabled: async (userId, category, enabled) => {
+        if (a.kind !== 'system' && userId !== uid(a)) deny('notification_prefs')
+        s.prefs.set(`${userId}|${category}`, enabled)
+      },
+      enqueue: async (messages) => {
+        for (const m of messages) {
+          if (!isMember(s, a, m.houseId)) deny('notifications_outbox')
+          s.outbox.push({ ...m, id: (s.outbox.at(-1)?.id ?? 0) + 1 })
+        }
       },
     },
     costs: {

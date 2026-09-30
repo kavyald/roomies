@@ -7,7 +7,9 @@
 import { Kysely, PostgresDialect, sql, type Transaction } from 'kysely'
 import pg from 'pg'
 import { AccessDenied, ConstraintViolation, type Repos, type UnitOfWork } from '../../app/ports'
+import type { UserId } from '../../domain/ids'
 import type { Need } from '../../domain/items'
+import type { NotificationCategory } from '../../domain/notifications'
 import type { Actor } from '../../domain/actor'
 import { activityRowFor } from '../../domain/events'
 import { isFailedResult } from '../../domain/result'
@@ -330,6 +332,56 @@ const reposFor = (trx: Trx): Repos => {
           () => trx.updateTable('runs').set(editable).where('id', '=', run.id).executeTakeFirst(),
           () => trx.insertInto('runs').values(row).execute(),
         )
+      },
+    },
+    notifications: {
+      offFor: async (userIds) => {
+        const off = new Map<UserId, Set<NotificationCategory>>()
+        if (userIds.length === 0) return off
+        const rows = await trx
+          .selectFrom('notification_prefs')
+          .select(['user_id', 'category'])
+          .where('user_id', 'in', [...userIds])
+          .where('enabled', '=', false)
+          .execute()
+        for (const r of rows) {
+          const u = r.user_id as UserId
+          off.set(u, new Set([...(off.get(u) ?? []), r.category as NotificationCategory]))
+        }
+        return off
+      },
+      setEnabled: async (userId, category, enabled) => {
+        await save(
+          () =>
+            trx
+              .updateTable('notification_prefs')
+              .set({ enabled })
+              .where('user_id', '=', userId)
+              .where('category', '=', category)
+              .executeTakeFirst(),
+          () =>
+            trx
+              .insertInto('notification_prefs')
+              .values({ user_id: userId, category, enabled })
+              .execute(),
+        )
+      },
+      enqueue: async (messages) => {
+        if (messages.length === 0) return
+        await trx
+          .insertInto('notifications_outbox')
+          .values(
+            messages.map((m) => ({
+              user_id: m.userId,
+              house_id: m.houseId,
+              category: m.category,
+              title: m.title,
+              body: m.body,
+              url: m.url,
+              send_after: toDate(m.sendAfter),
+            })),
+          )
+          .execute()
       },
     },
     costs: {

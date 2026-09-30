@@ -16,6 +16,7 @@ import type {
   UserId,
 } from '../domain/ids'
 import type { Cost } from '../domain/costs'
+import type { NotificationCategory, OutboxMessage } from '../domain/notifications'
 import type { Poll, PollOption, Vote } from '../domain/polls'
 import type { Feeling } from '../domain/feelings'
 import type { Item, Need } from '../domain/items'
@@ -124,6 +125,15 @@ export interface PollRepo {
   saveState(poll: Poll): Promise<void>
 }
 
+/** Notification settings and the outbox (the push sender drains it, T34). */
+export interface NotificationRepo {
+  /** The categories each of these people turned off (everyone else: all on). */
+  offFor(userIds: readonly UserId[]): Promise<Map<UserId, Set<NotificationCategory>>>
+  setEnabled(userId: UserId, category: NotificationCategory, enabled: boolean): Promise<void>
+  /** Written in the same transaction as the events that caused them. */
+  enqueue(messages: readonly OutboxMessage[]): Promise<void>
+}
+
 /** Costs are recorded, never edited or deleted in v1. */
 export interface CostRepo {
   listByHouse(houseId: HouseId): Promise<Cost[]>
@@ -162,6 +172,7 @@ export interface Repos {
   readonly runs: RunRepo
   readonly polls: PollRepo
   readonly costs: CostRepo
+  readonly notifications: NotificationRepo
   readonly events: EventSink
 }
 

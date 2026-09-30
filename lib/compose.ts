@@ -12,6 +12,7 @@ import { cryptoTokens, seqTokens } from './adapters/tokens'
 import { memoryRateLimiter } from './adapters/memory/rate-limiter'
 import { supabaseAuthGateway } from './adapters/supabase/auth-gateway'
 import { adminClient, anonClient } from './adapters/supabase/server'
+import { withNotifications } from './app/notify'
 import type { AppDeps, AuthGateway, Config } from './app/ports'
 import { serverConfig, type EnvConfig } from './config'
 import type { Actor } from './domain/actor'
@@ -43,7 +44,7 @@ const authGateway = (env: EnvConfig): AuthGateway =>
 export const authForRequest = (): AuthGateway => authGateway(serverConfig())
 
 const productionDeps = (env: EnvConfig): AppDeps => ({
-  uow: new PostgresUnitOfWork(database(env)),
+  uow: withNotifications(new PostgresUnitOfWork(database(env))),
   clock: systemClock,
   ids: cryptoIds,
   auth: authGateway(env),
@@ -71,7 +72,7 @@ export const TEST_NOW = instant(Date.UTC(2026, 8, 29, 16, 0)) // Tue 2026-09-29 
 
 /** In-memory adapters, a fixed clock and sequential ids; never the environment. */
 export const depsForTest = (overrides: Partial<AppDeps> = {}): TestDeps => {
-  const uow = new MemoryUnitOfWork()
+  const uow = withNotifications(new MemoryUnitOfWork())
   const ids = seqIds()
   return {
     uow,

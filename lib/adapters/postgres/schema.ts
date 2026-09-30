@@ -191,6 +191,13 @@ export type ActivityEventsTable = {
   payload: Json<Record<string, unknown>>
 }
 
+export type NotificationPrefsTable = {
+  user_id: string
+  category: string
+  enabled: boolean
+  updated_at: Generated<Timestamp>
+}
+
 export type NotificationsOutboxTable = {
   id: Generated<ColumnType<string, never, never>>
   user_id: string
@@ -200,7 +207,7 @@ export type NotificationsOutboxTable = {
   body: string
   url: string
   created_at: Generated<Timestamp>
-  send_after: Generated<Timestamp>
+  send_after: Timestamp
   sent_at: Timestamp | null
   error: string | null
 }
@@ -221,4 +228,5 @@ export type DB = {
   poll_votes: PollVotesTable
   activity_events: ActivityEventsTable
   notifications_outbox: NotificationsOutboxTable
+  notification_prefs: NotificationPrefsTable
 }

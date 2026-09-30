@@ -13,6 +13,7 @@ import {
   closePoll,
   createPoll,
   isPollOpen,
+  resultLine,
   resultOf,
   tally,
   vote,
@@ -195,5 +196,21 @@ describe('results', () => {
     expect(resultOf(vacuum())).toEqual({ noVotes: true })
     const r = closePoll(vacuum(), { ...ctx(), by: null })
     expect(r.ok && r.value.events[0]).toMatchObject({ payload: { result: 'no_votes' }, by: null })
+  })
+})
+
+describe('resultLine', () => {
+  it('says who won, that it tied, or that nobody voted', () => {
+    const p = vacuum()
+    expect(resultLine(p, { winner: opt('dyson v8'), votes: 3, runnerUp: 1 })).toBe(
+      'Dyson V8 wins (3–1)',
+    )
+    expect(resultLine(p, { tie: [opt('dyson v8'), opt('shark')], votes: 2 })).toBe(
+      "It's a tie. Talk it out?",
+    )
+    expect(resultLine(p, { noVotes: true })).toBe('No votes this time.')
+    expect(resultLine(p, { winner: opt('gone'), votes: 1, runnerUp: 0 })).toBe(
+      'An option wins (1–0)',
+    )
   })
 })

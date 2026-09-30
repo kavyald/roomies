@@ -31,6 +31,7 @@ const ITEM_TABLES = [
   'poll_options',
   'poll_votes',
   'costs',
+  'notification_prefs',
 ] as const
 
 const INSUFFICIENT_PRIVILEGE = '42501'

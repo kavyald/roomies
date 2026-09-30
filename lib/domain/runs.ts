@@ -616,3 +616,14 @@ export const visitDateOf = (
   const r = runs.get(item.run.id)
   return r?.kind === 'visit' ? r.when?.date : undefined
 }
+
+/** "Groceries", "Kavya's run", "Landlord visit", "Landlord request" (FRONTEND §3.4). */
+export const runLabel = (
+  run: Run,
+  names: { person(id: string): string | undefined; contact(id: string): string | undefined },
+): string => {
+  if (run.title) return run.title
+  if (run.kind === 'batch') return `${names.person(run.runner) ?? 'Someone'}'s run`
+  const who = names.contact(run.contactId) ?? 'Contact'
+  return run.kind === 'visit' ? `${who} visit` : `${who} request`
+}
