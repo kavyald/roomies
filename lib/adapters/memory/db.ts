@@ -7,9 +7,10 @@ import type { Actor } from '../../domain/actor'
 import { activityRowFor, type StoredActivityRow } from '../../domain/events'
 import { isFailedResult } from '../../domain/result'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
-import type { ContactId, HouseId, InviteId, ItemId, RoomId, UserId } from '../../domain/ids'
+import type { ContactId, HouseId, InviteId, ItemId, RoomId, RunId, UserId } from '../../domain/ids'
 import type { Feeling } from '../../domain/feelings'
 import { sameNeed, type Item, type Need } from '../../domain/items'
+import type { Run } from '../../domain/runs'
 import { isValidWeight } from '../../domain/weights'
 
 export type MemoryState = {
@@ -22,6 +23,7 @@ export type MemoryState = {
   invites: Map<InviteId, Invite>
   items: Map<ItemId, Item>
   feelings: Map<string, { houseId: HouseId; feeling: Feeling }>
+  runs: Map<RunId, Run>
   activity: StoredActivityRow[]
 }
 
@@ -35,6 +37,7 @@ export const emptyState = (): MemoryState => ({
   invites: new Map(),
   items: new Map(),
   feelings: new Map(),
+  runs: new Map(),
   activity: [],
 })
 
@@ -196,6 +199,8 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         visible(s.items.values(), houseId).filter(
           (i): i is Need => i.category === 'need' && !i.done && !i.archivedAt,
         ),
+      onRun: async (runId) =>
+        [...s.items.values()].filter((i) => i.run?.id === runId && isMember(s, a, i.houseId)),
       save: async (item) => {
         const old = s.items.get(item.id)
         if (!isMember(s, a, item.houseId) || (old && !isMember(s, a, old.houseId))) deny('items')
@@ -224,7 +229,29 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         s.feelings.delete(`${itemId}|${userId}`)
       },
     },
+    runs: {
+      get: async (id) => {
+        const r = s.runs.get(id)
+        return r && isMember(s, a, r.houseId) ? r : undefined
+      },
+      listByHouse: async (houseId) => visible(s.runs.values(), houseId),
+      save: async (run) => {
+        const old = s.runs.get(run.id)
+        if (!isMember(s, a, run.houseId) || (old && !isMember(s, a, old.houseId))) deny('runs')
+        if (!old && a.kind !== 'system' && run.createdBy !== uid(a)) deny('runs')
+        if (old && old.kind !== run.kind) throw new ConstraintViolation('runs: kind never changes')
+        if (run.title !== undefined && !(run.title.trim() && run.title.trim().length <= 80))
+          throw new ConstraintViolation('runs: title')
+        s.runs.set(run.id, run)
+      },
+    },
     events: {
+      forRun: async (houseId, runId) =>
+        isMember(s, a, houseId)
+          ? s.activity
+              .filter((r) => r.houseId === houseId && (r.runId === runId || r.toRunId === runId))
+              .sort((x, y) => x.id - y.id)
+          : [],
       record: async (houseId, events, at) => {
         for (const e of events) {
           if (!isMember(s, a, houseId) || (a.kind !== 'system' && e.by !== a.userId)) {
@@ -262,6 +289,10 @@ const checkItem = (s: MemoryState, item: Item): void => {
   if (i.category !== 'task' && i.contactId) refuse('task-only contact')
   if (i.category === 'chore' && i.done) refuse('chores are never done')
   if (i.run && (i.done || i.archivedAt)) refuse('done or archived items are not on a run')
+  if (i.run) {
+    const r = s.runs.get(i.run.id)
+    if (r?.houseId !== i.houseId || r.kind !== i.run.kind) refuse('run: no such run in this house')
+  }
   if (i.run && i.run.kind !== 'batch' && i.category !== 'task')
     refuse('requests and visits hold tasks only')
   if (i.category === 'need' && !i.done && !i.archivedAt) {

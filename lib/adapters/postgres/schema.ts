@@ -100,6 +100,24 @@ export type ItemsTable = {
   archived_at: Timestamp | null
 }
 
+export type RunsTable = {
+  id: string
+  house_id: string
+  kind: 'batch' | 'request' | 'visit'
+  title: string | null
+  runner_id: string
+  contact_id: string | null
+  when_at: Timestamp | null
+  when_has_time: boolean
+  status: 'open' | 'finished' | 'gathering' | 'sent' | 'closed'
+  sent_at: Timestamp | null
+  sent_via: 'text' | 'email' | 'call' | 'portal' | 'in_person' | null
+  finished_at: Timestamp | null
+  created_by: string
+  created_at: Timestamp
+  updated_at: Generated<Timestamp>
+}
+
 export type FeelingsTable = {
   item_id: string
   user_id: string
@@ -153,6 +171,7 @@ export type DB = {
   contacts: ContactsTable
   items: ItemsTable
   feelings: FeelingsTable
+  runs: RunsTable
   activity_events: ActivityEventsTable
   notifications_outbox: NotificationsOutboxTable
 }

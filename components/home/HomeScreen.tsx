@@ -24,6 +24,7 @@ import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
 import { homeFeed, type FeedFilter } from '@/lib/domain/priority'
+import { RunsInProgress } from './RunsInProgress'
 import { WeightsChangedCard } from './WeightsChangedCard'
 
 const EMPTY: Record<FeedFilter, string> = {
@@ -88,6 +89,7 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   return (
     <div className="grid gap-4">
       <WeightsChangedCard houseId={houseId} />
+      <RunsInProgress houseId={houseId} />
       <section aria-labelledby="needs-attention" className="grid gap-3">
         <div className="flex items-center justify-between gap-3">
           <h2 id="needs-attention" className="m-0 text-lg font-extrabold">

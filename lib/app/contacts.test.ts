@@ -86,7 +86,10 @@ describe('createContact: activity is part of the same transaction', () => {
           deps.uow.run(actor, (repos) =>
             fn({
               ...repos,
-              events: { record: async () => Promise.reject(new Error('activity insert failed')) },
+              events: {
+                ...repos.events,
+                record: async () => Promise.reject(new Error('activity insert failed')),
+              },
             }),
           ),
       },

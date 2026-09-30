@@ -7,11 +7,15 @@ import { Chip, RoomChip } from '@/components/ui/Chip'
 import { cn } from '@/components/ui/cn'
 import type { Contact, Element, Room } from '@/lib/domain/house'
 import type { Item } from '@/lib/domain/items'
+import type { Run } from '@/lib/domain/runs'
+import { onRunLabel, RUN_ICON } from '@/components/runs/meta'
 import { CATEGORY, scheduleLabel } from './meta'
 
 export type CardContext = {
   rooms: ReadonlyMap<string, Room>
   contacts: ReadonlyMap<string, Contact>
+  /** The run an item is on, with its label ("Kavya's run"). */
+  run(id: string): { run: Run; label: string } | undefined
   person(id: string): { name: string; element?: Element } | undefined
 }
 
@@ -44,6 +48,7 @@ export function ItemCard({
   const contact =
     item.category === 'task' && item.contactId ? ctx.contacts.get(item.contactId) : undefined
   const assignee = item.assignee ? ctx.person(item.assignee) : undefined
+  const onRun = item.run ? ctx.run(item.run.id) : undefined
   const Icon = CATEGORY[item.category].icon
   // VoiceOver reads the title first; the tier, chips and meta line follow as the description.
   const id = useId()
@@ -72,6 +77,9 @@ export function ItemCard({
           )}
           {contact && <Chip icon={Phone}>Handled by: {contact.name}</Chip>}
           {room && <RoomChip name={room.name} element={room.element} />}
+          {onRun && (
+            <Chip icon={RUN_ICON[onRun.run.kind]}>{onRunLabel(onRun.run, onRun.label)}</Chip>
+          )}
         </span>
         {(assignee || meta) && (
           <span

@@ -181,6 +181,71 @@ export const houseQueriesContract = (
       })
     })
 
+    it("reads the house's runs and a run's story, including items moved into it", async () => {
+      const { house, member } = await withPlaces()
+      const run = (title: string) => ({
+        id: h.ids.newId<'run'>(),
+        houseId: house.id,
+        kind: 'batch' as const,
+        title,
+        runner: member,
+        createdBy: member,
+        createdAt: T,
+        state: { open: true as const },
+      })
+      const groceries = run('Groceries')
+      const saturday = run('Saturday')
+      const item = {
+        id: h.ids.newId<'item'>(),
+        houseId: house.id,
+        category: 'need',
+        title: 'Milk',
+        priority: 'normal',
+        createdBy: member,
+        createdAt: T,
+      } as const
+      await h.uow.run(system(house.id), async (r) => {
+        await r.runs.save(groceries)
+        await r.runs.save(saturday)
+        await r.items.save({ ...item, run: { id: saturday.id, kind: 'batch' } } as never)
+        const a = h.ids.newId<'action'>()
+        await r.events.record(
+          house.id,
+          [
+            {
+              kind: 'run.item_added',
+              runId: groceries.id,
+              itemId: item.id,
+              actionId: a,
+              by: member,
+            },
+            {
+              kind: 'run.item_moved',
+              runId: groceries.id,
+              toRunId: saturday.id,
+              itemId: item.id,
+              actionId: a,
+              by: member,
+            },
+          ],
+          T,
+        )
+      })
+      const q = h.queriesFor(member, house.id)
+      expect((await q.runs(house.id)).map((r) => r.title).sort()).toEqual(['Groceries', 'Saturday'])
+      expect((await q.runActivity(house.id, groceries.id)).map((r) => r.kind)).toEqual([
+        'run.item_added',
+        'run.item_moved',
+      ])
+      expect((await q.runActivity(house.id, saturday.id)).map((r) => r.kind)).toEqual([
+        'run.item_moved',
+      ])
+      const stranger = await seedHouse(h)
+      const theirs = h.queriesFor(stranger.member, stranger.house.id)
+      expect(await theirs.runs(house.id)).toEqual([])
+      expect(await theirs.runActivity(house.id, groceries.id)).toEqual([])
+    })
+
     it('finds the latest activity of one kind', async () => {
       const { house, admin, member } = await withPlaces()
       const weights = (anxious: number): DomainEvent => ({

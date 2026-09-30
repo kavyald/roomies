@@ -23,6 +23,14 @@ import {
   restoreItemAction,
   setFeelingAction,
 } from '@/app/actions/items'
+import {
+  addToRunAction,
+  finishRunAction,
+  markRunItemsDoneAction,
+  moveRunItemsAction,
+  returnToPoolAction,
+  startRunAction,
+} from '@/app/actions/runs'
 import { ItemSheetsProvider } from '@/components/items/ItemSheets'
 import { browserAppClient } from '@/lib/compose.client'
 import type { HouseId, UserId } from '@/lib/domain/ids'
@@ -66,6 +74,12 @@ export function HouseProviders({
       restoreItem: (id) => restoreItemAction(houseId, id),
       setFeeling: (input) => setFeelingAction(houseId, input),
       setFeelingWeights: (weights) => setFeelingWeightsAction(houseId, weights),
+      startRun: (input) => startRunAction(houseId, input),
+      addToRun: (input) => addToRunAction(houseId, input),
+      markRunItemsDone: (input) => markRunItemsDoneAction(houseId, input),
+      moveRunItems: (input) => moveRunItemsAction(houseId, input),
+      returnToPool: (input) => returnToPoolAction(houseId, input),
+      finishRun: (input) => finishRunAction(houseId, input),
     }),
   )
   return (

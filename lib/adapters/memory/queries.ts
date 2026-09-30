@@ -34,6 +34,14 @@ export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQu
       .filter((a) => a.houseId === houseId && a.itemId === itemId)
       .sort((a, b) => b.id - a.id)
   },
+  runs: (houseId) => uow.run(actor, (r) => r.runs.listByHouse(houseId)),
+  runActivity: async (houseId, runId) => {
+    const visible = await uow.run(actor, (r) => r.houses.get(houseId))
+    if (!visible) return []
+    return uow.state.activity
+      .filter((a) => a.houseId === houseId && (a.runId === runId || a.toRunId === runId))
+      .sort((a, b) => a.id - b.id)
+  },
   latestActivity: async (houseId, kind) => {
     const visible = await uow.run(actor, (r) => r.houses.get(houseId))
     if (!visible) return undefined

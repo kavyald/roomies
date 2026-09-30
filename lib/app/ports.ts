@@ -4,10 +4,11 @@
 import type { Actor } from '../domain/actor'
 import type { DomainEvent, EventKind, StoredActivityRow } from '../domain/events'
 import type { Contact, House, Invite, Member, Profile, Room } from '../domain/house'
-import type { ContactId, HouseId, Id, InviteId, ItemId, RoomId, UserId } from '../domain/ids'
+import type { ContactId, HouseId, Id, InviteId, ItemId, RoomId, RunId, UserId } from '../domain/ids'
 import type { Feeling } from '../domain/feelings'
 import type { Item, Need } from '../domain/items'
 import type { Result } from '../domain/result'
+import type { Run } from '../domain/runs'
 import type { Instant } from '../domain/time'
 
 // ---- infrastructure ----------------------------------------------------------
@@ -90,7 +91,15 @@ export interface ItemRepo {
   listByHouse(houseId: HouseId): Promise<Item[]>
   /** Needs that are open (not done, not archived): what "already on the list" is checked against. */
   openNeeds(houseId: HouseId): Promise<Need[]>
+  /** The items on a run right now. */
+  onRun(runId: RunId): Promise<Item[]>
   save(item: Item): Promise<void>
+}
+
+export interface RunRepo {
+  get(id: RunId): Promise<Run | undefined>
+  listByHouse(houseId: HouseId): Promise<Run[]>
+  save(run: Run): Promise<void>
 }
 
 export interface FeelingRepo {
@@ -103,6 +112,8 @@ export interface FeelingRepo {
 /** Writes activity (and, from T33, outbox) rows in the same transaction as the change. */
 export interface EventSink {
   record(houseId: HouseId, events: readonly DomainEvent[], at: Instant): Promise<void>
+  /** A run's story so far (rows on it or moved into it), oldest first. */
+  forRun(houseId: HouseId, runId: RunId): Promise<StoredActivityRow[]>
 }
 
 export interface Repos {
@@ -114,6 +125,7 @@ export interface Repos {
   readonly invites: InviteRepo
   readonly items: ItemRepo
   readonly feelings: FeelingRepo
+  readonly runs: RunRepo
   readonly events: EventSink
 }
 
@@ -165,6 +177,10 @@ export interface HouseQueries {
   invites(houseId: HouseId): Promise<Invite[]>
   /** The house's most recent activity row of one kind (the Home card for a weights change). */
   latestActivity(houseId: HouseId, kind: EventKind): Promise<StoredActivityRow | undefined>
+  /** The house's runs, open ones and finished ones. */
+  runs(houseId: HouseId): Promise<Run[]>
+  /** A run's story (rows on it or moved into it), oldest first. */
+  runActivity(houseId: HouseId, runId: RunId): Promise<StoredActivityRow[]>
   /** Newest first, `limit` rows or a little more: an action is never split across pages. */
   activity(houseId: HouseId, page: { before?: number; limit: number }): Promise<ActivityPage>
 }

@@ -6,6 +6,7 @@ import { feelingWeightsFrom, type Feeling } from '../../domain/feelings'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
 import { asId } from '../../domain/ids'
 import type { Done, Item } from '../../domain/items'
+import type { Run } from '../../domain/runs'
 import {
   instant,
   instantOfWhen,
@@ -25,6 +26,7 @@ import type {
   ItemsTable,
   ProfilesTable,
   RoomsTable,
+  RunsTable,
 } from './schema'
 
 export const toInstant = (d: Date | string): Instant => instant(new Date(d).getTime())
@@ -295,6 +297,87 @@ export const itemToRow = (i: Item, tz: string) => {
     created_by: i.createdBy,
     created_at: toDate(i.createdAt),
     archived_at: i.archivedAt ? toDate(i.archivedAt) : null,
+  }
+}
+
+// ---- runs ---------------------------------------------------------------------------------------
+
+const whenOf = (at: Date | string | null, hasTime: boolean, tz: string): When | undefined =>
+  at
+    ? {
+        date: localDateOf(toInstant(at), tz),
+        ...(hasTime && { time: localTimeOf(toInstant(at), tz) }),
+      }
+    : undefined
+
+export const runToDomain = (r: Selectable<RunsTable>, tz: string): Run => {
+  const base = compact({
+    id: asId<'run'>(r.id),
+    houseId: asId<'house'>(r.house_id),
+    title: r.title ?? undefined,
+    runner: asId<'user'>(r.runner_id),
+    createdBy: asId<'user'>(r.created_by),
+    createdAt: toInstant(r.created_at),
+  })
+  const openOrFinished = r.finished_at
+    ? { open: false as const, finishedAt: toInstant(r.finished_at) }
+    : { open: true as const }
+  switch (r.kind) {
+    case 'batch':
+      return compact({
+        ...base,
+        kind: 'batch' as const,
+        when: whenOf(r.when_at, r.when_has_time, tz),
+        state: openOrFinished,
+      })
+    case 'visit':
+      return compact({
+        ...base,
+        kind: 'visit' as const,
+        contactId: asId<'contact'>(r.contact_id!),
+        when: whenOf(r.when_at, r.when_has_time, tz),
+        state: openOrFinished,
+      })
+    case 'request':
+      return {
+        ...base,
+        kind: 'request',
+        contactId: asId<'contact'>(r.contact_id!),
+        state:
+          r.status === 'sent'
+            ? { at: 'sent', sentAt: toInstant(r.sent_at!), via: r.sent_via! }
+            : r.status === 'closed'
+              ? { at: 'closed', closedAt: toInstant(r.finished_at!) }
+              : { at: 'gathering' },
+      }
+  }
+}
+
+export const runToRow = (r: Run, tz: string) => {
+  const when = r.kind === 'request' ? undefined : r.when
+  const state = r.state
+  return {
+    id: r.id,
+    house_id: r.houseId,
+    kind: r.kind,
+    title: r.title ?? null,
+    runner_id: r.runner,
+    contact_id: r.kind === 'batch' ? null : r.contactId,
+    when_at: when ? toDate(instantOfWhen(when, tz)) : null,
+    when_has_time: Boolean(when?.time),
+    status: 'at' in state ? state.at : state.open ? ('open' as const) : ('finished' as const),
+    sent_at: 'at' in state && state.at === 'sent' ? toDate(state.sentAt) : null,
+    sent_via: 'at' in state && state.at === 'sent' ? state.via : null,
+    finished_at:
+      'at' in state
+        ? state.at === 'closed'
+          ? toDate(state.closedAt)
+          : null
+        : state.open
+          ? null
+          : toDate(state.finishedAt),
+    created_by: r.createdBy,
+    created_at: toDate(r.createdAt),
   }
 }
 

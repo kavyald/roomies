@@ -35,6 +35,12 @@ export const fakeAppClient = (
     restoreItem: async () => err('unexpected'),
     setFeeling: async () => err('unexpected'),
     setFeelingWeights: async () => err('unexpected'),
+    startRun: async () => err('unexpected'),
+    addToRun: async () => err('unexpected'),
+    markRunItemsDone: async () => err('unexpected'),
+    moveRunItems: async () => err('unexpected'),
+    returnToPool: async () => err('unexpected'),
+    finishRun: async () => err('unexpected'),
     ...commands,
   },
 })

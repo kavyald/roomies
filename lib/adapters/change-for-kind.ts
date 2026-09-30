@@ -11,6 +11,8 @@ const TABLE_BY_PREFIX: Record<string, string> = {
   invite: 'house_invites',
   house: 'houses',
   settings: 'houses',
+  run: 'runs',
+  request: 'runs',
 }
 
 /** "item.created" → items. Kinds from later milestones (polls, runs, costs) refresh everything. */

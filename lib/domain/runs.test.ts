@@ -1,0 +1,340 @@
+import { describe, expect, it } from 'vitest'
+import { activityRowFor, type DomainEvent, type StoredActivityRow } from './events'
+import {
+  asId,
+  type ActionId,
+  type ContactId,
+  type HouseId,
+  type ItemId,
+  type RunId,
+  type UserId,
+} from './ids'
+import type { Chore, Item, Need, Task } from './items'
+import {
+  addToRun,
+  finishRun,
+  itemPath,
+  markRunItemsDone,
+  moveRunItems,
+  returnToPool,
+  runLedger,
+  runProgress,
+  runSteps,
+  startRun,
+  type Batch,
+  type Request,
+  type Run,
+  type Visit,
+} from './runs'
+import { instant, type LocalDate } from './time'
+
+const house = asId<'house'>('h') as HouseId
+const kavya = asId<'user'>('kavya') as UserId
+const wren = asId<'user'>('wren') as UserId
+const landlord = asId<'contact'>('landlord') as ContactId
+const T = instant(1_000)
+const act = asId<'action'>('a') as ActionId
+const ctx = { by: kavya, now: T, actionId: act }
+
+const base = (title: string) => ({
+  id: asId<'item'>(title) as ItemId,
+  houseId: house,
+  title,
+  priority: 'normal' as const,
+  createdBy: kavya,
+  createdAt: instant(0),
+})
+const need = (title: string, o: Partial<Need> = {}): Need => ({
+  ...base(title),
+  category: 'need',
+  ...o,
+})
+const task = (title: string, o: Partial<Task> = {}): Task => ({
+  ...base(title),
+  category: 'task',
+  ...o,
+})
+const chore = (title: string, o: Partial<Chore> = {}): Chore => ({
+  ...base(title),
+  category: 'chore',
+  repeatDays: 7,
+  ...o,
+})
+
+const runId = (s: string) => asId<'run'>(s) as RunId
+const batch = (id = 'groceries', o: Partial<Batch> = {}): Batch => ({
+  id: runId(id),
+  houseId: house,
+  kind: 'batch',
+  runner: kavya,
+  createdBy: kavya,
+  createdAt: T,
+  state: { open: true },
+  ...o,
+})
+const request = (state: Request['state'] = { at: 'gathering' }): Request => ({
+  id: runId('request'),
+  houseId: house,
+  kind: 'request',
+  contactId: landlord,
+  runner: kavya,
+  createdBy: kavya,
+  createdAt: T,
+  state,
+})
+const visit = (o: Partial<Visit> = {}): Visit => ({
+  id: runId('visit'),
+  houseId: house,
+  kind: 'visit',
+  contactId: landlord,
+  runner: kavya,
+  createdBy: kavya,
+  createdAt: T,
+  state: { open: true },
+  ...o,
+})
+const on = <I extends Item>(item: I, r: Run): I => ({ ...item, run: { id: r.id, kind: r.kind } })
+const kinds = (events: readonly DomainEvent[]) => events.map((e) => e.kind)
+
+describe('startRun', () => {
+  it('starts a batch with the selected items on it', () => {
+    const r = startRun(
+      { title: '  Groceries ', when: { date: '2026-10-03' as LocalDate } },
+      [need('Milk'), chore('Mop')],
+      { ...ctx, id: runId('g'), houseId: house },
+    )
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.run).toMatchObject({
+      kind: 'batch',
+      title: 'Groceries',
+      runner: kavya,
+      state: { open: true },
+      when: { date: '2026-10-03' },
+    })
+    expect(r.value.items.map((i) => i.run)).toEqual([
+      { id: 'g', kind: 'batch' },
+      { id: 'g', kind: 'batch' },
+    ])
+    expect(kinds(r.value.events)).toEqual(['run.created', 'run.item_added', 'run.item_added'])
+  })
+
+  it('needs something selected, open, and not already on a run', () => {
+    const start = (items: Item[], title?: string) =>
+      startRun({ title }, items, { ...ctx, id: runId('g'), houseId: house })
+    expect(start([])).toEqual({ ok: false, error: 'nothing_selected' })
+    expect(start([on(need('Milk'), batch('other'))])).toMatchObject({
+      ok: false,
+      error: 'already_on_a_run',
+      detail: { itemId: 'Milk' },
+    })
+    expect(start([need('Milk', { done: { at: T, by: kavya } })])).toMatchObject({
+      error: 'done_item',
+    })
+    expect(start([need('Milk', { archivedAt: T })])).toMatchObject({ error: 'done_item' })
+    expect(start([need('Milk')], 'x'.repeat(81))).toEqual({ ok: false, error: 'title_too_long' })
+  })
+})
+
+describe('addToRun', () => {
+  it("won't add to a finished run or a sent request, and requests and visits take tasks only", () => {
+    expect(
+      addToRun(batch('g', { state: { open: false, finishedAt: T } }), [need('Milk')], ctx),
+    ).toEqual({ ok: false, error: 'finished' })
+    expect(addToRun(request({ at: 'sent', sentAt: T, via: 'text' }), [task('Leak')], ctx)).toEqual({
+      ok: false,
+      error: 'request_sent',
+    })
+    expect(addToRun(visit(), [need('Milk')], ctx)).toMatchObject({ error: 'tasks_only' })
+  })
+
+  it('a task on a request or visit is handled by its contact', () => {
+    const r = addToRun(request(), [task('Leak')], ctx)
+    expect(r.ok && r.value.items[0]).toMatchObject({
+      run: { id: 'request', kind: 'request' },
+      contactId: landlord,
+    })
+  })
+})
+
+describe('actions on a selection', () => {
+  const g = batch()
+
+  it('Done marks items done (chores: last done) and takes them off the run', () => {
+    const r = markRunItemsDone(g, [on(need('Milk'), g), on(chore('Mop'), g)], {
+      ...ctx,
+      remainingOnRun: 3,
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.items[0]).toEqual({ ...need('Milk'), done: { at: T, by: kavya } })
+    expect(r.value.items[1]).toEqual({ ...chore('Mop'), lastDone: { at: T, by: kavya } })
+    expect(kinds(r.value.events)).toEqual(['run.item_done', 'run.item_done'])
+    expect(markRunItemsDone(g, [need('Eggs')], { ...ctx, remainingOnRun: 1 })).toEqual({
+      ok: false,
+      error: 'not_on_run',
+    })
+    expect(markRunItemsDone(g, [], { ...ctx, remainingOnRun: 1 })).toMatchObject({
+      error: 'nothing_selected',
+    })
+  })
+
+  it('Move to… points items at another open run, with a note', () => {
+    const saturday = batch('saturday')
+    const r = moveRunItems(g, saturday, [on(need('Milk'), g)], {
+      ...ctx,
+      note: ' next time ',
+      remainingOnFrom: 2,
+    })
+    expect(r.ok && r.value.items[0]?.run).toEqual({ id: 'saturday', kind: 'batch' })
+    expect(r.ok && r.value.events).toEqual([
+      {
+        kind: 'run.item_moved',
+        runId: 'groceries',
+        toRunId: 'saturday',
+        itemId: 'Milk',
+        note: 'next time',
+        actionId: act,
+        by: kavya,
+      },
+    ])
+    const milk = on(need('Milk'), g)
+    const move = (to: Run, items: Item[] = [milk]) =>
+      moveRunItems(g, to, items, { ...ctx, remainingOnFrom: 2 })
+    expect(move(g)).toMatchObject({ error: 'same_run' })
+    expect(move(batch('done', { state: { open: false, finishedAt: T } }))).toMatchObject({
+      error: 'target_closed',
+    })
+    expect(move(visit())).toMatchObject({ error: 'tasks_only' })
+    expect(move(saturday, [need('Eggs')])).toMatchObject({ error: 'not_on_run' })
+  })
+
+  it('moving tasks from a request to a visit hands them to the contact, and the empty request closes itself', () => {
+    const req = request({ at: 'sent', sentAt: T, via: 'text' })
+    const leak = on(task('Leak'), req)
+    const r = moveRunItems(req, visit(), [leak], { ...ctx, remainingOnFrom: 1 })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.items[0]).toMatchObject({ run: { id: 'visit' }, contactId: landlord })
+    expect(r.value.from.state).toEqual({ at: 'closed', closedAt: T })
+    expect(kinds(r.value.events)).toEqual(['run.item_moved', 'request.closed'])
+  })
+
+  it('Back to the pool takes items off with a note, and can put "Handled by" back to One of us', () => {
+    const req = request()
+    const leak = on(task('Leak', { contactId: landlord }), req)
+    const window = on(task('Window', { contactId: landlord }), req)
+    const r = returnToPool(req, [leak], {
+      ...ctx,
+      note: "That one's on us",
+      clearContact: true,
+      remainingOnFrom: 2,
+    })
+    expect(r.ok && r.value.items[0]).toEqual(task('Leak'))
+    expect(r.ok && r.value.from.state).toEqual({ at: 'gathering' }) // the window is still on it
+    expect(r.ok && r.value.events[0]).toMatchObject({
+      kind: 'run.item_returned',
+      note: "That one's on us",
+    })
+    const kept = returnToPool(req, [window], { ...ctx, clearContact: false, remainingOnFrom: 1 })
+    expect(kept.ok && kept.value.items[0]).toEqual(task('Window', { contactId: landlord }))
+    expect(kept.ok && kept.value.events[0]).toMatchObject({ note: 'Not done this time' })
+    expect(kept.ok && kinds(kept.value.events)).toEqual(['run.item_returned', 'request.closed'])
+    expect(
+      returnToPool(req, [task('Door')], { ...ctx, clearContact: false, remainingOnFrom: 1 }),
+    ).toMatchObject({ error: 'not_on_run' })
+    expect(
+      returnToPool(req, [], { ...ctx, clearContact: false, remainingOnFrom: 1 }),
+    ).toMatchObject({ error: 'nothing_selected' })
+  })
+
+  it('Finish returns whatever is left, "Not done this time"', () => {
+    const r = finishRun(g, [on(need('Eggs'), g)], { ...ctx, doneOnRun: 2 })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.run.state).toEqual({ open: false, finishedAt: T })
+    expect(r.value.items).toEqual([need('Eggs')])
+    expect(r.value.events.at(-1)).toMatchObject({
+      kind: 'run.finished',
+      payload: { done: 2, returned: 1 },
+    })
+    expect(r.value.events[0]).toMatchObject({
+      kind: 'run.item_returned',
+      note: 'Not done this time',
+    })
+    expect(finishRun(r.value.run, [], { ...ctx, doneOnRun: 0 })).toEqual({
+      ok: false,
+      error: 'finished',
+    })
+    expect(finishRun(request(), [], { ...ctx, doneOnRun: 0 })).toEqual({
+      ok: false,
+      error: 'not_finishable',
+    })
+  })
+})
+
+describe('reading history back', () => {
+  let seq = 0
+  const rows = (events: DomainEvent[]): StoredActivityRow[] =>
+    events.map((e) => ({ ...activityRowFor(e, house, T), id: ++seq }))
+
+  it('an item keeps its path through runs, and the run sheet shows where each item went', () => {
+    const g = batch()
+    const sat = batch('saturday')
+    const history = rows([
+      { kind: 'run.item_added', runId: g.id, itemId: 'Milk' as ItemId, actionId: act, by: kavya },
+      { kind: 'run.item_added', runId: g.id, itemId: 'Eggs' as ItemId, actionId: act, by: kavya },
+      { kind: 'run.item_added', runId: g.id, itemId: 'Soap' as ItemId, actionId: act, by: kavya },
+      { kind: 'run.item_added', runId: g.id, itemId: 'Mop' as ItemId, actionId: act, by: kavya },
+      { kind: 'run.item_done', runId: g.id, itemId: 'Milk' as ItemId, actionId: act, by: wren },
+      {
+        kind: 'run.item_moved',
+        runId: g.id,
+        toRunId: sat.id,
+        itemId: 'Eggs' as ItemId,
+        note: 'Sold out',
+        actionId: act,
+        by: wren,
+      },
+      {
+        kind: 'run.item_returned',
+        runId: g.id,
+        itemId: 'Soap' as ItemId,
+        note: 'We have some',
+        actionId: act,
+        by: wren,
+      },
+      { kind: 'item.archived', itemId: 'Mop' as ItemId, runId: g.id, actionId: act, by: kavya },
+      { kind: 'item.created', itemId: 'Other' as ItemId, actionId: act, by: kavya },
+    ])
+    expect(itemPath(history, 'Eggs' as ItemId).map((s) => s.what)).toEqual([
+      'added',
+      { movedTo: 'saturday' },
+    ])
+    const ledger = runLedger(g.id, runSteps(history), [])
+    expect(ledger).toEqual([
+      { itemId: 'Milk', state: { at: 'done', when: T } },
+      { itemId: 'Eggs', state: { at: 'moved', to: 'saturday', note: 'Sold out' } },
+      { itemId: 'Soap', state: { at: 'returned', note: 'We have some' } },
+      { itemId: 'Mop', state: { at: 'returned', note: 'Archived' } },
+    ])
+    expect(runProgress(ledger)).toEqual({ done: 1, total: 4 })
+
+    // On Saturday's run, the eggs arrived by a move and are still there.
+    const eggs = on(need('Eggs'), sat)
+    expect(runLedger(sat.id, runSteps(history), [eggs])).toEqual([
+      { itemId: 'Eggs', state: { at: 'pending' } },
+    ])
+  })
+
+  it('checking an item off from its own tab while it is on a run counts as done there', () => {
+    const g = batch()
+    const history = rows([
+      { kind: 'run.item_added', runId: g.id, itemId: 'Milk' as ItemId, actionId: act, by: kavya },
+      { kind: 'item.done', itemId: 'Milk' as ItemId, runId: g.id, actionId: act, by: kavya },
+      { kind: 'run.item_added', runId: g.id, itemId: 'Mop' as ItemId, actionId: act, by: kavya },
+      { kind: 'chore.done', itemId: 'Mop' as ItemId, runId: g.id, actionId: act, by: kavya },
+    ])
+    expect(runProgress(runLedger(g.id, runSteps(history), []))).toEqual({ done: 2, total: 2 })
+  })
+})

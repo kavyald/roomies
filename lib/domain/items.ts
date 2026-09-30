@@ -299,10 +299,12 @@ export const archiveItem = (
   actionId: ActionId,
 ): Result<{ item: Item; events: DomainEvent[] }, 'already_archived'> => {
   if (item.archivedAt) return err('already_archived')
-  const { run: _run, ...rest } = item
+  const { run, ...rest } = item
   return ok({
     item: { ...rest, archivedAt: now } as Item,
-    events: [{ kind: 'item.archived', itemId: item.id, actionId, by }],
+    events: [
+      { kind: 'item.archived', itemId: item.id, ...(run && { runId: run.id }), actionId, by },
+    ],
   })
 }
 

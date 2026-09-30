@@ -5,7 +5,7 @@ import { useEffect, useMemo } from 'react'
 import type { Feeling, FeelingWeights } from '../domain/feelings'
 import type { NewContact } from '../domain/contacts'
 import type { AppCommands } from './app-client'
-import type { ContactId, HouseId, InviteId, ItemId } from '../domain/ids'
+import type { ContactId, HouseId, InviteId, ItemId, RunId } from '../domain/ids'
 import type { NewItem } from '../domain/items'
 import type { NewInvite } from '../domain/invites'
 import { useAppClient } from './provider'
@@ -66,7 +66,7 @@ export const useRevokeInvite = (houseId: HouseId) => {
  * goes through here; the activity log refreshes too, since changes write to it.
  */
 /** Query families keyed by the house alone (the ones a command refreshes). */
-type HouseKey = Exclude<keyof typeof keys, 'itemActivity'>
+type HouseKey = Exclude<keyof typeof keys, 'itemActivity' | 'runActivity'>
 
 const useHouseCommand = <I, R extends { ok: boolean }>(
   houseId: HouseId,
@@ -130,6 +130,35 @@ export const useSetFeeling = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Parameters<AppCommands['setFeeling']>[0]) => c.setFeeling(i), [
     'feelings',
   ])
+
+export const useRuns = (houseId: HouseId) => {
+  const { queries } = useAppClient()
+  return useQuery({ queryKey: keys.runs(houseId), queryFn: () => queries.runs(houseId) })
+}
+
+/** A run's story (for the run sheet's rows and its progress). */
+export const useRunActivity = (houseId: HouseId, runId: RunId) => {
+  const { queries } = useAppClient()
+  return useQuery({
+    queryKey: keys.runActivity(houseId, runId),
+    queryFn: () => queries.runActivity(houseId, runId),
+  })
+}
+
+type Cmd<K extends keyof AppCommands> = Parameters<AppCommands[K]>[0]
+const RUN_AFFECTS: HouseKey[] = ['runs', 'items']
+export const useStartRun = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'startRun'>) => c.startRun(i), RUN_AFFECTS)
+export const useAddToRun = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'addToRun'>) => c.addToRun(i), RUN_AFFECTS)
+export const useMarkRunItemsDone = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'markRunItemsDone'>) => c.markRunItemsDone(i), RUN_AFFECTS)
+export const useMoveRunItems = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'moveRunItems'>) => c.moveRunItems(i), RUN_AFFECTS)
+export const useReturnToPool = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'returnToPool'>) => c.returnToPool(i), RUN_AFFECTS)
+export const useFinishRun = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'finishRun'>) => c.finishRun(i), RUN_AFFECTS)
 
 export const useCreateItem = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: NewItem) => c.createItem(i), ['items'])

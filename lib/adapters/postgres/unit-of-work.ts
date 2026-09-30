@@ -12,6 +12,7 @@ import type { Actor } from '../../domain/actor'
 import { activityRowFor } from '../../domain/events'
 import { isFailedResult } from '../../domain/result'
 import {
+  activityToDomain,
   contactToDomain,
   contactToRow,
   houseToDomain,
@@ -28,6 +29,8 @@ import {
   profileToRow,
   roomToDomain,
   roomToRow,
+  runToDomain,
+  runToRow,
   toDate,
 } from './mappers'
 import type { DB } from './schema'
@@ -90,6 +93,12 @@ const reposFor = (trx: Trx): Repos => {
       .selectFrom('items')
       .innerJoin('houses', 'houses.id', 'items.house_id')
       .selectAll('items')
+      .select(sql<string>`houses.settings->>'timezone'`.as('tz'))
+  const runsWithZone = () =>
+    trx
+      .selectFrom('runs')
+      .innerJoin('houses', 'houses.id', 'runs.house_id')
+      .selectAll('runs')
       .select(sql<string>`houses.settings->>'timezone'`.as('tz'))
 
   return {
@@ -281,11 +290,41 @@ const reposFor = (trx: Trx): Repos => {
             .where('items.archived_at', 'is', null)
             .execute()
         ).map((r) => itemToDomain(r, r.tz) as Need),
+      onRun: async (runId) =>
+        (
+          await itemsWithZone()
+            .where('items.run_id', '=', runId)
+            .orderBy('items.created_at')
+            .execute()
+        ).map((r) => itemToDomain(r, r.tz)),
       save: async (item) => {
         const row = itemToRow(item, await tzOf(item.houseId))
+        const { id: _id, created_by: _by, created_at: _at, ...editable } = row
         await save(
-          () => trx.updateTable('items').set(row).where('id', '=', item.id).executeTakeFirst(),
+          () => trx.updateTable('items').set(editable).where('id', '=', item.id).executeTakeFirst(),
           () => trx.insertInto('items').values(row).execute(),
+        )
+      },
+    },
+    runs: {
+      get: async (id) => {
+        const r = await runsWithZone().where('runs.id', '=', id).executeTakeFirst()
+        return r && runToDomain(r, r.tz)
+      },
+      listByHouse: async (houseId) =>
+        (
+          await runsWithZone()
+            .where('runs.house_id', '=', houseId)
+            .orderBy('runs.created_at')
+            .execute()
+        ).map((r) => runToDomain(r, r.tz)),
+      save: async (run) => {
+        const row = runToRow(run, await tzOf(run.houseId))
+        // A run's kind never changes: leave it (and who started it, and when) as stored.
+        const { id: _id, kind: _kind, created_by: _by, created_at: _at, ...editable } = row
+        await save(
+          () => trx.updateTable('runs').set(editable).where('id', '=', run.id).executeTakeFirst(),
+          () => trx.insertInto('runs').values(row).execute(),
         )
       },
     },
@@ -321,6 +360,16 @@ const reposFor = (trx: Trx): Repos => {
       },
     },
     events: {
+      forRun: async (houseId, runId) =>
+        (
+          await trx
+            .selectFrom('activity_events')
+            .selectAll()
+            .where('house_id', '=', houseId)
+            .where((w) => w.or([w('run_id', '=', runId), w('to_run_id', '=', runId)]))
+            .orderBy('id')
+            .execute()
+        ).map(activityToDomain),
       record: async (houseId, events, at) => {
         if (events.length === 0) return
         await trx

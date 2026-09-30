@@ -26,7 +26,11 @@ import {
 } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import { relativeTime } from '@/lib/domain/format'
-import type { HouseId, ItemId } from '@/lib/domain/ids'
+import type { HouseId, ItemId, RunId } from '@/lib/domain/ids'
+import { RunSheet } from '@/components/runs/RunSheet'
+import { StartRunSheet } from '@/components/runs/StartRunSheet'
+import { ItemRunPath } from '@/components/runs/ItemRunPath'
+import { useCardContext } from './useCardContext'
 import { isOpen, type Category, type Item, type ItemPatch } from '@/lib/domain/items'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
 import { HouseFeels } from './Feelings'
@@ -35,8 +39,18 @@ import { ItemForm, toNewItem, valuesFrom, type ItemFormValues } from './ItemForm
 import { CATEGORY, scheduleLabel, whenLabel } from './meta'
 import { WhyHere } from './WhyHere'
 
-type Sheets = { openAdd(category?: Category): void; openItem(id: ItemId): void }
-const SheetsContext = createContext<Sheets>({ openAdd: () => {}, openItem: () => {} })
+type Sheets = {
+  openAdd(category?: Category): void
+  openItem(id: ItemId): void
+  openRun(id: RunId): void
+  startRun(): void
+}
+const SheetsContext = createContext<Sheets>({
+  openAdd: () => {},
+  openItem: () => {},
+  openRun: () => {},
+  startRun: () => {},
+})
 
 /** Opens the "+" sheet or an item's detail sheet from anywhere in the house. */
 export const useItemSheets = (): Sheets => useContext(SheetsContext)
@@ -60,8 +74,21 @@ export function ItemSheetsProvider({
 }) {
   const [adding, setAdding] = useState<{ category?: Category } | null>(null)
   const [openId, setOpenId] = useState<ItemId | null>(null)
+  const [runId, setRunId] = useState<RunId | null>(null)
+  const [starting, setStarting] = useState(false)
   const sheets = useMemo<Sheets>(
-    () => ({ openAdd: (category) => setAdding({ category }), openItem: (id) => setOpenId(id) }),
+    () => ({
+      openAdd: (category) => setAdding({ category }),
+      openItem: (id) => {
+        setRunId(null)
+        setOpenId(id)
+      },
+      openRun: (id) => {
+        setOpenId(null)
+        setRunId(id)
+      },
+      startRun: () => setStarting(true),
+    }),
     [],
   )
   return (
@@ -79,6 +106,17 @@ export function ItemSheetsProvider({
         />
       )}
       {openId && <ItemDetailSheet houseId={houseId} id={openId} onClose={() => setOpenId(null)} />}
+      {runId && <RunSheet houseId={houseId} runId={runId} onClose={() => setRunId(null)} />}
+      {starting && (
+        <StartRunSheet
+          houseId={houseId}
+          onClose={() => setStarting(false)}
+          onStarted={(id) => {
+            setStarting(false)
+            setRunId(id)
+          }}
+        />
+      )}
     </SheetsContext.Provider>
   )
 }
@@ -218,6 +256,8 @@ function ItemDetailSheet({
   const did = useDoChore(houseId)
   const archive = useArchiveItem(houseId)
   const restore = useRestoreItem(houseId)
+  const cardCtx = useCardContext(houseId)
+  const { openRun } = useItemSheets()
   const busy =
     edit.isPending ||
     done.isPending ||
@@ -346,6 +386,22 @@ function ItemDetailSheet({
       ),
     ])
   }
+  const onRun = item.run ? cardCtx.run(item.run.id) : undefined
+  if (onRun) {
+    rows.push([
+      'On a run',
+      <span key="run" className="flex flex-wrap items-center gap-x-2">
+        {onRun.label}
+        <button
+          type="button"
+          className="min-h-11 text-sm font-extrabold text-accent-ink"
+          onClick={() => openRun(onRun.run.id)}
+        >
+          Open
+        </button>
+      </span>,
+    ])
+  }
   if (item.category !== 'chore' && item.done) {
     rows.push([
       item.category === 'need' ? 'Got it' : 'Done',
@@ -411,6 +467,7 @@ function ItemDetailSheet({
       {isOpen(item) && (
         <WhyHere houseId={houseId} item={item} name={(u) => nameOf(u) ?? 'Former roommate'} />
       )}
+      <ItemRunPath houseId={houseId} itemId={item.id} />
 
       {primary && (
         <Button block disabled={busy} onClick={primary.run}>

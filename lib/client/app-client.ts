@@ -8,7 +8,8 @@ import type { ContactPatch } from '../domain/contacts'
 import type { Feeling, FeelingKind, FeelingWeights } from '../domain/feelings'
 import type { Contact, House, Invite, Member, Role, Room } from '../domain/house'
 import type { ReferenceError } from '../app/items'
-import type { ContactId, InviteId, ItemId, RoomId, UserId } from '../domain/ids'
+import type { ContactId, InviteId, ItemId, RoomId, RunId, UserId } from '../domain/ids'
+import type { NewRun, Run } from '../domain/runs'
 import type { Item, ItemError, ItemPatch, NewItem } from '../domain/items'
 import type { NewInvite } from '../domain/invites'
 import type { Result } from '../domain/result'
@@ -72,6 +73,58 @@ export type AppCommands = {
   restoreItem(
     id: ItemId,
   ): Promise<CommandResult<Item, 'not_archived' | 'duplicate_need' | 'not_found'>>
+  startRun(
+    input: NewRun & { itemIds: ItemId[] },
+  ): Promise<
+    CommandResult<
+      Run,
+      | 'nothing_selected'
+      | 'already_on_a_run'
+      | 'done_item'
+      | 'title_too_long'
+      | 'unknown_member'
+      | 'not_found'
+    >
+  >
+  addToRun(input: {
+    runId: RunId
+    itemIds: ItemId[]
+  }): Promise<
+    CommandResult<
+      Run,
+      | 'nothing_selected'
+      | 'finished'
+      | 'request_sent'
+      | 'already_on_a_run'
+      | 'done_item'
+      | 'tasks_only'
+      | 'not_found'
+    >
+  >
+  markRunItemsDone(input: {
+    runId: RunId
+    itemIds: ItemId[]
+  }): Promise<CommandResult<Run, 'nothing_selected' | 'not_on_run' | 'not_found'>>
+  moveRunItems(input: {
+    fromRunId: RunId
+    toRunId: RunId
+    itemIds: ItemId[]
+    note?: string
+  }): Promise<
+    CommandResult<
+      Run[],
+      'nothing_selected' | 'not_on_run' | 'same_run' | 'target_closed' | 'tasks_only' | 'not_found'
+    >
+  >
+  returnToPool(input: {
+    runId: RunId
+    itemIds: ItemId[]
+    note?: string
+    clearContact: boolean
+  }): Promise<CommandResult<Run, 'nothing_selected' | 'not_on_run' | 'not_found'>>
+  finishRun(input: {
+    runId: RunId
+  }): Promise<CommandResult<Run, 'finished' | 'not_finishable' | 'not_found'>>
   setFeelingWeights(
     weights: FeelingWeights,
   ): Promise<CommandResult<House, 'not_found' | 'out_of_range' | 'no_change'>>

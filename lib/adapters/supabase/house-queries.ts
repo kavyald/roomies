@@ -14,6 +14,7 @@ import {
   memberToDomain,
   profileToDomain,
   roomToDomain,
+  runToDomain,
 } from '../postgres/mappers'
 
 type Mapper<T> = (row: never) => T
@@ -82,6 +83,22 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => {
         itemToDomain(r, tz),
       )
     },
+    runs: async (houseId) => {
+      const tz = await tzOf(houseId)
+      return rows(sb.from('runs').select('*').eq('house_id', houseId).order('created_at'), (r) =>
+        runToDomain(r, tz),
+      )
+    },
+    runActivity: (houseId, runId) =>
+      rows(
+        sb
+          .from('activity_events')
+          .select('*')
+          .eq('house_id', houseId)
+          .or(`run_id.eq.${runId},to_run_id.eq.${runId}`)
+          .order('id', { ascending: true }),
+        activityToDomain,
+      ),
     feelings: (houseId) =>
       rows(sb.from('feelings').select('*').eq('house_id', houseId), feelingToDomain),
     itemActivity: (houseId, itemId) =>

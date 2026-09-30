@@ -1,13 +1,15 @@
 'use client'
 
-import { Check, Plus, ShoppingBag } from 'lucide-react'
+import { Check, Plus, ShoppingBag, ShoppingCart } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
 import { FeelingCounts } from '@/components/items/Feelings'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { whenLabel } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
-import { RoomChip } from '@/components/ui/Chip'
+import { onRunLabel, RUN_ICON } from '@/components/runs/meta'
+import { Button } from '@/components/ui/Button'
+import { Chip, RoomChip } from '@/components/ui/Chip'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
@@ -33,7 +35,7 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
   const house = useHouse(houseId)
   const ctx = useCardContext(houseId)
   const feelingsBy = useFeelingsByItem(houseId)
-  const { openItem } = useItemSheets()
+  const { openItem, startRun } = useItemSheets()
   const create = useCreateItem(houseId)
   const done = useMarkDone(houseId)
   const reopen = useReopenItem(houseId)
@@ -126,6 +128,7 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
           {needs.map((n) => {
             const room = n.roomId ? ctx.rooms.get(n.roomId) : undefined
             const when = whenLabel(n, now, tz)
+            const onRun = n.run ? ctx.run(n.run.id) : undefined
             return (
               <li
                 key={n.id}
@@ -157,8 +160,13 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
                     <span className="font-bold">{n.title}</span>
                     <FeelingCounts feelings={feelingsBy.get(n.id) ?? []} />
                   </span>
-                  {(n.note || room || when) && (
+                  {(n.note || room || when || onRun) && (
                     <span className="flex flex-wrap items-center gap-1.5 text-[0.8rem] font-semibold text-ink-soft">
+                      {onRun && (
+                        <Chip icon={RUN_ICON[onRun.run.kind]}>
+                          {onRunLabel(onRun.run, onRun.label)}
+                        </Chip>
+                      )}
                       {room && <RoomChip name={room.name} element={room.element} />}
                       {when && <span>{when}</span>}
                       {n.note && <span className="truncate">{n.note}</span>}
@@ -169,6 +177,11 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
             )
           })}
         </ul>
+      )}
+      {needs.some((n) => !n.run) && (
+        <Button variant="secondary" block onClick={startRun}>
+          <ShoppingCart aria-hidden className="size-5" /> Start a run
+        </Button>
       )}
     </div>
   )
