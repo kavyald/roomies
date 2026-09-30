@@ -7,6 +7,7 @@ import { useItemSheets } from '@/components/items/ItemSheets'
 import { ItemCard } from '@/components/items/ItemCard'
 import { whenLabel } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
+import { RequestsAndVisits } from '@/components/runs/RequestsAndVisits'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -57,6 +58,7 @@ export function TasksScreen({ houseId }: { houseId: HouseId }) {
 
   return (
     <div className="grid gap-3">
+      <RequestsAndVisits houseId={houseId} />
       <SegmentedControl
         label="Which tasks"
         value={filter}

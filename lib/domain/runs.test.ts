@@ -11,8 +11,16 @@ import {
 } from './ids'
 import type { Chore, Item, Need, Task } from './items'
 import {
+  addToRequest,
   addToRun,
   finishRun,
+  handToContact,
+  planVisit,
+  requestMessage,
+  sendRequest,
+  setVisitDate,
+  startRequest,
+  visitDateOf,
   itemPath,
   markRunItemsDone,
   moveRunItems,
@@ -338,3 +346,117 @@ describe('reading history back', () => {
     expect(runProgress(runLedger(g.id, runSteps(history), []))).toEqual({ done: 2, total: 2 })
   })
 })
+
+describe('requests and visits', () => {
+  const sctx = { ...ctx, id: runId('new'), houseId: house }
+  const plumber = asId<'contact'>('plumber') as ContactId
+
+  it('a request may start empty; a visit can have a date, or not', () => {
+    const r = startRequest({ contactId: landlord }, [], sctx)
+    expect(r.ok && r.value.run).toMatchObject({ kind: 'request', state: { at: 'gathering' } })
+    expect(r.ok && r.value.events).toEqual([
+      { kind: 'run.created', runId: 'new', contactId: landlord, actionId: act, by: kavya },
+    ])
+    const v = planVisit(
+      { contactId: landlord, when: { date: '2026-10-01' as LocalDate } },
+      [task('Leak')],
+      sctx,
+    )
+    expect(v.ok && v.value.run).toMatchObject({ kind: 'visit', when: { date: '2026-10-01' } })
+    expect(v.ok && v.value.items[0]).toMatchObject({ contactId: landlord, run: { kind: 'visit' } })
+    expect(planVisit({ contactId: landlord }, [need('Milk')], sctx)).toMatchObject({
+      error: 'tasks_only',
+    })
+  })
+
+  it('"Add to Landlord list" joins the gathering request, or starts one', () => {
+    const leak = task('Leak', { contactId: landlord })
+    const fresh = addToRequest(leak, [], sctx)
+    expect(fresh.ok && fresh.value).toMatchObject({ created: true, run: { kind: 'request' } })
+    const existing = request()
+    const joined = addToRequest(leak, [batch(), existing], sctx)
+    expect(joined.ok && joined.value).toMatchObject({ created: false, run: { id: 'request' } })
+    expect(addToRequest(task('Door'), [], sctx)).toMatchObject({ error: 'no_contact' })
+    expect(addToRequest(need('Milk'), [], sctx)).toMatchObject({ error: 'tasks_only' })
+    // A sent request is waiting; a new list starts instead.
+    const sent = request({ at: 'sent', sentAt: T, via: 'text' })
+    expect(addToRequest(leak, [sent], sctx)).toMatchObject({ ok: true, value: { created: true } })
+  })
+
+  it('composes the message and marks the request sent', () => {
+    const msg = requestMessage(
+      'Dana',
+      [
+        { title: 'Leak under the sink', room: 'Kitchen', note: 'Drips overnight' },
+        { title: 'Window latch' },
+      ],
+      { address: '12 Elm St', unit: '3' },
+    )
+    expect(msg).toBe(
+      'Hi Dana, could you take a look at these at 12 Elm St, Unit 3?\n\n1. Leak under the sink (Kitchen) — Drips overnight\n2. Window latch\n\nThank you!',
+    )
+    expect(requestMessage('Dana', [{ title: 'Leak' }])).toBe(
+      'Hi Dana, could you take a look at this?\n\n1. Leak\n\nThank you!',
+    )
+    const r = sendRequest(request(), 'text', msg, 2, ctx)
+    expect(r.ok && r.value.run.state).toEqual({ at: 'sent', sentAt: T, via: 'text' })
+    expect(r.ok && r.value.events[0]).toMatchObject({
+      kind: 'request.sent',
+      payload: { via: 'text', message: msg },
+    })
+    expect(sendRequest(request(), 'text', msg, 0, ctx)).toMatchObject({ error: 'empty' })
+    expect(
+      sendRequest(request({ at: 'sent', sentAt: T, via: 'call' }), 'text', msg, 1, ctx),
+    ).toMatchObject({ error: 'not_gathering' })
+    expect(sendRequest(batch(), 'text', msg, 1, ctx)).toMatchObject({ error: 'not_a_request' })
+  })
+
+  it('"Hand to…" moves tasks to another contact\'s unsent list, starting one if needed', () => {
+    const req = request({ at: 'sent', sentAt: T, via: 'text' })
+    const leak = on(task('Leak', { contactId: landlord }), req)
+    const r = handToContact(req, [leak], plumber, [req], {
+      ...sctx,
+      note: 'Call a plumber yourselves',
+      remainingOnFrom: 2,
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value).toMatchObject({ created: true, to: { kind: 'request', contactId: plumber } })
+    expect(r.value.items[0]).toMatchObject({ contactId: plumber, run: { id: 'new' } })
+    expect(kinds(r.value.events)).toEqual(['run.created', 'run.item_moved'])
+    const theirs: Request = { ...request(), id: runId('plumber-list'), contactId: plumber }
+    const again = handToContact(req, [leak], plumber, [req, theirs], {
+      ...sctx,
+      remainingOnFrom: 1,
+    })
+    expect(again.ok && again.value).toMatchObject({ created: false, to: { id: 'plumber-list' } })
+    expect(again.ok && kinds(again.value.events)).toEqual(['run.item_moved', 'request.closed'])
+    expect(
+      handToContact(g(), [on(need('Milk'), g())], plumber, [], { ...sctx, remainingOnFrom: 1 }),
+    ).toMatchObject({ error: 'tasks_only' })
+  })
+
+  it("sets, changes, and clears a visit's date", () => {
+    const v = visit()
+    const set = setVisitDate(v, { date: '2026-10-02' as LocalDate }, ctx)
+    expect(set.ok && set.value.run.when).toEqual({ date: '2026-10-02' })
+    expect(set.ok && set.value.events[0]).toMatchObject({
+      kind: 'run.date_set',
+      changes: { when: [null, { date: '2026-10-02' }] },
+    })
+    const cleared = set.ok && setVisitDate(set.value.run, null, ctx)
+    expect(cleared && cleared.ok && cleared.value.run.when).toBeUndefined()
+    expect(setVisitDate(v, null, ctx)).toMatchObject({ error: 'no_change' })
+    expect(setVisitDate(batch(), null, ctx)).toMatchObject({ error: 'not_a_visit' })
+  })
+
+  it("finds a task's visit date for the feed rule", () => {
+    const v = visit({ when: { date: '2026-10-02' as LocalDate } })
+    const runs = new Map<string, Run>([[v.id, v]])
+    expect(visitDateOf(on(task('Leak'), v), runs)).toBe('2026-10-02')
+    expect(visitDateOf(task('Leak'), runs)).toBeUndefined()
+    expect(visitDateOf(on(task('Leak'), visit({ id: runId('other') })), runs)).toBeUndefined()
+  })
+})
+
+const g = () => batch()

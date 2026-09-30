@@ -392,3 +392,216 @@ export const runProgress = (ledger: readonly LedgerEntry[]): { done: number; tot
   done: ledger.filter((e) => e.state.at === 'done').length,
   total: ledger.length,
 })
+
+// ---- requests and visits (T30, PRD §6.5) -----------------------------------------------------
+
+type StartCtx = Ctx & { readonly id: RunId; readonly houseId: HouseId }
+export type NewRequest = {
+  readonly contactId: ContactId
+  readonly title?: string
+  readonly runner?: UserId
+}
+export type NewVisit = NewRequest & { readonly when?: When }
+
+const newRunBase = (input: NewRequest, ctx: StartCtx) => {
+  const title = input.title?.trim() || undefined
+  return {
+    id: ctx.id,
+    houseId: ctx.houseId,
+    ...(title && { title }),
+    runner: input.runner ?? ctx.by,
+    createdBy: ctx.by,
+    createdAt: ctx.now,
+    contactId: input.contactId,
+  }
+}
+
+/** Starts a run and puts the items on it (a request or a visit may start empty). */
+const startWith = <R extends Request | Visit>(
+  run: R,
+  tasks: readonly Item[],
+  ctx: StartCtx,
+): Result<
+  { run: R; items: Item[]; events: DomainEvent[] },
+  'already_on_a_run' | 'done_item' | 'tasks_only' | 'title_too_long'
+> => {
+  if (run.title && run.title.length > MAX_RUN_TITLE) return err('title_too_long')
+  const created: DomainEvent = {
+    kind: 'run.created',
+    runId: run.id,
+    contactId: run.contactId,
+    actionId: ctx.actionId,
+    by: ctx.by,
+  }
+  if (tasks.length === 0) return ok({ run, items: [], events: [created] })
+  const added = addToRun(run, tasks, ctx)
+  if (!added.ok) return added as Result<never, 'already_on_a_run' | 'done_item' | 'tasks_only'>
+  return ok({ run, items: added.value.items, events: [created, ...added.value.events] })
+}
+
+/** Ask someone (request): the house asks a contact to take these on. It may start empty. */
+export const startRequest = (input: NewRequest, tasks: readonly Item[], ctx: StartCtx) =>
+  startWith<Request>(
+    { ...newRunBase(input, ctx), kind: 'request', state: { at: 'gathering' } },
+    tasks,
+    ctx,
+  )
+
+/** They've agreed (visit): a contact has taken these on; the date is optional. */
+export const planVisit = (input: NewVisit, tasks: readonly Item[], ctx: StartCtx) =>
+  startWith<Visit>(
+    {
+      ...newRunBase(input, ctx),
+      kind: 'visit',
+      ...(input.when && { when: input.when }),
+      state: { open: true },
+    },
+    tasks,
+    ctx,
+  )
+
+/** The contact's list that's still gathering, if there is one. */
+export const gatheringRequestFor = (
+  runs: readonly Run[],
+  contactId: ContactId,
+): Request | undefined =>
+  runs.find(
+    (r): r is Request =>
+      r.kind === 'request' && r.contactId === contactId && r.state.at === 'gathering',
+  )
+
+/**
+ * "Add to Landlord list": the task joins its contact's gathering request, or starts one (PRD §6.5).
+ */
+export const addToRequest = (
+  task: Item,
+  runs: readonly Run[],
+  ctx: StartCtx,
+): Result<
+  { run: Request; created: boolean; items: Item[]; events: DomainEvent[] },
+  'no_contact' | 'already_on_a_run' | 'done_item' | 'tasks_only' | 'title_too_long'
+> => {
+  if (task.category !== 'task') return err('tasks_only')
+  if (!task.contactId) return err('no_contact')
+  const open = gatheringRequestFor(runs, task.contactId)
+  if (open) {
+    const r = addToRun(open, [task], ctx)
+    if (!r.ok) return r as Result<never, 'already_on_a_run' | 'done_item' | 'tasks_only'>
+    return ok({ run: open, created: false, ...r.value })
+  }
+  const r = startRequest({ contactId: task.contactId }, [task], ctx)
+  return r.ok ? ok({ ...r.value, created: true }) : r
+}
+
+export type MessageLine = { readonly title: string; readonly room?: string; readonly note?: string }
+
+/**
+ * The request to copy and send (PRD §6.5): a greeting, a numbered list with rooms and notes, and
+ * the address. Roomies never sends it; people do.
+ */
+export const requestMessage = (
+  contactName: string,
+  lines: readonly MessageLine[],
+  place?: { readonly address?: string; readonly unit?: string },
+): string => {
+  const where = [place?.address, place?.unit && `Unit ${place.unit}`].filter(Boolean).join(', ')
+  const list = lines
+    .map((l, i) => {
+      const room = l.room ? ` (${l.room})` : ''
+      const note = l.note ? ` — ${l.note}` : ''
+      return `${i + 1}. ${l.title}${room}${note}`
+    })
+    .join('\n')
+  const intro =
+    lines.length === 1 ? 'could you take a look at this' : 'could you take a look at these'
+  return `Hi ${contactName}, ${intro}${where ? ` at ${where}` : ''}?\n\n${list}\n\nThank you!`
+}
+
+/** "Mark as sent": the request waits on a reply; it takes no more additions. */
+export const sendRequest = (
+  r: Run,
+  via: SentVia,
+  message: string,
+  tasksOnIt: number,
+  ctx: Ctx,
+): Result<{ run: Request; events: DomainEvent[] }, 'not_a_request' | 'not_gathering' | 'empty'> => {
+  if (r.kind !== 'request') return err('not_a_request')
+  if (r.state.at !== 'gathering') return err('not_gathering')
+  if (tasksOnIt === 0) return err('empty')
+  return ok({
+    run: { ...r, state: { at: 'sent', sentAt: ctx.now, via } },
+    events: [
+      {
+        kind: 'request.sent',
+        runId: r.id,
+        contactId: r.contactId,
+        payload: { via, message },
+        actionId: ctx.actionId,
+        by: ctx.by,
+      },
+    ],
+  })
+}
+
+/**
+ * "Hand to…": the tasks move to another contact's unsent list (new if there isn't one), and that
+ * contact becomes "Handled by" (PRD §6.5).
+ */
+export const handToContact = (
+  from: Run,
+  tasks: readonly Item[],
+  contactId: ContactId,
+  runs: readonly Run[],
+  ctx: StartCtx & { readonly note?: string; readonly remainingOnFrom: number },
+): Result<
+  { to: Request; created: boolean; from: Run; items: Item[]; events: DomainEvent[] },
+  'nothing_selected' | 'not_on_run' | 'tasks_only' | 'same_run' | 'target_closed'
+> => {
+  if (tasks.some((t) => t.category !== 'task')) return err('tasks_only')
+  const existing = gatheringRequestFor(runs, contactId)
+  const to: Request = existing ?? {
+    ...newRunBase({ contactId }, ctx),
+    kind: 'request',
+    state: { at: 'gathering' },
+  }
+  const moved = moveRunItems(from, to, tasks, ctx)
+  if (!moved.ok) return moved
+  const created: DomainEvent[] = existing
+    ? []
+    : [{ kind: 'run.created', runId: to.id, contactId, actionId: ctx.actionId, by: ctx.by }]
+  return ok({ to, created: !existing, ...moved.value, events: [...created, ...moved.value.events] })
+}
+
+/** A visit's date: set, changed, or cleared ("date TBD"). */
+export const setVisitDate = (
+  r: Run,
+  when: When | null,
+  ctx: Ctx,
+): Result<{ run: Visit; events: DomainEvent[] }, 'not_a_visit' | 'no_change'> => {
+  if (r.kind !== 'visit') return err('not_a_visit')
+  const before = r.when ?? null
+  if (before?.date === when?.date && before?.time === when?.time) return err('no_change')
+  const { when: _old, ...rest } = r
+  return ok({
+    run: when ? { ...rest, when } : rest,
+    events: [
+      {
+        kind: 'run.date_set',
+        runId: r.id,
+        changes: { when: [before, when] },
+        actionId: ctx.actionId,
+        by: ctx.by,
+      },
+    ],
+  })
+}
+
+/** Tasks on a visit come back to the feed when the visit is within 3 days (PRD §8.1). */
+export const visitDateOf = (
+  item: Item,
+  runs: ReadonlyMap<string, Run>,
+): When['date'] | undefined => {
+  if (item.run?.kind !== 'visit') return undefined
+  const r = runs.get(item.run.id)
+  return r?.kind === 'visit' ? r.when?.date : undefined
+}

@@ -1,7 +1,14 @@
 'use server'
 
 import {
+  makeAddToRequest,
   makeAddToRun,
+  makeHandToContact,
+  makeMoveToNewVisit,
+  makePlanVisit,
+  makeSendRequest,
+  makeSetVisitDate,
+  makeStartRequest,
   makeFinishRun,
   makeMarkRunItemsDone,
   makeMoveRunItems,
@@ -9,10 +16,17 @@ import {
   makeStartRun,
 } from '@/lib/app/runs'
 import { depsForRequest } from '@/lib/compose'
-import type { HouseId, ItemId, RunId, UserId } from '@/lib/domain/ids'
+import type { ContactId, HouseId, ItemId, RunId, UserId } from '@/lib/domain/ids'
 import type { When } from '@/lib/domain/time'
 import {
+  addToRequestSchema,
   addToRunSchema,
+  handToContactSchema,
+  moveToNewVisitSchema,
+  planVisitSchema,
+  sendRequestSchema,
+  setVisitDateSchema,
+  startRequestSchema,
   finishRunSchema,
   moveRunItemsSchema,
   returnToPoolSchema,
@@ -94,6 +108,85 @@ export async function finishRunAction(houseId: HouseId, input: unknown) {
   return makeAction(
     finishRunSchema,
     (deps, actor, i) => makeFinishRun(deps)(actor, { runId: i.runId as RunId }),
+    env(houseId),
+  )(input)
+}
+
+export async function startRequestAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    startRequestSchema,
+    (deps, actor, i) =>
+      makeStartRequest(deps)(actor, {
+        contactId: i.contactId as ContactId,
+        itemIds: itemIds(i.itemIds),
+      }),
+    env(houseId),
+  )(input)
+}
+
+export async function planVisitAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    planVisitSchema,
+    (deps, actor, i) =>
+      makePlanVisit(deps)(actor, {
+        contactId: i.contactId as ContactId,
+        itemIds: itemIds(i.itemIds),
+        when: i.when as When | undefined,
+      }),
+    env(houseId),
+  )(input)
+}
+
+export async function addToRequestAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    addToRequestSchema,
+    (deps, actor, i) => makeAddToRequest(deps)(actor, { taskId: i.taskId as ItemId }),
+    env(houseId),
+  )(input)
+}
+
+export async function sendRequestAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    sendRequestSchema,
+    (deps, actor, i) => makeSendRequest(deps)(actor, { runId: i.runId as RunId, via: i.via }),
+    env(houseId),
+  )(input)
+}
+
+export async function handToContactAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    handToContactSchema,
+    (deps, actor, i) =>
+      makeHandToContact(deps)(actor, {
+        runId: i.runId as RunId,
+        itemIds: itemIds(i.itemIds),
+        contactId: i.contactId as ContactId,
+        note: i.note,
+      }),
+    env(houseId),
+  )(input)
+}
+
+export async function moveToNewVisitAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    moveToNewVisitSchema,
+    (deps, actor, i) =>
+      makeMoveToNewVisit(deps)(actor, {
+        fromRunId: i.fromRunId as RunId,
+        itemIds: itemIds(i.itemIds),
+        when: i.when as When | undefined,
+        contactId: i.contactId as ContactId | undefined,
+        note: i.note,
+      }),
+    env(houseId),
+  )(input)
+}
+
+export async function setVisitDateAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    setVisitDateSchema,
+    (deps, actor, i) =>
+      makeSetVisitDate(deps)(actor, { runId: i.runId as RunId, when: i.when as When | null }),
     env(houseId),
   )(input)
 }

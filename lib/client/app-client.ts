@@ -9,7 +9,13 @@ import type { Feeling, FeelingKind, FeelingWeights } from '../domain/feelings'
 import type { Contact, House, Invite, Member, Role, Room } from '../domain/house'
 import type { ReferenceError } from '../app/items'
 import type { ContactId, InviteId, ItemId, RoomId, RunId, UserId } from '../domain/ids'
-import type { NewRun, Run } from '../domain/runs'
+import type { NewRun, Run, SentVia } from '../domain/runs'
+import type { When } from '../domain/time'
+
+type RunStartError =
+  'already_on_a_run' | 'done_item' | 'tasks_only' | 'title_too_long' | 'not_found'
+type RunMoveError =
+  'nothing_selected' | 'not_on_run' | 'same_run' | 'target_closed' | 'tasks_only' | 'not_found'
 import type { Item, ItemError, ItemPatch, NewItem } from '../domain/items'
 import type { NewInvite } from '../domain/invites'
 import type { Result } from '../domain/result'
@@ -125,6 +131,47 @@ export type AppCommands = {
   finishRun(input: {
     runId: RunId
   }): Promise<CommandResult<Run, 'finished' | 'not_finishable' | 'not_found'>>
+  startRequest(input: {
+    contactId: ContactId
+    itemIds: ItemId[]
+  }): Promise<CommandResult<Run, RunStartError>>
+  planVisit(input: {
+    contactId: ContactId
+    itemIds: ItemId[]
+    when?: When
+  }): Promise<CommandResult<Run, RunStartError>>
+  addToRequest(input: { taskId: ItemId }): Promise<CommandResult<Run, RunStartError | 'no_contact'>>
+  sendRequest(input: {
+    runId: RunId
+    via: SentVia
+  }): Promise<
+    CommandResult<
+      { run: Run; message: string },
+      'not_a_request' | 'not_gathering' | 'empty' | 'not_found'
+    >
+  >
+  handToContact(input: {
+    runId: RunId
+    itemIds: ItemId[]
+    contactId: ContactId
+    note?: string
+  }): Promise<CommandResult<Run[], RunMoveError>>
+  moveToNewVisit(input: {
+    fromRunId: RunId
+    itemIds: ItemId[]
+    when?: When
+    contactId?: ContactId
+    note?: string
+  }): Promise<
+    CommandResult<
+      Run[],
+      RunMoveError | 'no_contact' | 'title_too_long' | 'already_on_a_run' | 'done_item'
+    >
+  >
+  setVisitDate(input: {
+    runId: RunId
+    when: When | null
+  }): Promise<CommandResult<Run, 'not_a_visit' | 'no_change' | 'not_found'>>
   setFeelingWeights(
     weights: FeelingWeights,
   ): Promise<CommandResult<House, 'not_found' | 'out_of_range' | 'no_change'>>

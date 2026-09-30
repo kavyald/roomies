@@ -18,12 +18,14 @@ import {
   useItems,
   useMarkDone,
   useReopenItem,
+  useRuns,
 } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
 import { homeFeed, type FeedFilter } from '@/lib/domain/priority'
+import { visitDateOf } from '@/lib/domain/runs'
 import { RunsInProgress } from './RunsInProgress'
 import { WeightsChangedCard } from './WeightsChangedCard'
 
@@ -41,6 +43,7 @@ const CHECK: Record<Item['category'], string> = { need: 'Got it', task: 'Done', 
 export function HomeScreen({ houseId }: { houseId: HouseId }) {
   const { me } = useAppClient()
   const items = useItems(houseId)
+  const runs = useRuns(houseId)
   const house = useHouse(houseId)
   const ctx = useCardContext(houseId)
   const feelingsBy = useFeelingsByItem(houseId)
@@ -62,12 +65,14 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   if (items.isPending || !house.data) return <p className="text-ink-soft">Loading…</p>
 
   const { timezone: tz, feelingWeights: weights } = house.data.settings
+  const runsById = new Map((runs.data ?? []).map((r) => [r.id as string, r]))
   const feed = homeFeed(items.data, (i) => feelingsBy.get(i.id) ?? [], {
     weights,
     now,
     tz,
     filter,
     me,
+    visitDate: (i) => visitDateOf(i, runsById),
   })
 
   const check = async (item: Item) => {

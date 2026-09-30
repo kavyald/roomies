@@ -4,23 +4,31 @@
 import type { AppDeps, Repos } from './ports'
 import { actorUser, type HouseActor } from '../domain/actor'
 import type { DomainEvent } from '../domain/events'
-import type { ActionId, ItemId, RunId, UserId } from '../domain/ids'
+import type { ActionId, ContactId, ItemId, RunId, UserId } from '../domain/ids'
 import type { Item } from '../domain/items'
 import { err, ok, type Result } from '../domain/result'
 import {
+  addToRequest,
   addToRun,
   finishRun,
+  handToContact,
   markRunItemsDone,
   moveRunItems,
+  planVisit,
+  requestMessage,
   returnToPool,
+  sendRequest,
+  setVisitDate,
+  startRequest,
   runLedger,
   runProgress,
   runSteps,
   startRun,
   type NewRun,
   type Run,
+  type SentVia,
 } from '../domain/runs'
-import type { Instant } from '../domain/time'
+import type { Instant, When } from '../domain/time'
 
 type Deps = Pick<AppDeps, 'uow' | 'clock' | 'ids'>
 type Ctx = { by: UserId; now: Instant; actionId: ActionId; repos: Repos }
@@ -171,6 +179,180 @@ export const makeFinishRun = (deps: Deps) =>
     const history = await ctx.repos.events.forRun(actor.houseId, run.id)
     const { done } = runProgress(runLedger(run.id, runSteps(history), stillOn))
     const r = finishRun(run, stillOn, { ...ctx, doneOnRun: done })
+    if (!r.ok) return r
+    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    return ok(r.value.run as Run)
+  })
+
+// ---- requests and visits (T30) ----------------------------------------------------------------
+
+/** A contact of this house that hasn't been removed. */
+const liveContact = async (repos: Repos, actor: HouseActor, id: ContactId) => {
+  const c = await repos.contacts.get(id)
+  return c?.houseId === actor.houseId && !c.archivedAt ? c : null
+}
+
+/** Ask someone (request): a contact and any tasks (it may start empty). */
+export const makeStartRequest = (deps: Deps) =>
+  inTx(deps, async (actor, input: { contactId: ContactId; itemIds: ItemId[] }, ctx) => {
+    const items = await loadItems(ctx.repos, actor, input.itemIds)
+    if (!items || !(await liveContact(ctx.repos, actor, input.contactId))) return err('not_found')
+    const id = deps.ids.newId<'run'>() as RunId
+    const r = startRequest({ contactId: input.contactId }, items, {
+      ...ctx,
+      id,
+      houseId: actor.houseId,
+    })
+    if (!r.ok) return r
+    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    return ok(r.value.run as Run)
+  })
+
+/** They've agreed (visit): a contact, any tasks, and an optional date. */
+export const makePlanVisit = (deps: Deps) =>
+  inTx(
+    deps,
+    async (actor, input: { contactId: ContactId; itemIds: ItemId[]; when?: When }, ctx) => {
+      const items = await loadItems(ctx.repos, actor, input.itemIds)
+      if (!items || !(await liveContact(ctx.repos, actor, input.contactId))) return err('not_found')
+      const id = deps.ids.newId<'run'>() as RunId
+      const r = planVisit({ contactId: input.contactId, when: input.when }, items, {
+        ...ctx,
+        id,
+        houseId: actor.houseId,
+      })
+      if (!r.ok) return r
+      await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+      return ok(r.value.run as Run)
+    },
+  )
+
+/** "Add to Landlord list" on a task. */
+export const makeAddToRequest = (deps: Deps) =>
+  inTx(deps, async (actor, input: { taskId: ItemId }, ctx) => {
+    const [task] = (await loadItems(ctx.repos, actor, [input.taskId])) ?? []
+    if (!task) return err('not_found')
+    const runs = await ctx.repos.runs.listByHouse(actor.houseId)
+    const id = deps.ids.newId<'run'>() as RunId
+    const r = addToRequest(task, runs, { ...ctx, id, houseId: actor.houseId })
+    if (!r.ok) return r
+    await saveAll(ctx.repos, actor, ctx.now, {
+      runs: r.value.created ? [r.value.run] : [],
+      ...r.value,
+    })
+    return ok(r.value.run as Run)
+  })
+
+/** The message a request sends, built from what's on it now. */
+const composeMessage = async (
+  repos: Repos,
+  actor: HouseActor,
+  run: Run,
+  tasks: readonly Item[],
+) => {
+  const house = await repos.houses.get(actor.houseId)
+  const contact = run.kind === 'batch' ? null : await repos.contacts.get(run.contactId)
+  const rooms = new Map((await repos.rooms.listByHouse(actor.houseId)).map((r) => [r.id, r.name]))
+  return requestMessage(
+    contact?.name ?? 'there',
+    tasks.map((t) => ({
+      title: t.title,
+      ...(t.roomId && rooms.get(t.roomId) && { room: rooms.get(t.roomId) }),
+      ...(t.note && { note: t.note }),
+    })),
+    house,
+  )
+}
+
+/** "Mark as sent": records how it went out, and the message, and the request waits. */
+export const makeSendRequest = (deps: Deps) =>
+  inTx(deps, async (actor, input: { runId: RunId; via: SentVia }, ctx) => {
+    const run = await loadRun(ctx.repos, actor, input.runId)
+    if (!run) return err('not_found')
+    const tasks = await ctx.repos.items.onRun(run.id)
+    const message = await composeMessage(ctx.repos, actor, run, tasks)
+    const r = sendRequest(run, input.via, message, tasks.length, ctx)
+    if (!r.ok) return r
+    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    return ok({ run: r.value.run as Run, message })
+  })
+
+/** "Hand to…": the selected tasks go to another contact's unsent list. */
+export const makeHandToContact = (deps: Deps) =>
+  inTx(
+    deps,
+    async (
+      actor,
+      input: { runId: RunId; itemIds: ItemId[]; contactId: ContactId; note?: string },
+      ctx,
+    ) => {
+      const s = await selection(ctx.repos, actor, input.runId, input.itemIds)
+      if (!s || !(await liveContact(ctx.repos, actor, input.contactId))) return err('not_found')
+      const runs = await ctx.repos.runs.listByHouse(actor.houseId)
+      const id = deps.ids.newId<'run'>() as RunId
+      const r = handToContact(s.run, s.items, input.contactId, runs, {
+        ...ctx,
+        id,
+        houseId: actor.houseId,
+        note: input.note,
+        remainingOnFrom: s.remaining,
+      })
+      if (!r.ok) return r
+      await saveAll(ctx.repos, actor, ctx.now, {
+        runs: [...(r.value.created ? [r.value.to] : []), r.value.from],
+        ...r.value,
+      })
+      return ok([r.value.from, r.value.to as Run])
+    },
+  )
+
+/** "Move to a visit… → New visit": a new visit with the run's contact (optional date). */
+export const makeMoveToNewVisit = (deps: Deps) =>
+  inTx(
+    deps,
+    async (
+      actor,
+      input: {
+        fromRunId: RunId
+        itemIds: ItemId[]
+        when?: When
+        contactId?: ContactId
+        note?: string
+      },
+      ctx,
+    ) => {
+      const s = await selection(ctx.repos, actor, input.fromRunId, input.itemIds)
+      if (!s) return err('not_found')
+      const contactId = input.contactId ?? (s.run.kind === 'batch' ? undefined : s.run.contactId)
+      if (!contactId || !(await liveContact(ctx.repos, actor, contactId))) return err('no_contact')
+      const id = deps.ids.newId<'run'>() as RunId
+      const v = planVisit({ contactId, when: input.when }, [], {
+        ...ctx,
+        id,
+        houseId: actor.houseId,
+      })
+      if (!v.ok) return v
+      const r = moveRunItems(s.run, v.value.run, s.items, {
+        ...ctx,
+        note: input.note,
+        remainingOnFrom: s.remaining,
+      })
+      if (!r.ok) return r
+      await saveAll(ctx.repos, actor, ctx.now, {
+        runs: [v.value.run, r.value.from],
+        items: r.value.items,
+        events: [...v.value.events, ...r.value.events],
+      })
+      return ok([r.value.from, v.value.run as Run])
+    },
+  )
+
+/** A visit's date: set, change, or clear. */
+export const makeSetVisitDate = (deps: Deps) =>
+  inTx(deps, async (actor, input: { runId: RunId; when: When | null }, ctx) => {
+    const run = await loadRun(ctx.repos, actor, input.runId)
+    if (!run) return err('not_found')
+    const r = setVisitDate(run, input.when, ctx)
     if (!r.ok) return r
     await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
     return ok(r.value.run as Run)

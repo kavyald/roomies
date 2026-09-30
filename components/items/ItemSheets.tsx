@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
 import { useCopy } from '@/components/house/useCopy'
 import {
+  useAddToRequest,
   useArchiveItem,
   useContacts,
   useCreateItem,
@@ -257,6 +258,7 @@ function ItemDetailSheet({
   const archive = useArchiveItem(houseId)
   const restore = useRestoreItem(houseId)
   const cardCtx = useCardContext(houseId)
+  const addToRequest = useAddToRequest(houseId)
   const { openRun } = useItemSheets()
   const busy =
     edit.isPending ||
@@ -387,6 +389,23 @@ function ItemDetailSheet({
     ])
   }
   const onRun = item.run ? cardCtx.run(item.run.id) : undefined
+  if (item.category === 'task' && contact && !item.run && !item.done && !item.archivedAt) {
+    rows.push([
+      'Ask them',
+      <button
+        key="list"
+        type="button"
+        className="min-h-11 text-left text-sm font-extrabold text-accent-ink"
+        disabled={addToRequest.isPending}
+        onClick={async () => {
+          const r = await addToRequest.mutateAsync({ taskId: item.id })
+          toast(r.ok ? `Added to the ${contact.name} list.` : "Couldn't add it. Try again.")
+        }}
+      >
+        Add to {contact.name} list
+      </button>,
+    ])
+  }
   if (onRun) {
     rows.push([
       'On a run',

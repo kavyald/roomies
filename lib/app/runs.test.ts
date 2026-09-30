@@ -1,12 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { asMember } from '../adapters/contracts/unit-of-work.contract'
 import { depsForTest } from '../compose'
-import type { ItemId, RunId, UserId } from '../domain/ids'
+import type { ContactId, ItemId, RunId, UserId } from '../domain/ids'
+import { itemPath } from '../domain/runs'
+import type { LocalDate, LocalTime } from '../domain/time'
 import type { Item } from '../domain/items'
 import { sampleHouse } from '../testing/sample-house'
 import { makeCreateItem, makeMarkDone } from './items'
+import { makeCreateContact } from './contacts'
 import {
+  makeAddToRequest,
   makeAddToRun,
+  makeHandToContact,
+  makeMoveToNewVisit,
+  makePlanVisit,
+  makeSendRequest,
+  makeSetVisitDate,
+  makeStartRequest,
   makeFinishRun,
   makeMarkRunItemsDone,
   makeMoveRunItems,
@@ -160,5 +170,110 @@ describe('runs, end to end on the memory adapters', () => {
       ok: false,
       error: 'unknown_member',
     })
+  })
+})
+
+describe('requests and visits', () => {
+  const tasks = async (
+    t: Awaited<ReturnType<typeof setup>>,
+    contactId: ContactId,
+    ...titles: string[]
+  ) => {
+    const ids: ItemId[] = []
+    for (const title of titles) {
+      const r = await makeCreateItem(t.deps)(t.as('Wren'), {
+        category: 'task',
+        title,
+        contactId,
+      })
+      if (!r.ok) throw new Error(r.error)
+      ids.push(r.value.id)
+    }
+    return ids
+  }
+
+  it('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; the request closes itself', async () => {
+    const t = await setup()
+    const landlord = t.s.contacts.landlord.id
+    const [leak, mold, window] = await tasks(t, landlord, 'Leak', 'Mold', 'Window')
+    const addToList = makeAddToRequest(t.deps)
+    const first = await addToList(t.as('Wren'), { taskId: leak! })
+    await addToList(t.as('Kavya'), { taskId: mold! })
+    await addToList(t.as('Kavya'), { taskId: window! })
+    if (!first.ok) throw new Error(first.error)
+    const req = first.value.id
+    expect(new Set([leak, mold, window].map((i) => t.item(i!).run?.id))).toEqual(new Set([req]))
+
+    const sent = await makeSendRequest(t.deps)(t.as('Kavya'), { runId: req, via: 'text' })
+    expect(sent.ok && sent.value.message).toContain('1. Leak')
+    expect(sent.ok && sent.value.run.state).toMatchObject({ at: 'sent', via: 'text' })
+    expect(await addToList(t.as('Wren'), { taskId: leak! })).toMatchObject({
+      error: 'already_on_a_run',
+    })
+
+    const visit = await makeMoveToNewVisit(t.deps)(t.as('Kavya'), {
+      fromRunId: req,
+      itemIds: [leak!, mold!],
+      when: { date: '2026-10-01' as LocalDate, time: '10:00' as LocalTime },
+      note: 'Sending a plumber Thu',
+    })
+    expect(visit.ok).toBe(true)
+    const back = await t.back(t.as('Kavya'), {
+      runId: req,
+      itemIds: [window!],
+      note: "That one's on us",
+      clearContact: true,
+    })
+    expect(back).toMatchObject({ ok: true, value: { state: { at: 'closed' } } })
+    expect(t.item(window!)).not.toHaveProperty('contactId')
+    expect(t.item(leak!)).toMatchObject({ run: { kind: 'visit' }, contactId: landlord })
+
+    // Each task's history shows its path.
+    const path = (id: ItemId) =>
+      itemPath(
+        t.deps.uow.state.activity.filter((a) => a.itemId === id),
+        id,
+      ).map((s) => (typeof s.what === 'object' ? 'moved' : s.what))
+    expect(path(leak!)).toEqual(['added', 'moved'])
+    expect(path(window!)).toEqual(['added', 'returned'])
+    expect(t.kinds()).toContain('request.closed')
+  })
+
+  it('hands tasks to another contact, plans a visit directly, and sets its date', async () => {
+    const t = await setup()
+    const landlord = t.s.contacts.landlord.id
+    const plumber = await makeCreateContact(t.deps)(t.as('Kavya'), { name: 'Plumber' })
+    if (!plumber.ok) throw new Error(plumber.error)
+    const [leak, door] = await tasks(t, landlord, 'Leak', 'Door')
+    const req = await makeStartRequest(t.deps)(t.as('Kavya'), {
+      contactId: landlord,
+      itemIds: [leak!],
+    })
+    if (!req.ok) throw new Error(req.error)
+    const handed = await makeHandToContact(t.deps)(t.as('Kavya'), {
+      runId: req.value.id,
+      itemIds: [leak!],
+      contactId: plumber.value.id,
+      note: 'Call a plumber yourselves',
+    })
+    expect(handed.ok && handed.value[1]).toMatchObject({
+      kind: 'request',
+      contactId: plumber.value.id,
+    })
+    expect(t.item(leak!)).toMatchObject({ contactId: plumber.value.id })
+
+    const visit = await makePlanVisit(t.deps)(t.as('Wren'), {
+      contactId: landlord,
+      itemIds: [door!],
+    })
+    if (!visit.ok) throw new Error(visit.error)
+    const dated = await makeSetVisitDate(t.deps)(t.as('Wren'), {
+      runId: visit.value.id,
+      when: { date: '2026-10-02' as LocalDate },
+    })
+    expect(dated.ok && dated.value).toMatchObject({ when: { date: '2026-10-02' } })
+    expect(
+      await makeStartRequest(t.deps)(t.as('Wren'), { contactId: 'nope' as ContactId, itemIds: [] }),
+    ).toEqual({ ok: false, error: 'not_found' })
   })
 })

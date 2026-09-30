@@ -25,3 +25,28 @@ export const returnToPoolSchema = z.object({
   clearContact: z.boolean(),
 })
 export const finishRunSchema = z.object({ runId: z.uuid() })
+export const startRequestSchema = z.object({ contactId: z.uuid(), itemIds: ids })
+export const planVisitSchema = z.object({
+  contactId: z.uuid(),
+  itemIds: ids,
+  when: whenSchema.optional(),
+})
+export const addToRequestSchema = z.object({ taskId: z.uuid() })
+export const sendRequestSchema = z.object({
+  runId: z.uuid(),
+  via: z.enum(['text', 'email', 'call', 'portal', 'in_person']),
+})
+export const handToContactSchema = z.object({
+  runId: z.uuid(),
+  itemIds: ids,
+  contactId: z.uuid(),
+  note,
+})
+export const moveToNewVisitSchema = z.object({
+  fromRunId: z.uuid(),
+  itemIds: ids,
+  when: whenSchema.optional(),
+  contactId: z.uuid().optional(),
+  note,
+})
+export const setVisitDateSchema = z.object({ runId: z.uuid(), when: whenSchema.nullable() })

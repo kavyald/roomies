@@ -41,6 +41,13 @@ export const fakeAppClient = (
     moveRunItems: async () => err('unexpected'),
     returnToPool: async () => err('unexpected'),
     finishRun: async () => err('unexpected'),
+    startRequest: async () => err('unexpected'),
+    planVisit: async () => err('unexpected'),
+    addToRequest: async () => err('unexpected'),
+    sendRequest: async () => err('unexpected'),
+    handToContact: async () => err('unexpected'),
+    moveToNewVisit: async () => err('unexpected'),
+    setVisitDate: async () => err('unexpected'),
     ...commands,
   },
 })

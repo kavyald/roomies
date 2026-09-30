@@ -159,6 +159,20 @@ export const useReturnToPool = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'returnToPool'>) => c.returnToPool(i), RUN_AFFECTS)
 export const useFinishRun = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'finishRun'>) => c.finishRun(i), RUN_AFFECTS)
+export const useStartRequest = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'startRequest'>) => c.startRequest(i), RUN_AFFECTS)
+export const usePlanVisit = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'planVisit'>) => c.planVisit(i), RUN_AFFECTS)
+export const useAddToRequest = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'addToRequest'>) => c.addToRequest(i), RUN_AFFECTS)
+export const useSendRequest = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'sendRequest'>) => c.sendRequest(i), RUN_AFFECTS)
+export const useHandToContact = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'handToContact'>) => c.handToContact(i), RUN_AFFECTS)
+export const useMoveToNewVisit = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'moveToNewVisit'>) => c.moveToNewVisit(i), RUN_AFFECTS)
+export const useSetVisitDate = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'setVisitDate'>) => c.setVisitDate(i), RUN_AFFECTS)
 
 export const useCreateItem = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: NewItem) => c.createItem(i), ['items'])

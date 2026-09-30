@@ -24,7 +24,14 @@ import {
   setFeelingAction,
 } from '@/app/actions/items'
 import {
+  addToRequestAction,
   addToRunAction,
+  handToContactAction,
+  moveToNewVisitAction,
+  planVisitAction,
+  sendRequestAction,
+  setVisitDateAction,
+  startRequestAction,
   finishRunAction,
   markRunItemsDoneAction,
   moveRunItemsAction,
@@ -80,6 +87,13 @@ export function HouseProviders({
       moveRunItems: (input) => moveRunItemsAction(houseId, input),
       returnToPool: (input) => returnToPoolAction(houseId, input),
       finishRun: (input) => finishRunAction(houseId, input),
+      startRequest: (input) => startRequestAction(houseId, input),
+      planVisit: (input) => planVisitAction(houseId, input),
+      addToRequest: (input) => addToRequestAction(houseId, input),
+      sendRequest: (input) => sendRequestAction(houseId, input),
+      handToContact: (input) => handToContactAction(houseId, input),
+      moveToNewVisit: (input) => moveToNewVisitAction(houseId, input),
+      setVisitDate: (input) => setVisitDateAction(houseId, input),
     }),
   )
   return (
