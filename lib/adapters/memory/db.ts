@@ -126,6 +126,7 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
       get: async (id) => (s.houses.has(id) && isMember(s, a, id) ? s.houses.get(id) : undefined),
       any: async () => [...s.houses.keys()].some((id) => isMember(s, a, id)),
       setupAvailable: async () => s.houses.size === 0,
+      listAll: async () => [...s.houses.values()].filter((h) => isMember(s, a, h.id)),
       save: async (house) => {
         const exists = s.houses.has(house.id)
         // Admins edit the house; any member may change just the feeling weights (migration
@@ -289,10 +290,14 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         s.prefs.set(`${userId}|${category}`, enabled)
       },
       enqueue: async (messages) => {
+        let written = 0
         for (const m of messages) {
           if (!isMember(s, a, m.houseId)) deny('notifications_outbox')
+          if (m.dedupeKey && s.outbox.some((x) => x.dedupeKey === m.dedupeKey)) continue
           s.outbox.push({ ...m, id: (s.outbox.at(-1)?.id ?? 0) + 1 })
+          written++
         }
+        return written
       },
       // "outbox read own": members see their own messages; marking sent is the system's job.
       pending: async (now, limit) =>

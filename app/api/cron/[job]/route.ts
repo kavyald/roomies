@@ -1,4 +1,5 @@
 // pg_cron → pg_net → here (T32). Each job is a use case run with depsForJob() (the system actor).
+import { makeCloseDuePolls, makeRunReminders } from '@/lib/app/jobs'
 import { makeSendNotifications } from '@/lib/app/push'
 import { depsForJob } from '@/lib/compose'
 import { serverConfig } from '@/lib/config'
@@ -9,6 +10,8 @@ export const dynamic = 'force-dynamic'
 /** The scheduled jobs. `tick` is the heartbeat that proves the schedule reaches the app. */
 const jobs = (): Record<string, CronJob> => ({
   tick: async () => ({}),
+  reminders: async () => (await makeRunReminders(depsForJob())()).value,
+  'close-polls': async () => (await makeCloseDuePolls(depsForJob())()).value,
   'send-notifications': async () => {
     const r = await makeSendNotifications(depsForJob())()
     return r.value

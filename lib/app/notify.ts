@@ -10,6 +10,7 @@ import {
   notificationsFor,
   type NotificationContext,
   type OutboxMessage,
+  type Recipient,
 } from '../domain/notifications'
 import { resultOf, resultLine } from '../domain/polls'
 import { runLabel } from '../domain/runs'
@@ -30,18 +31,13 @@ const NOTIFYING = new Set<DomainEvent['kind']>([
   'member.role_changed',
 ])
 
-/** Looks up what the events are about and who's in the house, then asks the domain. */
-export const outboxFor = async (
-  repos: Repos,
-  houseId: NotificationContext['houseId'],
-  events: readonly DomainEvent[],
-  now: Instant,
-): Promise<OutboxMessage[]> => {
-  const relevant = events.filter((e) => NOTIFYING.has(e.kind))
-  if (relevant.length === 0) return []
+/**
+ * The house's current members as notification recipients (their names, time zones, quiet
+ * hours, and turned-off categories), plus names for labelling runs.
+ */
+export const houseAudience = async (repos: Repos, houseId: NotificationContext['houseId']) => {
   const house = await repos.houses.get(houseId)
-  if (!house) return []
-  const tz = house.settings.timezone
+  if (!house) return null
   const members = (await repos.members.listByHouse(houseId)).filter((m) => m.status.active)
   const userIds = members.map((m) => m.userId)
   const [profiles, off, contacts] = await Promise.all([
@@ -50,7 +46,7 @@ export const outboxFor = async (
     repos.contacts.listByHouse(houseId),
   ])
   const names = new Map(profiles.flatMap((p) => (p ? [[p.id as string, p.displayName]] : [])))
-  const people = members.map((m, i) => {
+  const people: Recipient[] = members.map((m, i) => {
     const p = profiles[i]
     return {
       userId: m.userId,
@@ -60,6 +56,25 @@ export const outboxFor = async (
       off: off.get(m.userId as UserId) ?? new Set(),
     }
   })
+  const labels = {
+    person: (id: string) => names.get(id),
+    contact: (id: string) => contacts.find((c) => c.id === id)?.name,
+  }
+  return { house, tz: house.settings.timezone, people, labels }
+}
+
+/** Looks up what the events are about and who's in the house, then asks the domain. */
+export const outboxFor = async (
+  repos: Repos,
+  houseId: NotificationContext['houseId'],
+  events: readonly DomainEvent[],
+  now: Instant,
+): Promise<OutboxMessage[]> => {
+  const relevant = events.filter((e) => NOTIFYING.has(e.kind))
+  if (relevant.length === 0) return []
+  const house = await houseAudience(repos, houseId)
+  if (!house) return []
+  const { tz, people, labels } = house
 
   const items: NotificationContext['items'] = new Map(
     (
@@ -93,10 +108,6 @@ export const outboxFor = async (
         : [],
     ),
   )
-  const labels = {
-    person: (id: string) => names.get(id),
-    contact: (id: string) => contacts.find((c) => c.id === id)?.name,
-  }
   const runs: NotificationContext['runs'] = new Map(
     (
       await Promise.all(

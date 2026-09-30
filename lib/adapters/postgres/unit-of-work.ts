@@ -116,6 +116,10 @@ const reposFor = (trx: Trx): Repos => {
       },
       any: async () =>
         (await trx.selectFrom('houses').select('id').limit(1).executeTakeFirst()) !== undefined,
+      listAll: async () =>
+        (await trx.selectFrom('houses').selectAll().orderBy('created_at').execute()).map(
+          houseToDomain,
+        ),
       setupAvailable: async () => {
         const { rows } = await sql<{ ok: boolean }>`select public.no_house_exists() as ok`.execute(
           trx,
@@ -368,21 +372,36 @@ const reposFor = (trx: Trx): Repos => {
         )
       },
       enqueue: async (messages) => {
-        if (messages.length === 0) return
-        await trx
-          .insertInto('notifications_outbox')
-          .values(
-            messages.map((m) => ({
-              user_id: m.userId,
-              house_id: m.houseId,
-              category: m.category,
-              title: m.title,
-              body: m.body,
-              url: m.url,
-              send_after: toDate(m.sendAfter),
-            })),
-          )
-          .execute()
+        const row = (m: (typeof messages)[number]) => ({
+          user_id: m.userId,
+          house_id: m.houseId,
+          category: m.category,
+          title: m.title,
+          body: m.body,
+          url: m.url,
+          send_after: toDate(m.sendAfter),
+          dedupe_key: m.dedupeKey ?? null,
+        })
+        // ON CONFLICT also applies the SELECT policy ("read own"), so it's used only for reminders,
+        // which carry a dedupe key and are written by the system.
+        const plain = messages.filter((m) => !m.dedupeKey)
+        const keyed = messages.filter((m) => m.dedupeKey)
+        let written = 0
+        if (plain.length) {
+          await trx.insertInto('notifications_outbox').values(plain.map(row)).execute()
+          written += plain.length
+        }
+        if (keyed.length) {
+          const r = await trx
+            .insertInto('notifications_outbox')
+            .values(keyed.map(row))
+            .onConflict((oc) =>
+              oc.column('dedupe_key').where('dedupe_key', 'is not', null).doNothing(),
+            )
+            .executeTakeFirst()
+          written += Number(r.numInsertedOrUpdatedRows ?? 0)
+        }
+        return written
       },
       pending: async (now, limit) =>
         (

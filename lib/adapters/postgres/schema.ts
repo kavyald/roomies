@@ -222,6 +222,7 @@ export type NotificationsOutboxTable = {
   send_after: Timestamp
   sent_at: Timestamp | null
   error: string | null
+  dedupe_key: string | null
 }
 
 export type DB = {

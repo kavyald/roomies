@@ -64,6 +64,8 @@ export interface HouseRepo {
   any(): Promise<boolean>
   /** Whether no house exists at all, so /setup still works. Answered outside RLS. */
   setupAvailable(): Promise<boolean>
+  /** Every house this actor can see (the jobs walk them all as the system). */
+  listAll(): Promise<House[]>
   save(house: House): Promise<void>
 }
 
@@ -131,8 +133,11 @@ export interface NotificationRepo {
   /** The categories each of these people turned off (everyone else: all on). */
   offFor(userIds: readonly UserId[]): Promise<Map<UserId, Set<NotificationCategory>>>
   setEnabled(userId: UserId, category: NotificationCategory, enabled: boolean): Promise<void>
-  /** Written in the same transaction as the events that caused them. */
-  enqueue(messages: readonly OutboxMessage[]): Promise<void>
+  /**
+   * Written in the same transaction as the events that caused them. A message whose dedupe key
+   * is already in the outbox is skipped; returns how many were written.
+   */
+  enqueue(messages: readonly OutboxMessage[]): Promise<number>
   /** Messages due by `now` and not sent yet, oldest first (the sender runs as the system). */
   pending(now: Instant, limit: number): Promise<PendingMessage[]>
   /** Done with a message: delivered (error null) or given up on, with why. */

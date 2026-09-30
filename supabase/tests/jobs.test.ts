@@ -29,6 +29,28 @@ describe('scheduled jobs', () => {
     expect(rows[0].command).toContain("'x-cron-secret'")
   })
 
+  it('sends notifications every 5 minutes, reminds every 15, and closes due polls hourly', async () => {
+    const { rows } = await pool.query(
+      `select jobname, schedule from cron.job where jobname like 'roomies-%' order by jobname`,
+    )
+    expect(rows).toEqual([
+      { jobname: 'roomies-close-polls', schedule: '5 * * * *' },
+      { jobname: 'roomies-reminders', schedule: '*/15 * * * *' },
+      { jobname: 'roomies-send-notifications', schedule: '*/5 * * * *' },
+      { jobname: 'roomies-tick', schedule: '*/15 * * * *' },
+    ])
+    const commands = await pool.query(
+      `select jobname, command from cron.job where jobname like 'roomies-%'`,
+    )
+    for (const r of commands.rows) {
+      const path = r.jobname.replace('roomies-', '')
+      expect({ job: r.jobname, calls: r.command.includes(`/api/cron/${path}'`) }).toEqual({
+        job: r.jobname,
+        calls: true,
+      })
+    }
+  })
+
   it('does nothing until both secrets are set', async () => {
     await rolledBack(async (db) => {
       await db.query(

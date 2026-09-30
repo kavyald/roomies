@@ -162,6 +162,33 @@ export const notificationsContract = (
       expect(after.map((m) => m.title)).toEqual(['Later'])
     })
 
+    it('a reminder with the same dedupe key is written once', async () => {
+      const { house, member } = await seedHouse(h)
+      const key = `due:${h.ids.newId()}`
+      const reminder: OutboxMessage = {
+        userId: member,
+        houseId: house.id,
+        category: 'due',
+        title: 'Today: Mop',
+        body: '',
+        url: '/',
+        sendAfter: T,
+        dedupeKey: key,
+      }
+      const sys = system(house.id)
+      expect(await h.uow.run(sys, (r) => r.notifications.enqueue([reminder]))).toBe(1)
+      expect(
+        await h.uow.run(sys, (r) =>
+          r.notifications.enqueue([reminder, { ...reminder, dedupeKey: undefined }]),
+        ),
+      ).toBe(1)
+      expect((await h.outbox(house.id)).map((m) => m.title)).toEqual(['Today: Mop', 'Today: Mop'])
+      const houses = await h.uow.run(sys, (r) => r.houses.listAll())
+      expect(houses.map((x) => x.id)).toContain(house.id)
+      const mine = await h.uow.run(asMember(house.id, member), (r) => r.houses.listAll())
+      expect(mine.map((x) => x.id)).toEqual([house.id])
+    })
+
     it('messages are written with the events, and rolled back with them', async () => {
       const { house, admin, member } = await seedHouse(h)
       const item = {

@@ -44,6 +44,8 @@ export type OutboxMessage = {
   readonly body: string
   readonly url: string
   readonly sendAfter: Instant
+  /** Reminders carry one, so a job run twice doesn't send twice. */
+  readonly dedupeKey?: string
 }
 
 /** Someone in the house, as far as notifications go. */
@@ -91,7 +93,7 @@ export type NotificationContext = {
   >
 }
 
-type Draft = Omit<OutboxMessage, 'houseId' | 'sendAfter'>
+export type Draft = Omit<OutboxMessage, 'houseId' | 'sendAfter'>
 
 const ANXIOUS_OR_FRUSTRATED = new Set(['anxious', 'frustrated'])
 
@@ -203,24 +205,32 @@ const draftsFor = (e: DomainEvent, ctx: NotificationContext): Draft[] => {
 }
 
 /**
- * The outbox messages for a batch of events (one use case's worth): only to current members, not
- * for categories they turned off, and held until their quiet hours end.
+ * Drafts to outbox rows: only to current members, not for categories they turned off, and held
+ * until their quiet hours end.
  */
+export const deliver = (
+  drafts: readonly Draft[],
+  ctx: Pick<NotificationContext, 'houseId' | 'houseTz' | 'now' | 'people'>,
+): OutboxMessage[] =>
+  drafts.flatMap((d) => {
+    const person = ctx.people.find((p) => p.userId === d.userId)
+    if (!person || person.off.has(d.category)) return []
+    const tz = person.timezone ?? ctx.houseTz
+    return [
+      {
+        ...d,
+        houseId: ctx.houseId,
+        sendAfter: sendAfter(ctx.now, tz, person.quietHours ?? DEFAULT_QUIET_HOURS),
+      },
+    ]
+  })
+
+/** The outbox messages for a batch of events (one use case's worth). */
 export const notificationsFor = (
   events: readonly DomainEvent[],
   ctx: NotificationContext,
 ): OutboxMessage[] =>
-  events.flatMap((e) =>
-    draftsFor(e, ctx).flatMap((d) => {
-      const person = ctx.people.find((p) => p.userId === d.userId)
-      if (!person || person.off.has(d.category)) return []
-      const tz = person.timezone ?? ctx.houseTz
-      return [
-        {
-          ...d,
-          houseId: ctx.houseId,
-          sendAfter: sendAfter(ctx.now, tz, person.quietHours ?? DEFAULT_QUIET_HOURS),
-        },
-      ]
-    }),
+  deliver(
+    events.flatMap((e) => draftsFor(e, ctx)),
+    ctx,
   )
