@@ -22,7 +22,7 @@ e2e/                         Playwright journeys (iPhone 15 profile)
 proxy.ts                     Next 16's middleware: refreshes the session, guards /h/*
 ```
 
-- **Run it:** `pnpm supabase start`, then `pnpm env:local` (writes `.env.local` from `supabase status`), then `pnpm dev`. Sign in as `owner@roomies.test`; the code arrives in Mailpit at http://127.0.0.1:54324.
+- **Run it:** `pnpm supabase start`, then `pnpm env:local` (writes `.env.local` from `supabase status`), then `pnpm dev`. For scheduled jobs, `pnpm cron:local <port>` points the local pg_cron schedule at that dev server (it stores the URL and `CRON_SECRET` in the local Vault; a DB reset clears them). Sign in as `owner@roomies.test`; the code arrives in Mailpit at http://127.0.0.1:54324.
 - **Test it:** `pnpm test` (unit + coverage), `pnpm test:db`, `pnpm test:e2e`, or `pnpm test:all` for everything (about a minute; resets the local DB).
 - **Surprises so far** (details in BUILD_LOG):
   - Next 16: `middleware.ts` is now `proxy.ts`, request APIs are async only, and `next dev` refuses a second dev server in the same folder. `AGENTS.md` holds the Next agent block so `next dev` leaves this file alone; read `node_modules/next/dist/docs/` before using a Next API.

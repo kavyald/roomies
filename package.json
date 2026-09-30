@@ -18,7 +18,8 @@
     "db:sizing": "node scripts/activity-sizing.mjs",
     "test:e2e": "playwright test",
     "test:all": "sh scripts/test-all.sh",
-    "env:local": "node scripts/env-local.mjs"
+    "env:local": "node scripts/env-local.mjs",
+    "cron:local": "node scripts/cron-local.mjs"
   },
   "packageManager": "pnpm@10.18.0",
   "engines": {

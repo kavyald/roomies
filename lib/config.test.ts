@@ -6,6 +6,7 @@ const good = {
   SUPABASE_URL: 'http://127.0.0.1:54321',
   SUPABASE_SERVICE_ROLE_KEY: 'service-key',
   SETUP_TOKEN: 'x'.repeat(32),
+  CRON_SECRET: 'c'.repeat(32),
   NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321',
   NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key',
 }
@@ -25,6 +26,7 @@ describe('loadConfig', () => {
     const c = loadConfig(good)
     expect(c.databaseUrl).toBe(good.DATABASE_URL)
     expect(c.setupToken).toHaveLength(32)
+    expect(c.cronSecret).toBe('c'.repeat(32))
     expect(c.public).toEqual({ supabaseUrl: good.SUPABASE_URL, supabaseAnonKey: 'anon-key' })
   })
 
@@ -36,6 +38,7 @@ describe('loadConfig', () => {
   })
 
   it('explains invalid values', () => {
+    expect(messageFor({ ...good, CRON_SECRET: undefined })).toContain('CRON_SECRET: missing')
     expect(messageFor({ ...good, SETUP_TOKEN: 'short' })).toContain(
       'SETUP_TOKEN: must be at least 32 characters',
     )

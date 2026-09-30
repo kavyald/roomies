@@ -1,11 +1,26 @@
 // Writes .env.local for local development and CI from `supabase status`, unless it already
-// exists (pass --force to overwrite). Local values only; never used for hosted projects.
+// exists (pass --force to overwrite); an existing file only gains keys it's missing. Local values
+// only; never used for hosted projects.
 import { execSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { existsSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+
+const secret = () => randomBytes(24).toString('hex')
+
+// Keys added after a checkout may already have written .env.local.
+const LATER_KEYS = { CRON_SECRET: secret }
 
 if (existsSync('.env.local') && !process.argv.includes('--force')) {
-  console.log('.env.local already exists (use --force to rewrite it).')
+  const current = readFileSync('.env.local', 'utf8')
+  const missing = Object.entries(LATER_KEYS).filter(
+    ([k]) => !new RegExp(`^${k}=.+`, 'm').test(current),
+  )
+  if (missing.length === 0) {
+    console.log('.env.local already exists (use --force to rewrite it).')
+    process.exit(0)
+  }
+  appendFileSync('.env.local', missing.map(([k, make]) => `${k}=${make()}\n`).join(''))
+  console.log(`Added ${missing.map(([k]) => k).join(', ')} to .env.local`)
   process.exit(0)
 }
 
@@ -27,7 +42,8 @@ writeFileSync(
 DATABASE_URL=postgresql://app_server:app-server-local-only@127.0.0.1:54322/postgres
 SUPABASE_URL=${status.API_URL}
 SUPABASE_SERVICE_ROLE_KEY=${status.SERVICE_ROLE_KEY}
-SETUP_TOKEN=${randomBytes(24).toString('hex')}
+SETUP_TOKEN=${secret()}
+CRON_SECRET=${secret()}
 NEXT_PUBLIC_SUPABASE_URL=${status.API_URL}
 NEXT_PUBLIC_SUPABASE_ANON_KEY=${status.ANON_KEY}
 `,

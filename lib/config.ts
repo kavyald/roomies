@@ -9,6 +9,7 @@ const serverSchema = z.object({
   SUPABASE_URL: url,
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   SETUP_TOKEN: z.string().min(32, 'must be at least 32 characters'),
+  CRON_SECRET: z.string().min(32, 'must be at least 32 characters'),
 })
 
 const publicSchema = z.object({
@@ -22,6 +23,8 @@ export type ServerConfig = {
   readonly supabaseUrl: string
   readonly supabaseServiceRoleKey: string
   readonly setupToken: string
+  /** Shared with pg_cron, which sends it as `x-cron-secret` (never in the repo). */
+  readonly cronSecret: string
 }
 
 /** Values that are safe to ship to the browser. */
@@ -71,6 +74,7 @@ export const loadConfig = (env: Env): EnvConfig => {
     supabaseUrl: s.SUPABASE_URL,
     supabaseServiceRoleKey: s.SUPABASE_SERVICE_ROLE_KEY,
     setupToken: s.SETUP_TOKEN,
+    cronSecret: s.CRON_SECRET,
     public: loadPublicConfig(e),
   }
 }
