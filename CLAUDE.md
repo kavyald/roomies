@@ -2,17 +2,17 @@
 
 Read this first. It covers where the project stands, how the implementation plan works, and how to keep the Weyve board in sync while you build.
 
-## Current state (as of 2026-09-29, after M2)
+## Current state (as of 2026-09-30, after M3)
 
-**M0 (Foundations), M1 (House & members) and M2 (Items) are done** (T01–T26 + Q0–Q2 on `v1`). Next up: **M3** (polls, runs & calendar), in the order T28 → T30 → T27 → T29 → T31 → Q3. Locally you can set up the house, invite roommates and join, manage roommates/rooms/contacts, add needs/chores/tasks (+ sheet, three taps), check them off (Got it / Done / Did it, with undo for needs and tasks), hand tasks to a contact, share a feeling with a note (Earlier keeps the old ones), see Home's "Needs attention" feed ranked by priority with "Why is this here?", change the house's feeling weights (any member), and watch changes arrive live from other phones.
+**M0–M3 are done** (T01–T31 + Q0–Q3 on `v1`): foundations, house & members, items, and polls, runs & calendar. Next up: **M4** (notifications & polish), T32 onward in §5 order. Locally you can do everything in M2 (needs/chores/tasks, feelings, the ranked Home feed, feeling weights, live updates) plus: start a run from Needs and work it (done / move / back to the pool / finish, with "Did you spend money?"), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (Spent this month on House, Open Splitwise), and see Coming up on Home and the month calendar.
 
 ```
 docs/                        PRD, ARCHITECTURE (A1–A21), FRONTEND, TESTING, IMPLEMENTATION_PLAN (generated), mockup.html
 docs/BUILD_LOG.md            judgment calls, deviations and blockers, per task. Read it before changing anything it mentions.
-app/                         Next.js routes: /sign-in, /setup/[token], /join/[token], / (routes you to your house), /h/[houseId]/{,needs,chores,tasks,house,activity,i/[itemId]}, /dev/kit, /offline, actions/
-components/ui/               the UI kit (see /dev/kit in light + dark); components/shell, house, auth, items (sheets, cards, feelings), home, needs, chores, tasks
-lib/domain/                  pure types + functions (ids, time/DST, money, result, actor, house, events, activity, format, rooms, setup, invites, members, items, lists, feelings, priority, weights)
-lib/app/                     ports.ts + use cases (contacts, session/whereTo, setup, invites, house, items)
+app/                         Next.js routes: /sign-in, /setup/[token], /join/[token], / (routes you to your house), /h/[houseId]/{,needs,chores,tasks,house,activity,calendar,i/[itemId]}, /dev/kit, /offline, actions/
+components/ui/               the UI kit (see /dev/kit in light + dark); components/shell, house, auth, items (sheets, cards, feelings), runs, polls, costs, calendar, home, needs, chores, tasks
+lib/domain/                  pure types + functions (ids, time/DST, money, result, actor, house, events, activity, format, rooms, setup, invites, members, items, lists, feelings, priority, weights, runs, polls, costs, calendar)
+lib/app/                     ports.ts + use cases (contacts, session/whereTo, setup, invites, house, items, runs, polls, costs)
 lib/adapters/                memory/ (fakes with RLS-equivalent rules), postgres/ (Kysely UoW), supabase/ (HouseQueries, AuthGateway, server clients), contracts/
 lib/compose.ts               server composition root; lib/compose.client.ts is the browser one
 lib/client/                  AppClient, provider, TanStack hooks;  lib/server/ makeAction + session
@@ -33,6 +33,8 @@ proxy.ts                     Next 16's middleware: refreshes the session, guards
   - RLS additions beyond ARCHITECTURE: `can_claim_house` (the setup owner adds themselves as first admin), "members update own" (move out / change room, never your role), `rate_limits` (service role only), "feelings delete own" (the one DELETE policy; history lives in activity), and "houses members set feeling weights" (A22: any member, weights only). Each is mirrored in `lib/adapters/memory/db.ts`; keep them in sync.
   - Realtime: the browser listens to `activity_events` inserts for its house (the only published table) and maps the kind to queries (`lib/adapters/change-for-kind.ts`); add new kinds there. A test Supabase client needs `realtime.setAuth(token)` or it joins as anon.
   - Postgres saves must not rewrite immutable columns (`created_at` has microseconds a JS Date drops); the houses save skips them.
+  - Runs, polls and costs: an item's run history is read from activity (`runSteps` → `runLedger` / `itemPath`), not stored; `EventSink.forRun` reads a run's story inside a transaction. Polls save piece by piece (`create` / `addOption` / `setVote` / `saveState`) because each piece has its own RLS rule. Costs are insert-only in v1.
+  - `pnpm test:e2e` resets the local DB, so a browser signed in on the dev server gets signed out; sign in again (code from Mailpit).
   - Item cards are named by their title for VoiceOver (tier, chips and meta are the description), so locate them with `getByRole('button', { name: title, exact: true })`.
   - When a member leaves, record the event *before* updating the membership (they can't write the log afterwards).
   - Never nest a control inside a row button: `ListRow`'s `trailing` sits beside it.

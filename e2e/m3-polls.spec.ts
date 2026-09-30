@@ -80,8 +80,8 @@ test('"Which vacuum?" on a need and a standalone "House name?" both work, and 2â
       )
     }
   })
-  await page.keyboard.press('Escape')
-  await page.getByRole('link', { name: 'Home' }).click()
+  // Written straight to the database (no activity rows, so no live update): reload to see them.
+  await page.goto(`/h/${owner.houseId}`)
   const openPolls = page.getByRole('region', { name: 'Open polls' })
   await expect(openPolls).toContainText('House name?')
   await expect(openPolls).toContainText('4/4 voted')

@@ -22,6 +22,17 @@ const HOUSE_TABLES = [
   ['notifications_outbox', 'house_id'],
 ] as const
 
+// Tables added from M2 on (items and what hangs off them), checked for strangers and anon too.
+const ITEM_TABLES = [
+  'items',
+  'feelings',
+  'runs',
+  'polls',
+  'poll_options',
+  'poll_votes',
+  'costs',
+] as const
+
 const INSUFFICIENT_PRIVILEGE = '42501'
 
 let mine: TestHouse
@@ -72,6 +83,35 @@ describe('reading', () => {
         expect({ table, n: await countIn(db, table, col, mine.houseId) }).toEqual({ table, n: 0 })
       }
       expect(Number((await db.query('select count(*) from profiles')).rows[0].count)).toBe(0)
+    })
+  })
+
+  it('a signed-in stranger reads nothing from the item tables either', async () => {
+    const stranger = newId()
+    await asUser(stranger, async (db) => {
+      for (const table of ITEM_TABLES) {
+        const n = Number((await db.query(`select count(*) from ${table}`)).rows[0].count)
+        expect({ table, n }).toEqual({ table, n: 0 })
+      }
+    })
+    await asAnon(async (db) => {
+      for (const table of ITEM_TABLES) {
+        expect({ table, code: await refused(db, `select 1 from ${table} limit 1`) }).toEqual({
+          table,
+          code: INSUFFICIENT_PRIVILEGE,
+        })
+      }
+    })
+  })
+
+  it('nobody deletes runs, polls, votes, options, or costs', async () => {
+    await asUser(mine.member, async (db) => {
+      for (const table of ['runs', 'polls', 'poll_options', 'poll_votes', 'costs']) {
+        expect({ table, code: await refused(db, `delete from ${table}`) }).toEqual({
+          table,
+          code: INSUFFICIENT_PRIVILEGE,
+        })
+      }
     })
   })
 

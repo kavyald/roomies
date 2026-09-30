@@ -9,6 +9,7 @@ import { useLiveUpdates } from '@/lib/client/hooks'
 import { AppClientProvider, makeQueryClient } from '@/lib/client/provider'
 import type { UserId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
+import { addDays, instant, localDateOf } from '@/lib/domain/time'
 import { fakeAppClient } from '@/lib/testing/app-client'
 import { T0 } from '@/lib/testing/builders'
 import { HomeScreen } from './HomeScreen'
@@ -109,5 +110,62 @@ describe('live updates', () => {
     expect(r.ok).toBe(true)
     const feed = await screen.findByRole('list', { name: 'Needs attention' })
     expect(within(feed).getByText('Bleed the radiators')).toBeTruthy()
+  })
+})
+
+describe('the visit rule (PRD §8.1)', () => {
+  it('a task on a visit stays off Home until the visit is within 3 days', async () => {
+    const deps = depsForTest()
+    const { house, admin } = await seedHouse({
+      uow: deps.uow,
+      ids: deps.ids,
+      createUser: async () => deps.ids.newId<'user'>() as UserId,
+      activity: async () => [],
+    })
+    const contact = { id: deps.ids.newId(), houseId: house.id, name: 'Landlord' } as never
+    const today = localDateOf(instant(Date.now()), house.settings.timezone)
+    const visit = (id: string, days: number) => ({
+      id: id as never,
+      houseId: house.id,
+      kind: 'visit' as const,
+      contactId: (contact as { id: string }).id as never,
+      runner: admin,
+      createdBy: admin,
+      createdAt: T0,
+      when: { date: addDays(today, days) },
+      state: { open: true as const },
+    })
+    const soon = visit(deps.ids.newId(), 2)
+    const later = visit(deps.ids.newId(), 10)
+    const task = (title: string, run: { id: string }) =>
+      ({
+        id: deps.ids.newId(),
+        houseId: house.id,
+        category: 'task',
+        title,
+        priority: 'normal',
+        createdBy: admin,
+        createdAt: T0,
+        contactId: (contact as { id: string }).id,
+        run: { id: run.id, kind: 'visit' },
+      }) as Item
+    await deps.uow.run(system(house.id), async (r) => {
+      await r.contacts.save(contact)
+      await r.runs.save(soon)
+      await r.runs.save(later)
+      await r.items.save(task('Fix the leak', soon))
+      await r.items.save(task('Paint the hall', later))
+    })
+    render(
+      <AppClientProvider
+        client={fakeAppClient(deps.uow, asMember(house.id, admin))}
+        queryClient={makeQueryClient()}
+      >
+        <HomeScreen houseId={house.id} />
+      </AppClientProvider>,
+    )
+    const feed = await screen.findByRole('list', { name: 'Needs attention' })
+    expect(await within(feed).findByText('Fix the leak')).toBeTruthy()
+    expect(within(feed).queryByText('Paint the hall')).toBeNull()
   })
 })

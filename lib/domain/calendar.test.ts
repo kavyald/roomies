@@ -120,3 +120,32 @@ describe('calendar', () => {
     )
   })
 })
+
+describe('calendar across daylight saving', () => {
+  it("Coming up counts the house's days, even across the fall-back and spring-forward nights", async () => {
+    const { instantAt, localDateOf } = await import('./time')
+    const tz = 'America/New_York'
+    // 11:30pm on Sat Oct 31 (EDT) is still Oct 31 at home, though it's Nov 1 in UTC.
+    const lateSat = instantAt(d('2026-10-31'), '23:30' as LocalTime, tz)
+    expect(localDateOf(lateSat, tz)).toBe('2026-10-31')
+    const fallBack: Item[] = [
+      item('Clocks', {
+        category: 'task',
+        when: { date: d('2026-11-01'), time: '01:30' as LocalTime },
+      }),
+      item('After', { category: 'task', when: { date: d('2026-11-06') } }),
+      item('Too far', { category: 'task', when: { date: d('2026-11-07') } }),
+    ]
+    expect(names(comingUp(fallBack, [], localDateOf(lateSat, tz)))).toEqual(['Clocks', 'After'])
+    // The spring-forward day is one calendar day like any other.
+    const spring: Item[] = [
+      item('Brunch', {
+        category: 'task',
+        when: { date: d('2027-03-14'), time: '02:30' as LocalTime },
+      }),
+    ]
+    const sat = instantAt(d('2027-03-13'), '12:00' as LocalTime, tz)
+    expect(names(comingUp(spring, [], localDateOf(sat, tz)))).toEqual(['Brunch'])
+    expect(byDay(comingUp(spring, [], localDateOf(sat, tz))).has(d('2027-03-14'))).toBe(true)
+  })
+})
