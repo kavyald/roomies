@@ -73,15 +73,23 @@ Roughly 61 working days for one person, including a test task at the end of each
 
 Tasks are also tracked on the **roomies** board in Weyve.
 
-## Tests
+## Run it and test it
 
-*Planned: lands with task Q0.* One command runs the whole suite (typecheck, lint, unit, use-case, component, contract, row-level security, and end-to-end tests on the iPhone profile):
+Everything runs on one Mac with no accounts; it needs Node 22, pnpm 10, and Docker Desktop running (for local Supabase).
+
+```bash
+pnpm install && pnpm supabase start && pnpm env:local && pnpm dev
+```
+
+Sign in as `owner@roomies.test`; the 6-digit code arrives in Mailpit at http://127.0.0.1:54324.
+
+One command runs the whole suite, stopping at the first failure:
 
 ```bash
 pnpm install && pnpm test:all
 ```
 
-It needs no accounts, only Docker Desktop running for local Supabase. See [docs/TESTING.md](docs/TESTING.md).
+It resets the local database, then runs typecheck, lint, formatting, unit, use-case and component tests (with coverage targets), contract and row-level-security tests against local Supabase, and the end-to-end journeys on the iPhone 15 profile (including axe on every screen, light and dark). It takes about two minutes. The pieces run on their own too: `pnpm test`, `pnpm test:db`, `pnpm test:e2e`. See [docs/TESTING.md](docs/TESTING.md).
 
 ## Updating the plan
 

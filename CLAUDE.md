@@ -2,9 +2,9 @@
 
 Read this first. It covers where the project stands, how the implementation plan works, and how to keep the Weyve board in sync while you build.
 
-## Current state (as of 2026-09-30, after M3)
+## Current state (as of 2026-09-30, after M4)
 
-**M0–M3 are done** (T01–T31 + Q0–Q3 on `v1`): foundations, house & members, items, and polls, runs & calendar. Next up: **M4** (notifications & polish), T32 onward in §5 order. Locally you can do everything in M2 (needs/chores/tasks, feelings, the ranked Home feed, feeling weights, live updates) plus: start a run from Needs and work it (done / move / back to the pool / finish, with "Did you spend money?"), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (Spent this month on House, Open Splitwise), and see Coming up on Home and the month calendar.
+**M0–M4 are done** (T01–T37 + Q0–Q4 on `v1`): foundations, house & members, items, polls, runs & calendar, and notifications & polish. What's left is **M5** (hosting & launch, E1–E5 + Q5), which needs the owner's Supabase, Gmail and Vercel accounts: **don't start it unless the owner says so.** Locally you can do everything in M2 (needs/chores/tasks, feelings, the ranked Home feed, feeling weights, live updates) plus: start a run from Needs and work it (done / move / back to the pool / finish, with "Did you spend money?"), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (Spent this month on House, Open Splitwise), and see Coming up on Home and the month calendar. M4 added notifications: every recorded event can enqueue outbox messages in the same transaction (`withNotifications`), pg_cron calls `/api/cron/<job>` (tick, send-notifications, reminders, close-polls), Web Push goes to browsers that turned it on (production builds only; the service worker doesn't register on `pnpm dev`), and each person has settings at `/h/[houseId]/me` (categories, quiet hours, theme).
 
 ```
 docs/                        PRD, ARCHITECTURE (A1–A21), FRONTEND, TESTING, IMPLEMENTATION_PLAN (generated), mockup.html
@@ -40,6 +40,8 @@ proxy.ts                     Next 16's middleware: refreshes the session, guards
   - When a member leaves, record the event *before* updating the membership (they can't write the log afterwards).
   - Never nest a control inside a row button: `ListRow`'s `trailing` sits beside it.
   - Port 3000 on this Mac is often taken by another project's server; `.claude/launch.json` (untracked) uses auto ports.
+  - Jobs locally: `pnpm cron:local <port>` stores the app URL and `CRON_SECRET` in Supabase Vault so pg_cron can reach `pnpm dev`; without it the schedule sends nothing. Postgres `ON CONFLICT` also checks the SELECT policy, so the outbox uses it only for dedupe-keyed (system) rows.
+  - `components/ui/copy.test.ts` fails on "overdue", "failed" or "missed" in any user-facing string; `e2e/m4-a11y` runs axe on every screen, so add new screens there.
   - The disk once filled up and corrupted Docker's images. If `supabase start` shows unhealthy containers, check `df -h /` first.
 
 - **Roomies** is a phone-first PWA for one house of roommates. It covers needs, chores, tasks, polls and runs (batch, request, visit), with feelings that raise an item's priority.
