@@ -26,6 +26,7 @@ import type { HouseId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
 import { homeFeed, type FeedFilter } from '@/lib/domain/priority'
 import { visitDateOf } from '@/lib/domain/runs'
+import { ComingUp } from './ComingUp'
 import { OpenPolls } from './OpenPolls'
 import { RunsInProgress } from './RunsInProgress'
 import { WeightsChangedCard } from './WeightsChangedCard'
@@ -95,6 +96,7 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   return (
     <div className="grid gap-4">
       <WeightsChangedCard houseId={houseId} />
+      <ComingUp houseId={houseId} />
       <OpenPolls houseId={houseId} />
       <RunsInProgress houseId={houseId} />
       <section aria-labelledby="needs-attention" className="grid gap-3">
