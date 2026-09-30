@@ -24,6 +24,7 @@ import {
   setFeelingAction,
 } from '@/app/actions/items'
 import { addCostAction, copiedToSplitwiseAction } from '@/app/actions/costs'
+import { setNotificationEnabledAction, updateMySettingsAction } from '@/app/actions/me'
 import { savePushSubscriptionAction } from '@/app/actions/push'
 import {
   addPollOptionAction,
@@ -51,6 +52,7 @@ import { browserAppClient } from '@/lib/compose.client'
 import type { HouseId, UserId } from '@/lib/domain/ids'
 import { useLiveUpdates } from '@/lib/client/hooks'
 import { AppClientProvider } from '@/lib/client/provider'
+import { ThemeSync } from './ThemeSync'
 
 /** Keeps the house's screens current while someone else changes things (T26). */
 function LiveUpdates({ houseId }: { houseId: HouseId }) {
@@ -109,11 +111,14 @@ export function HouseProviders({
       addCost: (input) => addCostAction(houseId, input),
       copiedToSplitwise: (input) => copiedToSplitwiseAction(houseId, input),
       savePushSubscription: (input) => savePushSubscriptionAction(houseId, input),
+      updateMySettings: (input) => updateMySettingsAction(houseId, input),
+      setNotificationEnabled: (input) => setNotificationEnabledAction(houseId, input),
     }),
   )
   return (
     <AppClientProvider client={client}>
       <LiveUpdates houseId={houseId} />
+      <ThemeSync houseId={houseId} />
       <ItemSheetsProvider houseId={houseId}>{children}</ItemSheetsProvider>
     </AppClientProvider>
   )

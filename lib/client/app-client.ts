@@ -6,7 +6,8 @@ import type { ChangeFeed, HouseQueries } from '../app/ports'
 import type { NewContact } from '../domain/contacts'
 import type { ContactPatch } from '../domain/contacts'
 import type { Feeling, FeelingKind, FeelingWeights } from '../domain/feelings'
-import type { Contact, House, Invite, Member, Role, Room } from '../domain/house'
+import type { Contact, House, Invite, Member, Profile, Role, Room, Theme } from '../domain/house'
+import type { NotificationCategory } from '../domain/notifications'
 import type { ReferenceError } from '../app/items'
 import type {
   ContactId,
@@ -256,6 +257,14 @@ export type AppCommands = {
     endpoint: string
     keys: { p256dh: string; auth: string }
   }): Promise<CommandResult<true, 'invalid_subscription' | 'not_found'>>
+  updateMySettings(input: {
+    theme?: Theme
+    quietHours?: { start: string; end: string } | null
+  }): Promise<CommandResult<Profile, 'bad_time' | 'no_change' | 'not_found'>>
+  setNotificationEnabled(input: {
+    category: NotificationCategory
+    enabled: boolean
+  }): Promise<CommandResult<{ category: NotificationCategory; enabled: boolean }, 'not_found'>>
   setFeelingWeights(
     weights: FeelingWeights,
   ): Promise<CommandResult<House, 'not_found' | 'out_of_range' | 'no_change'>>

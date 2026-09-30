@@ -253,6 +253,8 @@ export interface HouseQueries {
   latestActivity(houseId: HouseId, kind: EventKind): Promise<StoredActivityRow | undefined>
   /** The house's polls, open and closed, with their options and votes. */
   polls(houseId: HouseId): Promise<Poll[]>
+  /** The notification categories this person turned off. */
+  notificationsOff(userId: UserId): Promise<NotificationCategory[]>
   /** The house's costs, oldest first. */
   costs(houseId: HouseId): Promise<Cost[]>
   /** The house's runs, open ones and finished ones. */

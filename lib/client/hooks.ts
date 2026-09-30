@@ -183,6 +183,21 @@ export const useAddCost = (houseId: HouseId) =>
 export const useCopiedToSplitwise = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'copiedToSplitwise'>) => c.copiedToSplitwise(i), [])
 
+/** The notification categories I turned off. */
+export const useMyNotificationsOff = (houseId: HouseId) => {
+  const { queries, me } = useAppClient()
+  return useQuery({
+    queryKey: keys.notificationsOff(houseId),
+    queryFn: () => queries.notificationsOff(me),
+  })
+}
+export const useSetNotificationEnabled = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'setNotificationEnabled'>) => c.setNotificationEnabled(i), [
+    'notificationsOff',
+  ])
+export const useUpdateMySettings = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'updateMySettings'>) => c.updateMySettings(i), ['profiles'])
+
 export const usePolls = (houseId: HouseId) => {
   const { queries } = useAppClient()
   return useQuery({ queryKey: keys.polls(houseId), queryFn: () => queries.polls(houseId) })

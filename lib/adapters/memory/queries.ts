@@ -37,6 +37,8 @@ export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQu
   runs: (houseId) => uow.run(actor, (r) => r.runs.listByHouse(houseId)),
   polls: (houseId) => uow.run(actor, (r) => r.polls.listByHouse(houseId)),
   costs: (houseId) => uow.run(actor, (r) => r.costs.listByHouse(houseId)),
+  notificationsOff: (userId) =>
+    uow.run(actor, async (r) => [...((await r.notifications.offFor([userId])).get(userId) ?? [])]),
   runActivity: async (houseId, runId) => {
     const visible = await uow.run(actor, (r) => r.houses.get(houseId))
     if (!visible) return []

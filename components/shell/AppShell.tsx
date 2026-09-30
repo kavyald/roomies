@@ -20,7 +20,7 @@ export function AppShell({ base, children }: { base: string; children: ReactNode
       .find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`))?.href ?? base
 
   return (
-    <div className="mx-auto min-h-dvh max-w-[430px] px-4 pt-[max(12px,env(safe-area-inset-top))] pb-[calc(96px+env(safe-area-inset-bottom))]">
+    <div className="mx-auto min-h-dvh max-w-[430px] px-4 pt-[max(12px,env(safe-area-inset-top))] pb-[calc(160px+env(safe-area-inset-bottom))]">
       {children}
       <button
         type="button"

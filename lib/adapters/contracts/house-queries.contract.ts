@@ -275,6 +275,18 @@ export const houseQueriesContract = (
       expect(await theirs.runActivity(house.id, groceries.id)).toEqual([])
     })
 
+    it('reads my turned-off notification categories', async () => {
+      const { house, member } = await withPlaces()
+      const q = h.queriesFor(member, house.id)
+      expect(await q.notificationsOff(member)).toEqual([])
+      await h.uow.run(system(house.id), async (r) => {
+        await r.notifications.setEnabled(member, 'polls', false)
+        await r.notifications.setEnabled(member, 'runs', false)
+        await r.notifications.setEnabled(member, 'runs', true)
+      })
+      expect(await q.notificationsOff(member)).toEqual(['polls'])
+    })
+
     it('finds the latest activity of one kind', async () => {
       const { house, admin, member } = await withPlaces()
       const weights = (anxious: number): DomainEvent => ({

@@ -3,6 +3,7 @@
 // as the Postgres adapter (timestamps arrive as ISO strings here).
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { NotificationCategory } from '../../domain/notifications'
 import type { HouseQueries } from '../../app/ports'
 import {
   activityToDomain,
@@ -85,6 +86,11 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => {
         itemToDomain(r, tz),
       )
     },
+    notificationsOff: (userId) =>
+      rows(
+        sb.from('notification_prefs').select('category').eq('user_id', userId).eq('enabled', false),
+        (r: { category: NotificationCategory }) => r.category,
+      ),
     costs: (houseId) =>
       rows(sb.from('costs').select('*').eq('house_id', houseId).order('created_at'), costToDomain),
     polls: async (houseId) => {
