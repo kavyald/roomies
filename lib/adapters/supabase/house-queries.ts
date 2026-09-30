@@ -7,6 +7,7 @@ import type { HouseQueries } from '../../app/ports'
 import {
   activityToDomain,
   contactToDomain,
+  feelingToDomain,
   houseToDomain,
   inviteToDomain,
   itemToDomain,
@@ -81,6 +82,18 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => {
         itemToDomain(r, tz),
       )
     },
+    feelings: (houseId) =>
+      rows(sb.from('feelings').select('*').eq('house_id', houseId), feelingToDomain),
+    itemActivity: (houseId, itemId) =>
+      rows(
+        sb
+          .from('activity_events')
+          .select('*')
+          .eq('house_id', houseId)
+          .eq('item_id', itemId)
+          .order('id', { ascending: false }),
+        activityToDomain,
+      ),
     invites: (houseId) =>
       rows(
         sb

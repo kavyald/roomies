@@ -2,7 +2,7 @@
 
 import type { Selectable } from 'kysely'
 import type { StoredActivityRow } from '../../domain/events'
-import type { FeelingWeights } from '../../domain/feelings'
+import type { Feeling, FeelingWeights } from '../../domain/feelings'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
 import { asId } from '../../domain/ids'
 import type { Done, Item } from '../../domain/items'
@@ -18,6 +18,7 @@ import {
 import type {
   ActivityEventsTable,
   ContactsTable,
+  FeelingsTable,
   HouseInvitesTable,
   HouseMembersTable,
   HousesTable,
@@ -296,3 +297,23 @@ export const itemToRow = (i: Item, tz: string) => {
     archived_at: i.archivedAt ? toDate(i.archivedAt) : null,
   }
 }
+
+// ---- feelings -----------------------------------------------------------------------------------
+
+export const feelingToDomain = (r: Selectable<FeelingsTable>): Feeling =>
+  compact({
+    itemId: asId<'item'>(r.item_id),
+    by: asId<'user'>(r.user_id),
+    kind: r.kind,
+    note: r.note ?? undefined,
+    at: toInstant(r.updated_at),
+  })
+
+export const feelingToRow = (houseId: string, f: Feeling) => ({
+  item_id: f.itemId,
+  user_id: f.by,
+  house_id: houseId,
+  kind: f.kind,
+  note: f.note ?? null,
+  updated_at: toDate(f.at),
+})

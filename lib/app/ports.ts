@@ -5,6 +5,7 @@ import type { Actor } from '../domain/actor'
 import type { DomainEvent, StoredActivityRow } from '../domain/events'
 import type { Contact, House, Invite, Member, Profile, Room } from '../domain/house'
 import type { ContactId, HouseId, Id, InviteId, ItemId, RoomId, UserId } from '../domain/ids'
+import type { Feeling } from '../domain/feelings'
 import type { Item, Need } from '../domain/items'
 import type { Result } from '../domain/result'
 import type { Instant } from '../domain/time'
@@ -92,6 +93,13 @@ export interface ItemRepo {
   save(item: Item): Promise<void>
 }
 
+export interface FeelingRepo {
+  get(itemId: ItemId, userId: UserId): Promise<Feeling | undefined>
+  save(houseId: HouseId, feeling: Feeling): Promise<void>
+  /** Removes my current feeling; its history stays in the activity log. */
+  remove(itemId: ItemId, userId: UserId): Promise<void>
+}
+
 /** Writes activity (and, from T33, outbox) rows in the same transaction as the change. */
 export interface EventSink {
   record(houseId: HouseId, events: readonly DomainEvent[], at: Instant): Promise<void>
@@ -105,6 +113,7 @@ export interface Repos {
   readonly contacts: ContactRepo
   readonly invites: InviteRepo
   readonly items: ItemRepo
+  readonly feelings: FeelingRepo
   readonly events: EventSink
 }
 
@@ -146,6 +155,10 @@ export interface HouseQueries {
   profiles(houseId: HouseId): Promise<Profile[]>
   rooms(houseId: HouseId): Promise<Room[]>
   contacts(houseId: HouseId): Promise<Contact[]>
+  /** Everyone's current feelings on the house's items. */
+  feelings(houseId: HouseId): Promise<Feeling[]>
+  /** An item's activity, newest first (its path, Earlier feelings). */
+  itemActivity(houseId: HouseId, itemId: ItemId): Promise<StoredActivityRow[]>
   /** The house's items (needs, chores, tasks), archived ones included. */
   items(houseId: HouseId): Promise<Item[]>
   /** The house's invites; admins only (others get none). */

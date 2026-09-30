@@ -29,6 +29,7 @@ import { relativeTime } from '@/lib/domain/format'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
 import type { Category, Item, ItemPatch } from '@/lib/domain/items'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
+import { HouseFeels } from './Feelings'
 import { HandledByPicker } from './HandledByPicker'
 import { ItemForm, toNewItem, valuesFrom, type ItemFormValues } from './ItemForm'
 import { CATEGORY, scheduleLabel, whenLabel } from './meta'
@@ -398,6 +399,14 @@ function ItemDetailSheet({
       {pickingHandler && item.category === 'task' && (
         <HandledByPicker houseId={houseId} task={item} onDone={() => setPickingHandler(false)} />
       )}
+      <HouseFeels
+        houseId={houseId}
+        itemId={item.id}
+        person={(u) => {
+          const name = nameOf(u)
+          return name ? { name, element: elementOf(u) } : undefined
+        }}
+      />
 
       {primary && (
         <Button block disabled={busy} onClick={primary.run}>

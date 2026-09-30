@@ -1,13 +1,14 @@
 'use client'
 
 import { Sparkles } from 'lucide-react'
+import { FeelingCounts } from '@/components/items/Feelings'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { ItemCard } from '@/components/items/ItemCard'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useToast } from '@/components/ui/Toast'
-import { useDoChore, useHouse, useItems } from '@/lib/client/hooks'
+import { useDoChore, useHouse, useItems, useFeelingsByItem } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
 import type { Chore } from '@/lib/domain/items'
@@ -19,6 +20,7 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   const items = useItems(houseId)
   const house = useHouse(houseId)
   const ctx = useCardContext(houseId)
+  const feelingsBy = useFeelingsByItem(houseId)
   const { openItem, openAdd } = useItemSheets()
   const did = useDoChore(houseId)
   const toast = useToast()
@@ -68,6 +70,11 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
           <ItemCard
             item={c}
             ctx={ctx}
+            top={
+              feelingsBy.get(c.id)?.length ? (
+                <FeelingCounts feelings={feelingsBy.get(c.id)!} />
+              ) : undefined
+            }
             meta={meta(c, now)}
             onOpen={() => openItem(c.id)}
             checkLabel={`Did it: ${c.title}`}

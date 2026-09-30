@@ -19,6 +19,20 @@ export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQu
   contacts: (houseId) => uow.run(actor, (r) => r.contacts.listByHouse(houseId)),
   invites: (houseId) => uow.run(actor, (r) => r.invites.listByHouse(houseId)),
   items: (houseId) => uow.run(actor, (r) => r.items.listByHouse(houseId)),
+  feelings: async (houseId) => {
+    const visible = await uow.run(actor, (r) => r.houses.get(houseId))
+    if (!visible) return []
+    return [...uow.state.feelings.values()]
+      .filter((f) => f.houseId === houseId)
+      .map((f) => f.feeling)
+  },
+  itemActivity: async (houseId, itemId) => {
+    const visible = await uow.run(actor, (r) => r.houses.get(houseId))
+    if (!visible) return []
+    return uow.state.activity
+      .filter((a) => a.houseId === houseId && a.itemId === itemId)
+      .sort((a, b) => b.id - a.id)
+  },
   activity: async (houseId, { before, limit }) => {
     // Reads go through the same rule as RLS: members of the house only.
     const visible = await uow.run(actor, (r) => r.houses.get(houseId))

@@ -100,6 +100,15 @@ export type ItemsTable = {
   archived_at: Timestamp | null
 }
 
+export type FeelingsTable = {
+  item_id: string
+  user_id: string
+  house_id: string
+  kind: 'anxious' | 'frustrated' | 'confused' | 'fine' | 'meh' | 'thanks'
+  note: string | null
+  updated_at: Timestamp
+}
+
 export type ActivityEventsTable = {
   id: Generated<ColumnType<string, never, never>> // bigserial comes back as a string
   house_id: string
@@ -143,6 +152,7 @@ export type DB = {
   house_invites: HouseInvitesTable
   contacts: ContactsTable
   items: ItemsTable
+  feelings: FeelingsTable
   activity_events: ActivityEventsTable
   notifications_outbox: NotificationsOutboxTable
 }

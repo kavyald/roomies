@@ -8,6 +8,7 @@ import { activityRowFor, type StoredActivityRow } from '../../domain/events'
 import { isFailedResult } from '../../domain/result'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
 import type { ContactId, HouseId, InviteId, ItemId, RoomId, UserId } from '../../domain/ids'
+import type { Feeling } from '../../domain/feelings'
 import { sameNeed, type Item, type Need } from '../../domain/items'
 
 export type MemoryState = {
@@ -19,6 +20,7 @@ export type MemoryState = {
   contacts: Map<ContactId, Contact>
   invites: Map<InviteId, Invite>
   items: Map<ItemId, Item>
+  feelings: Map<string, { houseId: HouseId; feeling: Feeling }>
   activity: StoredActivityRow[]
 }
 
@@ -31,6 +33,7 @@ export const emptyState = (): MemoryState => ({
   contacts: new Map(),
   invites: new Map(),
   items: new Map(),
+  feelings: new Map(),
   activity: [],
 })
 
@@ -178,6 +181,26 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         if (!old && a.kind !== 'system' && item.createdBy !== uid(a)) deny('items')
         checkItem(s, item)
         s.items.set(item.id, item)
+      },
+    },
+    feelings: {
+      get: async (itemId, userId) => {
+        const f = s.feelings.get(`${itemId}|${userId}`)
+        return f && isMember(s, a, f.houseId) ? f.feeling : undefined
+      },
+      save: async (houseId, feeling) => {
+        const item = s.items.get(feeling.itemId)
+        if (!isMember(s, a, houseId) || (a.kind !== 'system' && feeling.by !== uid(a)))
+          deny('feelings')
+        if (item?.houseId !== houseId) throw new ConstraintViolation('feelings: item not in house')
+        s.feelings.set(`${feeling.itemId}|${feeling.by}`, { houseId, feeling })
+      },
+      remove: async (itemId, userId) => {
+        const f = s.feelings.get(`${itemId}|${userId}`)
+        if (!f) return
+        if (!isMember(s, a, f.houseId) || (a.kind !== 'system' && userId !== uid(a)))
+          deny('feelings')
+        s.feelings.delete(`${itemId}|${userId}`)
       },
     },
     events: {

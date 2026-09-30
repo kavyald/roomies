@@ -8,11 +8,12 @@ import {
   makeMarkDone,
   makeReopenItem,
   makeRestoreItem,
+  makeSetFeeling,
 } from '@/lib/app/items'
 import { depsForRequest } from '@/lib/compose'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
 import type { ItemPatch, NewItem } from '@/lib/domain/items'
-import { itemIdSchema, itemPatchSchema, newItemSchema } from '@/lib/schemas/items'
+import { itemIdSchema, itemPatchSchema, newItemSchema, setFeelingSchema } from '@/lib/schemas/items'
 import { makeAction } from '@/lib/server/action'
 import { currentActor } from '@/lib/server/session'
 
@@ -73,4 +74,17 @@ export async function restoreItemAction(houseId: HouseId, id: unknown) {
     (deps, actor, i) => makeRestoreItem(deps)(actor, i as ItemId),
     env(houseId),
   )(id)
+}
+
+export async function setFeelingAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    setFeelingSchema,
+    (deps, actor, i) =>
+      makeSetFeeling(deps)(actor, {
+        itemId: i.itemId as ItemId,
+        kind: i.kind,
+        ...(i.note && { note: i.note }),
+      }),
+    env(houseId),
+  )(input)
 }

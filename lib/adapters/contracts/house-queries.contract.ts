@@ -92,6 +92,43 @@ export const houseQueriesContract = (
       expect(await h.queriesFor(stranger.member, stranger.house.id).items(house.id)).toEqual([])
     })
 
+    it("reads the house's feelings and an item's activity", async () => {
+      const { house, member } = await withPlaces()
+      const item = {
+        id: h.ids.newId<'item'>(),
+        houseId: house.id,
+        category: 'need',
+        title: 'Soap',
+        priority: 'normal',
+        createdBy: member,
+        createdAt: T,
+      } as const
+      const feeling = { itemId: item.id, by: member, kind: 'frustrated' as const, at: T }
+      await h.uow.run(system(house.id), async (r) => {
+        await r.items.save(item as never)
+        await r.feelings.save(house.id, feeling as never)
+        await r.events.record(
+          house.id,
+          [
+            {
+              kind: 'feeling.set',
+              itemId: item.id as never,
+              changes: { previous: null, next: feeling as never },
+              actionId: h.ids.newId(),
+              by: member,
+            },
+          ],
+          T,
+        )
+      })
+      const q = h.queriesFor(member, house.id)
+      expect(await q.feelings(house.id)).toEqual([feeling])
+      const rows = await q.itemActivity(house.id, item.id as never)
+      expect(rows.map((r) => r.kind)).toEqual(['feeling.set'])
+      const stranger = await seedHouse(h)
+      expect(await h.queriesFor(stranger.member, stranger.house.id).feelings(house.id)).toEqual([])
+    })
+
     it('shows invites to admins only', async () => {
       const { house, admin, member } = await withPlaces()
       const invite = {

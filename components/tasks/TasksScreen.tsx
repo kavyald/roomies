@@ -2,6 +2,7 @@
 
 import { CheckCircle } from 'lucide-react'
 import { useState } from 'react'
+import { FeelingCounts } from '@/components/items/Feelings'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { ItemCard } from '@/components/items/ItemCard'
 import { whenLabel } from '@/components/items/meta'
@@ -10,7 +11,13 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { useToast } from '@/components/ui/Toast'
-import { useHouse, useItems, useMarkDone, useReopenItem } from '@/lib/client/hooks'
+import {
+  useHouse,
+  useItems,
+  useMarkDone,
+  useReopenItem,
+  useFeelingsByItem,
+} from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
@@ -28,6 +35,7 @@ export function TasksScreen({ houseId }: { houseId: HouseId }) {
   const items = useItems(houseId)
   const house = useHouse(houseId)
   const ctx = useCardContext(houseId)
+  const feelingsBy = useFeelingsByItem(houseId)
   const { openItem, openAdd } = useItemSheets()
   const done = useMarkDone(houseId)
   const reopen = useReopenItem(houseId)
@@ -79,6 +87,11 @@ export function TasksScreen({ houseId }: { houseId: HouseId }) {
               <ItemCard
                 item={t}
                 ctx={ctx}
+                top={
+                  feelingsBy.get(t.id)?.length ? (
+                    <FeelingCounts feelings={feelingsBy.get(t.id)!} />
+                  ) : undefined
+                }
                 hideCategory
                 meta={whenLabel(t, now, tz)}
                 onOpen={() => openItem(t.id)}

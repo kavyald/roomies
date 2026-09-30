@@ -3,6 +3,7 @@
 
 import type { AppDeps, Repos } from './ports'
 import { actorUser, type HouseActor } from '../domain/actor'
+import { setFeeling, type Feeling, type FeelingKind } from '../domain/feelings'
 import type { ActionId, ItemId, UserId } from '../domain/ids'
 import {
   archiveItem,
@@ -155,3 +156,30 @@ export const makeRestoreItem = (deps: Deps) =>
       item.category === 'need' ? await repos.items.openNeeds(item.houseId) : [],
     ),
   )
+
+/** Share, change, or remove my feeling about an item (PRD §7). */
+export const makeSetFeeling =
+  ({ uow, clock, ids }: Deps) =>
+  (
+    actor: HouseActor,
+    input: { itemId: ItemId; kind: FeelingKind | null; note?: string },
+  ): Promise<Result<Feeling | null, 'not_found' | 'no_change' | 'note_too_long'>> =>
+    uow.run(actor, async (repos) => {
+      const by = actorUser(actor)
+      const item = await repos.items.get(input.itemId)
+      if (!item || item.houseId !== actor.houseId || !by) return err('not_found')
+      const now = clock.now()
+      const current = (await repos.feelings.get(item.id, by)) ?? null
+      const r = setFeeling(current, input.kind ? { kind: input.kind, note: input.note } : null, {
+        itemId: item.id,
+        by,
+        now,
+        actionId: ids.newId(),
+      })
+      if (!r.ok) return r
+      // Record first: the event holds the feeling being replaced.
+      await repos.events.record(item.houseId, r.value.events, now)
+      if (r.value.feeling) await repos.feelings.save(item.houseId, r.value.feeling)
+      else await repos.feelings.remove(item.id, by)
+      return ok(r.value.feeling)
+    })

@@ -18,6 +18,8 @@ import {
   houseToRow,
   inviteToDomain,
   inviteToRow,
+  feelingToDomain,
+  feelingToRow,
   itemToDomain,
   itemToRow,
   memberToDomain,
@@ -281,6 +283,37 @@ const reposFor = (trx: Trx): Repos => {
           () => trx.updateTable('items').set(row).where('id', '=', item.id).executeTakeFirst(),
           () => trx.insertInto('items').values(row).execute(),
         )
+      },
+    },
+    feelings: {
+      get: async (itemId, userId) => {
+        const r = await trx
+          .selectFrom('feelings')
+          .selectAll()
+          .where('item_id', '=', itemId)
+          .where('user_id', '=', userId)
+          .executeTakeFirst()
+        return r && feelingToDomain(r)
+      },
+      save: async (houseId, f) => {
+        const row = feelingToRow(houseId, f)
+        await save(
+          () =>
+            trx
+              .updateTable('feelings')
+              .set(row)
+              .where('item_id', '=', f.itemId)
+              .where('user_id', '=', f.by)
+              .executeTakeFirst(),
+          () => trx.insertInto('feelings').values(row).execute(),
+        )
+      },
+      remove: async (itemId, userId) => {
+        await trx
+          .deleteFrom('feelings')
+          .where('item_id', '=', itemId)
+          .where('user_id', '=', userId)
+          .execute()
       },
     },
     events: {

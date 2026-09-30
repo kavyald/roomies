@@ -20,6 +20,7 @@ import {
   markDoneAction,
   reopenItemAction,
   restoreItemAction,
+  setFeelingAction,
 } from '@/app/actions/items'
 import { ItemSheetsProvider } from '@/components/items/ItemSheets'
 import { browserAppClient } from '@/lib/compose.client'
@@ -55,6 +56,7 @@ export function HouseProviders({
       doChore: (id) => doChoreAction(houseId, id),
       archiveItem: (id) => archiveItemAction(houseId, id),
       restoreItem: (id) => restoreItemAction(houseId, id),
+      setFeeling: (input) => setFeelingAction(houseId, input),
     }),
   )
   return (

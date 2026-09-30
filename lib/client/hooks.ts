@@ -1,6 +1,8 @@
 'use client'
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
+import type { Feeling } from '../domain/feelings'
 import type { NewContact } from '../domain/contacts'
 import type { AppCommands } from './app-client'
 import type { ContactId, HouseId, InviteId, ItemId } from '../domain/ids'
@@ -63,10 +65,13 @@ export const useRevokeInvite = (houseId: HouseId) => {
  * A command that refreshes some of the house's queries when it works. Every House-tab change
  * goes through here; the activity log refreshes too, since changes write to it.
  */
+/** Query families keyed by the house alone (the ones a command refreshes). */
+type HouseKey = Exclude<keyof typeof keys, 'itemActivity'>
+
 const useHouseCommand = <I, R extends { ok: boolean }>(
   houseId: HouseId,
   run: (commands: ReturnType<typeof useAppClient>['commands'], input: I) => Promise<R>,
-  affects: (keyof typeof keys)[],
+  affects: HouseKey[],
 ) => {
   const { commands } = useAppClient()
   const qc = useQueryClient()
@@ -93,6 +98,25 @@ export const useItem = (houseId: HouseId, id: ItemId | null) => {
   const items = useItems(houseId)
   return id ? items.data?.find((i) => i.id === id) : undefined
 }
+
+export const useFeelings = (houseId: HouseId) => {
+  const { queries } = useAppClient()
+  return useQuery({ queryKey: keys.feelings(houseId), queryFn: () => queries.feelings(houseId) })
+}
+
+/** An item's activity (for Earlier feelings and, later, its path through runs). */
+export const useItemActivity = (houseId: HouseId, itemId: ItemId) => {
+  const { queries } = useAppClient()
+  return useQuery({
+    queryKey: keys.itemActivity(houseId, itemId),
+    queryFn: () => queries.itemActivity(houseId, itemId),
+  })
+}
+
+export const useSetFeeling = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Parameters<AppCommands['setFeeling']>[0]) => c.setFeeling(i), [
+    'feelings',
+  ])
 
 export const useCreateItem = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: NewItem) => c.createItem(i), ['items'])
@@ -169,4 +193,14 @@ export const useCreateContact = (houseId: HouseId) => {
       if (r.ok) return qc.invalidateQueries({ queryKey: keys.contacts(houseId) })
     },
   })
+}
+
+/** The house's current feelings, grouped by item. */
+export const useFeelingsByItem = (houseId: HouseId): ReadonlyMap<string, Feeling[]> => {
+  const feelings = useFeelings(houseId)
+  return useMemo(() => {
+    const m = new Map<string, Feeling[]>()
+    for (const f of feelings.data ?? []) m.set(f.itemId, [...(m.get(f.itemId) ?? []), f])
+    return m
+  }, [feelings.data])
 }

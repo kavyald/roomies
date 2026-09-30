@@ -3,6 +3,7 @@
 import { Check, Plus, ShoppingBag } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
+import { FeelingCounts } from '@/components/items/Feelings'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { whenLabel } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
@@ -10,9 +11,17 @@ import { RoomChip } from '@/components/ui/Chip'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
-import { useCreateItem, useHouse, useItems, useMarkDone, useReopenItem } from '@/lib/client/hooks'
+import {
+  useCreateItem,
+  useHouse,
+  useItems,
+  useMarkDone,
+  useReopenItem,
+  useFeelingsByItem,
+} from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
+import { feelingScore } from '@/lib/domain/feelings'
 import { needList } from '@/lib/domain/lists'
 
 /**
@@ -23,6 +32,7 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
   const items = useItems(houseId)
   const house = useHouse(houseId)
   const ctx = useCardContext(houseId)
+  const feelingsBy = useFeelingsByItem(houseId)
   const { openItem } = useItemSheets()
   const create = useCreateItem(houseId)
   const done = useMarkDone(houseId)
@@ -69,7 +79,10 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
   }
 
   const tz = house.data?.settings.timezone ?? 'UTC'
-  const needs = items.data ? needList(items.data) : []
+  const weights = house.data?.settings.feelingWeights
+  const needs = items.data
+    ? needList(items.data, (id) => (weights ? feelingScore(feelingsBy.get(id) ?? [], weights) : 0))
+    : []
 
   return (
     <div className="grid gap-4">
@@ -140,7 +153,10 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
                   onClick={() => openItem(n.id)}
                   className="grid min-h-12 flex-1 gap-1 py-2.5 pr-3.5 text-left"
                 >
-                  <span className="font-bold">{n.title}</span>
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="font-bold">{n.title}</span>
+                    <FeelingCounts feelings={feelingsBy.get(n.id) ?? []} />
+                  </span>
                   {(n.note || room || when) && (
                     <span className="flex flex-wrap items-center gap-1.5 text-[0.8rem] font-semibold text-ink-soft">
                       {room && <RoomChip name={room.name} element={room.element} />}

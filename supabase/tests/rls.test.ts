@@ -54,13 +54,13 @@ describe('RLS is on everywhere', () => {
     expect(rows.map((r) => r.relname)).toEqual([])
   })
 
-  it('there are no delete policies (things are archived, not deleted)', async () => {
+  it('nothing is deleted except your own current feeling (its history is in activity)', async () => {
     const { rows } = await asOwner((db) =>
       db.query(
         `select tablename, policyname from pg_policies where schemaname = 'public' and cmd = 'DELETE'`,
       ),
     )
-    expect(rows).toEqual([])
+    expect(rows).toEqual([{ tablename: 'feelings', policyname: 'feelings delete own' }])
   })
 })
 

@@ -125,6 +125,30 @@ export const itemsContract = (name: string, makeHarness: () => Promise<UnitOfWor
       ).rejects.toBeInstanceOf(ConstraintViolation)
     })
 
+    it('keeps one current feeling per member per item, in their own name', async () => {
+      const { house, member, admin, need, put } = await setup()
+      const n = need('Radiator parts')
+      await put(n)
+      const me = asMember(house.id, member)
+      const anxious = {
+        itemId: n.id,
+        by: member,
+        kind: 'anxious' as const,
+        note: 'It bangs at 3am',
+        at: T,
+      }
+      await h.uow.run(me, (r) => r.feelings.save(house.id, anxious))
+      expect(await h.uow.run(me, (r) => r.feelings.get(n.id, member))).toEqual(anxious)
+      const thanks = { itemId: n.id, by: member, kind: 'thanks' as const, at: T }
+      await h.uow.run(me, (r) => r.feelings.save(house.id, thanks))
+      expect(await h.uow.run(me, (r) => r.feelings.get(n.id, member))).toEqual(thanks)
+      await expect(
+        h.uow.run(me, (r) => r.feelings.save(house.id, { ...thanks, by: admin })),
+      ).rejects.toBeInstanceOf(AccessDenied)
+      await h.uow.run(me, (r) => r.feelings.remove(n.id, member))
+      expect(await h.uow.run(me, (r) => r.feelings.get(n.id, member))).toBeUndefined()
+    })
+
     it("members read and write their house's items only, in their own name", async () => {
       const mine = await setup()
       const theirs = await setup()

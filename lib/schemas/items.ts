@@ -32,3 +32,9 @@ export const itemPatchSchema = z.object({
 })
 
 export const itemIdSchema = z.uuid()
+
+export const setFeelingSchema = z.object({
+  itemId: z.uuid(),
+  kind: z.enum(['anxious', 'frustrated', 'confused', 'fine', 'meh', 'thanks']).nullable(),
+  note: z.string().max(1000).optional(),
+})

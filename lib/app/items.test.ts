@@ -11,6 +11,7 @@ import {
   makeMarkDone,
   makeReopenItem,
   makeRestoreItem,
+  makeSetFeeling,
 } from './items'
 
 const setup = async () => {
@@ -28,6 +29,7 @@ const setup = async () => {
     did: makeDoChore(deps),
     archive: makeArchiveItem(deps),
     restore: makeRestoreItem(deps),
+    feel: makeSetFeeling(deps),
     kinds: () => deps.uow.state.activity.map((a) => a.kind),
   }
 }
@@ -134,5 +136,43 @@ describe('items, end to end on the memory adapters', () => {
     })
     if (!theirs.ok) throw new Error(theirs.error)
     expect(await done(as('Kavya'), theirs.value.id)).toEqual({ ok: false, error: 'not_found' })
+  })
+})
+
+describe('feelings', () => {
+  it('shares, changes (keeping the old one in activity), and removes a feeling', async () => {
+    const { deps, s, as, create, feel } = await setup()
+    const radiator = await create(as('Kavya'), { category: 'task', title: 'Radiator clanking' })
+    if (!radiator.ok) throw new Error(radiator.error)
+    const first = await feel(as('Sam'), {
+      itemId: radiator.value.id,
+      kind: 'anxious',
+      note: 'Up at 3am again',
+    })
+    expect(first.ok && first.value).toMatchObject({ kind: 'anxious', by: s.people.Sam })
+    await feel(as('Sam'), { itemId: radiator.value.id, kind: 'frustrated' })
+    expect(await feel(as('Sam'), { itemId: radiator.value.id, kind: 'frustrated' })).toEqual({
+      ok: false,
+      error: 'no_change',
+    })
+    expect(await feel(as('Sam'), { itemId: radiator.value.id, kind: null })).toEqual({
+      ok: true,
+      value: null,
+    })
+
+    const rows = deps.uow.state.activity.filter(
+      (a) => a.itemId === radiator.value.id && a.kind.startsWith('feeling.'),
+    )
+    expect(
+      rows.map((r) => [
+        r.kind,
+        (r.changes as { previous: { kind: string } | null }).previous?.kind ?? null,
+      ]),
+    ).toEqual([
+      ['feeling.set', null],
+      ['feeling.set', 'anxious'],
+      ['feeling.removed', 'frustrated'],
+    ])
+    expect(deps.uow.state.feelings.size).toBe(0)
   })
 })

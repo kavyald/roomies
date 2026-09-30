@@ -33,6 +33,7 @@ export const fakeAppClient = (
     doChore: async () => err('unexpected'),
     archiveItem: async () => err('unexpected'),
     restoreItem: async () => err('unexpected'),
+    setFeeling: async () => err('unexpected'),
     ...commands,
   },
 })
