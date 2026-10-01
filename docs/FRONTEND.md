@@ -1,7 +1,7 @@
 # Roomies — Frontend & Visual Design Guidance
 
 **Status:** v1 scope (2026-09-28): needs, chores, tasks, polls, runs
-**Companions:** [PRD.md](./PRD.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) (§8 covers frontend code structure) · [mockup.html](./mockup.html) (clickable prototype, open in a browser)
+**Companions:** [PRD.md](./PRD.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) (§8 covers frontend code structure) · [mockup v1](./archive/mockup-v1.html) (original clickable prototype, open in a browser)
 
 > Same convention: **[DECIDED]** = default we'll build with, **[OPEN]** = needs your call. §10 lists every open item.
 
@@ -325,7 +325,8 @@ A full-height sheet:
 - **Settings → Feeling weights**: six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, **Save for the house**. "One setting for the whole house. Anyone can change it."
 - **Spent this month**: total and your share.
 - **Rooms** grouped by floor, with open-item counts. Tap a room to see its items.
-- **Contacts** with Copy number. **Roommates**. **Invite link** (admins). **Activity**.
+- **Contacts** with Copy number. **Roommates**. **Invite link** (admins).
+- **Activity**: everything that happened in the house, newest first, one line per action (a bulk move is one line), under day headings ("Today", "Yesterday", "Mon, Sep 28"). Each line has the person's avatar, the sentence ("Kavya felt 😰 about Lemons"), and a topic icon and word with the time. A filter row (All · Items · Polls & runs · Money · House) narrows it, and **Show earlier** loads older history. A line about an item, run or poll opens its sheet in place.
 
 ### 5.12 Join, sign-in, empty states
 

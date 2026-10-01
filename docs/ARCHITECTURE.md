@@ -521,7 +521,7 @@ create index on activity_events (action_id);                                    
 - **One row per subject.** A bulk action writes one row per item, sharing an `action_id`. The Activity screen groups rows by `action_id` into one line ("Kavya moved 3 tasks to Landlord visit").
 - **Queried fields are columns, never `payload`.** `changes` holds field diffs (varying shape), and `payload` holds versioned extras (`{"v":1, …}`). Sizing, measured in T07 (`pnpm db:sizing`): 148–264 bytes per row depending on kind (feelings with a note are the largest), about **405 bytes/row on disk** including the six indexes and page overhead. At 50 events a day that's roughly **37 MB after 5 years** for one house (the pre-build estimate was ~30 MB).
 - **Deleted accounts** keep their rows. The profile is anonymized and shows as "Former roommate."
-- `activityRowFor(event)` is pure (it maps a `DomainEvent` to a row), and `activityLine(rows)` is pure (it groups by `action_id` and phrases the feed line).
+- `activityRowFor(event)` is pure (it maps a `DomainEvent` to a row). `activityFeed(rows, names, viewer)` is pure too: it groups rows by `action_id` and has `activityLine` phrase each group as one feed line, naming what it's about from the page's `subjects` (A24).
 
 **Reading history back**
 
@@ -603,7 +603,9 @@ select changes, actor_id, at from activity_events
 | `addCost` | `(input: NewCost, by, now, id) → Result<{ cost; events }, 'not_positive'>` | |
 | `monthlySpend` | `(costs: Cost[], members: UserId[], month) → { total: Cents; perPerson: Cents }` | Equal split |
 | `validateInvite` | `(inv: Invite, tokenHash, now) → Result<Invite, 'invalid' \| 'expired' \| 'revoked' \| 'used_up'>` | |
-| `activityRowFor` / `activityLine` / `notificationsFor` | `(e: DomainEvent) → ActivityRow` / `(rows sharing an action_id) → FeedLine` / `(e, members, prefs, now, tz) → OutboxMessage[]` | Quiet hours + prefs applied in `notificationsFor` |
+| `activityRowFor` / `notificationsFor` | `(e: DomainEvent) → ActivityRow` / `(e, members, prefs, now, tz) → OutboxMessage[]` | Quiet hours + prefs applied in `notificationsFor` |
+| `activityLine` / `activityFeed` | `(rows sharing an action_id, names: ActivityNames, viewer: { isAdmin }) → FeedLine \| null` / `(rows, names, viewer) → FeedLine[]` | `names` comes from `activityNames(subjects, house)` (A24). Hidden kinds are left out, and admin-only kinds show only to admins. One line per action, newest first. |
+| `inActivityFilter` / `feedByDay` | `(line, filter) → boolean` / `(lines, now, tz) → FeedDay[]` | Filters: All, Items, Polls & runs, Money, House. Day headings come from `dayHeading` and line times from `feedTime` (`format.ts`). |
 
 **Use cases** (`lib/app/*.ts`). Each is built as `makeX(deps)`, then called as `(actor, input) → Promise<Result<Out, Err>>` in one `UnitOfWork` transaction.
 

@@ -1,8 +1,8 @@
 # Roomies — Test Suite
 
-**Status:** Draft v0.1 (planned; no app code yet)  
+**Status:** In use. The M0–M4 suites are built and green; M5's smoke suite and the manual checklist (§7) come with E1–E5.  
 **Built from:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [PRD.md](./PRD.md)  
-**Last updated:** 2026-09-29
+**Last updated:** 2026-10-01
 
 One command runs everything:
 
@@ -59,7 +59,7 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 - **`lib/testing/`** holds:
   - `fixedClock(instant)` and `seqIds()`;
   - builders: `aHouse`, `aMember`, `aNeed`, `aChore`, `aTask`, `aRun`, `aPoll`, `aContact`;
-  - `sampleHouse()`, which mirrors the mockup's people and rooms (Air, Fire, Water, Earth, Bathrooms 1–3, …).
+  - `sampleHouse()`, which mirrors the v1 mockup's people and rooms (Air, Fire, Water, Earth, Bathrooms 1–3, …).
 
   The lint rules allow `lib/testing/` to be imported only from test files.
 - **One house per test.** Every database and E2E test creates its own house through the builders. Tests never share rows, so they can run in parallel and nothing needs truncating. `supabase db reset` runs once per `test:all` to apply migrations and `seed.sql`.

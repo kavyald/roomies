@@ -7,7 +7,7 @@ Read this first. It covers where the project stands, how the work is planned (on
 **M0–M4 are done** (T01–T37, T40 + Q0–Q4 on `v1`): foundations, house & members, items, polls, runs & calendar, and notifications & polish. What's left is **M5** (hosting & launch, E1–E5 + Q5), which needs the owner's Supabase, Gmail and Vercel accounts: **don't start it unless the owner says so.** Locally you can do everything in M2 (needs/chores/tasks, feelings, the ranked Home feed, feeling weights, live updates) plus: start a run from Needs and work it (done / move / back to the pool / finish, with "Did you spend money?"), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (Spent this month on House, Open Splitwise), and see Coming up on Home and the month calendar. M4 added notifications: every recorded event can enqueue outbox messages in the same transaction (`withNotifications`), pg_cron calls `/api/cron/<job>` (tick, send-notifications, reminders, close-polls), Web Push goes to browsers that turned it on (production builds only; the service worker doesn't register on `pnpm dev`), and each person has settings at `/h/[houseId]/me` (categories, quiet hours, theme).
 
 ```
-docs/                        PRD, ARCHITECTURE (decision log A1–A24), FRONTEND, TESTING, mockup.html, architecture-guide.html
+docs/                        PRD, ARCHITECTURE (decision log A1–A24), FRONTEND, TESTING, architecture-guide.html, archive/ (mockup-v1.html; ignored by docs-check)
 app/                         Next.js routes: /sign-in, /setup/[token], /join/[token], / (routes you to your house), /h/[houseId]/{,needs,chores,tasks,house,activity,calendar,i/[itemId]}, /dev/kit, /offline, actions/
 components/ui/               the UI kit (see /dev/kit in light + dark); components/shell, house, auth, items (sheets, cards, feelings), runs, polls, costs, calendar, home, needs, chores, tasks
 lib/domain/                  pure types + functions (ids, time/DST, money, result, actor, house, events, activity, format, rooms, setup, invites, members, items, lists, feelings, priority, weights, runs, polls, costs, calendar)
@@ -95,13 +95,14 @@ A task is finished when its card's "Done when" holds **and** all of these do:
    - **Docker:** run `docker info`. If it fails, ask the owner to start Docker Desktop (`open -a Docker`) and say "retry".
    - **Weyve:** run `whoami` and read project `736d65d894464a82b9cc38603c43a532`. If the Weyve tools are missing or not signed in, ask the owner to connect the Weyve plugin and say "retry", or confirm they want to continue without it.
 2. Work on **`v1`**, never on `main`.
-3. Commit once per task, with the ID first (`T07 Base schema + RLS`). End every message with:
+3. **Check the docs before every commit.** After the code changes and tests, stage exactly what you'll commit, then run the `docs-check` skill (`/docs-check`). It compares the staged diff with `docs/` (except `docs/archive/`) and reports every discrepancy with a proposed doc edit or code fix. Resolve each finding or get the owner's sign-off before committing. A PreToolUse hook (`.claude/hooks/require-docs-check.mjs`) refuses `git commit` until the staged diff has passed, and refuses `git commit -a`.
+4. Commit once per task, with the ID first (`T07 Base schema + RLS`). End every message with:
    ```
    Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
    ```
    Git must use `121595788+kavyald@users.noreply.github.com`, because GitHub rejects pushes that expose a private email.
-4. **Push `origin v1` once per milestone**, after its Q task passes and `pnpm test:all` is green.
-5. Log judgment calls, deviations and blockers on the task's Weyve card with `append_note` ("Decision YYYY-MM-DD: what. Why: why."). If you deviate from ARCHITECTURE.md, update the doc and its decision log in the same commit.
+5. **Push `origin v1` once per milestone**, after its Q task passes and `pnpm test:all` is green.
+6. Log judgment calls, deviations and blockers on the task's Weyve card with `append_note` ("Decision YYYY-MM-DD: what. Why: why."). If you deviate from ARCHITECTURE.md, update the doc and its decision log in the same commit.
 
 ### Architecture rules (see ARCHITECTURE §4.1)
 

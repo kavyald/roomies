@@ -31,10 +31,10 @@ It's a PWA for iPhone Safari: roommates open a link, add it to their Home Screen
 
 ## Try the prototype
 
-[`docs/mockup.html`](docs/mockup.html) is a clickable iPhone prototype with sample data. Open it in any browser:
+[`docs/archive/mockup-v1.html`](docs/archive/mockup-v1.html) is the original clickable iPhone prototype with sample data. Open it in any browser:
 
 ```bash
-open docs/mockup.html
+open docs/archive/mockup-v1.html
 ```
 
 Things to try: vote on "Which vacuum?", record the landlord's reply on the Landlord request (Tasks tab), finish a grocery run and log the cost, change a feeling weight under House → Settings, and check House → Activity.
@@ -98,5 +98,6 @@ docs/
   ARCHITECTURE.md         system design and data model
   FRONTEND.md             visual design and screens
   TESTING.md              test suite plan
-  mockup.html             clickable prototype
+  architecture-guide.html interactive field guide to the build
+  archive/mockup-v1.html  the original clickable prototype
 ```

@@ -2,7 +2,7 @@
 
 **Status:** v1 scope (2026-09-28). Simplified to five concepts: needs, chores, tasks, polls, runs.
 **Owner:** Kavya
-**Companions:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FRONTEND.md](./FRONTEND.md) · [mockup.html](./mockup.html)
+**Companions:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FRONTEND.md](./FRONTEND.md) · [mockup v1](./archive/mockup-v1.html)
 
 > Decisions are marked **[DECIDED]**. The ones you answered directly are tagged *(owner)*. §13 lists what's deliberately **not** in v1, and §14 is the decision log.
 

@@ -246,10 +246,10 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
       <div class="ms done" role="listitem"><b>M4</b><span>Notifications</span></div>
       <div class="ms todo" role="listitem"><b>M5</b><span>Hosting &amp; launch</span></div>
     </div>
-    <p class="small soft">M0–M4 are done: 41 of 47 plan tasks, all passing <code>pnpm test:all</code>. M5 (E1–E5 + Q5) needs your Supabase, Gmail and Vercel accounts, so the app so far has only run on your Mac against local Supabase in Docker.</p>
+    <p class="small soft">M0–M4 are done and passed <code>pnpm test:all</code> at Q4; T40 (the Activity tab's first pass) has landed since. That's 42 of the 48 tasks on the Weyve board. M5 (E1–E5 + Q5) needs your Supabase, Gmail and Vercel accounts, so the app so far has only run on your Mac against local Supabase in Docker.</p>
     <div class="stats">
       <div class="stat"><b>~20k</b><span>lines of app code (tests excluded)</span></div>
-      <div class="stat"><b>74</b><span>test files, plus 20 Playwright journeys</span></div>
+      <div class="stat"><b>74</b><span>test files, plus 21 Playwright journeys</span></div>
       <div class="stat"><b>16</b><span>SQL migrations, RLS on every table</span></div>
       <div class="stat"><b>47</b><span>use cases, each <code>makeX(deps)</code></span></div>
       <div class="stat"><b>$0</b><span>per month planned (free tiers)</span></div>
@@ -432,7 +432,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
     <div class="list" id="advlist"></div>
   </section>
 
-  <footer>Built from <code>docs/</code> (PRD, ARCHITECTURE A1–A23, FRONTEND, TESTING, BUILD_LOG, IMPLEMENTATION_PLAN) and a read of the source on <code>v1</code> at <code>21ecdb5</code> (Q4). File references point at that commit.</footer>
+  <footer>Built from <code>docs/</code> (PRD, ARCHITECTURE, FRONTEND, TESTING) and a read of the source on <code>v1</code> at <code>21ecdb5</code> (Q4); file references point at that commit. Updated 1 Oct 2026 for T40 (A24). The implementation plan and build log it first drew on were retired that day; tasks and their decisions now live on the Weyve cards.</footer>
 </div>
 
 <dialog class="sheet" id="sheet" aria-labelledby="sheet-title">
@@ -521,7 +521,8 @@ const LAYERS = [
     ['parseCents · formatCents · splitEqually','Money never touches floats.'] ]},
   { name:'events.ts · activity.ts', desc:'history', fns:[
     ['activityRowFor(event)','DomainEvent → activity_events row (typed subject columns).'],
-    ['activityLine · groupByAction · activityFeed · pageAtActionBoundary','Groups a bulk action into one line and never splits it across pages.'] ]},
+    ['activityLine · groupByAction · activityFeed · pageAtActionBoundary','Groups a bulk action into one line and never splits it across pages.'],
+    ['activityNames · inActivityFilter · feedByDay','Names what each line is about from the page\'s subjects (A24), filters the log, and groups lines under day headings.'] ]},
   { name:'notifications.ts · reminders.ts · push.ts', desc:'who hears what', fns:[
     ['notificationsFor(events, people, context, now)','Pure: returns outbox rows, respecting toggles and quiet hours.'],
     ['remindersFor · choreDueDate','Day-before and day-of reminders with dedupe keys, so reruns enqueue nothing.'],
@@ -539,7 +540,7 @@ const LAYERS = [
     ['mappers.ts · schema.ts','Explicit row ↔ domain mapping; Kysely types written by hand and checked by contract round-trips.'],
     ['postgresRateLimiter','Fixed windows in rate_limits, counted in their own transaction.'] ]},
   { name:'supabase/', desc:'the browser read path', fns:[
-    ['supabaseHouseQueries','PostgREST reads with the user\'s JWT: house, members, items, feelings, polls, runs, costs, activity (keyset-paged).'],
+    ['supabaseHouseQueries','PostgREST reads with the user\'s JWT: house, members, items, feelings, polls, runs, costs, activity (keyset-paged, with the names its rows point at embedded in the same request, A24).'],
     ['supabaseChangeFeed','One Realtime subscription to activity_events inserts for the house.'],
     ['supabaseAuthGateway','createUser / sendCode / deleteUser through the admin and anon clients.'] ]},
   { name:'memory/', desc:'fakes for every port', fns:[
@@ -750,6 +751,7 @@ const BACK = [
  ['A12','Writes through the server, reads direct','Browser writes only via server actions. Reads go straight to PostgREST with the user\'s JWT, so the server isn\'t a bottleneck for lists.',['Everything through the server: simpler mental model, extra hop for every list.']],
  ['§4.1','RLS still applies on the server','The server connects as app_server (no rights of its own) and per transaction runs set local role authenticated plus the caller\'s JWT claims. A bug in a use case can\'t reach another house.',['Service-role key for everything: simpler, but one bug leaks everything.']],
  ['A14 · A23','Transactional outbox','Every recorded event can enqueue notifications in the same transaction via withNotifications(uow), so a rolled-back change never notifies anyone.',['Send pushes inline: a failure or rollback leaves the two out of step.']],
+ ['A24','Activity lines name their topic','Each activity page embeds the titles, run labels, poll questions and amounts its rows point at, in the same PostgREST request. One request per page, RLS filters the embedded rows, and a line opens its item, run or poll sheet in place.',['A lookup per line: one request per row, slower as history grows.']],
  ['A17 · D25','Activity log is the only history','items.run_id holds the current run; everything that happened (moves, earlier feelings, votes) lives in append-only activity_events with typed subject columns and an action_id per user action.',['run_items / run_claims tables: more tables to keep consistent.']],
  ['A15 · D18','One items table','Need, chore and task share one table; CHECK constraints tie category-only columns to their category.',['Detail table per category: three 1:1 tables for one or two columns each.','JSON details: the database can\'t enforce anything.']],
  ['A3 · D9','Email one-time codes','Six digits typed into the app. Public sign-up off; accounts only via a valid invite or the setup token.',['Magic links open Safari, not the installed PWA.','Sign in with Apple: $99/yr and hidden emails.','SMS: costs money, SIM-swap risk.']],
@@ -803,7 +805,7 @@ $('#prlist').innerHTML = PR.map((p,i)=>'<div class="pr"><span class="k">'+String
 
 /* ---------------- Gaps ---------------- */
 const GAPS = [
- ['Not started','M5: hosting and launch','E1–E5 and Q5 are untouched by design: hosted Supabase (staging + prod), the Gmail sender, Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is also not installed yet.','docs/IMPLEMENTATION_PLAN.md §4 M5'],
+ ['Not started','M5: hosting and launch','E1–E5 and Q5 are untouched by design: hosted Supabase (staging + prod), the Gmail sender, Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is also not installed yet.','Weyve cards E1–E5 and Q5 (M5)'],
  ['Partly built','Offline shows no data','ARCHITECTURE §7.7 promises “the last cached data read-only when offline”. The service worker caches pages and build assets, but data comes from Supabase over another origin and TanStack Query isn\'t persisted, so an offline open shows the shell with nothing in it.','public/sw.js, lib/client/provider.tsx'],
  ['Partly built','Swipe actions on cards','FRONTEND principle 6 and §5 call for swipe right = done, left = feeling. Deferred in T24 to “M4 polish”; T37 didn\'t add them. The check button covers “done”.','components/items/ItemCard.tsx'],
  ['Partly built','30-day restore window','The archive confirm says “You can bring it back for 30 days”, but restoreItem has no time check and nothing purges. Either enforce it or change the copy.','components/items/ItemSheets.tsx:575, lib/domain/items.ts:326'],
@@ -838,7 +840,7 @@ renderGaps();
 const ADV = [
  ['top','Backend','Stop the outbox from double-sending','Two senders can run at once (the after() call following each action and the 5-minute job). pending() selects unsent rows with no lock, so both can push the same message before either marks it sent.','Claim rows first: SELECT … FOR UPDATE SKIP LOCKED, or UPDATE … SET claimed_at = now() WHERE sent_at IS NULL AND claimed_at IS NULL RETURNING *.','lib/adapters/postgres/unit-of-work.ts:406, lib/app/push.ts:46'],
  ['top','Backend','Send pushes outside the database transaction','makeSendNotifications calls the push services inside uow.run, holding a pooled connection for up to 100 messages × browsers of network calls. On Vercel with Supabase\'s transaction pooler, that invites timeouts; a crash after sending but before commit re-sends everything.','Claim in one short transaction, send with no transaction open, then mark sent in a second short one.','lib/app/push.ts'],
- ['top','Backend','Revisit sign-in enumeration before launch','The app\'s own form always answers the same, but GoTrue\'s /auth/v1/otp answers unknown emails with a 422 and known ones with 200, and the anon key is public. Anyone can check whether an email has an account.','In E1, confirm the hosted behavior; if it still differs, put the auth endpoint behind the server route only or accept and document the risk.','docs/BUILD_LOG.md (T03)'],
+ ['top','Backend','Revisit sign-in enumeration before launch','The app\'s own form always answers the same, but GoTrue\'s /auth/v1/otp answers unknown emails with a 422 and known ones with 200, and the anon key is public. Anyone can check whether an email has an account.','In E1, confirm the hosted behavior; if it still differs, put the auth endpoint behind the server route only or accept and document the risk.','Weyve card T03 (notes)'],
  ['high','Backend','Bound what the browser loads','items(houseId) and costs(houseId) return every row ever, including done and archived ones, and every activity event refetches items. Fine today; after a year of groceries it\'s thousands of rows on every tap.','Load open items plus a recent-done window (e.g. 30 days, which also matches restore), and fetch costs by month.','lib/adapters/supabase/house-queries.ts:85,95'],
  ['high','Frontend','Make offline match the promise, or change the promise','Right now an offline open shows an empty shell.','Persist the TanStack cache to IndexedDB (persistQueryClient) and show a read-only banner; or edit ARCHITECTURE §7.7 to say “offline page only”.','public/sw.js, lib/client/provider.tsx'],
  ['high','Frontend','Deep links for polls and runs','Push taps for polls and runs land on Home, where you then hunt for the thing.','Add /h/[id]/p/[pollId] and /r/[runId] that open the existing sheets, the same way /i/[itemId] does, and point notifications at them.','lib/domain/notifications.ts, app/h/[houseId]/'],
