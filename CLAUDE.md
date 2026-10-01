@@ -59,7 +59,7 @@ Update this section as the build progresses: which milestone is done, what exist
 
 ## The plan lives on Weyve
 
-The tasks are the cards on the Weyve **roomies** project (below). Each card holds what to build (WHAT), a **"Done when"** line, its milestone and size (tags), its dependencies (edges), and the decisions made while building it (notes). `docs/IMPLEMENTATION_PLAN.md` and `docs/BUILD_LOG.md` were retired on 2026-10-01; everything in them is on the cards.
+The tasks are the cards on the Weyve **roomies** project (below). Each card holds what to build (WHAT), a **"Done when"** line, its milestone and topic (tags), its dependencies (edges), and the decisions made while building it (notes). `docs/IMPLEMENTATION_PLAN.md` and `docs/BUILD_LOG.md` were retired on 2026-10-01; everything in them is on the cards.
 
 - **Task IDs:**
   - **T01–T37** and **T40** are features and plumbing (there is no T12, T38 or T39; T40, the Activity tab's first pass, was added after M4). A new task takes the next free ID (**T41**).
@@ -76,6 +76,8 @@ The tasks are the cards on the Weyve **roomies** project (below). Each card hold
 - **M5 is off limits unless the owner says otherwise.** It needs Supabase, Gmail and Vercel accounts, which only the owner can create.
 - **Order:** dependencies are hard: don't start a task until everything it depends on is committed. `find_tasks` with `ready: true` lists what can start.
 - **Test tasks:** each milestone's Q task adds the tests that span its tasks (end-to-end journeys, RLS across tables) and keeps `pnpm test:all` green. **A milestone isn't done until its Q task passes**, so a task added to a milestone also becomes a dependency of its Q task.
+- **Tags:** every card has its milestone (`M0`–`M5`) and one topic: `topic:platform`, `topic:ui-shell`, `topic:people`, `topic:items`, `topic:priority`, `topic:coordination`, `topic:activity`, `topic:notifications` or `topic:launch`. Q cards are tagged `tests` instead of a topic, and cards that need outside accounts also carry `external`. Size is in each card's notes. On the canvas, each topic is a lane, ordered left to right by dependency depth; place a new card in its topic's lane.
+- **Edges:** keep only direct dependencies; don't add one that already follows through another path.
 - **Changing the plan:** edit the cards directly (name, WHAT, Done when, tags, dependency edges). There is no generated doc to keep in step.
 
 ### Definition of done (every task)
