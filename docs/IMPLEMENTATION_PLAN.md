@@ -30,9 +30,9 @@
 
 ## 2. Summary
 
-- **47 tasks** across **6 milestones**, about **61 working days** in total for one person.
-- **Critical path** (longest chain of dependencies, about **23 days**): T01 → T04 → T05 → T06 → T08 → T14 → T16 → T17 → T22 → T28 → T30 → Q3 → Q4 → E4 → E5.
-- **Without the external services** (M0–M4 only), the core is done after about **21 days**, ending at Q4.
+- **48 tasks** across **6 milestones**, about **62.5 working days** in total for one person.
+- **Critical path** (longest chain of dependencies, about **24.5 days**): T01 → T04 → T05 → T06 → T08 → T14 → T16 → T17 → T22 → T28 → T30 → T37 → T40 → Q4 → E4 → E5.
+- **Without the external services** (M0–M4 only), the core is done after about **22.5 days**, ending at Q4.
 - Everything off the critical path can fill gaps, e.g. while waiting on a review or on a roommate to test.
 
 | Milestone | Tasks | Est. days | Exit criteria |
@@ -41,7 +41,7 @@
 | **M1 · House & members** | T14–T17 + Q1 (5) | 8 | The house exists with its rooms and contacts, and test roommates join locally through invite links. Q1 passes. |
 | **M2 · Items: needs, chores, tasks** | T18–T26 + Q2 (10) | 12 | Needs, chores, and tasks work end to end locally, and feelings re-rank the Home feed. Q2 passes. |
 | **M3 · Polls, runs & calendar** | T27–T31 + Q3 (6) | 12 | A grocery run (with a cost), a poll, and a super visit can each be completed locally. Dated things show on the calendar. Q3 passes. |
-| **M4 · Notifications & polish** | T32–T37 + Q4 (7) | 8.5 | Reminders and push work locally, and `pnpm test:all` (Q4) is green on a fresh clone and in CI. |
+| **M4 · Notifications & polish** | T32–T40 + Q4 (8) | 10 | Reminders and push work locally, and `pnpm test:all` (Q4) is green on a fresh clone and in CI. |
 | **M5 · Hosting & launch (external services)** | E1–E5 + Q5 (6) | 4 | Everyone is on production from their phones, the smoke suite (Q5) passes against prod, and the house uses it for real. |
 
 ---
@@ -102,6 +102,7 @@ flowchart TD
     T35["T35 Reminder jobs"]
     T36["T36 Notification settings"]
     T37["T37 UX polish pass"]
+    T40["T40 Activity tab, first pass"]
     Q4["Q4 M4 tests + full suite"]
   end
   subgraph M5["M5 · Hosting & launch (external services)"]
@@ -195,11 +196,17 @@ flowchart TD
   T30 --> T37
   T31 --> T37
   T17 --> T37
+  T14 --> T40
+  T27 --> T40
+  T29 --> T40
+  T30 --> T40
+  T37 --> T40
   Q3 --> Q4
   T34 --> Q4
   T35 --> Q4
   T36 --> Q4
   T37 --> Q4
+  T40 --> Q4
   T07 --> E1
   T13 --> E1
   T02 --> E2
@@ -215,7 +222,7 @@ flowchart TD
   E3 --> E5
   E4 --> E5
   Q5 --> E5
-  class T01,T04,T05,T06,T08,T14,T16,T17,T22,T28,T30,Q3,Q4,E4,E5 crit;
+  class T01,T04,T05,T06,T08,T14,T16,T17,T22,T28,T30,T37,T40,Q4,E4,E5 crit;
 ```
 
 ---
@@ -275,7 +282,7 @@ flowchart TD
 
 | ID | Task | Size | Depends on | Unblocks |
 |---|---|---|---|---|
-| T14 ⭑ | **Activity log** | M | T08 | T16, T18, T23, T27, T33 |
+| T14 ⭑ | **Activity log** | M | T08 | T16, T18, T23, T27, T33, T40 |
 | T15 | **House setup + rooms** | M | T08, T13 | T16 |
 | T16 ⭑ | **Invites + join flow** | L | T14, T15 | T17 |
 | T17 ⭑ | **House tab: members, rooms, contacts** | M | T11, T16 | Q1, T22, T37 |
@@ -336,12 +343,12 @@ flowchart TD
 
 | ID | Task | Size | Depends on | Unblocks |
 |---|---|---|---|---|
-| T27 | **Polls** | M | T19, T14 | Q3, T35 |
+| T27 | **Polls** | M | T19, T14 | Q3, T35, T40 |
 | T28 ⭑ | **Runs (batches) + item actions** | L | T20, T21, T22 | T29, T30, T31, T35 |
-| T29 | **Costs** | M | T19, T28 | Q3, T37 |
-| T30 ⭑ | **Requests & visits** | L | T28, T22 | Q3, T37 |
+| T29 | **Costs** | M | T19, T28 | Q3, T37, T40 |
+| T30 ⭑ | **Requests & visits** | L | T28, T22 | Q3, T37, T40 |
 | T31 | **Calendar + Coming up** | M | T20, T22, T28 | Q3, T37 |
-| Q3 ⭑ | **M3 tests** | M | Q2, T27, T29, T30, T31 | Q4 |
+| Q3 | **M3 tests** | M | Q2, T27, T29, T30, T31 | Q4 |
 
 - **T27 Polls**: `polls`, `poll_options`, `poll_votes`. Pure `createPoll` / `vote` / `closePoll` (most votes wins, a tie → "Tie"), the poll sheet, `addPollOption` (anyone, while open), "+ Poll about this" on items, standalone polls, and Open polls on Home.  
   *Done when:* "Which vacuum?" on a need and a standalone "House name?" both work, and a 2–2 result shows a tie.
@@ -367,8 +374,9 @@ flowchart TD
 | T34 | **Web push** | M | T33, T10, T32 | Q4, E4 |
 | T35 | **Reminder jobs** | M | T32, T33, T21, T22, T27, T28 | Q4, E3 |
 | T36 | **Notification settings** | S | T33 | Q4 |
-| T37 | **UX polish pass** | M | T25, T29, T30, T31, T17 | Q4 |
-| Q4 ⭑ | **M4 tests + full suite** | M | Q3, T34, T35, T36, T37 | E4, Q5 |
+| T37 ⭑ | **UX polish pass** | M | T25, T29, T30, T31, T17 | T40, Q4 |
+| T40 ⭑ | **Activity tab, first pass** | M | T14, T27, T29, T30, T37 | Q4 |
+| Q4 ⭑ | **M4 tests + full suite** | M | Q3, T34, T35, T36, T37, T40 | E4, Q5 |
 
 - **T32 Job runner**: `/api/cron/*` with a secret header, `depsForJob()` (system actor), and a pg_cron + pg_net migration that calls the routes on schedule.  
   *Done when:* A local pg_cron schedule calls the local `/api/cron` route (via `host.docker.internal`) every 15 minutes and logs success.
@@ -382,6 +390,8 @@ flowchart TD
   *Done when:* Turning off a category stops those messages from being enqueued.
 - **T37 UX polish pass**: Empty states, a copy pass against the FRONTEND voice table, completion bursts, reduced motion, and dark mode checks.  
   *Done when:* Every screen has an empty state, and no copy uses "overdue," "failed," or "missed" about a person.
+- **T40 Activity tab, first pass**: Every line names what it's about: the activity page query brings the names of its items, runs, polls, options and costs with it (one request per page, however big the house gets). Feelings read as their emoji ("Kavya felt 😰 about Lemons"), like everywhere else. Tapping a line opens its item, run or poll sheet in place (nothing loads until the tap). Day headers, an icon per line, the detail a row already holds (a feeling's note, what an edit changed, a run's cost), and filter chips (All · Items · Polls & runs · Money · House). Added after M4 at the owner's request.  
+  *Done when:* No line says "something" when the thing exists, a feeling shows its emoji, tapping a line opens its sheet, and the filters and day headers work at 375pt in light and dark.
 - **Q4 M4 tests + full suite**: `notificationsFor` quiet hours, the outbox written in the same transaction, reminders idempotent under a fixed clock, the push sender dropping 410 subscriptions (fake), the copy lint, axe on every screen, and `e2e/m4-notifications`. Then the whole suite: every E2E journey (join, need, grocery run with a cost, poll tie, visit, feeling, feeling weight) on the iPhone profile, coverage targets enforced, and `pnpm test:all` documented in the README. Replaces T38.  
   *Done when:* `pnpm install && pnpm test:all` is green on a fresh clone (with Docker running) and in CI, with no critical axe issues.
 
@@ -423,7 +433,7 @@ M0. T01 → T04 → T05 → T06 → T02 → T03 → T07 → T08 → T09 → T10 
 M1. T14 → T15 → T16 → T17 → Q1
 M2. T18 → T19 → T22 → T20 → T21 → T23 → T24 → T25 → T26 → Q2
 M3. T28 → T30 → T27 → T29 → T31 → Q3
-M4. T32 → T33 → T34 → T35 → T36 → T37 → Q4
+M4. T37 → T40 → T32 → T33 → T34 → T35 → T36 → Q4
 M5. E1 → E2 → E4 → E3 → Q5 → E5
 
 **Early-feedback checkpoints**

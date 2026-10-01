@@ -48,7 +48,7 @@ test('the owner invites, and a roommate joins with a code and picks their room',
   // Everyone gets the join in the activity log, as one line (joining and picking a room are one
   // action).
   await ownerPage.goto(`/h/${owner.houseId}/activity`)
-  const feed = ownerPage.getByRole('list', { name: 'Activity' })
+  const feed = ownerPage.getByRole('list', { name: 'Today' })
   await expect(feed).toContainText('Maya joined the house')
   await expect(feed).not.toContainText('Maya moved into Fire')
 

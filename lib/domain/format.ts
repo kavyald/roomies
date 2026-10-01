@@ -4,9 +4,11 @@ import {
   calendarDaysBetween,
   daysBetween,
   localDateOf,
+  localTimeOf,
   MS_PER_HOUR,
   MS_PER_MINUTE,
   type Instant,
+  type LocalDate,
   type When,
 } from './time'
 
@@ -54,3 +56,19 @@ export const describeWhen = (when: When, now: Instant, tz: string): string => {
               : `${MONTHS[m - 1]} ${d}, ${y}`
   return when.time ? `${day} ${when.time}` : day
 }
+
+/** A day heading in the activity log: "Today", "Yesterday", "Mon, Sep 28", "Sep 28, 2025". */
+export const dayHeading = (date: LocalDate, now: Instant, tz: string): string => {
+  const today = localDateOf(now, tz)
+  const days = daysBetween(date, today)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number]
+  const [nowYear] = today.split('-').map(Number) as [number]
+  if (y !== nowYear) return `${MONTHS[m - 1]} ${d}, ${y}`
+  return `${WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]}, ${MONTHS[m - 1]} ${d}`
+}
+
+/** A line's time under its day heading: "Just now", "5m ago", "3h ago" today; "18:40" before. */
+export const feedTime = (at: Instant, now: Instant, tz: string): string =>
+  calendarDaysBetween(at, now, tz) === 0 ? relativeTime(at, now, tz) : localTimeOf(at, tz)

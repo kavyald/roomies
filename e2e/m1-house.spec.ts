@@ -37,7 +37,7 @@ test('a room can be renamed, and it shows in the activity log', async ({ page })
   await expect(page.getByRole('list', { name: 'Basement' })).toContainText('Studio')
 
   await page.goto(`/h/${owner.houseId}/activity`)
-  await expect(page.getByRole('list', { name: 'Activity' })).toContainText(
+  await expect(page.getByRole('list', { name: 'Today' })).toContainText(
     'Kavya renamed Craft room to Studio',
   )
 })

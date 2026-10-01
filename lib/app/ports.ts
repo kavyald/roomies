@@ -1,6 +1,7 @@
 // Ports: the interfaces use cases depend on (ARCHITECTURE §4.1). Adapters implement them;
 // lib/compose.ts wires the concrete ones. Repos grow as each feature adds its tables.
 
+import type { ActivitySubjects } from '../domain/activity'
 import type { Actor } from '../domain/actor'
 import type { DomainEvent, EventKind, StoredActivityRow } from '../domain/events'
 import type { Contact, House, Invite, Member, Profile, Room } from '../domain/house'
@@ -261,12 +262,22 @@ export interface HouseQueries {
   runs(houseId: HouseId): Promise<Run[]>
   /** A run's story (rows on it or moved into it), oldest first. */
   runActivity(houseId: HouseId, runId: RunId): Promise<StoredActivityRow[]>
-  /** Newest first, `limit` rows or a little more: an action is never split across pages. */
+  /**
+   * Newest first, `limit` rows or a little more: an action is never split across pages. Comes
+   * with the names of the items, runs, polls, options and costs its rows point at.
+   */
   activity(houseId: HouseId, page: { before?: number; limit: number }): Promise<ActivityPage>
 }
 
-/** `before` is the cursor for the next (older) page, or null at the start of history. */
-export type ActivityPage = { readonly rows: StoredActivityRow[]; readonly before: number | null }
+/**
+ * `before` is the cursor for the next (older) page, or null at the start of history. `subjects`
+ * names what the page's rows point at, read in the same request (T40).
+ */
+export type ActivityPage = {
+  readonly rows: StoredActivityRow[]
+  readonly before: number | null
+  readonly subjects: ActivitySubjects
+}
 
 export type Change = { readonly table: string }
 export type Unsubscribe = () => void

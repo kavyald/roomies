@@ -4,7 +4,12 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { NotificationCategory } from '../../domain/notifications'
-import type { HouseQueries } from '../../app/ports'
+import type { ActivityPage, HouseQueries } from '../../app/ports'
+import type { ActivitySubjects } from '../../domain/activity'
+import { asId } from '../../domain/ids'
+import type { Category } from '../../domain/items'
+import type { Cents } from '../../domain/money'
+import type { RunRef } from '../../domain/runs'
 import {
   activityToDomain,
   contactToDomain,
@@ -21,6 +26,69 @@ import {
 } from '../postgres/mappers'
 
 type Mapper<T> = (row: never) => T
+
+// An activity row with what it points at. Two foreign keys lead to runs, so those name theirs.
+const RUN_REF = 'kind, title, runner_id, contact_id'
+const WITH_SUBJECTS = `*, item:items(title, category), run:runs!activity_events_run_id_fkey(${RUN_REF}), to_run:runs!activity_events_to_run_id_fkey(${RUN_REF}), poll:polls(question), option:poll_options(label), cost:costs(amount_cents)`
+
+type RunRow = {
+  kind: RunRef['kind']
+  title: string | null
+  runner_id: string
+  contact_id: string | null
+}
+type RowWithSubjects = Record<string, unknown> & {
+  id: number | string
+  item_id: string | null
+  run_id: string | null
+  to_run_id: string | null
+  poll_id: string | null
+  option_id: string | null
+  cost_id: string | null
+  action_id: string
+  item: { title: string; category: Category } | null
+  run: RunRow | null
+  to_run: RunRow | null
+  poll: { question: string } | null
+  option: { label: string } | null
+  cost: { amount_cents: number } | null
+}
+
+const raw = async (
+  q: PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
+): Promise<RowWithSubjects[]> => {
+  const { data, error } = await q
+  if (error) throw new Error(error.message)
+  return (data ?? []) as RowWithSubjects[]
+}
+
+const runRef = (r: RunRow): RunRef => ({
+  kind: r.kind,
+  runner: asId<'user'>(r.runner_id),
+  ...(r.title && { title: r.title }),
+  ...(r.contact_id && { contactId: asId<'contact'>(r.contact_id) }),
+})
+
+const withSubjects = (page: readonly RowWithSubjects[], before: number | null): ActivityPage => {
+  const items: Record<string, ActivitySubjects['items'][string]> = {}
+  const runs: Record<string, RunRef> = {}
+  const polls: Record<string, string> = {}
+  const options: Record<string, string> = {}
+  const costs: Record<string, Cents> = {}
+  for (const r of page) {
+    if (r.item_id && r.item) items[r.item_id] = { title: r.item.title, category: r.item.category }
+    if (r.run_id && r.run) runs[r.run_id] = runRef(r.run)
+    if (r.to_run_id && r.to_run) runs[r.to_run_id] = runRef(r.to_run)
+    if (r.poll_id && r.poll) polls[r.poll_id] = r.poll.question
+    if (r.option_id && r.option) options[r.option_id] = r.option.label
+    if (r.cost_id && r.cost) costs[r.cost_id] = r.cost.amount_cents as Cents
+  }
+  return {
+    rows: page.map((r) => activityToDomain(r as never)),
+    before,
+    subjects: { items, runs, polls, options, costs },
+  }
+}
 
 const rows = async <T>(
   q: PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
@@ -161,24 +229,25 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => {
       return row
     },
     activity: async (houseId, { before, limit }) => {
-      let q = sb.from('activity_events').select('*').eq('house_id', houseId)
+      // The names of what the rows point at come embedded in the same request (T40). RLS applies
+      // to embedded rows too, so a line can only ever name something in this house.
+      let q = sb.from('activity_events').select(WITH_SUBJECTS).eq('house_id', houseId)
       if (before !== undefined) q = q.lt('id', before)
-      const page = await rows(q.order('id', { ascending: false }).limit(limit), activityToDomain)
-      if (page.length < limit) return { rows: page, before: null }
+      const page = await raw(q.order('id', { ascending: false }).limit(limit))
+      if (page.length < limit) return withSubjects(page, null)
       // Finish the last action, so a bulk action never spans two pages.
       const last = page.at(-1)!
-      const rest = await rows(
+      const rest = await raw(
         sb
           .from('activity_events')
-          .select('*')
+          .select(WITH_SUBJECTS)
           .eq('house_id', houseId)
-          .eq('action_id', last.actionId)
+          .eq('action_id', last.action_id)
           .lt('id', last.id)
           .order('id', { ascending: false }),
-        activityToDomain,
       )
       const all = [...page, ...rest]
-      return { rows: all, before: all.at(-1)!.id }
+      return withSubjects(all, Number(all.at(-1)!.id))
     },
   }
 }

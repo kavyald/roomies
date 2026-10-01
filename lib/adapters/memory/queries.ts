@@ -1,8 +1,11 @@
 import type { ChangeFeed, HouseQueries } from '../../app/ports'
 import type { Actor } from '../../domain/actor'
-import { pageAtActionBoundary } from '../../domain/activity'
+import { noSubjects, pageAtActionBoundary, type ActivitySubjects } from '../../domain/activity'
 import type { Profile } from '../../domain/house'
 import type { StoredActivityRow } from '../../domain/events'
+import type { HouseId } from '../../domain/ids'
+import type { Cents } from '../../domain/money'
+import type { RunRef } from '../../domain/runs'
 import type { MemoryUnitOfWork } from './db'
 import { changeForKind } from '../change-for-kind'
 
@@ -59,11 +62,12 @@ export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQu
   activity: async (houseId, { before, limit }) => {
     // Reads go through the same rule as RLS: members of the house only.
     const visible = await uow.run(actor, (r) => r.houses.get(houseId))
-    if (!visible) return { rows: [], before: null }
+    if (!visible) return { rows: [], before: null, subjects: noSubjects }
     const rows = uow.state.activity
       .filter((a) => a.houseId === houseId && (before === undefined || a.id < before))
       .sort((a, b) => b.id - a.id)
-    return pageAtActionBoundary(rows, limit)
+    const page = pageAtActionBoundary(rows, limit)
+    return { ...page, subjects: subjectsOf(uow.state, houseId, page.rows) }
   },
 })
 
@@ -83,3 +87,40 @@ export const memoryChangeFeed = (uow: MemoryUnitOfWork, actor: Actor): ChangeFee
         })
     }),
 })
+
+/** What a page's rows point at, the way the Supabase query embeds it (same house only). */
+const subjectsOf = (
+  state: MemoryUnitOfWork['state'],
+  houseId: HouseId,
+  rows: readonly StoredActivityRow[],
+): ActivitySubjects => {
+  const items: Record<string, ActivitySubjects['items'][string]> = {}
+  const runs: Record<string, RunRef> = {}
+  const polls: Record<string, string> = {}
+  const options: Record<string, string> = {}
+  const costs: Record<string, Cents> = {}
+  for (const r of rows) {
+    const item = r.itemId && state.items.get(r.itemId)
+    if (item && item.houseId === houseId)
+      items[item.id] = { title: item.title, category: item.category }
+    for (const id of [r.runId, r.toRunId]) {
+      const run = id && state.runs.get(id)
+      if (run && run.houseId === houseId)
+        runs[run.id] = {
+          kind: run.kind,
+          runner: run.runner,
+          ...(run.title && { title: run.title }),
+          ...(run.kind !== 'batch' && { contactId: run.contactId }),
+        }
+    }
+    const poll = r.pollId && state.polls.get(r.pollId)
+    if (poll && poll.houseId === houseId) {
+      polls[poll.id] = poll.question
+      const option = r.optionId && poll.options.find((o) => o.id === r.optionId)
+      if (option) options[option.id] = option.label
+    }
+    const cost = r.costId && state.costs.find((c) => c.id === r.costId && c.houseId === houseId)
+    if (cost) costs[cost.id] = cost.amount
+  }
+  return { items, runs, polls, options, costs }
+}

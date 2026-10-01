@@ -2,13 +2,20 @@ import { describe, expect, it } from 'vitest'
 import {
   activityFeed,
   activityLine,
+  activityNames,
+  feedByDay,
   groupByAction,
+  inActivityFilter,
+  mergeSubjects,
+  noSubjects,
   pageAtActionBoundary,
   type ActivityNames,
+  type ActivitySubjects,
 } from './activity'
+import type { Cents } from './money'
 import type { EventKind, StoredActivityRow } from './events'
 import { asId, type ActionId, type HouseId, type UserId } from './ids'
-import { instant } from './time'
+import { instantAt, instant, type LocalDate, type LocalTime } from './time'
 
 const KAVYA = asId<'user'>('u-kavya') as UserId
 const MAYA = asId<'user'>('u-maya') as UserId
@@ -105,12 +112,12 @@ describe('activityLine: every kind', () => {
     [
       'feeling.set',
       { itemId: id('i2'), actorId: MAYA, changes: { previous: null, next: { kind: 'anxious' } } },
-      'Maya’s feeling anxious about Radiator clanking',
+      'Maya felt 😰 about Radiator clanking',
     ],
     [
       'feeling.set',
       { itemId: id('i2'), changes: { next: { kind: 'meh' } } },
-      'Kavya’s feeling like it’s not a big deal about Radiator clanking',
+      'Kavya felt 😌 about Radiator clanking',
     ],
     ['poll.created', { pollId: id('p') }, 'Kavya asked “Which vacuum?”'],
     [
@@ -293,5 +300,172 @@ describe('grouping and paging', () => {
     expect(first.before).toBe(first.rows.at(-1)!.id)
     expect(pageAtActionBoundary(rows.slice(4), 2)).toEqual({ rows: rows.slice(4), before: null })
     expect(pageAtActionBoundary(rows.slice(1, 4), 1).before).toBeNull() // the action runs to the end
+  })
+})
+
+describe('T40: what a line is about, what it opens, and what else it says', () => {
+  const line = (kind: EventKind, extra: Partial<StoredActivityRow> = {}) =>
+    activityLine([row(kind, extra)], names, member)!
+
+  it('opens the item, run or poll it names, and nothing for people or several items', () => {
+    expect(line('item.created', { itemId: id('n1') })).toMatchObject({
+      topic: 'need',
+      target: { kind: 'item', id: 'n1' },
+    })
+    expect(line('feeling.set', { itemId: id('c1') })).toMatchObject({
+      topic: 'chore',
+      target: { kind: 'item', id: 'c1' },
+    })
+    expect(
+      line('run.item_moved', { itemId: id('i1'), runId: id('req'), toRunId: id('visit') }),
+    ).toMatchObject({ topic: 'run', target: { kind: 'run', id: 'visit' } })
+    expect(line('poll.voted', { pollId: id('p') })).toMatchObject({
+      topic: 'poll',
+      target: { kind: 'poll', id: 'p' },
+    })
+    expect(line('cost.added', { costId: id('c'), runId: id('groc') })).toMatchObject({
+      topic: 'money',
+      target: { kind: 'run', id: 'groc' },
+    })
+    expect(line('cost.added', { costId: id('c'), itemId: id('n1') }).target).toEqual({
+      kind: 'item',
+      id: 'n1',
+    })
+    expect(line('member.joined', { memberId: MAYA })).toMatchObject({ topic: 'house' })
+    expect(line('member.joined', { memberId: MAYA }).target).toBeUndefined()
+    // Unknown things open nothing rather than an empty sheet.
+    expect(line('item.created', { itemId: id('gone') }).target).toBeUndefined()
+    const actionId = id<'action'>('two') as ActionId
+    const bulk = activityLine(
+      [
+        row('item.created', { actionId, itemId: id('n1') }),
+        row('item.created', { actionId, itemId: id('c1') }),
+      ],
+      names,
+      member,
+    )!
+    expect(bulk).toMatchObject({ topic: 'item', text: 'Kavya added 2 items' })
+    expect(bulk.target).toBeUndefined()
+  })
+
+  it("adds a feeling's note, what an edit changed, a run's cost, and other notes", () => {
+    expect(
+      line('feeling.set', {
+        itemId: id('n1'),
+        changes: { previous: null, next: { kind: 'anxious', note: 'Last one' } },
+      }).detail,
+    ).toBe('“Last one”')
+    expect(
+      line('item.edited', {
+        itemId: id('n1'),
+        changes: {
+          title: ['Tomato', 'Tomatoes'],
+          when: [null, { date: '2026-10-02' }],
+          priority: ['normal', 'high'],
+        },
+      }).detail,
+    ).toBe('Was “Tomato” · Changed the date and priority')
+    expect(line('item.edited', { itemId: id('n1'), changes: { note: [null, 'x'] } }).detail).toBe(
+      'Changed the note',
+    )
+    expect(line('item.edited', { itemId: id('n1') }).detail).toBeUndefined()
+    const actionId = id<'action'>('fin') as ActionId
+    const finished = activityLine(
+      [
+        row('run.finished', { actionId, runId: id('groc') }),
+        row('cost.added', { actionId, runId: id('groc'), costId: id('c') }),
+      ],
+      names,
+      member,
+    )!
+    expect(finished).toMatchObject({
+      text: "Kavya finished Wren's grocery run",
+      detail: 'Spent $42.50',
+    })
+    expect(
+      line('run.item_returned', { itemId: id('i1'), runId: id('groc'), note: 'Sold out' }).detail,
+    ).toBe('“Sold out”')
+    expect(line('house.created').detail).toBeUndefined()
+  })
+
+  it('feelings read as their emoji, and an unknown one is still kind', () => {
+    expect(
+      line('feeling.set', { itemId: id('n1'), changes: { next: { kind: 'thanks' } } }).text,
+    ).toBe('Kavya felt 🙏 about Tomatoes')
+    expect(line('feeling.set', { itemId: id('n1') }).text).toBe(
+      'Kavya shared a feeling about Tomatoes',
+    )
+  })
+
+  it('names come from the page subjects plus the house', () => {
+    const page = (s: Partial<ActivitySubjects>): ActivitySubjects => ({ ...noSubjects, ...s })
+    const subjects = mergeSubjects([
+      page({ items: { n1: { title: 'Milk', category: 'need' } }, costs: { c: 4250 as Cents } }),
+      page({
+        runs: {
+          b: { kind: 'batch', runner: KAVYA },
+          v: { kind: 'visit', runner: KAVYA, contactId: id('super') },
+          t: { kind: 'batch', runner: KAVYA, title: 'Costco' },
+        },
+        polls: { p: 'House name?' },
+        options: { o: 'Burrow' },
+      }),
+    ])
+    const n = activityNames(subjects, names)
+    expect(n.item!(id('n1'))).toEqual({ title: 'Milk', category: 'need' })
+    expect([n.run!(id('b')), n.run!(id('v')), n.run!(id('t')), n.run!(id('x'))]).toEqual([
+      "Kavya's run",
+      'Super visit',
+      'Costco',
+      undefined,
+    ])
+    expect([n.poll!(id('p')), n.option!(id('o')), n.cost!(id('c')), n.cost!(id('z'))]).toEqual([
+      'House name?',
+      'Burrow',
+      '$42.50',
+      undefined,
+    ])
+    expect(n.person(KAVYA)).toBe('Kavya')
+  })
+
+  it('filters by what a line is about', () => {
+    const lines = [
+      line('item.created', { itemId: id('n1') }),
+      line('poll.created', { pollId: id('p') }),
+      line('run.created', { runId: id('groc') }),
+      line('cost.added', { costId: id('c') }),
+      line('member.joined', { memberId: MAYA }),
+    ]
+    const shown = (f: Parameters<typeof inActivityFilter>[1]) =>
+      lines.filter((l) => inActivityFilter(l, f)).map((l) => l.topic)
+    expect(shown('all')).toHaveLength(5)
+    expect(shown('items')).toEqual(['need'])
+    expect(shown('plans')).toEqual(['poll', 'run'])
+    expect(shown('money')).toEqual(['money'])
+    expect(shown('house')).toEqual(['house'])
+  })
+
+  it('puts lines under day headings in the house time zone, with times', () => {
+    const NY = 'America/New_York'
+    const at = (d: string, t: string) => instantAt(d as LocalDate, t as LocalTime, NY)
+    const now = at('2026-10-01', '09:00')
+    const make = (when: ReturnType<typeof at>) => ({ ...line('house.created'), at: when })
+    const days = feedByDay(
+      [
+        make(at('2026-10-01', '08:55')),
+        make(at('2026-10-01', '06:00')),
+        make(at('2026-09-30', '23:30')), // late evening, still "yesterday" in New York
+        make(at('2026-09-28', '18:40')),
+        make(at('2025-12-31', '10:00')),
+      ],
+      now,
+      NY,
+    )
+    expect(days.map((d) => [d.heading, d.lines.map((l) => l.time)])).toEqual([
+      ['Today', ['5m ago', '3h ago']],
+      ['Yesterday', ['23:30']],
+      ['Mon, Sep 28', ['18:40']],
+      ['Dec 31, 2025', ['10:00']],
+    ])
   })
 })

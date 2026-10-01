@@ -1,7 +1,8 @@
 // Reading the activity log back as feed lines (ARCHITECTURE §6.4, FRONTEND §7). Pure: names come
 // from a lookup, and nothing here knows about the database.
 
-import type { FeelingKind } from './feelings'
+import { FEELING_META, type FeelingKind } from './feelings'
+import { dayHeading, feedTime } from './format'
 import type {
   ActionId,
   ContactId,
@@ -14,7 +15,10 @@ import type {
   UserId,
 } from './ids'
 import type { EventKind, FieldChanges, StoredActivityRow } from './events'
-import type { Instant } from './time'
+import type { Category } from './items'
+import { formatCents, type Cents } from './money'
+import { runLabel, type RunRef } from './runs'
+import { localDateOf, type Instant, type LocalDate } from './time'
 import { describeWeightsChange } from './weights'
 
 /** Names for the things rows point at. Anything unknown gets a gentle generic word. */
@@ -29,6 +33,65 @@ export type ActivityNames = {
   room(id: RoomId): string | undefined
 }
 
+/**
+ * The names of what a page of activity points at, fetched with the page itself, so labelling a
+ * page costs no extra request however big the house's history gets.
+ */
+export type ActivitySubjects = {
+  readonly items: Readonly<Record<string, { readonly title: string; readonly category: Category }>>
+  readonly runs: Readonly<Record<string, RunRef>>
+  readonly polls: Readonly<Record<string, string>>
+  readonly options: Readonly<Record<string, string>>
+  readonly costs: Readonly<Record<string, Cents>>
+}
+
+export const noSubjects: ActivitySubjects = {
+  items: {},
+  runs: {},
+  polls: {},
+  options: {},
+  costs: {},
+}
+
+/** All the pages' subjects in one lookup. */
+export const mergeSubjects = (pages: readonly ActivitySubjects[]): ActivitySubjects => ({
+  items: Object.assign({}, ...pages.map((p) => p.items)),
+  runs: Object.assign({}, ...pages.map((p) => p.runs)),
+  polls: Object.assign({}, ...pages.map((p) => p.polls)),
+  options: Object.assign({}, ...pages.map((p) => p.options)),
+  costs: Object.assign({}, ...pages.map((p) => p.costs)),
+})
+
+/** The feed's names: the page's subjects, plus the house's people, contacts and rooms. */
+export const activityNames = (
+  s: ActivitySubjects,
+  house: Pick<ActivityNames, 'person' | 'contact' | 'room'>,
+): ActivityNames => ({
+  person: house.person,
+  contact: house.contact,
+  room: house.room,
+  item: (id) => s.items[id],
+  run: (id) => {
+    const r = s.runs[id]
+    return r && runLabel(r, house)
+  },
+  poll: (id) => s.polls[id],
+  option: (id) => s.options[id],
+  cost: (id) => {
+    const c = s.costs[id]
+    return c === undefined ? undefined : formatCents(c)
+  },
+})
+
+/** What a line is about, for its icon and the filters. `item` is several kinds at once. */
+export type FeedTopic = Category | 'item' | 'poll' | 'run' | 'money' | 'house'
+
+/** What tapping a line opens. */
+export type FeedTarget =
+  | { readonly kind: 'item'; readonly id: ItemId }
+  | { readonly kind: 'run'; readonly id: RunId }
+  | { readonly kind: 'poll'; readonly id: PollId }
+
 export type FeedLine = {
   readonly actionId: ActionId
   /** The newest row's id and time: the line sits where its action last happened. */
@@ -36,6 +99,11 @@ export type FeedLine = {
   readonly at: Instant
   readonly actorId: UserId | null
   readonly text: string
+  readonly topic: FeedTopic
+  /** Absent when there's nothing to open (people, rooms, settings, or several items at once). */
+  readonly target?: FeedTarget
+  /** A second line from what the rows already hold: a feeling's note, what an edit changed. */
+  readonly detail?: string
 }
 
 /** Recorded, but never shown in the feed (ARCHITECTURE §6.4 "—"). */
@@ -63,13 +131,26 @@ export const groupByAction = (rows: readonly StoredActivityRow[]): StoredActivit
   return [...groups.values()]
 }
 
-const FEELING_WORDS: Record<FeelingKind, string> = {
-  anxious: 'anxious',
-  frustrated: 'frustrated',
-  confused: 'confused',
-  fine: 'fine',
-  meh: 'like it’s not a big deal',
-  thanks: 'thankful',
+/** Edited fields, in words ("Changed the date and priority"). The title says what it was. */
+const EDIT_WORDS: Readonly<Record<string, string>> = {
+  note: 'note',
+  room: 'room',
+  when: 'date',
+  priority: 'priority',
+  repeat_days: 'how often',
+}
+
+const listOf = (words: readonly string[]) =>
+  words.length < 2 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`
+
+const describeEdit = (changes: FieldChanges | undefined): string | undefined => {
+  if (!changes) return undefined
+  const parts: string[] = []
+  const before = (changes as Record<string, readonly unknown[]>).title?.[0]
+  if (typeof before === 'string') parts.push(`Was “${before}”`)
+  const rest = Object.keys(changes).flatMap((k) => (EDIT_WORDS[k] ? [EDIT_WORDS[k]!] : []))
+  if (rest.length) parts.push(`Changed the ${listOf(rest)}`)
+  return parts.join(' · ') || undefined
 }
 
 const count = (n: number, one: string, many = `${one}s`) => (n === 1 ? `1 ${one}` : `${n} ${many}`)
@@ -147,8 +228,11 @@ export const activityLine = (
       case 'chore.done':
         return `${actor} did ${items(ofKind('chore.done'))}`
       case 'feeling.set': {
+        // The emoji, as everywhere else in the app (owner, 2026-10-01).
         const next = (r.changes as { next?: { kind?: FeelingKind } } | undefined)?.next?.kind
-        return `${actor}’s feeling ${next ? FEELING_WORDS[next] : 'something'} about ${item(r)}`
+        return next
+          ? `${actor} felt ${FEELING_META[next].emoji} about ${item(r)}`
+          : `${actor} shared a feeling about ${item(r)}`
       }
       case 'poll.created':
         return `${actor} asked ${poll(r)}`
@@ -240,7 +324,60 @@ export const activityLine = (
     }
   })()
 
-  return { actionId: first.actionId, id: newest.id, at: newest.at, actorId: first.actorId, text }
+  // What it's about, and what a tap opens. Bulk lines about several items open nothing.
+  const firstItems = ofKind(first.kind)
+  const itemCats = new Set(
+    firstItems.map((r) => (r.itemId && names.item?.(r.itemId)?.category) || 'item'),
+  )
+  const topic: FeedTopic = (() => {
+    const k = first.kind
+    if (k.startsWith('poll.')) return 'poll'
+    if (k.startsWith('run.') || k.startsWith('request.')) return 'run'
+    if (k.startsWith('cost.')) return 'money'
+    if (k.startsWith('item.') || k === 'chore.done' || k === 'feeling.set')
+      return itemCats.size === 1 ? ([...itemCats][0] as FeedTopic) : 'item'
+    return 'house'
+  })()
+  const known = {
+    item: (id?: ItemId): FeedTarget | undefined =>
+      id && names.item?.(id) ? { kind: 'item', id } : undefined,
+    run: (id?: RunId): FeedTarget | undefined =>
+      id && names.run?.(id) ? { kind: 'run', id } : undefined,
+    poll: (id?: PollId): FeedTarget | undefined =>
+      id && names.poll?.(id) ? { kind: 'poll', id } : undefined,
+  }
+  const target: FeedTarget | undefined = (() => {
+    const r = first
+    if (topic === 'poll') return known.poll(r.pollId)
+    if (topic === 'run') return known.run(r.kind === 'run.item_moved' ? r.toRunId : r.runId)
+    if (topic === 'money') return known.run(r.runId) ?? known.item(r.itemId)
+    if (topic !== 'house') return firstItems.length === 1 ? known.item(r.itemId) : undefined
+    return undefined
+  })()
+
+  const quoted = (note: string | undefined) => (note ? `“${note}”` : undefined)
+  const detail = (() => {
+    if (first.kind === 'item.edited') return describeEdit(first.changes as FieldChanges | undefined)
+    if (first.kind === 'feeling.set')
+      return quoted((first.changes as { next?: { note?: string } } | undefined)?.next?.note)
+    if (first.kind === 'run.finished') {
+      const cost = rows.find((r) => r.kind === 'cost.added' && r.costId)
+      const amount = cost?.costId && names.cost?.(cost.costId)
+      if (amount) return `Spent ${amount}`
+    }
+    return quoted(first.note)
+  })()
+
+  return {
+    actionId: first.actionId,
+    id: newest.id,
+    at: newest.at,
+    actorId: first.actorId,
+    text,
+    topic,
+    ...(target && { target }),
+    ...(detail && { detail }),
+  }
 }
 
 /** The feed: one line per action, newest first, hidden kinds left out. */
@@ -252,6 +389,52 @@ export const activityFeed = (
   groupByAction(rows)
     .map((g) => activityLine(g, names, viewer))
     .filter((l): l is FeedLine => l !== null)
+
+/** The Activity tab's filter chips. */
+export type ActivityFilter = 'all' | 'items' | 'plans' | 'money' | 'house'
+
+export const ACTIVITY_FILTERS: readonly { value: ActivityFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'items', label: 'Items' },
+  { value: 'plans', label: 'Polls & runs' },
+  { value: 'money', label: 'Money' },
+  { value: 'house', label: 'House' },
+]
+
+const FILTER_OF: Readonly<Record<FeedTopic, ActivityFilter>> = {
+  need: 'items',
+  chore: 'items',
+  task: 'items',
+  item: 'items',
+  poll: 'plans',
+  run: 'plans',
+  money: 'money',
+  house: 'house',
+}
+
+export const inActivityFilter = (line: FeedLine, filter: ActivityFilter): boolean =>
+  filter === 'all' || FILTER_OF[line.topic] === filter
+
+/** Lines under day headings ("Today", "Yesterday", "Mon, Sep 28"), with each line's time. */
+export type FeedDay = {
+  readonly date: LocalDate
+  readonly heading: string
+  readonly lines: readonly (FeedLine & { readonly time: string })[]
+}
+
+export const feedByDay = (lines: readonly FeedLine[], now: Instant, tz: string): FeedDay[] => {
+  const days: { date: LocalDate; heading: string; lines: (FeedLine & { time: string })[] }[] = []
+  for (const line of lines) {
+    const date = localDateOf(line.at, tz)
+    let day = days.at(-1)
+    if (day?.date !== date) {
+      day = { date, heading: dayHeading(date, now, tz), lines: [] }
+      days.push(day)
+    }
+    day.lines.push({ ...line, time: feedTime(line.at, now, tz) })
+  }
+  return days
+}
 
 /**
  * Keyset pagination that never splits an action across pages: takes `limit` rows (newest first),

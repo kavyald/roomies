@@ -4,7 +4,7 @@ Read this first. It covers where the project stands, how the implementation plan
 
 ## Current state (as of 2026-09-30, after M4)
 
-**M0–M4 are done** (T01–T37 + Q0–Q4 on `v1`): foundations, house & members, items, polls, runs & calendar, and notifications & polish. What's left is **M5** (hosting & launch, E1–E5 + Q5), which needs the owner's Supabase, Gmail and Vercel accounts: **don't start it unless the owner says so.** Locally you can do everything in M2 (needs/chores/tasks, feelings, the ranked Home feed, feeling weights, live updates) plus: start a run from Needs and work it (done / move / back to the pool / finish, with "Did you spend money?"), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (Spent this month on House, Open Splitwise), and see Coming up on Home and the month calendar. M4 added notifications: every recorded event can enqueue outbox messages in the same transaction (`withNotifications`), pg_cron calls `/api/cron/<job>` (tick, send-notifications, reminders, close-polls), Web Push goes to browsers that turned it on (production builds only; the service worker doesn't register on `pnpm dev`), and each person has settings at `/h/[houseId]/me` (categories, quiet hours, theme).
+**M0–M4 are done** (T01–T37, T40 + Q0–Q4 on `v1`): foundations, house & members, items, polls, runs & calendar, and notifications & polish. What's left is **M5** (hosting & launch, E1–E5 + Q5), which needs the owner's Supabase, Gmail and Vercel accounts: **don't start it unless the owner says so.** Locally you can do everything in M2 (needs/chores/tasks, feelings, the ranked Home feed, feeling weights, live updates) plus: start a run from Needs and work it (done / move / back to the pool / finish, with "Did you spend money?"), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (Spent this month on House, Open Splitwise), and see Coming up on Home and the month calendar. M4 added notifications: every recorded event can enqueue outbox messages in the same transaction (`withNotifications`), pg_cron calls `/api/cron/<job>` (tick, send-notifications, reminders, close-polls), Web Push goes to browsers that turned it on (production builds only; the service worker doesn't register on `pnpm dev`), and each person has settings at `/h/[houseId]/me` (categories, quiet hours, theme).
 
 ```
 docs/                        PRD, ARCHITECTURE (A1–A21), FRONTEND, TESTING, IMPLEMENTATION_PLAN (generated), mockup.html
@@ -41,6 +41,7 @@ proxy.ts                     Next 16's middleware: refreshes the session, guards
   - Never nest a control inside a row button: `ListRow`'s `trailing` sits beside it.
   - Port 3000 on this Mac is often taken by another project's server; `.claude/launch.json` (untracked) uses auto ports.
   - Jobs locally: `pnpm cron:local <port>` stores the app URL and `CRON_SECRET` in Supabase Vault so pg_cron can reach `pnpm dev`; without it the schedule sends nothing. Postgres `ON CONFLICT` also checks the SELECT policy, so the outbox uses it only for dedupe-keyed (system) rows.
+  - Activity lines get their names from `subjects`, embedded in the same `activity_events` request (A24); a new subject kind needs its embed there and in the memory adapter. Feelings are always their emoji in copy (owner).
   - `components/ui/copy.test.ts` fails on "overdue", "failed" or "missed" in any user-facing string; `e2e/m4-a11y` runs axe on every screen, so add new screens there.
   - The disk once filled up and corrupted Docker's images. If `supabase start` shows unhealthy containers, check `df -h /` first.
 
@@ -59,10 +60,10 @@ Update this section as the build progresses: which milestone is done, what exist
 
 ## The implementation plan and how to use it
 
-[docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) turns the three design docs into **47 small, ordered tasks**, so the app can be built one working slice at a time.
+[docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) turns the three design docs into **48 small, ordered tasks**, so the app can be built one working slice at a time.
 
 - **Task IDs:**
-  - **T01–T37** are features and plumbing (there is no T12 or T38).
+  - **T01–T37** and **T40** are features and plumbing (there is no T12, T38 or T39; T40, the Activity tab's first pass, was added after M4).
   - **Q0–Q5** are test tasks; each milestone ends with one.
   - **E1–E5** need outside accounts.
 - **Milestones:**

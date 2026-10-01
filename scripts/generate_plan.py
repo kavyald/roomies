@@ -142,7 +142,10 @@ T = [
     ("T37", "M4", "UX polish pass", "M", ["T25", "T29", "T30", "T31", "T17"],
      "Empty states, a copy pass against the FRONTEND voice table, completion bursts, reduced motion, and dark mode checks.",
      "Every screen has an empty state, and no copy uses \"overdue,\" \"failed,\" or \"missed\" about a person."),
-    ("Q4", "M4", "M4 tests + full suite", "M", ["Q3", "T34", "T35", "T36", "T37"],
+    ("T40", "M4", "Activity tab, first pass", "M", ["T14", "T27", "T29", "T30", "T37"],
+     "Every line names what it's about: the activity page query brings the names of its items, runs, polls, options and costs with it (one request per page, however big the house gets). Feelings read as their emoji (\"Kavya felt 😰 about Lemons\"), like everywhere else. Tapping a line opens its item, run or poll sheet in place (nothing loads until the tap). Day headers, an icon per line, the detail a row already holds (a feeling's note, what an edit changed, a run's cost), and filter chips (All · Items · Polls & runs · Money · House). Added after M4 at the owner's request.",
+     "No line says \"something\" when the thing exists, a feeling shows its emoji, tapping a line opens its sheet, and the filters and day headers work at 375pt in light and dark."),
+    ("Q4", "M4", "M4 tests + full suite", "M", ["Q3", "T34", "T35", "T36", "T37", "T40"],
      "`notificationsFor` quiet hours, the outbox written in the same transaction, reminders idempotent under a fixed clock, the push sender dropping 410 subscriptions (fake), the copy lint, axe on every screen, and `e2e/m4-notifications`. Then the whole suite: every E2E journey (join, need, grocery run with a cost, poll tie, visit, feeling, feeling weight) on the iPhone profile, coverage targets enforced, and `pnpm test:all` documented in the README. Replaces T38.",
      "`pnpm install && pnpm test:all` is green on a fresh clone (with Docker running) and in CI, with no critical axe issues."),
     # ---------------- M5 (external services; nothing in M0–M4 depends on these)

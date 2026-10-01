@@ -50,7 +50,10 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expect(page.getByRole('dialog', { name: 'Fix the latch' })).toBeVisible()
     await check(page, 'item')
 
-    await page.goto(h)
+    // The deep link moves itself back to Home (OpenItem); wait for that instead of racing it.
+    await expect(page).toHaveURL(new RegExp(`${h}$`))
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: 'Fix the latch' })).toBeHidden()
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(page.getByRole('dialog', { name: 'Add something' })).toBeVisible()
     await check(page, 'add sheet')

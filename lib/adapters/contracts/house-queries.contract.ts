@@ -3,6 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { HouseQueries } from '../../app/ports'
+import { noSubjects } from '../../domain/activity'
 import type { Contact, Room } from '../../domain/house'
 import type { HouseId, UserId } from '../../domain/ids'
 import type { DomainEvent } from '../../domain/events'
@@ -178,7 +179,89 @@ export const houseQueriesContract = (
       expect(second).toEqual({
         rows: [expect.objectContaining({ kind: 'house.created' })],
         before: null,
+        subjects: noSubjects,
       })
+    })
+
+    it('brings the names of what a page points at, from this house only (T40)', async () => {
+      const { house, member, contacts } = await withPlaces()
+      const item = {
+        id: h.ids.newId<'item'>(),
+        houseId: house.id,
+        category: 'task',
+        title: 'Fix the latch',
+        priority: 'normal',
+        createdBy: member,
+        createdAt: T,
+      } as const
+      const base = { houseId: house.id, runner: member, createdBy: member, createdAt: T }
+      const batch = {
+        ...base,
+        id: h.ids.newId<'run'>(),
+        kind: 'batch' as const,
+        state: { open: true as const },
+      }
+      const visit = {
+        ...base,
+        id: h.ids.newId<'run'>(),
+        kind: 'visit' as const,
+        contactId: contacts[1]!.id,
+        state: { open: true as const },
+      }
+      const poll = {
+        id: h.ids.newId<'poll'>(),
+        houseId: house.id,
+        question: 'Which vacuum?',
+        options: [{ id: h.ids.newId<'option'>(), label: 'Dyson', addedBy: member, addedAt: T }],
+        votes: [],
+        createdBy: member,
+        createdAt: T,
+        state: { open: true as const },
+      }
+      const cost = {
+        id: h.ids.newId<'cost'>(),
+        houseId: house.id,
+        amount: 4250,
+        paidBy: member,
+        for: { run: batch.id },
+        createdBy: member,
+        createdAt: T,
+      }
+      const one = (e: Record<string, unknown>) =>
+        ({ ...e, actionId: h.ids.newId(), by: member }) as unknown as DomainEvent
+      await h.uow.run(system(house.id), async (r) => {
+        await r.items.save(item as never)
+        await r.runs.save(batch)
+        await r.runs.save(visit)
+        await r.polls.create(poll as never)
+        await r.costs.add(cost as never)
+        await r.events.record(
+          house.id,
+          [
+            one({ kind: 'item.created', itemId: item.id }),
+            one({ kind: 'run.item_moved', itemId: item.id, runId: batch.id, toRunId: visit.id }),
+            one({ kind: 'poll.voted', pollId: poll.id, optionId: poll.options[0]!.id }),
+            one({ kind: 'cost.added', costId: cost.id, runId: batch.id }),
+            one({ kind: 'house.created' }),
+          ],
+          T,
+        )
+      })
+      const page = await h.queriesFor(member, house.id).activity(house.id, { limit: 10 })
+      expect(page.subjects).toEqual({
+        items: { [item.id]: { title: 'Fix the latch', category: 'task' } },
+        runs: {
+          [batch.id]: { kind: 'batch', runner: member },
+          [visit.id]: { kind: 'visit', runner: member, contactId: contacts[1]!.id },
+        },
+        polls: { [poll.id]: 'Which vacuum?' },
+        options: { [poll.options[0]!.id]: 'Dyson' },
+        costs: { [cost.id]: 4250 },
+      })
+      const stranger = await seedHouse(h)
+      expect(
+        await h.queriesFor(stranger.member, stranger.house.id).activity(house.id, { limit: 10 }),
+      ).toEqual({ rows: [], before: null, subjects: noSubjects })
     })
 
     it("reads the house's polls with their options and votes", async () => {
@@ -327,7 +410,11 @@ export const houseQueriesContract = (
       expect(await q.profiles(house.id)).toEqual([])
       expect(await q.rooms(house.id)).toEqual([])
       expect(await q.contacts(house.id)).toEqual([])
-      expect(await q.activity(house.id, { limit: 10 })).toEqual({ rows: [], before: null })
+      expect(await q.activity(house.id, { limit: 10 })).toEqual({
+        rows: [],
+        before: null,
+        subjects: noSubjects,
+      })
       expect(await q.invites(house.id)).toEqual([])
     })
   })

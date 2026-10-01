@@ -353,7 +353,7 @@ A full-height sheet:
 | Overdue chore or task | "This one's been waiting a couple days" | "OVERDUE" · "You missed this" |
 | Due today | "Today's the day" | "DUE" |
 | Planning a visit | "Who's coming?" | "Create external request" |
-| Someone shares 😰 | "Maya's feeling anxious about Radiator clanking" | "Maya flagged Radiator" |
+| Someone shares 😰 | "Maya felt 😰 about Radiator clanking" | "Maya's feeling anxious about Radiator clanking" · "Maya flagged Radiator" |
 | Push: assigned | "You're on trash this week 🗑️" | "New assignment" |
 | Poll tie | "It's a tie (1–1). Talk it out?" | "Vote failed" |
 | Network error | "Couldn't reach the house. Check your connection and try again." | "Error 500" |
@@ -364,6 +364,7 @@ Rules:
 - Use people's names in copy, never their room name. The element shows up in the avatar color, not the words.
 - Describe the *item's* state, never a person's failure.
 - Sentence case. Plain numbers ("$62.40 · due Oct 3").
+- **[DECIDED] (owner)** Feelings always show as their emoji, never as a word in a sentence ("felt 😰", not "feeling anxious"). The emoji is the feeling everywhere: chips, the feeling picker, the activity log.
 
 ---
 
