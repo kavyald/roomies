@@ -2,7 +2,7 @@
 
 **Status:** v1 scope (2026-09-28). Simplified to five concepts: needs, chores, tasks, polls, runs.
 **Owner:** Kavya
-**Companions:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FRONTEND.md](./FRONTEND.md) · [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) · [mockup.html](./mockup.html)
+**Companions:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FRONTEND.md](./FRONTEND.md) · [mockup.html](./mockup.html)
 
 > Decisions are marked **[DECIDED]**. The ones you answered directly are tagged *(owner)*. §13 lists what's deliberately **not** in v1, and §14 is the decision log.
 
@@ -327,7 +327,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 | **M4: Notifications & polish** | Push, reminders, polish, end-to-end tests | Reminders and push work locally, and the E2E suite is green in CI |
 | **M5: Hosting & launch** | The external services: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production | Everyone is on production from their phones |
 
-The details are in [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md).
+The tasks are on the **roomies** board in Weyve.
 
 ---
 

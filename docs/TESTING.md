@@ -1,7 +1,7 @@
 # Roomies — Test Suite
 
 **Status:** Draft v0.1 (planned; no app code yet)  
-**Built from:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) · [PRD.md](./PRD.md)  
+**Built from:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [PRD.md](./PRD.md)  
 **Last updated:** 2026-09-29
 
 One command runs everything:

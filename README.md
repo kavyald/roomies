@@ -2,7 +2,7 @@
 
 A shared, phone-first hub for a house of roommates: what we need to buy, what needs doing, what we need to decide, and how everyone feels about it.
 
-> **Status: planning.** The product, architecture, and visual design are specified, and a clickable prototype exists. No app code yet. Building starts with task T01 in the [implementation plan](docs/IMPLEMENTATION_PLAN.md).
+> **Status: M0–M4 built** on the `v1` branch: everything runs locally. M5 (hosting and launch) is next. Tasks are planned and tracked on the **roomies** board in Weyve.
 
 ## The problem
 
@@ -47,7 +47,6 @@ Things to try: vote on "Which vacuum?", record the landlord's reply on the Landl
 | [Architecture](docs/ARCHITECTURE.md) | Stack, auth and row-level security, the data model and domain types, the function catalog, the activity log schema, jobs, and ops |
 | [Frontend](docs/FRONTEND.md) | Visual language (inspired by Focus Friend), color system, the apartment's rooms, screens, copy voice, and motion |
 | [Testing](docs/TESTING.md) | Test layers, tools, commands, CI, and what each milestone's test task proves |
-| [Implementation plan](docs/IMPLEMENTATION_PLAN.md) | 47 tasks across 6 milestones with sizes, dependencies, a dependency graph, and the critical path |
 
 ## Planned stack
 
@@ -71,7 +70,7 @@ Everything targets free tiers for one house of 2–8 people.
 
 Roughly 61 working days for one person, including a test task at the end of each milestone. M0–M4 run entirely on one Mac with no accounts; M5 is where the sign-ups happen. The critical path runs through the core plumbing, items, runs, and requests and visits. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
 
-Tasks are also tracked on the **roomies** board in Weyve.
+The tasks, their dependencies and progress are on the **roomies** board in Weyve.
 
 ## Run it and test it
 
@@ -91,16 +90,6 @@ pnpm install && pnpm test:all
 
 It resets the local database, then runs typecheck, lint, formatting, unit, use-case and component tests (with coverage targets), contract and row-level-security tests against local Supabase, and the end-to-end journeys on the iPhone 15 profile (including axe on every screen, light and dark). It takes about two minutes. The pieces run on their own too: `pnpm test`, `pnpm test:db`, `pnpm test:e2e`. See [docs/TESTING.md](docs/TESTING.md).
 
-## Updating the plan
-
-The implementation plan is generated from one task list, so the tables, the graph, and the critical path always agree:
-
-```bash
-python3 scripts/generate_plan.py docs/IMPLEMENTATION_PLAN.md
-```
-
-Edit the task list in [`scripts/generate_plan.py`](scripts/generate_plan.py), then rerun. The script fails if a dependency points at an unknown or later task.
-
 ## Repo layout
 
 ```
@@ -108,9 +97,6 @@ docs/
   PRD.md                  product requirements (v1 scope)
   ARCHITECTURE.md         system design and data model
   FRONTEND.md             visual design and screens
-  IMPLEMENTATION_PLAN.md  generated task plan
   TESTING.md              test suite plan
   mockup.html             clickable prototype
-scripts/
-  generate_plan.py        source of truth for the task plan
 ```
