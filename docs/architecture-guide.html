@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Roomies Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
+<style>
+/* Layout: one phone-width column, sticky chip nav, bottom sheet for drill-downs.
+   Palette and type are Roomies' own (FRONTEND.md §3): cream paper, brown ink, plum accent, element fills. */
+:root{
+  --paper:#FBF5EA; --card:#FFFDF8; --ink:#3B2F2A; --ink-soft:#6E5E53; --line:#E6D9C4;
+  --neutral-fill:#EFE6D6; --neutral-ink:#5E4E43;
+  --accent:#7A3E6E; --on-accent:#FFFFFF; --accent-ink:#6A3460; --top-fill:#EBD3E6; --top-ink:#6A2F5E;
+  --air-fill:#F7EBC0; --air-ink:#6B5410; --fire-fill:#F6CDB8; --fire-ink:#8A3413;
+  --water-fill:#CFE0F2; --water-ink:#1F4A73; --earth-fill:#D7E6CC; --earth-ink:#3A5A2E;
+  --edge:#B9A892; --dim:0.22;
+  --font:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#211A16; --card:#2C2420; --ink:#F5EBDD; --ink-soft:#C4B4A4; --line:#3E332D;
+  --neutral-fill:#3A302A; --neutral-ink:#D9CBB8;
+  --accent:#D9A0CB; --on-accent:#211A16; --accent-ink:#E4B6D8; --top-fill:#46283F; --top-ink:#F0CDE7;
+  --air-fill:#3D3418; --air-ink:#F2DC8C; --fire-fill:#43261B; --fire-ink:#F4B79C;
+  --water-fill:#1C2F42; --water-ink:#A9CBEB; --earth-fill:#26341F; --earth-ink:#BFD9AE;
+  --edge:#6A5a4E; --dim:0.25; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --paper:#211A16; --card:#2C2420; --ink:#F5EBDD; --ink-soft:#C4B4A4; --line:#3E332D;
+  --neutral-fill:#3A302A; --neutral-ink:#D9CBB8;
+  --accent:#D9A0CB; --on-accent:#211A16; --accent-ink:#E4B6D8; --top-fill:#46283F; --top-ink:#F0CDE7;
+  --air-fill:#3D3418; --air-ink:#F2DC8C; --fire-fill:#43261B; --fire-ink:#F4B79C;
+  --water-fill:#1C2F42; --water-ink:#A9CBEB; --earth-fill:#26341F; --earth-ink:#BFD9AE;
+  --edge:#6A5a4E; --dim:0.25; color-scheme:dark;}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--font);font-size:17px;line-height:1.5;-webkit-text-size-adjust:100%}
+.wrap{max-width:720px;margin:0 auto;padding-inline:16px;padding-block:0 64px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:2rem;font-weight:900;letter-spacing:-0.01em}
+h2{font-size:1.5rem;font-weight:800}
+h3{font-size:1.1rem;font-weight:800}
+p{margin:0}
+code,.mono{font-family:var(--mono);font-size:0.82em}
+code{background:var(--neutral-fill);color:var(--neutral-ink);padding:1px 5px;border-radius:6px;overflow-wrap:anywhere}
+a{color:var(--accent-ink)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:8px}
+.eyebrow{font-size:0.75rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-soft)}
+.soft{color:var(--ink-soft)}
+.small{font-size:0.88rem}
+
+/* nav */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);border-bottom:1.5px solid var(--line);margin-inline:-16px;padding:10px 16px}
+.nav-scroll{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.nav-scroll::-webkit-scrollbar{display:none}
+.nav a{flex:none;text-decoration:none;color:var(--neutral-ink);background:var(--neutral-fill);border-radius:999px;padding:7px 14px;font-weight:700;font-size:0.9rem;min-height:36px;display:inline-flex;align-items:center}
+.nav a.on{background:var(--accent);color:var(--on-accent)}
+
+section{padding-top:36px;scroll-margin-top:64px;display:grid;gap:14px}
+.lede{font-size:1.05rem;color:var(--ink-soft);max-width:62ch}
+
+/* hero */
+.hero{padding-top:28px;display:grid;gap:12px}
+.houseline{display:flex;gap:6px;flex-wrap:wrap}
+.room{border-radius:999px;padding:3px 10px;font-size:0.8rem;font-weight:800}
+.r-air{background:var(--air-fill);color:var(--air-ink)}
+.r-fire{background:var(--fire-fill);color:var(--fire-ink)}
+.r-water{background:var(--water-fill);color:var(--water-ink)}
+.r-earth{background:var(--earth-fill);color:var(--earth-ink)}
+.r-n{background:var(--neutral-fill);color:var(--neutral-ink)}
+
+.milestones{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.ms{border-radius:14px;padding:8px 6px;text-align:center;border:1.5px solid color-mix(in srgb,var(--ink) 15%,transparent)}
+.ms b{display:block;font-size:0.95rem}
+.ms span{display:block;font-size:0.68rem;line-height:1.25;color:var(--ink-soft)}
+.ms.done{background:var(--earth-fill);color:var(--earth-ink)}
+.ms.done span{color:var(--earth-ink)}
+.ms.todo{background:var(--card);border-style:dashed}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.stat{background:var(--card);border-radius:16px;padding:10px 12px;border:1.5px solid color-mix(in srgb,var(--ink) 12%,transparent)}
+.stat b{font-size:1.35rem;font-variant-numeric:tabular-nums;display:block;line-height:1.1}
+.stat span{font-size:0.8rem;color:var(--ink-soft)}
+
+/* cards & disclosure */
+.card{background:var(--card);border-radius:20px;border:1.5px solid color-mix(in srgb,var(--ink) 15%,transparent);box-shadow:0 2px 0 var(--line);padding:14px 16px;min-width:0}
+details.card{padding:0}
+details.card>summary{list-style:none;cursor:pointer;padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:start;min-height:44px}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::after{content:"";width:10px;height:10px;border-right:2px solid var(--ink-soft);border-bottom:2px solid var(--ink-soft);transform:rotate(45deg);margin-top:6px;transition:transform .15s;grid-column:2;grid-row:1}
+details.card[open]>summary::after{transform:rotate(225deg);margin-top:10px}
+details.card>summary .sum-title{font-weight:800;grid-column:1}
+details.card>summary .sum-sub{grid-column:1/-1;font-size:0.88rem;color:var(--ink-soft)}
+.body{padding:0 16px 16px;display:grid;gap:10px;min-width:0}
+.body ul{margin:0;padding-left:1.1em;display:grid;gap:4px}
+.list{display:grid;gap:10px}
+
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 9px;font-size:0.75rem;font-weight:800;white-space:nowrap;background:var(--neutral-fill);color:var(--neutral-ink)}
+.chip.top{background:var(--top-fill);color:var(--top-ink)}
+.chip.high{background:var(--card);color:var(--accent-ink);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.chip.id{font-family:var(--mono);font-weight:700}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+
+table{border-collapse:collapse;width:100%;font-size:0.88rem}
+.tbl{overflow-x:auto}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft)}
+
+/* diagram */
+.mapcard{padding:10px 8px 12px}
+.diagram{overflow-x:auto}
+.diagram svg{display:block;width:100%;min-width:340px;height:auto;max-width:560px;margin:0 auto}
+svg text{font-family:var(--font)}
+.g-box{fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:0}
+.g-label{font-size:9px;font-weight:800;letter-spacing:.06em;fill:var(--ink-soft);text-transform:uppercase}
+.node{cursor:pointer}
+.node rect{stroke:color-mix(in srgb,var(--ink) 22%,transparent);stroke-width:1.2}
+.node .t{font-size:10.5px;font-weight:800;fill:var(--ink)}
+.node .s{font-size:8.2px;font-weight:600;fill:var(--ink-soft)}
+.node:hover rect,.node:focus-visible rect{stroke:var(--accent);stroke-width:2}
+.node:focus{outline:none}
+.node:focus-visible rect{stroke-width:2.5}
+.edge .halo{fill:none;stroke:var(--card);stroke-width:5}
+.edge .ln{fill:none;stroke:var(--edge);stroke-width:1.6}
+.edge.dash .ln{stroke-dasharray:4 3}
+.elabel{font-size:8.4px;font-weight:700;fill:var(--ink-soft)}
+svg.flowing .node:not(.hl){opacity:var(--dim)}
+svg.flowing .edge:not(.hl){opacity:var(--dim)}
+svg.flowing .elabel{opacity:var(--dim)}
+.edge.hl .ln{stroke:var(--accent);stroke-width:2.4}
+.node.hl rect{stroke:var(--accent);stroke-width:2}
+.fill-n{fill:var(--neutral-fill)} .fill-card{fill:var(--card)}
+.fill-air{fill:var(--air-fill)} .fill-fire{fill:var(--fire-fill)} .fill-water{fill:var(--water-fill)} .fill-earth{fill:var(--earth-fill)} .fill-top{fill:var(--top-fill)}
+@media (prefers-reduced-motion:no-preference){.edge.hl .ln{stroke-dasharray:6 4;animation:flow 0.9s linear infinite}}
+@keyframes flow{to{stroke-dashoffset:-10}}
+
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{border:1.5px solid color-mix(in srgb,var(--ink) 18%,transparent);background:var(--card);border-radius:999px;padding:6px 12px;font-weight:700;font-size:0.88rem;min-height:40px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.steps{margin:0;padding-left:1.4em;display:grid;gap:6px;font-size:0.94rem}
+.steps li::marker{font-weight:800;color:var(--accent-ink)}
+.hint{font-size:0.85rem;color:var(--ink-soft)}
+
+/* layer stack */
+.stack{display:grid;gap:8px}
+.layer>summary .sum-title::before{content:attr(data-n);display:inline-grid;place-items:center;width:1.6em;height:1.6em;border-radius:50%;background:var(--neutral-fill);color:var(--neutral-ink);font-size:0.78rem;margin-right:8px;vertical-align:1px}
+.mods{display:grid;gap:8px}
+.mod{border-radius:14px;background:var(--paper);border:1px solid var(--line)}
+.mod>summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;gap:8px;align-items:baseline;min-height:44px}
+.mod>summary::-webkit-details-marker{display:none}
+.mod>summary b{font-family:var(--mono);font-size:0.86rem}
+.mod>summary span{font-size:0.8rem;color:var(--ink-soft);text-align:right}
+.fns{display:grid;gap:0;padding:0 12px 10px}
+.fn{display:grid;gap:2px;padding:7px 0;border-top:1px dashed var(--line);min-width:0}
+.fn code{background:none;padding:0;color:var(--accent-ink);font-weight:700;font-size:0.84rem}
+.fn span{font-size:0.86rem;color:var(--ink-soft)}
+.arrow-note{font-size:0.8rem;color:var(--ink-soft);text-align:center}
+
+/* swatches */
+.swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px}
+.sw{border-radius:14px;padding:10px;font-size:0.78rem;font-weight:800;min-height:64px;display:flex;flex-direction:column;justify-content:space-between}
+.sw small{font-weight:600;opacity:.85}
+
+/* calculator */
+.calc{display:grid;gap:12px}
+.calc label{font-weight:700;font-size:0.9rem;display:grid;gap:4px}
+.calc select{font:inherit;font-size:16px;padding:8px 10px;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);min-height:44px}
+.feel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.feel button{border:1.5px solid var(--line);background:var(--paper);border-radius:14px;padding:6px 4px;cursor:pointer;display:grid;gap:0;justify-items:center;min-height:56px}
+.feel button .e{font-size:1.2rem;line-height:1.2}
+.feel button .n{font-size:0.72rem;font-weight:700}
+.feel button .c{font-size:0.7rem;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.feel button.has{border-color:var(--accent);background:var(--top-fill)}
+.scorebar{height:12px;border-radius:999px;background:var(--neutral-fill);overflow:hidden}
+.scorebar i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .2s}
+.result{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.result b{font-size:1.6rem;font-variant-numeric:tabular-nums}
+.breakdown{font-size:0.88rem;color:var(--ink-soft)}
+
+.flowrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.flowrow .st{background:var(--neutral-fill);color:var(--neutral-ink);border-radius:12px;padding:4px 10px;font-weight:800;font-size:0.85rem}
+.flowrow .ar{color:var(--ink-soft);font-weight:800}
+
+.principles{counter-reset:p;display:grid;gap:10px}
+.pr{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px}
+.pr .k{grid-row:span 2;font-weight:900;font-size:1.1rem;color:var(--accent-ink);font-variant-numeric:tabular-nums;min-width:1.6em}
+.pr b{font-weight:800}
+.pr p{font-size:0.92rem;color:var(--ink-soft)}
+
+.filter{display:flex;gap:6px;flex-wrap:wrap}
+.where{font-family:var(--mono);font-size:0.78rem;color:var(--ink-soft);overflow-wrap:anywhere}
+
+/* sheet */
+dialog.sheet{border:none;padding:0;margin:0;margin-top:auto;width:100%;max-width:720px;margin-inline:auto;max-height:86vh;border-radius:28px 28px 0 0;background:var(--card);color:var(--ink);box-shadow:0 -2px 0 var(--line)}
+dialog.sheet::backdrop{background:rgba(33,26,22,.45)}
+.sheet-in{display:grid;gap:12px;padding:10px 16px calc(20px + env(safe-area-inset-bottom,0px));overflow-y:auto;max-height:86vh}
+.grab{width:40px;height:5px;border-radius:999px;background:var(--line);margin:0 auto 2px}
+.sheet-head{display:flex;justify-content:space-between;align-items:start;gap:10px}
+.close{border:none;background:var(--neutral-fill);color:var(--neutral-ink);border-radius:999px;width:36px;height:36px;font-size:1.1rem;font-weight:800;cursor:pointer;flex:none}
+.kv{display:grid;gap:6px}
+.kv div{display:grid;gap:2px}
+.kv dt{font-size:0.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.kv dd{margin:0;font-size:0.94rem}
+.jump{justify-self:start;border:none;background:var(--accent);color:var(--on-accent);border-radius:999px;padding:9px 16px;font-weight:800;cursor:pointer;min-height:44px}
+footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero" id="top">
+    <p class="eyebrow">kavyald/roomies · branch v1 · 30 Sep 2026</p>
+    <h1>Roomies Field Guide</h1>
+    <p class="lede">How the house app is put together: the pieces, how they talk, why they were chosen, and what still needs attention. Tap any box in the map or any layer to go deeper.</p>
+    <div class="houseline" aria-hidden="true">
+      <span class="room r-air">Air</span><span class="room r-fire">Fire</span><span class="room r-water">Water</span><span class="room r-earth">Earth</span><span class="room r-n">+ 13 shared rooms</span>
+    </div>
+  </header>
+
+  <nav class="nav" aria-label="Sections">
+    <div class="nav-scroll" id="navs">
+      <a href="#overview">Overview</a>
+      <a href="#map">System map</a>
+      <a href="#layers">Zoom in</a>
+      <a href="#backend">Backend</a>
+      <a href="#frontend">Frontend</a>
+      <a href="#product">Product</a>
+      <a href="#principles">Principles</a>
+      <a href="#gaps">Unfinished</a>
+      <a href="#advice">Recommendations</a>
+    </div>
+  </nav>
+
+  <!-- OVERVIEW -->
+  <section id="overview" aria-labelledby="h-over">
+    <h2 id="h-over">Where it stands</h2>
+    <p>Roomies is a phone-first web app (installable to the Home Screen) for one house of 2–8 roommates. It tracks <b>needs</b> (things to buy), <b>chores</b>, and <b>tasks</b>, plus <b>polls</b> and <b>runs</b> (a shopping trip, a request to the landlord, a planned visit). Roommates attach <b>feelings</b> to items, and feelings push items up the Home feed.</p>
+    <div class="milestones" role="list" aria-label="Milestones">
+      <div class="ms done" role="listitem"><b>M0</b><span>Foundations</span></div>
+      <div class="ms done" role="listitem"><b>M1</b><span>House &amp; members</span></div>
+      <div class="ms done" role="listitem"><b>M2</b><span>Items</span></div>
+      <div class="ms done" role="listitem"><b>M3</b><span>Polls, runs, calendar</span></div>
+      <div class="ms done" role="listitem"><b>M4</b><span>Notifications</span></div>
+      <div class="ms todo" role="listitem"><b>M5</b><span>Hosting &amp; launch</span></div>
+    </div>
+    <p class="small soft">M0–M4 are done: 41 of 47 plan tasks, all passing <code>pnpm test:all</code>. M5 (E1–E5 + Q5) needs your Supabase, Gmail and Vercel accounts, so the app so far has only run on your Mac against local Supabase in Docker.</p>
+    <div class="stats">
+      <div class="stat"><b>~20k</b><span>lines of app code (tests excluded)</span></div>
+      <div class="stat"><b>74</b><span>test files, plus 20 Playwright journeys</span></div>
+      <div class="stat"><b>16</b><span>SQL migrations, RLS on every table</span></div>
+      <div class="stat"><b>47</b><span>use cases, each <code>makeX(deps)</code></span></div>
+      <div class="stat"><b>$0</b><span>per month planned (free tiers)</span></div>
+    </div>
+  </section>
+
+  <!-- MAP -->
+  <section id="map" aria-labelledby="h-map">
+    <h2 id="h-map">System map</h2>
+    <p class="lede">Every box is tappable. Pick a journey to light up the path a request takes.</p>
+    <div class="seg" role="group" aria-label="Follow a journey" id="flows"></div>
+    <div class="card mapcard">
+      <div class="diagram"><svg id="svg" viewBox="0 0 360 572" role="img" aria-labelledby="svgt"><title id="svgt">Roomies architecture: iPhone PWA, Next.js server on Vercel, Supabase, and outside services, with the connections between them</title></svg></div>
+    </div>
+    <div class="card" id="flowbox" aria-live="polite">
+      <p class="eyebrow" id="flowname">Pick a journey</p>
+      <p class="hint" id="flowhint">Start with “Save a change” to see the write path, the core of the design: the browser never writes to tables directly.</p>
+      <ol class="steps" id="flowsteps"></ol>
+    </div>
+    <div class="tbl card" style="padding:4px 8px">
+      <table>
+        <thead><tr><th>Link</th><th>What travels</th></tr></thead>
+        <tbody>
+          <tr><td>Phone → proxy → server actions</td><td>Every write, as a Next server action (POST). No table writes from the browser.</td></tr>
+          <tr><td>Phone ↔ Postgres (left rail)</td><td>Reads through PostgREST with the user's JWT (RLS applies), and Realtime messages back.</td></tr>
+          <tr><td>Adapters → Postgres</td><td>Kysely SQL as <code>app_server</code>, switching to <code>authenticated</code> + JWT claims per transaction.</td></tr>
+          <tr><td>pg_cron → cron routes</td><td><code>pg_net</code> POSTs <code>/api/cron/&lt;job&gt;</code> with <code>x-cron-secret</code>; URL and secret come from Supabase Vault.</td></tr>
+          <tr><td>Adapters → Web Push → service worker</td><td>VAPID-signed pushes via <code>web-push</code>; the service worker shows them.</td></tr>
+          <tr><td>Auth → Gmail → you</td><td>6-digit sign-in codes via custom SMTP (Mailpit locally until E1).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- LAYERS -->
+  <section id="layers" aria-labelledby="h-layers">
+    <h2 id="h-layers">Zoom in: the code layers</h2>
+    <p class="lede">Ports and adapters with dependency injection (decision A10). Dependencies only point inward, and a lint rule (<code>eslint-plugin-boundaries</code>) plus <code>lib/architecture.test.ts</code> enforce it. Open a layer, then a module, to see its functions.</p>
+    <div class="stack" id="stack"></div>
+  </section>
+
+  <!-- BACKEND -->
+  <section id="backend" aria-labelledby="h-back">
+    <h2 id="h-back">Backend decisions</h2>
+    <p class="lede">Chosen for one house, one developer, and free tiers: few vendors, one language, and the database as the last line of defense for privacy.</p>
+    <div class="list" id="backlist"></div>
+    <div class="card">
+      <h3>Data model at a glance</h3>
+      <div class="tbl" style="margin-top:8px">
+        <table>
+          <thead><tr><th>Group</th><th>Tables</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td>House &amp; people</td><td class="mono">houses, profiles, house_members, rooms, house_invites, contacts</td><td>Invite tokens stored hashed; nothing is hard-deleted.</td></tr>
+            <tr><td>Items</td><td class="mono">items, feelings</td><td>One table for need / chore / task with CHECKs per category (D18).</td></tr>
+            <tr><td>Polls</td><td class="mono">polls, poll_options, poll_votes</td><td>Saved piece by piece; each piece has its own RLS rule.</td></tr>
+            <tr><td>Runs &amp; money</td><td class="mono">runs, costs</td><td><code>items.run_id</code> = current run; the past lives in activity.</td></tr>
+            <tr><td>History</td><td class="mono">activity_events</td><td>Append-only, typed subject columns, grouped by <code>action_id</code>. ~37 MB per 5 years.</td></tr>
+            <tr><td>Delivery</td><td class="mono">notifications_outbox, notification_prefs, push_subscriptions, rate_limits</td><td>Outbox written in the same transaction as the change.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- FRONTEND -->
+  <section id="frontend" aria-labelledby="h-front">
+    <h2 id="h-front">Frontend decisions</h2>
+    <p class="lede">An iPhone-feeling PWA: tab bar, bottom sheets, rounded system type, and a cozy palette where color always means something.</p>
+    <div class="list" id="frontlist"></div>
+    <div class="card">
+      <h3>Color has three jobs</h3>
+      <p class="small soft" style="margin-top:4px">These swatches use the app's real tokens, and they switch with your light or dark setting.</p>
+      <div class="swatches" style="margin-top:10px">
+        <div class="sw" style="background:var(--paper);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line)">Paper &amp; ink<small>base</small></div>
+        <div class="sw r-air">Air<small>who / where</small></div>
+        <div class="sw r-fire">Fire<small>who / where</small></div>
+        <div class="sw r-water">Water<small>who / where</small></div>
+        <div class="sw r-earth">Earth<small>who / where</small></div>
+        <div class="sw" style="background:var(--top-fill);color:var(--top-ink)">●● Top<small>how urgent</small></div>
+        <div class="sw" style="background:var(--accent);color:var(--on-accent)">Plum<small>accent, “+”</small></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Screens and routes</h3>
+      <div class="tbl" style="margin-top:8px">
+        <table>
+          <thead><tr><th>Route</th><th>Screen</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">/sign-in</td><td>Email → 6-digit code (one field, iOS one-time-code autofill)</td></tr>
+            <tr><td class="mono">/setup/[token]</td><td>One-time house creation; dead once a house exists</td></tr>
+            <tr><td class="mono">/join/[token]</td><td>Name, email, code, pick your bedroom</td></tr>
+            <tr><td class="mono">/h/[id]</td><td>Home: Coming up, Open polls, Runs in progress, ranked feed (Mine / All)</td></tr>
+            <tr><td class="mono">/h/[id]/needs · chores · tasks</td><td>The three item tabs; Tasks also holds Requests &amp; visits</td></tr>
+            <tr><td class="mono">/h/[id]/house</td><td>Feeling weights, rooms, contacts, roommates, invites, spent this month</td></tr>
+            <tr><td class="mono">/h/[id]/activity · calendar · me</td><td>History log, month calendar, personal settings</td></tr>
+            <tr><td class="mono">/h/[id]/i/[itemId]</td><td>Deep link that opens an item's sheet over Home</td></tr>
+            <tr><td class="mono">/offline · /dev/kit</td><td>Offline fallback; UI kit in light + dark (dev only)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRODUCT -->
+  <section id="product" aria-labelledby="h-prod">
+    <h2 id="h-prod">Product decisions</h2>
+    <p class="lede">Five concepts, one house, no shame. Most of these were decided by you directly (marked <i>owner</i> in the PRD).</p>
+    <div class="list" id="prodlist"></div>
+
+    <div class="card calc" id="calc">
+      <div>
+        <p class="eyebrow">Try it · PRD §8.1</p>
+        <h3>Why is this item at the top?</h3>
+        <p class="small soft" style="margin-top:4px">The same formula <code>scorePriority</code> runs in the browser, in jobs and in tests. It's never stored because it depends on today's date. Default feeling weights shown.</p>
+      </div>
+      <label for="c-base">Priority
+        <select id="c-base">
+          <option value="10">Low (10)</option>
+          <option value="25" selected>Normal (25)</option>
+          <option value="45">High (45)</option>
+          <option value="70">Urgent (70)</option>
+        </select>
+      </label>
+      <label for="c-due">When
+        <select id="c-due">
+          <option value="none">No date (0)</option>
+          <option value="w7">Within 7 days (+5)</option>
+          <option value="w3" selected>Within 3 days (+15)</option>
+          <option value="today">Due today (+25)</option>
+          <option value="p1">1 day past (+37)</option>
+          <option value="p4">4 days past (+43)</option>
+          <option value="p10">10 days past (+50, capped)</option>
+        </select>
+      </label>
+      <div>
+        <p style="font-weight:700;font-size:0.9rem;margin-bottom:4px">Roommates' feelings <span class="soft small">(tap to add one; a fifth tap clears)</span></p>
+        <div class="feel" id="feel"></div>
+      </div>
+      <div class="result">
+        <div><b id="c-score">40</b> <span class="soft">/ 100</span></div>
+        <span class="chip" id="c-tier">Normal</span>
+      </div>
+      <div class="scorebar" aria-hidden="true"><i id="c-bar" style="width:40%"></i></div>
+      <p class="breakdown" id="c-break"></p>
+      <button class="close" type="button" id="c-reset" style="width:auto;padding:0 14px;justify-self:start">Reset feelings</button>
+    </div>
+
+    <div class="card">
+      <h3>Runs: three kinds, one machine</h3>
+      <p class="small soft" style="margin-top:4px">A run is anything that works through several items at once. Items point at their current run; where they've been is read back from activity.</p>
+      <div style="display:grid;gap:10px;margin-top:10px">
+        <div><p class="eyebrow">Batch · “Kavya's grocery run”</p><div class="flowrow"><span class="st">open</span><span class="ar">→</span><span class="st">finished</span><span class="soft small">“Did you spend money?”</span></div></div>
+        <div><p class="eyebrow">Request · tasks for the landlord</p><div class="flowrow"><span class="st">gathering</span><span class="ar">→</span><span class="st">sent</span><span class="ar">→</span><span class="st">closed</span><span class="soft small">auto-closes when emptied</span></div></div>
+        <div><p class="eyebrow">Visit · the landlord has taken them on</p><div class="flowrow"><span class="st">open (date optional)</span><span class="ar">→</span><span class="st">finished</span></div></div>
+        <p class="small">Recording a reply is just moving tasks: <b>to a visit</b>, <b>back to the pool</b> with a note, <b>hand to another contact</b>, or <b>done</b>. No reply form (D22).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRINCIPLES -->
+  <section id="principles" aria-labelledby="h-pr">
+    <h2 id="h-pr">Design principles followed</h2>
+    <p class="lede">What the code actually holds to, checked against the repo rather than only the docs.</p>
+    <div class="card principles" id="prlist"></div>
+  </section>
+
+  <!-- GAPS -->
+  <section id="gaps" aria-labelledby="h-gaps">
+    <h2 id="h-gaps">Unfinished or misplaced</h2>
+    <p class="lede">Things I found that are planned but not built, built differently from the docs, or sitting in an odd place. Filter by kind.</p>
+    <div class="filter seg" id="gapfilter" role="group" aria-label="Filter"></div>
+    <div class="list" id="gaplist"></div>
+  </section>
+
+  <!-- ADVICE -->
+  <section id="advice" aria-labelledby="h-adv">
+    <h2 id="h-adv">Design recommendations</h2>
+    <p class="lede">Ranked with Roomies' own tiers. <span class="chip top">●● Top</span> = fix before launch (M5), <span class="chip high">High</span> = soon after, <span class="chip">Normal</span> = when convenient.</p>
+    <div class="filter seg" id="advfilter" role="group" aria-label="Filter"></div>
+    <div class="list" id="advlist"></div>
+  </section>
+
+  <footer>Built from <code>docs/</code> (PRD, ARCHITECTURE A1–A23, FRONTEND, TESTING, BUILD_LOG, IMPLEMENTATION_PLAN) and a read of the source on <code>v1</code> at <code>21ecdb5</code> (Q4). File references point at that commit.</footer>
+</div>
+
+<dialog class="sheet" id="sheet" aria-labelledby="sheet-title">
+  <div class="sheet-in">
+    <div class="grab" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <div><p class="eyebrow" id="sheet-eyebrow"></p><h2 id="sheet-title" style="font-size:1.3rem"></h2></div>
+      <button class="close" type="button" id="sheet-close" aria-label="Close">✕</button>
+    </div>
+    <div id="sheet-body" style="display:grid;gap:12px"></div>
+  </div>
+</dialog>
+
+<script>
+(function(){
+'use strict';
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------------- Layers: modules and functions ---------------- */
+const LAYERS = [
+ { id:'entry', n:'1', title:'Entry points', sub:'Thin: parse with Zod, find the actor, build deps, call one use case, map the Result.', mods:[
+  { name:'app/actions/*', desc:'11 server-action files', fns:[
+    ['makeAction(schema, run, env)','lib/server/action.ts. Zod → actor → deps → use case → Result. AccessDenied becomes not_allowed, anything else unexpected, so no SQL error reaches the browser.'],
+    ['houseEnv(houseId)','app/actions/env.ts. Shared by all house actions; afterSuccess runs sendNotificationsNow via Next after().'],
+    ['items, runs, polls, costs, house, invites, contacts, me, push, setup, auth','One file per area. auth.ts holds requestCode (always the same neutral answer) and verifyCode (sets the session cookie).'] ]},
+  { name:'app/api/cron/[job]', desc:'the only API route', fns:[
+    ['POST tick | reminders | close-polls | send-notifications','Constant-time check of x-cron-secret, then the job use case with depsForJob(). Unknown job → 404; failure → 500 without details.'] ]},
+  { name:'proxy.ts', desc:'Next 16 middleware', fns:[
+    ['proxy(request)','Refreshes the Supabase session cookie on every page request and sends signed-out visitors on /h/* to /sign-in. Pages re-check; RLS guards the data regardless.'] ]},
+  { name:'lib/server/session.ts', desc:'who is asking', fns:[
+    ['currentUserId()','Verifies the user with Supabase Auth (getUser), not just by decoding the cookie.'],
+    ['currentActor(houseId)','Builds a member actor; membership itself is enforced by RLS.'] ]}
+ ]},
+ { id:'app', n:'2', title:'Use cases · lib/app', sub:'Each is makeX(deps) → (actor, input) → Promise<Result>. Runs in one UnitOfWork transaction.', mods:[
+  { name:'ports.ts', desc:'the interfaces', fns:[
+    ['UnitOfWork.run(actor, fn)','One transaction. Rolls back on a throw or a failed Result (A21).'],
+    ['Repos','houses, profiles, members, rooms, contacts, invites, items, feelings, polls, runs, costs, notifications, pushSubscriptions, events'],
+    ['EventSink.record(houseId, events, at)','Writes activity_events with the injected clock\'s time. forRun reads a run\'s story inside the transaction.'],
+    ['HouseQueries · ChangeFeed','The read side and live updates, used by the browser.'],
+    ['Clock · IdGenerator · Tokens · RateLimiter · AuthGateway · PushSender · Config','Everything impure is injected.'] ]},
+  { name:'items.ts', desc:'8 use cases', fns:[
+    ['makeCreateItem','Checks open needs for a duplicate first; returns the existing id in the error.'],
+    ['makeEditItem · makeMarkDone · makeReopenItem · makeDoChore','Load → pure domain function → save → record events.'],
+    ['makeArchiveItem · makeRestoreItem','Deleting is archiving; restore writes item.restored.'],
+    ['makeSetFeeling','Current feeling on the row; the previous one goes into the event.'] ]},
+  { name:'runs.ts', desc:'13 use cases', fns:[
+    ['makeStartRun · makeAddToRun · makeMarkRunItemsDone','Batches of needs, chores and tasks.'],
+    ['makeMoveRunItems · makeReturnToPool · makeHandToContact · makeMoveToNewVisit','The bulk actions that record a reply. One action_id per bulk action.'],
+    ['makeStartRequest · makeAddToRequest · makeSendRequest','Gathering → sent. The server rebuilds the numbered message for the event.'],
+    ['makePlanVisit · makeSetVisitDate','Visits with an optional date.'],
+    ['makeFinishRun','Returns leftovers to the pool and can record “Did you spend money?” as a cost in the same transaction.'] ]},
+  { name:'polls.ts · costs.ts', desc:'6 use cases', fns:[
+    ['makeCreatePoll · makeVote · makeAddPollOption · makeClosePoll','Anyone adds options while open; ties are ties.'],
+    ['makeAddCost · makeCopiedToSplitwise','Costs are insert-only; “copied” is only an activity row.'] ]},
+  { name:'house · invites · setup · contacts · me · session', desc:'people and places', fns:[
+    ['makeSetupHouse · makeSetupStatus','One-time bootstrap guarded by SETUP_TOKEN and RLS.'],
+    ['makeCreateInvite · makeRevokeInvite · makeStartInvite · makeAcceptInvite · makeInviteDetails','Token checked by the use case, then work runs as the system actor; accept re-validates inside its write.'],
+    ['makeMoveOut · makeSetRole · makeRenameRoom · makeMoveRoom · makeDeleteAccount · makeSetFeelingWeights','Membership changes record the event before the status change.'],
+    ['makeCreateContact · makeEditContact · makeRemoveContact','Contacts are archived, never deleted.'],
+    ['makeUpdateMySettings · makeSetNotificationEnabled · makeWhereTo','Personal settings and post-sign-in routing.'] ]},
+  { name:'notify.ts · push.ts · jobs.ts', desc:'delivery', fns:[
+    ['withNotifications(uow)','Wraps every UnitOfWork: after events.record it looks up people, prefs and quiet hours and enqueues outbox rows in the same transaction (A23).'],
+    ['makeSendNotifications','Drains up to 100 due outbox rows and pushes to each browser; marks gone subscriptions.'],
+    ['makeRunReminders · makeCloseDuePolls','Walk every house, each in its own transaction, as the system actor.'],
+    ['makeSavePushSubscription','“Turn on notifications” for this browser.'] ]}
+ ]},
+ { id:'domain', n:'3', title:'Domain · lib/domain', sub:'Pure TypeScript: no I/O, no Date.now(), no random ids. Returns values and Result, never throws for business rules.', mods:[
+  { name:'items.ts · lists.ts', desc:'needs, chores, tasks', fns:[
+    ['createItem · editItem · markDone · reopenItem · doChore · archiveItem · restoreItem','Each returns { item, events }. Category never changes (D15).'],
+    ['needList · choreList · taskList','Tab ordering: needs by feeling score, chores by lateness, tasks by date.'],
+    ['choreLateness · isChoreDue · daysSinceDone','Measured in calendar days in the house time zone.'] ]},
+  { name:'priority.ts · feelings.ts · weights.ts', desc:'the feed', fns:[
+    ['scorePriority(item, feelings, weights, now, tz)','base + due pressure + Σ feeling weights, clamped 0–100 → { score, tier, breakdown }.'],
+    ['isInFeed · homeFeed','PRD §8.1 rules, e.g. tasks on a visit leave the feed unless felt about or within 3 days.'],
+    ['setFeeling · earlierFeelings · feelingScore · feelingCounts','One current feeling per person per item.'],
+    ['setFeelingWeights · isValidWeight · stepWeight','−20…+40 in steps of 5.'] ]},
+  { name:'runs.ts', desc:'the biggest module (629 lines)', fns:[
+    ['startRun · addToRun · markRunItemsDone · moveRunItems · returnToPool · finishRun','Set or clear item.run and emit one event per item.'],
+    ['startRequest · addToRequest · requestMessage · sendRequest · handToContact · planVisit · setVisitDate','Requests and visits.'],
+    ['runSteps · runLedger · itemPath','Read a run\'s history back out of activity rows.'],
+    ['runLabel · visitDateOf · inArrivalOrder','Shared words and ordering for screens and notifications.'] ]},
+  { name:'polls.ts · costs.ts · money.ts', desc:'decisions and money', fns:[
+    ['createPoll · vote · addPollOption · closePoll · tally · resultOf','Most votes wins; a tie is { tie }; no votes is { noVotes } (D3).'],
+    ['addCost · monthlySpend · splitwiseText','Integer cents, equal split among active members.'],
+    ['parseCents · formatCents · splitEqually','Money never touches floats.'] ]},
+  { name:'events.ts · activity.ts', desc:'history', fns:[
+    ['activityRowFor(event)','DomainEvent → activity_events row (typed subject columns).'],
+    ['activityLine · groupByAction · activityFeed · pageAtActionBoundary','Groups a bulk action into one line and never splits it across pages.'] ]},
+  { name:'notifications.ts · reminders.ts · push.ts', desc:'who hears what', fns:[
+    ['notificationsFor(events, people, context, now)','Pure: returns outbox rows, respecting toggles and quiet hours.'],
+    ['remindersFor · choreDueDate','Day-before and day-of reminders with dedupe keys, so reruns enqueue nothing.'],
+    ['isQuiet · sendAfter · deliver · pushPayload · deliveryResult','Quiet hours hold a message until they end.'] ]},
+  { name:'calendar · invites · members · setup · time', desc:'the rest', fns:[
+    ['calendarEntries · comingUp · byDay · monthGrid','Built from items and runs already loaded; no separate calendar query.'],
+    ['validateInvite · createInvite · acceptInvite · openBedrooms','Expired / revoked / used_up as typed errors.'],
+    ['moveOut · setRole · anonymizeProfile · setupHouse · safeEqual','“Former roommate” keeps history intact.'],
+    ['localDateOf · instantAt · startOfDay · calendarDaysBetween','Hand-written time zone and DST handling, tested across both DST nights.'] ]}
+ ]},
+ { id:'adapters', n:'4', title:'Adapters · lib/adapters', sub:'The only code that imports Supabase, Kysely, pg or web-push. Wired together in lib/compose.ts (server) and lib/compose.client.ts (browser).', mods:[
+  { name:'postgres/', desc:'the server write path', fns:[
+    ['PostgresUnitOfWork','begin → set local role authenticated + request.jwt.claims → repos → commit. System jobs use service_role. 720 lines holding every repo.'],
+    ['save = update-then-insert','Not upsert, because an upsert also applies SELECT policies. Immutable columns are never rewritten.'],
+    ['mappers.ts · schema.ts','Explicit row ↔ domain mapping; Kysely types written by hand and checked by contract round-trips.'],
+    ['postgresRateLimiter','Fixed windows in rate_limits, counted in their own transaction.'] ]},
+  { name:'supabase/', desc:'the browser read path', fns:[
+    ['supabaseHouseQueries','PostgREST reads with the user\'s JWT: house, members, items, feelings, polls, runs, costs, activity (keyset-paged).'],
+    ['supabaseChangeFeed','One Realtime subscription to activity_events inserts for the house.'],
+    ['supabaseAuthGateway','createUser / sendCode / deleteUser through the admin and anon clients.'] ]},
+  { name:'memory/', desc:'fakes for every port', fns:[
+    ['MemoryUnitOfWork','Copy-on-write transactions that mirror each RLS policy by hand, so a cross-house use case fails in unit tests too.'],
+    ['memoryQueries · memoryAuth · memoryRateLimiter · memoryChangeFeed','Same behavior, no Docker.'] ]},
+  { name:'contracts/', desc:'10 shared suites', fns:[
+    ['unit-of-work · items · polls · runs · costs · notifications · house-queries · change-feed · auth-gateway · rate-limiter','Each suite runs against the memory adapter and the real one, so fakes can\'t drift silently.'] ]},
+  { name:'push/ · clock/ · ids/ · tokens/ · change-for-kind.ts', desc:'small adapters', fns:[
+    ['webPushSender · fakePush','VAPID sends; 404/410 → gone.'],
+    ['systemClock · fixedClock · cryptoIds · seqIds · cryptoTokens','Production vs test implementations.'],
+    ['changeForKind(kind)','Maps an activity kind prefix to the table (and query keys) to refresh.'] ]}
+ ]},
+ { id:'client', n:'5', title:'Browser · lib/client + components', sub:'Screens depend on an AppClient interface from React context, not on Supabase or server actions.', mods:[
+  { name:'lib/client/', desc:'data and commands', fns:[
+    ['AppClient','queries (HouseQueries), commands (server actions), changes (ChangeFeed), me, vapid key.'],
+    ['hooks.ts','TanStack Query hooks: useItems, useFeelings, useRuns, usePolls, useActivity (infinite), mutations that invalidate keys.'],
+    ['useLiveHouse','ChangeFeed → keysForTable → invalidateQueries.'],
+    ['push.ts · install.ts · use-now.ts','Web Push subscribe, Home Screen install detection, a ticking “now”.'] ]},
+  { name:'components/', desc:'95 files', fns:[
+    ['ui/','Button, Card, Chip, Avatar, Sheet (vaul), TabBar, ListRow, SegmentedControl, Toast, EmptyState. Contrast and copy are unit-tested.'],
+    ['items/ · runs/ · polls/ · costs/','ItemSheets (600 lines) and RunSheet (560) are the two heaviest screens.'],
+    ['home/ · needs/ · chores/ · tasks/ · house/ · me/ · calendar/ · activity/','One folder per tab or screen.'],
+    ['shell/','AppShell, HouseProviders, InstallGuide, ServiceWorker (production only), ThemeSync.'] ]}
+ ]}
+];
+
+/* ---------------- Diagram ---------------- */
+const GROUPS = [
+ {x:20,y:10,w:216,h:124,label:'iPhone · installed PWA'},
+ {x:20,y:178,w:320,h:220,label:'Next.js 16 server · Vercel (M5)'},
+ {x:20,y:458,w:320,h:104,label:'Supabase · local Docker today',bottom:true}
+];
+const NODES = {
+ sbjs:{x:30,y:30,w:196,h:26,t:'Supabase JS client',s:'reads · live updates',fill:'n'},
+ ui:{x:30,y:62,w:196,h:26,t:'React UI · AppClient',s:'TanStack Query cache',fill:'top'},
+ sw:{x:30,y:94,w:196,h:26,t:'Service worker',s:'app shell · push display',fill:'n'},
+ gmail:{x:246,y:30,w:94,h:26,t:'Gmail SMTP',s:'sign-in codes',fill:'card'},
+ wpush:{x:246,y:94,w:94,h:26,t:'Web Push',s:'Apple · Google',fill:'card'},
+ proxy:{x:30,y:202,w:300,h:24,t:'proxy.ts',s:'refresh session · guard /h/*',fill:'n'},
+ actions:{x:30,y:236,w:145,h:30,t:'Server actions',s:'app/actions · Zod',fill:'n'},
+ cron:{x:185,y:236,w:145,h:30,t:'Cron routes',s:'/api/cron/[job]',fill:'n'},
+ app:{x:30,y:276,w:300,h:30,t:'Use cases',s:'lib/app · makeX(deps) · UnitOfWork',fill:'water'},
+ domain:{x:30,y:316,w:300,h:30,t:'Domain',s:'lib/domain · pure functions & types',fill:'earth'},
+ adapters:{x:30,y:356,w:300,h:30,t:'Adapters',s:'lib/adapters · wired in compose.ts',fill:'air'},
+ pg:{x:30,y:466,w:145,h:30,t:'Postgres + RLS',s:'tables · activity · outbox',fill:'fire'},
+ auth:{x:185,y:466,w:145,h:30,t:'Auth',s:'email codes · sessions',fill:'n'},
+ rt:{x:30,y:504,w:145,h:30,t:'Realtime',s:'activity_events inserts',fill:'n'},
+ pgcron:{x:185,y:504,w:145,h:30,t:'pg_cron · pg_net',s:'URL + secret in Vault',fill:'n'}
+};
+const EDGES = {
+ w1:{p:[[30,75],[16,75],[16,214],[30,214]]},
+ w2:{p:[[102,226],[102,236]]},
+ w3:{p:[[102,266],[102,276]]},
+ j2:{p:[[257,266],[257,276]]},
+ w4:{p:[[180,306],[180,316]]},
+ w5:{p:[[330,291],[335,291],[335,364],[330,364]],dash:true},
+ w6:{p:[[102,386],[102,466]]},
+ s3:{p:[[257,386],[257,466]]},
+ r1:{p:[[30,43],[8,43],[8,481],[30,481]]},
+ rt:{p:[[30,519],[8,519],[8,43],[30,43]]},
+ l1:{p:[[102,496],[102,504]]},
+ j1:{p:[[330,519],[342,519],[342,251],[330,251]]},
+ p2:{p:[[330,380],[350,380],[350,107],[340,107]]},
+ p3:{p:[[246,107],[226,107]]},
+ s4:{p:[[330,481],[356,481],[356,43],[340,43]]},
+ s5:{p:[[246,43],[236,43]],dash:true}
+};
+const LABELS = [
+ [24,158,'writes (POST)','start'],[344,158,'push','end'],[14,424,'reads · live (RLS)','start'],
+ [106,424,'SQL as the user','start'],[261,424,'admin API','start'],[338,440,'jobs','end']
+];
+
+const NODE_INFO = {
+ ui:{eyebrow:'Browser', title:'React UI · AppClient', layer:'client', what:'Client components for every screen. They get data and commands from an AppClient in React context, so tests can inject a fake.', files:'components/**, lib/client/, lib/compose.client.ts', why:'Screens stay ignorant of Supabase and of which server action does what (A10). TanStack Query caches reads; Realtime invalidates them.'},
+ sbjs:{eyebrow:'Browser', title:'Supabase JS client', layer:'adapters', what:'Reads house data straight from PostgREST with the signed-in user\'s JWT, and listens to Realtime.', files:'lib/adapters/supabase/house-queries.ts, change-feed.ts', why:'Reads don\'t need a server hop; RLS still decides what comes back (A12). Writes never take this path.'},
+ sw:{eyebrow:'Browser', title:'Service worker', layer:null, what:'Caches the app shell and hashed build assets, falls back to /offline, and shows pushes and opens their links.', files:'public/sw.js, components/shell/ServiceWorker.tsx', why:'Hand-written instead of a library. Registers only in production builds so pnpm dev never serves stale chunks.'},
+ gmail:{eyebrow:'Outside service · M5', title:'Gmail SMTP', layer:null, what:'A dedicated house Gmail sends the 6-digit codes through Supabase\'s custom SMTP. Locally, codes land in Mailpit.', files:'supabase/config.toml, supabase/templates/code.html', why:'Supabase\'s built-in sender won\'t reach roommates, and a domain isn\'t needed in v1. Resend + a domain is the upgrade (A18).'},
+ wpush:{eyebrow:'Outside service', title:'Web Push services', layer:null, what:'Apple and Google\'s push endpoints deliver VAPID-signed messages to installed browsers.', files:'lib/adapters/push/web-push.ts', why:'The only way to notify an iPhone without an App Store app. iOS needs the PWA added to the Home Screen first.'},
+ proxy:{eyebrow:'Entry point', title:'proxy.ts', layer:'entry', what:'Next 16\'s renamed middleware. Refreshes the session cookie and redirects signed-out visitors away from /h/*.', files:'proxy.ts', why:'A convenience gate only. Pages re-check the session, and RLS guards the data either way.'},
+ actions:{eyebrow:'Entry point', title:'Server actions', layer:'entry', what:'Every write enters here: Zod parse, find the actor, build deps, call one use case, return its Result.', files:'app/actions/*.ts, lib/server/action.ts', why:'Replaces the /api/invites, /api/push and /api/setup routes the architecture first sketched. Same thin shape, less plumbing.'},
+ cron:{eyebrow:'Entry point', title:'Cron routes', layer:'entry', what:'POST /api/cron/<job> for tick, reminders, close-polls and send-notifications, guarded by x-cron-secret.', files:'app/api/cron/[job]/route.ts, lib/server/cron.ts', why:'Jobs call the same use cases as people do, with the system actor (A11). No Vercel Cron needed.'},
+ app:{eyebrow:'Layer 2', title:'Use cases', layer:'app', what:'makeX(deps) factories. Load via repos, call the domain, save, record events, all in one transaction.', files:'lib/app/*.ts, lib/app/ports.ts', why:'Dependency injection without a container: time, ids, push and auth are all passed in, so every use case runs against in-memory fakes in milliseconds.'},
+ domain:{eyebrow:'Layer 3', title:'Domain', layer:'domain', what:'Pure types (discriminated unions) and functions for items, priority, runs, polls, money, time and notifications.', files:'lib/domain/*.ts', why:'Invalid states can\'t be represented (a chore can\'t be “done”). Coverage is enforced at ≥95%; currently 100%.'},
+ adapters:{eyebrow:'Layer 4', title:'Adapters', layer:'adapters', what:'Postgres (Kysely UnitOfWork), Supabase (reads, realtime, auth), web-push, clock, ids, tokens, and in-memory fakes for all of them.', files:'lib/adapters/**, lib/compose.ts', why:'The only code allowed to import Supabase, Kysely, pg or web-push, enforced by lint.'},
+ pg:{eyebrow:'Supabase', title:'Postgres + RLS', layer:null, what:'All tables, RLS on every one, CHECK constraints per category, and append-only activity_events as the only history store.', files:'supabase/migrations/*.sql (16), supabase/tests/', why:'The database enforces integrity and privacy only: no business logic, no logic RPCs, no triggers except updated_at (A11).'},
+ auth:{eyebrow:'Supabase', title:'Auth', layer:null, what:'Email one-time codes, long-lived sessions. Public sign-up is off: accounts are created only through a valid invite or the setup link.', files:'supabase/config.toml, lib/adapters/supabase/auth-gateway.ts', why:'Codes, not magic links: a link would open Safari instead of the installed PWA (A3).'},
+ rt:{eyebrow:'Supabase', title:'Realtime', layer:null, what:'Broadcasts inserts on activity_events, the only published table. The browser maps each kind to the queries to refresh.', files:'supabase/migrations/…_realtime.sql, lib/adapters/change-for-kind.ts', why:'One subscription instead of one per table, and it covers deletes, which Realtime can\'t filter by house.'},
+ pgcron:{eyebrow:'Supabase', title:'pg_cron · pg_net', layer:null, what:'The schedule: tick and reminders every 15 min, send-notifications every 5, close-polls hourly. It POSTs to the app with a secret from Vault.', files:'supabase/migrations/…_jobs.sql, scripts/cron-local.mjs', why:'Free, and it keeps the free-tier project from pausing. Nothing secret lives in a migration in this public repo.'}
+};
+
+const FLOWS = [
+ {id:'write', name:'Save a change', nodes:['ui','proxy','actions','app','domain','adapters','pg'], edges:['w1','w2','w3','w4','w5','w6'], steps:[
+  'You tap “Got it” on a need. The AppClient calls the <code>markDone</code> server action.',
+  '<code>proxy.ts</code> refreshes the session cookie on the way in.',
+  '<code>makeAction</code> parses the input with Zod and builds a member actor from the verified session.',
+  '<code>makeMarkDone(deps)</code> opens <code>uow.run(actor, …)</code>: one Postgres transaction.',
+  'The pure <code>markDone(item, by, now)</code> returns the new item plus an <code>item.done</code> event.',
+  'The Postgres adapter switches to <code>authenticated</code> with your JWT claims, so RLS checks every statement.',
+  'Item update, activity row and any outbox rows commit together. Then <code>after()</code> sends pushes once the response is gone.'] },
+ {id:'read', name:'Load a screen', nodes:['ui','sbjs','pg'], edges:['r1'], steps:[
+  'A screen calls a hook like <code>useItems(houseId)</code>.',
+  'TanStack Query asks <code>HouseQueries</code>, backed by the Supabase JS client.',
+  'PostgREST runs the query as you; RLS returns only your house\'s rows.',
+  'The browser ranks the feed itself with <code>scorePriority</code> and <code>homeFeed</code>, using today\'s date.'] },
+ {id:'live', name:'See a roommate’s change', nodes:['pg','rt','sbjs','ui'], edges:['l1','rt'], steps:[
+  'A roommate\'s change commits with its <code>activity_events</code> row.',
+  'Realtime broadcasts the insert to members of that house (RLS applies).',
+  '<code>changeForKind(\'item.done\')</code> → items; <code>keysForTable</code> picks the query keys.',
+  'TanStack Query invalidates and refetches. Your list updates without a reload.'] },
+ {id:'push', name:'Get a push', nodes:['pgcron','cron','app','adapters','wpush','sw'], edges:['j1','j2','w5','p2','p3'], steps:[
+  'Every 5 minutes pg_cron uses pg_net to POST <code>/api/cron/send-notifications</code> with the secret from Vault. Server actions also trigger it right after a change.',
+  'The route checks <code>x-cron-secret</code> in constant time and runs <code>makeSendNotifications</code> as the system actor.',
+  'It reads due outbox rows (quiet hours were already applied when they were enqueued).',
+  'The web-push adapter signs with VAPID and sends to each of your browsers.',
+  'Your service worker shows it; tapping opens the deep link.'] },
+ {id:'signin', name:'Sign in', nodes:['ui','proxy','actions','adapters','auth','gmail'], edges:['w1','w2','s3','s4','s5'], steps:[
+  'You type your email. The <code>requestCode</code> action rate-limits and always answers the same way, so it never reveals who has an account.',
+  'The AuthGateway asks Supabase Auth to send a code, with sign-up off.',
+  'Auth sends the 6-digit code through the house Gmail (Mailpit locally).',
+  'You type it into the app (iOS autofills it). <code>verifyCode</code> sets the session cookie, and <code>whereTo</code> routes you to your house.'] },
+ {id:'jobs', name:'Send reminders', nodes:['pgcron','cron','app','domain','adapters','pg'], edges:['j1','j2','w4','w5','w6'], steps:[
+  'Every 15 minutes pg_cron calls <code>/api/cron/reminders</code>.',
+  '<code>makeRunReminders</code> walks every house, each in its own transaction, with the injected clock.',
+  'The pure <code>remindersFor</code> picks day-before and day-of reminders, each with a dedupe key.',
+  'Rows are inserted with <code>ON CONFLICT DO NOTHING</code> on that key, so running twice enqueues nothing.'] }
+];
+
+const svg = $('#svg');
+const NS = 'http://www.w3.org/2000/svg';
+const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+GROUPS.forEach(g => { mk('rect',{x:g.x,y:g.y,width:g.w,height:g.h,rx:16,class:'g-box'},svg); const t=mk('text',{x:g.x+10,y:g.bottom?g.y+g.h-6:g.y+14,class:'g-label'},svg); t.textContent=g.label; });
+const ext = mk('text',{x:293,y:22,class:'g-label','text-anchor':'middle'},svg); ext.textContent='Outside';
+const edgeEls = {};
+for (const id in EDGES){
+  const e = EDGES[id]; const g = mk('g',{class:'edge'+(e.dash?' dash':''),'data-id':id},svg);
+  const d = e.p.map((pt,i)=>(i?'L':'M')+pt[0]+' '+pt[1]).join(' ');
+  mk('path',{d,class:'halo'},g); mk('path',{d,class:'ln'},g);
+  edgeEls[id]=g;
+}
+LABELS.forEach(l => { const t = mk('text',{x:l[0],y:l[1],class:'elabel','text-anchor':l[3]},svg); t.textContent=l[2]; });
+const nodeEls = {};
+for (const id in NODES){
+  const n = NODES[id];
+  const g = mk('g',{class:'node',tabindex:'0',role:'button','aria-label':n.t+': '+n.s+'. Open details','data-id':id},svg);
+  mk('rect',{x:n.x,y:n.y,width:n.w,height:n.h,rx:9,class:'fill-'+n.fill},g);
+  const cx = n.x + n.w/2;
+  const t = mk('text',{x:cx,y:n.y+(n.h>=30?13:11.5),'text-anchor':'middle',class:'t'},g); t.textContent=n.t;
+  const s = mk('text',{x:cx,y:n.y+(n.h>=30?24:21.5),'text-anchor':'middle',class:'s'},g); s.textContent=n.s;
+  g.addEventListener('click',()=>openNode(id));
+  g.addEventListener('keydown',ev=>{ if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openNode(id);} });
+  nodeEls[id]=g;
+}
+
+/* flows */
+const flowsEl = $('#flows');
+let activeFlow = null;
+function setFlow(id){
+  activeFlow = (activeFlow===id) ? null : id;
+  flowsEl.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.id===activeFlow)));
+  Object.values(nodeEls).forEach(e=>e.classList.remove('hl'));
+  Object.values(edgeEls).forEach(e=>e.classList.remove('hl'));
+  const f = FLOWS.find(x=>x.id===activeFlow);
+  svg.classList.toggle('flowing', !!f);
+  if (!f){ $('#flowname').textContent='Pick a journey'; $('#flowhint').hidden=false; $('#flowsteps').innerHTML=''; return; }
+  f.nodes.forEach(n=>nodeEls[n].classList.add('hl'));
+  f.edges.forEach(e=>edgeEls[e].classList.add('hl'));
+  $('#flowname').textContent = f.name; $('#flowhint').hidden = true;
+  $('#flowsteps').innerHTML = f.steps.map(s=>'<li>'+s+'</li>').join('');
+}
+FLOWS.forEach(f=>{ const b=document.createElement('button'); b.type='button'; b.textContent=f.name; b.dataset.id=f.id; b.setAttribute('aria-pressed','false'); b.addEventListener('click',()=>setFlow(f.id)); flowsEl.appendChild(b); });
+
+/* sheet */
+const sheet = $('#sheet');
+function showSheet(eyebrow, title, html){
+  $('#sheet-eyebrow').textContent = eyebrow; $('#sheet-title').textContent = title; $('#sheet-body').innerHTML = html;
+  if (typeof sheet.showModal === 'function'){ if(!sheet.open) sheet.showModal(); } else sheet.setAttribute('open','');
+  $('.sheet-in').scrollTop = 0;
+}
+function closeSheet(){ if (sheet.open) sheet.close ? sheet.close() : sheet.removeAttribute('open'); }
+$('#sheet-close').addEventListener('click', closeSheet);
+sheet.addEventListener('click', e=>{ if (e.target===sheet) closeSheet(); });
+
+function modsHtml(layer){
+  return '<div class="mods">'+layer.mods.map(m=>'<details class="mod"><summary><b>'+esc(m.name)+'</b><span>'+esc(m.desc)+'</span></summary><div class="fns">'+m.fns.map(f=>'<div class="fn"><code>'+esc(f[0])+'</code><span>'+esc(f[1])+'</span></div>').join('')+'</div></details>').join('')+'</div>';
+}
+function openNode(id){
+  const i = NODE_INFO[id]; if(!i) return;
+  let html = '<dl class="kv"><div><dt>What it does</dt><dd>'+esc(i.what)+'</dd></div><div><dt>Why this way</dt><dd>'+esc(i.why)+'</dd></div><div><dt>Where</dt><dd class="where">'+esc(i.files)+'</dd></div></dl>';
+  const related = FLOWS.filter(f=>f.nodes.includes(id));
+  if (related.length) html += '<div><p class="eyebrow" style="margin-bottom:6px">Part of these journeys</p><div class="chips">'+related.map(f=>'<button class="chip" type="button" data-flow="'+f.id+'" style="border:none;cursor:pointer;min-height:32px">'+esc(f.name)+'</button>').join('')+'</div></div>';
+  const layer = LAYERS.find(l=>l.id===i.layer);
+  if (layer){ html += '<div><p class="eyebrow" style="margin-bottom:6px">Go deeper: '+esc(layer.title)+'</p>'+modsHtml(layer)+'</div>'; }
+  showSheet(i.eyebrow, i.title, html);
+  $('#sheet-body').querySelectorAll('[data-flow]').forEach(b=>b.addEventListener('click',()=>{ closeSheet(); if(activeFlow!==b.dataset.flow) setFlow(b.dataset.flow); document.getElementById('map').scrollIntoView({behavior:'smooth'}); }));
+}
+
+/* layer stack */
+$('#stack').innerHTML = LAYERS.map((l,idx)=>
+  (idx===3?'<p class="arrow-note">▲ adapters implement the ports declared by use cases ▲</p>':'')+
+  '<details class="card layer"><summary><span class="sum-title" data-n="'+l.n+'">'+esc(l.title)+'</span><span class="sum-sub">'+esc(l.sub)+'</span></summary><div class="body">'+modsHtml(l)+'</div></details>'+
+  (idx<2?'<p class="arrow-note">▼ depends on ▼</p>':'')
+).join('');
+
+/* ---------------- Decisions ---------------- */
+const BACK = [
+ ['A2','Next.js + Supabase + Vercel','One vendor for Postgres, auth, realtime and cron; one language end to end. The runner-up was a Vite SPA with Supabase Edge Functions (a second runtime, Deno).',['Firebase: relational data (members, votes) fights a document store, and its rules are harder to test.','Custom API on Fly/Render: you\'d write auth, authz and uploads yourself.']],
+ ['A10 · A11','Logic in TypeScript, not in Postgres','Use cases and pure domain functions hold every business rule. Postgres keeps RLS, foreign keys and CHECKs only; no logic RPCs, no triggers that write activity.',['Previous draft had RPCs and triggers: atomic, but logic split across SQL and TS, time from now(), and hidden side effects.']],
+ ['A12','Writes through the server, reads direct','Browser writes only via server actions. Reads go straight to PostgREST with the user\'s JWT, so the server isn\'t a bottleneck for lists.',['Everything through the server: simpler mental model, extra hop for every list.']],
+ ['§4.1','RLS still applies on the server','The server connects as app_server (no rights of its own) and per transaction runs set local role authenticated plus the caller\'s JWT claims. A bug in a use case can\'t reach another house.',['Service-role key for everything: simpler, but one bug leaks everything.']],
+ ['A14 · A23','Transactional outbox','Every recorded event can enqueue notifications in the same transaction via withNotifications(uow), so a rolled-back change never notifies anyone.',['Send pushes inline: a failure or rollback leaves the two out of step.']],
+ ['A17 · D25','Activity log is the only history','items.run_id holds the current run; everything that happened (moves, earlier feelings, votes) lives in append-only activity_events with typed subject columns and an action_id per user action.',['run_items / run_claims tables: more tables to keep consistent.']],
+ ['A15 · D18','One items table','Need, chore and task share one table; CHECK constraints tie category-only columns to their category.',['Detail table per category: three 1:1 tables for one or two columns each.','JSON details: the database can\'t enforce anything.']],
+ ['A3 · D9','Email one-time codes','Six digits typed into the app. Public sign-up off; accounts only via a valid invite or the setup token.',['Magic links open Safari, not the installed PWA.','Sign in with Apple: $99/yr and hidden emails.','SMS: costs money, SIM-swap risk.']],
+ ['§7.3','pg_cron + pg_net for jobs','The database calls /api/cron/<job> with a secret stored in Vault. Jobs are ordinary use cases with the system actor.',['Vercel Cron: fine too, but Hobby limits frequency, and pg_cron keeps the free project awake.']],
+ ['A20','One test runner','Vitest for unit, use case, contract and RLS tests (via asUser()); Playwright on WebKit with the iPhone 15 profile for journeys. pnpm test:all is the gate.',['pgTAP for RLS: another language and runner.']]
+];
+const FRONT = [
+ ['A1','PWA, not an App Store app','Roommates open a link; installing to the Home Screen unlocks push on iOS 16.4+. An install guide nudges iOS users.',['React Native / Expo: TestFlight and a $99/yr account break “just a link”.']],
+ ['§8','Client components + TanStack Query','Screens are client components reading through hooks; Realtime invalidates query keys. Server rendering is mostly the shell.',['Server components for data: harder to combine with live updates and the AppClient seam.']],
+ ['T19','Sheets, not pages, for items','Add and detail open as bottom sheets over the current tab (vaul). /h/[id]/i/[itemId] deep-links to a sheet over Home.',['Nested sheets were avoided: pickers are inline inside the sheet.']],
+ ['T19','Native pickers','Rooms and people are native selects (rooms grouped by floor); dates are native inputs.',['Custom pickers: more code, worse accessibility on iPhone.']],
+ ['D11','Cozy via color, shape and tone','Cream paper, brown ink, a plum accent, pill buttons and a “sticker” edge instead of blurry shadows. No custom art.',['Focus Friend-style characters: parked; also its guilt mechanic.']],
+ ['FRONTEND §3','Color means something','Four element colors say who and where; plum says how urgent. Item types get icon + label on a neutral chip. All pairs pass WCAG AA, tested in contrast.test.ts.',[]],
+ ['FRONTEND §7','Kind copy, enforced','copy.test.ts walks every UI string and fails on “overdue”, “failed” or “missed”. The only lateness phrase is “This one\'s been waiting a bit”.',[]],
+ ['Q4','Accessibility gate','axe runs on every screen in light and dark and fails on serious issues too. Item cards are named by their title for VoiceOver.',[]],
+ ['T36','Theme: Auto / Light / Dark','Stored per person on their profile; ThemeSync applies it to &lt;html data-theme&gt; once the profile loads.',[]]
+];
+const PROD = [
+ ['D10 · D8','One house, invite-only','A one-time setup link creates the house; after that, the only way in is an invite link (expires in 7 days, max uses = open bedrooms). Joins notify everyone.',[]],
+ ['D15','Things never change type','When the vacuum arrives, the need is done; “Assemble the vacuum” is a new task and “Keep it?” a new poll.',[]],
+ ['D5 · D26','Feelings instead of urgency flags','😰 Anxious, 😤 Frustrated, 😕 Confused, 🙂 Fine, 😐 Meh, 🙏 Thanks. Always named, always about items (never people), with an optional note. They replace comments.',[]],
+ ['D7','Feeling weights are the house\'s','One house-wide setting any member can change (−20…+40). Saving re-ranks everyone\'s feed and shows a card on Home.',[]],
+ ['D2 · D6','No scoreboards','No chore balance, no “who\'s done what”, no weekly check-in or house mood.',[]],
+ ['D3 · D20','Polls: ties are ties','Most votes wins. A tie says “Tie” and the app does nothing automatic. Anyone can add options while it\'s open.',[]],
+ ['D14 · D4','Money is optional','A cost record on an item or run, only when something was spent. “Open Splitwise” copies “title — $amount”; no Splitwise API.',[]],
+ ['D23 · D24','Runs keep the feed calm','Tasks on a visit leave Home unless someone has a feeling or the visit is within 3 days. No automatic “no reply” nudges, just “Sent N days ago”.',[]],
+ ['D13','v1 is five things','Needs, chores, tasks, polls, runs. Bills, belongings, rotations, heads-ups, info items and email digests are parked, not dropped.',[]]
+];
+function decisionCard(d){
+  return '<details class="card"><summary><span class="sum-title">'+d[1]+'</span><span class="chip id">'+esc(d[0])+'</span><span class="sum-sub">'+d[2]+'</span></summary>'+
+    '<div class="body">'+(d[3].length?'<p class="eyebrow">Considered and passed over</p><ul>'+d[3].map(x=>'<li>'+x+'</li>').join('')+'</ul>':'<p class="small soft">No alternatives recorded; this follows from the principles.</p>')+'</div></details>';
+}
+$('#backlist').innerHTML = BACK.map(decisionCard).join('');
+$('#frontlist').innerHTML = FRONT.map(decisionCard).join('');
+$('#prodlist').innerHTML = PROD.map(decisionCard).join('');
+
+/* ---------------- Principles ---------------- */
+const PR = [
+ ['Pure core, injected edges','No new Date(), Date.now() or random ids in domain or app code. Clock, ids, tokens and senders are passed in, so every rule runs with a fixed clock in tests.'],
+ ['Dependencies point inward','domain ← app ← adapters ← compose. Lint (eslint-plugin-boundaries) and lib/architecture.test.ts fail the build otherwise.'],
+ ['The database guards privacy, not logic','RLS on every table (a test fails if one lacks it), a cross-house isolation test driven by the table catalog, and no logic in SQL.'],
+ ['Results, not exceptions','Business failures are typed Result errors (duplicate_need, already_on_a_run, target_closed). A failed Result also rolls back the transaction.'],
+ ['Side effects are events','Every change returns DomainEvents that are recorded, and can notify, in the same transaction. No triggers.'],
+ ['History is append-only','activity_events has no UPDATE or DELETE grant for anyone. Undo writes a new event (item.reopened) instead of erasing one.'],
+ ['Every port has a fake, and the fakes are tested','Contract suites run the same tests against memory and real adapters; the memory UnitOfWork even mirrors RLS.'],
+ ['Invalid states can\'t be written','Discriminated unions in TypeScript and matching CHECK constraints in SQL: a chore can\'t be “done”, a request can\'t have a date.'],
+ ['Kind by default','No string calls a person late or failed; a lint enforces it. Feelings are about items, never people.'],
+ ['Small on purpose','One house, one language, free tiers, no queues or caches. Things are added only when earned (detail tables, email, Resend).']
+];
+$('#prlist').innerHTML = PR.map((p,i)=>'<div class="pr"><span class="k">'+String(i+1).padStart(2,'0')+'</span><b>'+esc(p[0])+'</b><p>'+esc(p[1])+'</p></div>').join('');
+
+/* ---------------- Gaps ---------------- */
+const GAPS = [
+ ['Not started','M5: hosting and launch','E1–E5 and Q5 are untouched by design: hosted Supabase (staging + prod), the Gmail sender, Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is also not installed yet.','docs/IMPLEMENTATION_PLAN.md §4 M5'],
+ ['Partly built','Offline shows no data','ARCHITECTURE §7.7 promises “the last cached data read-only when offline”. The service worker caches pages and build assets, but data comes from Supabase over another origin and TanStack Query isn\'t persisted, so an offline open shows the shell with nothing in it.','public/sw.js, lib/client/provider.tsx'],
+ ['Partly built','Swipe actions on cards','FRONTEND principle 6 and §5 call for swipe right = done, left = feeling. Deferred in T24 to “M4 polish”; T37 didn\'t add them. The check button covers “done”.','components/items/ItemCard.tsx'],
+ ['Partly built','30-day restore window','The archive confirm says “You can bring it back for 30 days”, but restoreItem has no time check and nothing purges. Either enforce it or change the copy.','components/items/ItemSheets.tsx:575, lib/domain/items.ts:326'],
+ ['Partly built','Undo for “Did it” and vote withdrawal','chore.undone and poll.vote_withdrawn exist in the event catalog but have no use cases (T21, T27 note these).','lib/domain/events.ts'],
+ ['Partly built','Rooms: add, archive, set element','room.added and room.archived are in the catalog; only rename and reorder are built (T17).','lib/app/house.ts'],
+ ['Partly built','Conflict detection on edits','§7.5 describes optimistic concurrency (where updated_at = :loaded → conflict). Saves are last-write-wins for now (T18).','lib/adapters/postgres/unit-of-work.ts'],
+ ['Partly built','Poll and run notifications don\'t deep-link','Item notifications open the item; poll, run and people notifications open Home or House, because there are no /p/[pollId] or /r/[runId] routes.','lib/domain/notifications.ts:142–199'],
+ ['Partly built','“Handled by” vs. the run\'s contact','Editing a task\'s “Handled by” while it sits on a request or visit isn\'t blocked, so the two can disagree (T30 note).','components/items/HandledByPicker.tsx'],
+ ['Partly built','security_events table','Invalid invite tokens are only console.warn\'d; the service-role-only table from §6.4 wasn\'t created.','lib/app/invites.ts'],
+ ['Docs drift','ARCHITECTURE §8 file tree','Lists /api/invites/*, /api/push/subscribe, /api/setup, /api/account/delete, p/[pollId], r/[runId], settings/, components/rooms/ and Storybook. Reality: server actions, sheets, /me, and /dev/kit.','docs/ARCHITECTURE.md §8'],
+ ['Docs drift','ARCHITECTURE §3.3 libraries','date-fns, date-fns-tz, rrule, React Hook Form and Sentry are listed; none are installed. Time is hand-written in lib/domain/time.ts.','docs/ARCHITECTURE.md §3.3, package.json'],
+ ['Docs drift','HouseQueries and Realtime descriptions','§4.1 lists feed(), needs(), calendar(range); the port actually returns raw lists that pure functions shape in the browser. §7.5 says Realtime subscribes per table; it listens only to activity_events.','docs/ARCHITECTURE.md §4.1, §7.5'],
+ ['Docs drift','costs.splitwise_copied_at','Still in the §6.2 schema; T29 replaced it with a cost.splitwise_copied activity row.','docs/ARCHITECTURE.md §6.2'],
+ ['Misplaced','Nil-UUID system actor, four copies','The same “Roomies itself” actor is built separately in setup.ts, push.ts, jobs.ts and invites.ts.','lib/app/{setup,push,jobs,invites}.ts'],
+ ['Misplaced','Behavior in the composition root','sendNotificationsNow (running a use case, logging) lives in compose.ts, which should only wire adapters.','lib/compose.ts'],
+ ['Misplaced','Stale comment in change-for-kind','Says polls, runs and costs “refresh everything”; they now map to their own tables.','lib/adapters/change-for-kind.ts:20']
+];
+const GAP_KINDS = ['All','Not started','Partly built','Docs drift','Misplaced'];
+let gapKind = 'All';
+function renderGaps(){
+  $('#gaplist').innerHTML = GAPS.filter(g=>gapKind==='All'||g[0]===gapKind).map(g=>
+    '<details class="card"><summary><span class="sum-title">'+esc(g[1])+'</span><span class="chip">'+esc(g[0])+'</span></summary><div class="body"><p>'+esc(g[2])+'</p><p class="where">'+esc(g[3])+'</p></div></details>').join('');
+}
+function filterBar(el, kinds, get, set, render, counts){
+  el.innerHTML='';
+  kinds.forEach(k=>{ const b=document.createElement('button'); b.type='button'; b.textContent=k+(counts?' '+counts(k):''); b.setAttribute('aria-pressed',String(get()===k)); b.addEventListener('click',()=>{ set(k); el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); render(); }); el.appendChild(b); });
+}
+filterBar($('#gapfilter'), GAP_KINDS, ()=>gapKind, k=>gapKind=k, renderGaps, k=>k==='All'?GAPS.length:GAPS.filter(g=>g[0]===k).length);
+renderGaps();
+
+/* ---------------- Recommendations ---------------- */
+const ADV = [
+ ['top','Backend','Stop the outbox from double-sending','Two senders can run at once (the after() call following each action and the 5-minute job). pending() selects unsent rows with no lock, so both can push the same message before either marks it sent.','Claim rows first: SELECT … FOR UPDATE SKIP LOCKED, or UPDATE … SET claimed_at = now() WHERE sent_at IS NULL AND claimed_at IS NULL RETURNING *.','lib/adapters/postgres/unit-of-work.ts:406, lib/app/push.ts:46'],
+ ['top','Backend','Send pushes outside the database transaction','makeSendNotifications calls the push services inside uow.run, holding a pooled connection for up to 100 messages × browsers of network calls. On Vercel with Supabase\'s transaction pooler, that invites timeouts; a crash after sending but before commit re-sends everything.','Claim in one short transaction, send with no transaction open, then mark sent in a second short one.','lib/app/push.ts'],
+ ['top','Backend','Revisit sign-in enumeration before launch','The app\'s own form always answers the same, but GoTrue\'s /auth/v1/otp answers unknown emails with a 422 and known ones with 200, and the anon key is public. Anyone can check whether an email has an account.','In E1, confirm the hosted behavior; if it still differs, put the auth endpoint behind the server route only or accept and document the risk.','docs/BUILD_LOG.md (T03)'],
+ ['high','Backend','Bound what the browser loads','items(houseId) and costs(houseId) return every row ever, including done and archived ones, and every activity event refetches items. Fine today; after a year of groceries it\'s thousands of rows on every tap.','Load open items plus a recent-done window (e.g. 30 days, which also matches restore), and fetch costs by month.','lib/adapters/supabase/house-queries.ts:85,95'],
+ ['high','Frontend','Make offline match the promise, or change the promise','Right now an offline open shows an empty shell.','Persist the TanStack cache to IndexedDB (persistQueryClient) and show a read-only banner; or edit ARCHITECTURE §7.7 to say “offline page only”.','public/sw.js, lib/client/provider.tsx'],
+ ['high','Frontend','Deep links for polls and runs','Push taps for polls and runs land on Home, where you then hunt for the thing.','Add /h/[id]/p/[pollId] and /r/[runId] that open the existing sheets, the same way /i/[itemId] does, and point notifications at them.','lib/domain/notifications.ts, app/h/[houseId]/'],
+ ['high','Backend','Add conflict detection to edits','Two roommates editing the same task (title, date, assignee) silently overwrite each other.','Carry updatedAt in the domain item and save with WHERE updated_at = :loaded; map zero rows to a conflict error and a “Someone just changed this” toast.','lib/adapters/postgres/unit-of-work.ts'],
+ ['normal','Backend','Guard the RLS mirror against drift','memory/db.ts re-implements each policy by hand. Contract tests catch behavior drift, but a new policy with no mirror goes unnoticed until someone writes a test for it.','Add a db test that lists pg_policies and compares it with a named list exported from memory/db.ts.','lib/adapters/memory/db.ts, supabase/tests/rls.test.ts'],
+ ['normal','Backend','Split the Postgres unit of work','One 720-line file holds every repo, so each new table grows it.','One file per repo (items.ts, runs.ts, polls.ts…) with unit-of-work.ts assembling them.','lib/adapters/postgres/unit-of-work.ts'],
+ ['normal','Backend','One system actor, one home','Four copies of the nil-UUID actor.','Export ROOMIES_SYSTEM from lib/domain/actor.ts; move sendNotificationsNow into lib/server.','lib/app/*.ts, lib/compose.ts'],
+ ['normal','Frontend','Break up the two biggest sheets','ItemSheets.tsx (600 lines) and RunSheet.tsx (560) mix layout, pickers and mutations.','Split by section (header, feelings, handled-by, costs, history) with a small hook per mutation group.','components/items/ItemSheets.tsx, components/runs/RunSheet.tsx'],
+ ['normal','Frontend','Avoid the theme flash','A forced Light or Dark theme is applied only after the profile loads, so the first paint shows the system theme.','Mirror the choice into a cookie and render data-theme on the server in app/layout.tsx.','components/shell/ThemeSync.tsx'],
+ ['normal','Frontend','Debounce live refetches','A bulk move of 5 tasks writes 5 activity rows, and each one invalidates items, runs and activity.','Coalesce invalidations per animation frame (or 150 ms) in useLiveHouse.','lib/client/hooks.ts:276'],
+ ['normal','Docs','Resync ARCHITECTURE with the build','Sections §3.3, §4.1, §6.2, §7.5 and §8 describe the plan, not what shipped (see Unfinished → Docs drift).','One docs-only commit before M5, so E-tasks start from an accurate map.','docs/ARCHITECTURE.md']
+];
+const ADV_KINDS = ['All','Backend','Frontend','Docs'];
+let advKind = 'All';
+const tierChip = t => t==='top'?'<span class="chip top">●● Top</span>':t==='high'?'<span class="chip high">High</span>':'<span class="chip">Normal</span>';
+function renderAdv(){
+  $('#advlist').innerHTML = ADV.filter(a=>advKind==='All'||a[1]===advKind).map(a=>
+    '<details class="card"><summary><span class="sum-title">'+esc(a[2])+'</span>'+tierChip(a[0])+'<span class="sum-sub">'+esc(a[1])+' · '+esc(a[3])+'</span></summary><div class="body"><p><b>Suggested fix.</b> '+esc(a[4])+'</p><p class="where">'+esc(a[5])+'</p></div></details>').join('');
+}
+filterBar($('#advfilter'), ADV_KINDS, ()=>advKind, k=>advKind=k, renderAdv, k=>k==='All'?ADV.length:ADV.filter(a=>a[1]===k).length);
+renderAdv();
+
+/* ---------------- Priority calculator ---------------- */
+const FEEL = [['anxious','😰','Anxious',20],['frustrated','😤','Frustrated',15],['confused','😕','Confused',5],['fine','🙂','Fine',0],['meh','😐','Meh',-5],['thanks','🙏','Thanks',0]];
+const counts = {anxious:0,frustrated:0,confused:0,fine:0,meh:0,thanks:0};
+const DUE = {none:[0,'No date'],w7:[5,'Within 7 days'],w3:[15,'Within 3 days'],today:[25,'Due today'],p1:[35+2,'1 day past'],p4:[35+8,'4 days past'],p10:[35+15,'10 days past']};
+const feelEl = $('#feel');
+FEEL.forEach(f=>{ const b=document.createElement('button'); b.type='button'; b.dataset.k=f[0]; b.innerHTML='<span class="e" aria-hidden="true">'+f[1]+'</span><span class="n">'+f[2]+' '+(f[3]>0?'+':'')+f[3]+'</span><span class="c">×0</span>'; b.addEventListener('click',()=>{ counts[f[0]]=(counts[f[0]]+1)%5; calc(); }); feelEl.appendChild(b); });
+function calc(){
+  const base = +$('#c-base').value; const dueKey = $('#c-due').value; const due = DUE[dueKey][0];
+  let feelSum = 0; const parts = [];
+  const baseName = $('#c-base').selectedOptions[0].textContent.split(' ')[0];
+  parts.push(baseName+' '+base);
+  if (due) parts.push(DUE[dueKey][1]+' +'+due);
+  FEEL.forEach(f=>{ const n=counts[f[0]]; feelSum += n*f[3]; if(n && f[3]) parts.push(f[1]+' ×'+n+' '+(f[3]>0?'+':'')+(n*f[3])); });
+  const raw = base+due+feelSum; const score = Math.max(0,Math.min(100,raw));
+  const tier = score>=70?'top':score>=45?'high':score>=20?'normal':'low';
+  $('#c-score').textContent = score;
+  $('#c-bar').style.width = score+'%';
+  const t = $('#c-tier');
+  t.className = 'chip'+(tier==='top'?' top':tier==='high'?' high':'');
+  t.textContent = tier==='top'?'●● Top':tier==='high'?'High':tier==='normal'?'Normal':'Low';
+  $('#c-break').textContent = 'Why is this here? '+parts.join(', ')+(raw!==score?' (clamped from '+raw+')':'')+'.';
+  feelEl.querySelectorAll('button').forEach(b=>{ const n=counts[b.dataset.k]; b.querySelector('.c').textContent='×'+n; b.classList.toggle('has',n>0); b.setAttribute('aria-label',b.querySelector('.n').textContent+', '+n+' roommates. Tap to add one'); });
+}
+$('#c-base').addEventListener('change',calc); $('#c-due').addEventListener('change',calc);
+$('#c-reset').addEventListener('click',()=>{ for(const k in counts) counts[k]=0; calc(); });
+counts.anxious = 1; calc();
+
+/* ---------------- Nav highlight ---------------- */
+const links = [...document.querySelectorAll('#navs a')];
+const secs = links.map(a=>document.querySelector(a.getAttribute('href')));
+function onScroll(){
+  let cur = 0; const y = window.scrollY + 120;
+  secs.forEach((s,i)=>{ if (s && s.offsetTop <= y) cur = i; });
+  links.forEach((a,i)=>{ const on = i===cur; if (on!==a.classList.contains('on')){ a.classList.toggle('on',on); if(on){ const nv=a.parentElement; nv.scrollLeft = a.offsetLeft - (nv.clientWidth - a.offsetWidth)/2; } } });
+}
+window.addEventListener('scroll', onScroll, {passive:true}); onScroll();
+})();
+</script>
+</body>
+</html>
