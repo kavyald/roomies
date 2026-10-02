@@ -4,7 +4,7 @@ Read this first. It covers where the project stands, how the work is planned (on
 
 ## Current state (as of 2026-09-30, after M4)
 
-**M0–M4 are done** (T01–T37, T40 + Q0–Q4 on `v1`): foundations, house & members, items, polls, runs & calendar, and notifications & polish. What's left is **M5** (hosting & launch, E1–E5 + Q5), which needs the owner's Supabase, Gmail and Vercel accounts: **don't start it unless the owner says so.** Locally you can do everything in M2 (needs/chores/tasks, feelings, the ranked Home feed, feeling weights, live updates) plus: start a run from Needs and work it (done / move / back to the pool / finish, with "Did you spend money?"), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (Spent this month on House, Open Splitwise), and see Coming up on Home and the month calendar. M4 added notifications: every recorded event can enqueue outbox messages in the same transaction (`withNotifications`), pg_cron calls `/api/cron/<job>` (tick, send-notifications, reminders, close-polls), Web Push goes to browsers that turned it on (production builds only; the service worker doesn't register on `pnpm dev`), and each person has settings at `/h/[houseId]/me` (categories, quiet hours, theme).
+**M0–M4 are done** (on `v1`): foundations, house & members, items, polls, runs & calendar, and notifications & polish. What's left is **M5** (hosting & launch), which needs the owner's Supabase, Gmail and Vercel accounts: **don't start it unless the owner says so.** Locally you can do everything in M2 (needs/chores/tasks, feelings, the ranked Home feed, feeling weights, live updates) plus: start a run from Needs and work it (done / move / back to the pool / finish, with "Did you spend money?"), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (Spent this month on House, Open Splitwise), and see Coming up on Home and the month calendar. M4 added notifications: every recorded event can enqueue outbox messages in the same transaction (`withNotifications`), pg_cron calls `/api/cron/<job>` (tick, send-notifications, reminders, close-polls), Web Push goes to browsers that turned it on (production builds only; the service worker doesn't register on `pnpm dev`), and each person has settings at `/h/[houseId]/me` (categories, quiet hours, theme).
 
 ```
 docs/                        PRD, ARCHITECTURE (decision log A1–A24), FRONTEND, TESTING, architecture-guide.html, archive/ (mockup-v1.html; ignored by docs-check)
@@ -62,9 +62,9 @@ Update this section as the build progresses: which milestone is done, what exist
 The tasks are the cards on the Weyve **roomies** project (below). Each card holds what to build (WHAT), a **"Done when"** line, its milestone and topic (tags), its dependencies (edges), and the decisions made while building it (notes). `docs/IMPLEMENTATION_PLAN.md` and `docs/BUILD_LOG.md` were retired on 2026-10-01; everything in them is on the cards.
 
 - **Task IDs:**
-  - **T01–T37** and **T40** are features and plumbing (there is no T12, T38 or T39; T40, the Activity tab's first pass, was added after M4). A new task takes the next free ID (**T41**).
-  - **Q0–Q5** are test tasks; each milestone ends with one.
-  - **E1–E5** need outside accounts.
+  - **T** cards are features, plumbing and fixes. A new task takes the next free T number on Weyve.
+  - **Q** cards are test tasks; each milestone ends with one.
+  - **E** cards need outside accounts.
 - **Milestones:**
   - **M0** Foundations
   - **M1** House & members

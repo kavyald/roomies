@@ -29,7 +29,7 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 | **Static** | Types, layer boundaries (`eslint-plugin-boundaries`), banned copy words | `tsc`, ESLint, a copy-lint test | whole repo | No |
 | **Unit** | Pure domain functions: priority, feed rules, runs, polls, costs, time and money | Vitest | `lib/domain/**/*.test.ts` | No |
 | **Use case** | Use cases on the in-memory adapters, with a fixed clock and sequential ids | Vitest + `depsForTest()` | `lib/app/**/*.test.ts` | No |
-| **Component** | Screens and components with a fake `AppClient` | Vitest + Testing Library (jsdom) | `app/**/*.test.tsx`, `components/**/*.test.tsx` | No |
+| **Component** | Screens and components with a fake `AppClient` (pre-membership screens like join call server actions directly; their tests `vi.mock` those modules) | Vitest + Testing Library (jsdom) | `app/**/*.test.tsx`, `components/**/*.test.tsx` | No |
 | **Contract** | One shared suite per port, run against both the memory and the Postgres adapter | Vitest | `lib/adapters/contracts/*.contract.ts` | Yes, for the Postgres run |
 | **Database** | RLS on each table, isolation between houses, CHECK constraints, append-only `activity_events`, and that every table has RLS | Vitest + `pg`, via `asUser()` | `supabase/tests/*.test.ts` | Yes |
 | **End to end** | Real journeys on the iPhone profile, plus axe accessibility checks | Playwright; sign-in codes read from Mailpit | `e2e/m0-*.spec.ts` … `e2e/m4-*.spec.ts` | Yes |

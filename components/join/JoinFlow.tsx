@@ -42,6 +42,9 @@ export function JoinFlow({
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [roomId, setRoomId] = useState<RoomId | null>(null)
+  // Decided once, not from the live value: hiding the field when `name` fills in would remove it
+  // after the first letter. Arriving signed in skips the step that asks for a name.
+  const [askName, setAskName] = useState(signedIn)
   const [message, setMessage] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -61,6 +64,7 @@ export function JoinFlow({
     start(async () => {
       const r = await verifyCode(email, value)
       if (!r.ok) return setMessage(say(r.error))
+      setAskName(!name.trim())
       setStep('room')
     })
   }
@@ -130,7 +134,7 @@ export function JoinFlow({
     <form onSubmit={join} className="grid gap-4">
       <h2 className="m-0 text-xl font-extrabold">Which room is yours?</h2>
       <p className="m-0 text-sm text-ink-soft">Your room sets your color in the app.</p>
-      {!name && (
+      {askName && (
         <Field
           id="name"
           label="Your name"
