@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { aRoommate, ownerOnHouseTab } from './support'
 
-test('finishing a grocery run with $42.50 records one cost on the run and updates Spent this month', async ({
+test('a grocery run in about six taps: finishing with $40 records one cost on the run and updates Spent this month', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
@@ -10,29 +10,37 @@ test('finishing a grocery run with $42.50 records one cost on the run and update
 
   await page.goto(`/h/${owner.houseId}/needs`)
   const weNeed = page.getByLabel('We need…')
-  for (const title of ['Milk', 'Eggs']) {
+  for (const title of ['Milk', 'Eggs', 'Bread']) {
     await weNeed.fill(title)
     await weNeed.press('Enter')
     await expect(page.getByRole('list', { name: 'Needs' })).toContainText(title)
   }
+
+  // The T44 Done-when, counted in taps: Start a run (1) → Start run, everything pre-checked (2) →
+  // Milk, Eggs, Bread, one tap each (3–5) → the Spent field (6), type 40 → Finish (7).
+  // Before T44 it was about 12: Start a run, check 3, Start run, check 3, Done, Finish, Amount,
+  // Save and finish.
   await page.getByRole('button', { name: 'Start a run' }).click()
   const start = page.getByRole('dialog', { name: 'Start a run' })
-  await start.getByRole('button', { name: 'Select all' }).click()
-  await start.getByLabel('Title (optional)').fill('Groceries')
-  await start.getByRole('button', { name: 'Start run' }).click()
+  await start.getByRole('button', { name: 'Start run · 3 things' }).click()
 
-  const run = page.getByRole('dialog', { name: 'Groceries' })
-  await run.getByRole('button', { name: 'Select all' }).click()
-  await run.getByRole('button', { name: 'Done', exact: true }).click()
-  await expect(run).toContainText('2 of 2 done')
+  const run = page.getByRole('dialog', { name: "Kavya's run" })
+  const rows = run.getByRole('list', { name: 'On this run' })
+  for (const title of ['Milk', 'Eggs', 'Bread']) {
+    await rows.getByRole('checkbox', { name: title }).click()
+    await expect(rows.getByRole('checkbox', { name: title })).toBeChecked()
+  }
+  await expect(run).toContainText('3 of 3 done')
+  await run.getByLabel('Spent (optional)').fill('40')
+  await expect(run.getByLabel('Who paid')).toHaveValue(owner.userId)
   await run.getByRole('button', { name: 'Finish' }).click()
-  await run.getByLabel('Amount').fill('42.50')
-  await run.getByRole('button', { name: 'Save and finish' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Finished. Thanks!' })).toBeVisible()
+  const toast = page.getByRole('status').filter({ hasText: 'Finished. $40.00 noted.' })
+  await expect(toast).toBeVisible()
+  await expect(toast.getByRole('button', { name: 'Open Splitwise' })).toBeVisible()
 
   await page.getByRole('link', { name: 'House' }).click()
   await expect(page.getByLabel('Spent this month')).toContainText(
-    'Spent this month: $42.50 · your share $21.25',
+    'Spent this month: $40.00 · your share $20.00',
   )
 
   // A cost on an item, paid by someone else.
@@ -58,5 +66,5 @@ test('finishing a grocery run with $42.50 records one cost on the run and update
   ).toHaveAccessibleDescription('$189.00')
   await page.keyboard.press('Escape')
   await page.getByRole('link', { name: 'House' }).click()
-  await expect(page.getByLabel('Spent this month')).toContainText('Spent this month: $231.50')
+  await expect(page.getByLabel('Spent this month')).toContainText('Spent this month: $229.00')
 })

@@ -1,11 +1,13 @@
 'use client'
 
+import { ChevronDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Field } from '@/components/auth/fields'
 import { FeelingCounts } from '@/components/items/Feelings'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
+import { cn } from '@/components/ui/cn'
 import { useFeelingsByItem, useHouse, useItems, useStartRun } from '@/lib/client/hooks'
 import { feelingScore } from '@/lib/domain/feelings'
 import type { HouseId, ItemId, RunId } from '@/lib/domain/ids'
@@ -13,8 +15,9 @@ import { needList } from '@/lib/domain/lists'
 import type { LocalDate } from '@/lib/domain/time'
 
 /**
- * "Start a run" (FRONTEND §5.5): a checklist of open needs that aren't on a run yet (the ones with a
- * feeling first), an optional title and date.
+ * "Start a run" (FRONTEND §5.5): every open need that isn't on a run yet, already checked (the ones
+ * with a feeling first), so the usual run is one tap. Uncheck what you won't get; a title and date
+ * sit behind More options (T44).
  */
 export function StartRunSheet({
   houseId,
@@ -30,7 +33,9 @@ export function StartRunSheet({
   const feelingsBy = useFeelingsByItem(houseId)
   const start = useStartRun(houseId)
   const toast = useToast()
-  const [picked, setPicked] = useState<ReadonlySet<ItemId>>(new Set())
+  // What's left out (not what's in), so needs that load or arrive later start checked too.
+  const [skipped, setSkipped] = useState<ReadonlySet<ItemId>>(new Set())
+  const [more, setMore] = useState(false)
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
 
@@ -42,11 +47,12 @@ export function StartRunSheet({
       ).filter((n) => !n.run),
     [items.data, feelingsBy, weights],
   )
-  const all = picked.size === needs.length && needs.length > 0
+  const picked = needs.filter((n) => !skipped.has(n.id)).map((n) => n.id)
+  const all = picked.length === needs.length && needs.length > 0
 
   const submit = async () => {
     const r = await start.mutateAsync({
-      itemIds: [...picked],
+      itemIds: picked,
       ...(title.trim() && { title }),
       ...(date && { when: { date: date as LocalDate } }),
     })
@@ -66,9 +72,9 @@ export function StartRunSheet({
       open
       onOpenChange={(o) => !o && onClose()}
       title="Start a run"
-      description="Pick what you'll get. Everyone sees it's on your run."
+      description="Everything's checked. Uncheck what you won't get."
     >
-      {needs.length === 0 ? (
+      {!items.data ? null : needs.length === 0 ? (
         <p className="m-0 text-ink-soft">Everything on the list is already on a run.</p>
       ) : (
         <>
@@ -76,7 +82,7 @@ export function StartRunSheet({
             variant="secondary"
             size="small"
             className="justify-self-start"
-            onClick={() => setPicked(all ? new Set() : new Set(needs.map((n) => n.id)))}
+            onClick={() => setSkipped(all ? new Set(needs.map((n) => n.id)) : new Set())}
           >
             {all ? 'Clear' : 'Select all'}
           </Button>
@@ -87,10 +93,10 @@ export function StartRunSheet({
                   <input
                     type="checkbox"
                     className="size-5 accent-[var(--accent)]"
-                    checked={picked.has(n.id)}
+                    checked={!skipped.has(n.id)}
                     onChange={() =>
-                      setPicked((p) => {
-                        const next = new Set(p)
+                      setSkipped((s) => {
+                        const next = new Set(s)
                         if (next.has(n.id)) next.delete(n.id)
                         else next.add(n.id)
                         return next
@@ -105,23 +111,42 @@ export function StartRunSheet({
           </ul>
         </>
       )}
-      <Field
-        id="run-title"
-        label="Title (optional)"
-        placeholder="Amazon order"
-        maxLength={80}
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-      <Field
-        id="run-date"
-        label="When (optional)"
-        type="date"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-      />
-      <Button block disabled={start.isPending || picked.size === 0} onClick={submit}>
-        Start run
+      <button
+        type="button"
+        aria-expanded={more}
+        aria-controls="start-run-more"
+        onClick={() => setMore((m) => !m)}
+        className="flex min-h-11 items-center gap-1.5 justify-self-start text-sm font-extrabold text-accent-ink"
+      >
+        More options
+        <ChevronDown
+          aria-hidden
+          className={cn('size-4 transition-transform', more && 'rotate-180')}
+        />
+      </button>
+      {more && (
+        <div id="start-run-more" className="grid gap-2.5">
+          <Field
+            id="run-title"
+            label="Title (optional)"
+            placeholder="Amazon order"
+            maxLength={80}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <Field
+            id="run-date"
+            label="When (optional)"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+      )}
+      <Button block disabled={start.isPending || picked.length === 0} onClick={submit}>
+        {picked.length === 0
+          ? 'Start run'
+          : `Start run · ${picked.length} ${picked.length === 1 ? 'thing' : 'things'}`}
       </Button>
     </Sheet>
   )

@@ -10,22 +10,27 @@ import { Sheet } from '@/components/ui/Sheet'
 import { useCelebrate, useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
 import {
+  useAddToRun,
   useFinishRun,
   useHandToContact,
   useHouse,
   useItems,
   useMarkRunItemsDone,
+  useMembers,
   useMoveRunItems,
   useMoveToNewVisit,
+  useProfiles,
+  useReopenItem,
   useReturnToPool,
   useRunActivity,
   useRuns,
 } from '@/lib/client/hooks'
+import { useAppClient } from '@/lib/client/provider'
 import { useNow } from '@/lib/client/use-now'
 import { describeWhen } from '@/lib/domain/format'
 import type { HouseId, ItemId, RunId, UserId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
-import type { Cents } from '@/lib/domain/money'
+import { formatCents, parseCents, type Cents } from '@/lib/domain/money'
 import {
   isRunOpen,
   runLedger,
@@ -35,7 +40,6 @@ import {
   type Run,
 } from '@/lib/domain/runs'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
-import { useCostFields } from '@/components/costs/CostForm'
 import { useSplitwise } from '@/components/costs/useSplitwise'
 import { useContactChoice } from './ContactChoice'
 import { requestStage } from './meta'
@@ -47,7 +51,9 @@ const NEW_VISIT = '__new_visit'
 
 /**
  * A run's sheet (FRONTEND §5.9): every item that's been on it, and bulk actions on a selection.
- * Requests add "Add more" and "Send request"; visits show their date.
+ * In a batch, tapping a row marks it done (tap again to put it back on the run), and the bulk
+ * actions sit behind "Move or put back…" (T44). Requests add "Add more" and "Send request";
+ * visits show their date.
  */
 export function RunSheet({
   houseId,
@@ -113,8 +119,14 @@ function RunSheetFor({
   const back = useReturnToPool(houseId)
   const hand = useHandToContact(houseId)
   const finish = useFinishRun(houseId)
+  const reopen = useReopenItem(houseId)
+  const addBack = useAddToRun(houseId)
   const handTo = useContactChoice(houseId, { id: 'hand-to', label: 'Hand to' })
   const [selected, setSelected] = useState<ReadonlySet<ItemId>>(new Set())
+  // A batch's rows are one-tap "done" toggles until you pick "Move or put back…".
+  const [selecting, setSelecting] = useState(false)
+  // Rows whose tap is still being saved (shown in their new state meanwhile).
+  const [saving, setSaving] = useState<ReadonlySet<ItemId>>(new Set())
   const [panel, setPanel] = useState<Panel>(null)
   const [note, setNote] = useState('')
   const [target, setTarget] = useState<string>('')
@@ -131,8 +143,11 @@ function RunSheetFor({
   const busy = [done, move, toNewVisit, back, hand, finish].some((m) => m.isPending)
   const contactName = run.kind === 'batch' ? undefined : ctx.contacts.get(run.contactId)?.name
 
+  const tapMode = run.kind === 'batch' && open && (!selecting || pending.length === 0)
+
   const reset = () => {
     setSelected(new Set())
+    setSelecting(false)
     setPanel(null)
     setNote('')
     setTarget('')
@@ -148,6 +163,49 @@ function RunSheetFor({
       else next.add(id)
       return next
     })
+
+  const withSaving = async (id: ItemId, work: () => Promise<void>) => {
+    setSaving((s) => new Set(s).add(id))
+    try {
+      await work()
+    } finally {
+      setSaving((s) => {
+        const next = new Set(s)
+        next.delete(id)
+        return next
+      })
+    }
+  }
+  /** One tap in a batch: it's done. */
+  const markGot = (id: ItemId) =>
+    withSaving(id, async () => {
+      const r = await done.mutateAsync({ runId: run.id, itemIds: [id] })
+      if (r.ok) celebrate()
+      else toast("Couldn't do that. Try again.")
+    })
+  /** Tapping a done row again (a mis-tap): it's open again and back on this run. */
+  const unmark = (item: Item) =>
+    withSaving(item.id, async () => {
+      const r = await reopen.mutateAsync(item.id)
+      if (!r.ok) {
+        return toast(
+          r.error === 'duplicate_need'
+            ? "It's already back on the list."
+            : "Couldn't put it back. Try again.",
+        )
+      }
+      const again = await addBack.mutateAsync({ runId: run.id, itemIds: [item.id] })
+      if (!again.ok) toast("It's back on the list, but couldn't go back on this run.")
+    })
+  /** A done row the runner can still put back: done on this run, still done, and not elsewhere. */
+  const canUnmark = (e: LedgerEntry, item: Item | undefined): item is Item =>
+    tapMode &&
+    e.state.at === 'done' &&
+    !!item &&
+    item.category !== 'chore' &&
+    !!item.done &&
+    !item.run &&
+    !item.archivedAt
 
   // Requests and visits take tasks only; a sent request takes nothing more.
   const tasksOnly = chosenItems.length > 0 && chosenItems.every((i) => i.category === 'task')
@@ -209,6 +267,36 @@ function RunSheetFor({
             const item = byId.get(e.itemId)
             const title = item?.title ?? 'An item'
             const Icon = item ? CATEGORY[item.category].icon : Check
+            if (tapMode && (e.state.at === 'pending' || canUnmark(e, item))) {
+              const isDone = e.state.at === 'done'
+              const inFlight = saving.has(e.itemId)
+              // Shown in its new state while the tap saves.
+              const checked = isDone !== inFlight
+              return (
+                <li key={e.itemId}>
+                  <label className="flex min-h-12 items-center gap-3 rounded-2xl px-1">
+                    <input
+                      type="checkbox"
+                      className="size-5 accent-[var(--accent)]"
+                      checked={checked}
+                      disabled={inFlight}
+                      onChange={() => (isDone && item ? void unmark(item) : void markGot(e.itemId))}
+                    />
+                    <Icon aria-hidden className="size-4 text-ink-soft" />
+                    <span className="min-w-0 flex-1">
+                      <span className={cn('font-bold', checked && 'text-ink-soft line-through')}>
+                        {title}
+                      </span>
+                      {isDone && (
+                        <span className="block text-[0.8rem] font-semibold text-ink-soft">
+                          ✓ {doneLabel} · tap to put it back
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </li>
+              )
+            }
             if (e.state.at === 'pending' && open) {
               return (
                 <li key={e.itemId}>
@@ -243,9 +331,26 @@ function RunSheetFor({
         </ul>
       )}
 
-      {open && pending.length > 0 && (
+      {tapMode && pending.length > 0 && (
+        <Button
+          variant="secondary"
+          size="small"
+          className="justify-self-start"
+          disabled={saving.size > 0}
+          onClick={() => setSelecting(true)}
+        >
+          Move or put back…
+        </Button>
+      )}
+
+      {open && !tapMode && pending.length > 0 && (
         <div className="grid gap-2.5">
           <div className="flex flex-wrap items-center gap-2">
+            {run.kind === 'batch' && (
+              <Button variant="secondary" size="small" onClick={reset}>
+                Cancel
+              </Button>
+            )}
             <Button
               variant="secondary"
               size="small"
@@ -430,6 +535,7 @@ function RunSheetFor({
           run={run}
           left={pending.length}
           label={label}
+          waiting={saving.size > 0}
           onFinished={onClose}
         />
       )}
@@ -489,74 +595,125 @@ const outcome = (
 }
 
 /**
- * Finish: anything left goes back to the pool. A batch first asks "Did you spend money?" and
- * records one cost on the run (PRD §6.6).
+ * Finish: anything left goes back to the pool. A batch has an optional "Spent" amount beside it
+ * (T44, replacing the separate "Did you spend money?" step): empty finishes with no cost; an
+ * amount records one cost on the run, paid by you unless you change "Who paid" (PRD §6.6).
  */
 function FinishRun({
   houseId,
   run,
   left,
   label,
+  waiting,
   onFinished,
 }: {
   houseId: HouseId
   run: Run
   left: number
   label: string
+  /** A row's tap is still saving: finishing now would put it back in the pool. */
+  waiting: boolean
   onFinished: () => void
 }) {
+  const { me } = useAppClient()
   const finish = useFinishRun(houseId)
+  const members = useMembers(houseId)
+  const profiles = useProfiles(houseId)
   const toast = useToast()
   const celebrate = useCelebrate()
   const splitwise = useSplitwise(houseId)
-  const cost = useCostFields(houseId, 'run-cost')
-  const [asking, setAsking] = useState(false)
+  const [amount, setAmount] = useState('')
+  const [paidBy, setPaidBy] = useState<string>(me)
+  const parsed = parseCents(amount)
+  const spent = parsed.ok && parsed.value > 0
+  const bad = amount.trim() !== '' && !spent
+  const names = new Map((profiles.data ?? []).map((p) => [p.id as string, p.displayName]))
+  const people = (members.data ?? []).filter((m) => m.status.active)
 
-  const go = async (spent?: { amount: Cents; paidBy: UserId; note?: string }) => {
+  const go = async (cost?: { amount: Cents; paidBy: UserId }) => {
     const r = await finish.mutateAsync({
       runId: run.id,
-      ...(spent && { spent: spent.amount, paidBy: spent.paidBy, note: spent.note }),
+      ...(cost && { spent: cost.amount, paidBy: cost.paidBy }),
     })
     if (!r.ok) return toast("Couldn't finish it. Try again.")
     celebrate()
+    const recorded = r.value.cost
     const back =
       left === 0 ? '' : ` ${left === 1 ? '1 thing went' : `${left} things went`} back to the pool.`
-    const recorded = r.value.cost
+    const noted = recorded ? ` ${formatCents(recorded.amount)} noted.` : ''
     toast(
-      `Finished.${back || ' Thanks! 💛'}`,
+      `Finished.${noted}${back || (recorded ? '' : ' Thanks! 💛')}`,
       recorded ? { label: 'Open Splitwise', onClick: () => splitwise(recorded, label) } : undefined,
     )
     onFinished()
   }
 
-  if (run.kind === 'batch' && asking) {
-    return (
-      <div className="grid gap-2.5 rounded-2xl bg-paper p-3">
-        <p className="m-0 font-extrabold">Did you spend money?</p>
-        {cost.fields}
-        <Button
-          disabled={finish.isPending || !cost.valid}
-          onClick={() => {
-            const v = cost.value()
-            if (v) void go(v)
-          }}
-        >
-          Save and finish
-        </Button>
-        <Button variant="secondary" disabled={finish.isPending} onClick={() => go()}>
-          No, just finish
-        </Button>
-      </div>
-    )
-  }
-  return (
+  const button = (
     <Button
       variant={left === 0 ? 'primary' : 'secondary'}
-      block
-      disabled={finish.isPending}
-      onClick={() => (run.kind === 'batch' ? setAsking(true) : go())}
+      block={run.kind !== 'batch'}
+      disabled={finish.isPending || waiting || bad}
+      onClick={() =>
+        go(
+          parsed.ok && parsed.value > 0
+            ? { amount: parsed.value, paidBy: paidBy as UserId }
+            : undefined,
+        )
+      }
     >
       Finish
     </Button>
+  )
+  if (run.kind !== 'batch') return button
+
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-end gap-2">
+        <div className="grid flex-1 gap-1.5">
+          <label htmlFor="run-spent" className="text-[0.8rem] font-extrabold text-ink-soft">
+            Spent (optional)
+          </label>
+          <input
+            id="run-spent"
+            className={inputClass}
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="$0.00"
+            aria-invalid={bad || undefined}
+            aria-describedby={bad ? 'run-spent-hint' : undefined}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </div>
+        {button}
+      </div>
+      {bad && (
+        <p id="run-spent-hint" className="m-0 text-[0.8rem] font-semibold text-ink-soft">
+          Try an amount like 40 or 42.50, or leave it empty.
+        </p>
+      )}
+      {spent && people.length > 1 && (
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor="run-paid-by"
+            className="text-[0.8rem] font-extrabold whitespace-nowrap text-ink-soft"
+          >
+            Who paid
+          </label>
+          <select
+            id="run-paid-by"
+            className={inputClass}
+            value={paidBy}
+            onChange={(e) => setPaidBy(e.target.value)}
+          >
+            {people.map((m) => (
+              <option key={m.userId} value={m.userId}>
+                {m.userId === me ? 'Me' : (names.get(m.userId) ?? 'Roommate')}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
   )
 }

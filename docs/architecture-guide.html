@@ -403,7 +403,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
       <h3>Runs: three kinds, one machine</h3>
       <p class="small soft" style="margin-top:4px">A run is anything that works through several items at once. Items point at their current run; where they've been is read back from activity.</p>
       <div style="display:grid;gap:10px;margin-top:10px">
-        <div><p class="eyebrow">Batch · “Kavya's grocery run”</p><div class="flowrow"><span class="st">open</span><span class="ar">→</span><span class="st">finished</span><span class="soft small">“Did you spend money?”</span></div></div>
+        <div><p class="eyebrow">Batch · “Kavya's grocery run”</p><div class="flowrow"><span class="st">open</span><span class="ar">→</span><span class="st">finished</span><span class="soft small">optional “Spent” on Finish</span></div></div>
         <div><p class="eyebrow">Request · tasks for the landlord</p><div class="flowrow"><span class="st">gathering</span><span class="ar">→</span><span class="st">sent</span><span class="ar">→</span><span class="st">closed</span><span class="soft small">auto-closes when emptied</span></div></div>
         <div><p class="eyebrow">Visit · the landlord has taken them on</p><div class="flowrow"><span class="st">open (date optional)</span><span class="ar">→</span><span class="st">finished</span></div></div>
         <p class="small">Recording a reply is just moving tasks: <b>to a visit</b>, <b>back to the pool</b> with a note, <b>hand to another contact</b>, or <b>done</b>. No reply form (D22).</p>
@@ -486,7 +486,7 @@ const LAYERS = [
     ['makeMoveRunItems · makeReturnToPool · makeHandToContact · makeMoveToNewVisit','The bulk actions that record a reply. One action_id per bulk action.'],
     ['makeStartRequest · makeAddToRequest · makeSendRequest','Gathering → sent. The server rebuilds the numbered message for the event.'],
     ['makePlanVisit · makeSetVisitDate','Visits with an optional date.'],
-    ['makeFinishRun','Returns leftovers to the pool and can record “Did you spend money?” as a cost in the same transaction.'] ]},
+    ['makeFinishRun','Returns leftovers to the pool and can record the optional “Spent” amount as a cost in the same transaction.'] ]},
   { name:'polls.ts · costs.ts', desc:'9 use cases', fns:[
     ['makeCreatePoll · makeVote · makeAddPollOption · makeClosePoll','Anyone adds options while open; ties are ties.'],
     ['makeWithdrawVote · makeReopenPoll · makeSetPollDeadline','Take your vote back while open; anyone reopens or changes the deadline.'],

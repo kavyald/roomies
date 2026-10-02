@@ -17,10 +17,12 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
   }
 
   // A second run first, so there's somewhere to move things.
-  const startRun = async (title: string, picks: string[]) => {
+  // Every open need starts checked (T44): uncheck what you won't get.
+  const startRun = async (title: string, skip: string[]) => {
     await page.getByRole('button', { name: 'Start a run' }).click()
     const sheet = page.getByRole('dialog', { name: 'Start a run' })
-    for (const p of picks) await sheet.getByRole('checkbox', { name: p, exact: true }).check()
+    for (const p of skip) await sheet.getByRole('checkbox', { name: p, exact: true }).uncheck()
+    await sheet.getByRole('button', { name: 'More options' }).click()
     await sheet.getByLabel('Title (optional)').fill(title)
     await sheet.getByRole('button', { name: 'Start run' }).click()
     await expect(sheet).toBeHidden()
@@ -28,21 +30,27 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
     await expect(run).toBeVisible()
     return run
   }
-  let run = await startRun('Saturday', ['Oat milk'])
+  let run = await startRun('Saturday', ['Milk', 'Eggs', 'Soap', 'Bread'])
   await page.keyboard.press('Escape')
   await expect(run).toBeHidden()
 
   // Only what's not on a run is offered, and each item shows the run it's on.
-  run = await startRun('Groceries', ['Milk', 'Eggs', 'Soap', 'Bread'])
+  run = await startRun('Groceries', [])
   const rows = run.getByRole('list', { name: 'On this run' })
   await expect(rows.getByRole('checkbox')).toHaveCount(4)
   await expect(run).toContainText('0 of 4 done')
 
+  // In a batch one tap marks a row done, and tapping it again puts it back on the run (T44).
   await rows.getByRole('checkbox', { name: 'Milk' }).check()
-  await run.getByRole('button', { name: 'Done', exact: true }).click()
   await expect(run).toContainText('✓ Done')
   await expect(run).toContainText('1 of 4 done')
+  await rows.getByRole('checkbox', { name: 'Milk' }).uncheck()
+  await expect(run).toContainText('0 of 4 done')
+  await rows.getByRole('checkbox', { name: 'Milk' }).check()
+  await expect(run).toContainText('1 of 4 done')
 
+  // Moving and putting back still work on a selection, behind "Move or put back…".
+  await run.getByRole('button', { name: 'Move or put back…' }).click()
   await rows.getByRole('checkbox', { name: 'Eggs' }).check()
   await run.getByRole('button', { name: 'Move to…' }).click()
   await run.getByLabel(/Move it to/).selectOption({ label: 'Saturday' })
@@ -50,15 +58,15 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
   await run.getByRole('button', { name: 'Move', exact: true }).click()
   await expect(run).toContainText('Moved → Saturday · Sold out')
 
+  await run.getByRole('button', { name: 'Move or put back…' }).click()
   await rows.getByRole('checkbox', { name: 'Soap' }).check()
   await run.getByRole('button', { name: 'Back to the pool…' }).click()
   await run.getByLabel('Note').fill('We have some')
   await run.getByRole('button', { name: 'Put back' }).click()
   await expect(run).toContainText('Back in the pool · We have some')
 
+  // An empty amount finishes with no cost.
   await run.getByRole('button', { name: 'Finish' }).click()
-  await expect(run).toContainText('Did you spend money?')
-  await run.getByRole('button', { name: 'No, just finish' }).click()
   await expect(
     page.getByRole('status').filter({ hasText: 'Finished. 1 thing went back to the pool.' }),
   ).toBeVisible()
@@ -104,7 +112,7 @@ test("a run can be renamed, handed to a roommate, and named back; a visit's poin
   await weNeed.press('Enter')
   await page.getByRole('button', { name: 'Start a run' }).click()
   const start = page.getByRole('dialog', { name: 'Start a run' })
-  await start.getByRole('checkbox', { name: 'Milk', exact: true }).check()
+  await expect(start.getByRole('checkbox', { name: 'Milk', exact: true })).toBeChecked()
   await start.getByRole('button', { name: 'Start run' }).click()
 
   let run = page.getByRole('dialog', { name: "Kavya's run" })

@@ -277,7 +277,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 
 - The shared list. Needs with a feeling come first (by priority), then newest. Each row has a check circle (**Got it**, with **Undo** in the toast), the title, an optional note, its feeling emoji, badges ("On Wren's run", "Poll", "$189"), and **🙂+** at the end, which opens the emoji tray under the row. Rows swipe like cards (§5.1): right = Got it, left = the tray. There's no Soon toggle: a 😰 or 😤 feeling is how someone says "we need this soon."
 - An add field at the top: "We need…". Adding something already on the list points to the existing one.
-- **Start a run**: a sheet with a checklist of open needs (*Select all* / *Clear*; needs with a feeling show their emoji and are listed first), an optional title ("Amazon order"), and an optional date → **Start run**.
+- **Start a run**: a sheet with a checklist of open needs that aren't on a run yet, **all checked to start** (uncheck what you won't get; *Select all* / *Clear*; needs with a feeling show their emoji and are listed first). An optional title ("Amazon order") and date sit behind **More options** → **Start run · 3 things**. A usual grocery run (start, get 3 things, finish with $40) is about 6 taps.
 
 ### 5.6 Chores tab
 
@@ -305,14 +305,16 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 
 - **Header:** point person or runner, the contact (for requests and visits), and the date (a visit shows *Change / Set a date*). While the run is going, *Change* hands it to another roommate and *Rename* edits its name (empty, or *Use "Kavya's run"*, goes back to the usual name).
 - **Request stage line:** "Gathering: not sent yet" or "Sent 2 days ago by text · no reply recorded yet."
-- **Rows:** every item that's been on the run. Pending ones have a **selection checkbox**, and resolved ones show where they went ("Moved → Landlord visit", "Back in the pool · that one's on us", "✓ Fixed").
+- **Rows:** every item that's been on the run, and resolved ones show where they went ("Moved → Landlord visit", "Back in the pool · that one's on us", "✓ Fixed").
+  - **Batches:** tapping a row marks it done right away (no select-then-Done). A done row stays checked and struck through ("✓ Done · tap to put it back"); tapping it again reopens the item and puts it back on the run, so a mis-tap is one more tap. **Move or put back…** switches the rows to selection checkboxes for the actions below (*Cancel* switches back).
+  - **Requests and visits:** pending rows have a **selection checkbox**, since their actions are moves.
 - **Selection actions** (a row of buttons that apply to the selected items; *Select all* first):
   - **Move to a visit…** (primary on requests) / **Move to…** (other kinds): pick an open run or a **new visit** with the same contact (optional date), plus an optional note. Requests and visits only accept tasks, so a selection that includes needs or chores only offers batches.
   - **Back to the pool…**: a note, and "Change *Handled by* to One of us" (checked by default for requests and visits)
   - **Hand to…**: another contact or **+ Someone new**, plus an optional note. The items join that contact's unsent list.
   - **Done** / **Fixed**
 - **Request buttons:** *Add more* and **Send request** while gathering. Send opens the composed message with **Copy message**, a "Sent by" picker, and **Mark as sent**.
-- **Batch and visit button:** **Finish** (anything left goes back to the pool). Batches then ask "Did you spend money?"
+- **Batch and visit button:** **Finish** (anything left goes back to the pool). A batch has an optional **Spent** amount beside it: empty finishes with no cost; an amount records one cost on the run, paid by you (*Who paid* appears once there's an amount, to change it). The toast says "Finished. $40.00 noted." with **Open Splitwise**.
 - A footnote on requests: "Recording their reply is just moving tasks." 
 
 ### 5.10 Calendar

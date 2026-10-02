@@ -198,20 +198,21 @@ A run is **a batch of items handled together**. There are three kinds:
 - **Bulk by design:** one reply usually covers several tasks, so every action works on a selection.
 - **A request closes on its own** once nothing is left on it.
 - **History:** each task keeps a history of every request and visit it passed through, with the notes ("Sent to landlord by text → Moved to Landlord visit · Sending a plumber → Fixed").
-- The same actions work in batches and visits too (e.g. move an item from Wren's run to Saturday's run).
+- The same actions work in batches and visits too (e.g. move an item from Wren's run to Saturday's run). In a batch they sit behind **Move or put back…**, since a tap on a row there marks it done.
 
 **Visits and batches**
 - **Planning a visit** directly (when they've already agreed): Tasks → Requests & visits → **+ New** → *They've agreed (visit)*. It's also created by "Move to a visit → New visit."
 - **Requests and visits hold tasks only.** Needs and chores stay in batches.
 - **Finishing:** mark things done or fixed as you go, then **Finish**. Anything left goes back to the pool with the note "Not done this time."
-- **Batches** ask **"Did you spend money?"** on finish, which records one cost (§6.6).
+- **Batches** have an optional **Spent** amount beside **Finish** ("Did you spend money?" without a separate step): an amount records one cost paid by you (who paid can be changed), and leaving it empty records none (§6.6).
+- **Fewer taps:** *Start a run* opens with every open need not already on a run checked, and in a batch tapping an item marks it done (tap again to put it back on the run). A grocery run (start, get 3 things, finish with $40) is about 6 taps.
 - While open, items show **"On Kavya's run"** or **"Sent to Landlord · 2 days ago"** so nobody doubles up. **An item can be on only one open run at a time.**
 - Runs with a date show in Coming up and on the calendar.
 
 ### 6.6 Money (costs)
 
 - **[DECIDED]** Money is a **cost record**: an amount, who paid, an optional note, and what it was for (an item or a run). Nothing requires one.
-- **Adding one:** "Add cost" on any item, or "Did you spend money?" when finishing a run.
+- **Adding one:** "Add cost" on any item, or the **Spent** amount beside a batch's **Finish**.
 - **Split** is equal among all members in v1.
 - **Open Splitwise** copies "{title} — ${amount}" and opens Splitwise. **[DECIDED] (owner)** There's no Splitwise API in v1.
 - The House tab shows **"Spent this month: $X · your share $Y"**.

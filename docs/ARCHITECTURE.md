@@ -731,7 +731,7 @@ export const makeFinishRun = (deps: Pick<AppDeps, 'uow' | 'clock' | 'ids'>) =>
 
     let cost: Cost | undefined
     const events = [...r.value.events]
-    if (input.spent) {                                                                     // "Did you spend money?"
+    if (input.spent) {                                                                     // the optional "Spent" on Finish
       const c = addCost({ amount: input.spent, paidBy: input.paidBy, note: input.note, for: { run: run.id } },
                         { ...ctx, id: deps.ids.newId(), houseId: actor.houseId })
       if (!c.ok) return c                                                                  // rolls back (A21)
