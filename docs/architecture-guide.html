@@ -761,6 +761,7 @@ const BACK = [
 ];
 const FRONT = [
  ['A1','PWA, not an App Store app','Roommates open a link; installing to the Home Screen unlocks push on iOS 16.4+. An install guide nudges iOS users.',['React Native / Expo: TestFlight and a $99/yr account break “just a link”.']],
+ ['A25','Online only','The service worker caches build assets and the last copy of each page, and falls back to /offline. House data is never cached, so nothing is readable or writable offline.',['Cached data, read-only (persisting the TanStack cache): considered and not built (owner, 2026-10-02).']],
  ['§8','Client components + TanStack Query','Screens are client components reading through hooks; Realtime invalidates query keys. Server rendering is mostly the shell.',['Server components for data: harder to combine with live updates and the AppClient seam.']],
  ['T19','Sheets, not pages, for items','Add and detail open as bottom sheets over the current tab (vaul). /h/[id]/i/[itemId] deep-links to a sheet over Home.',['Nested sheets were avoided: pickers are inline inside the sheet.']],
  ['T19','Native pickers','Rooms and people are native selects (rooms grouped by floor); dates are native inputs.',['Custom pickers: more code, worse accessibility on iPhone.']],
@@ -815,15 +816,11 @@ const GAPS = [
  ['Carded','Poll and run notifications don\'t deep-link','Item notifications open the item; poll, run and people notifications open Home or House, because there are no /p/[pollId] or /r/[runId] routes.','Weyve card T58 (M6)'],
  ['Carded','“Handled by” vs. the run\'s contact','Editing a task\'s “Handled by” while it sits on a request or visit isn\'t blocked, so the two can disagree (T30 note).','Weyve card T51 (M6)'],
  ['Carded','security_events table','Invalid invite tokens are only console.warn\'d; the service-role-only table from §6.4 wasn\'t created.','Weyve card T53 (M6)'],
- ['Docs drift','ARCHITECTURE §8 file tree','Lists /api/invites/*, /api/push/subscribe, /api/setup, /api/account/delete, p/[pollId], r/[runId], settings/, components/rooms/ and Storybook. Reality: server actions, sheets, /me, and /dev/kit.','docs/ARCHITECTURE.md §8'],
- ['Docs drift','ARCHITECTURE §3.3 libraries','date-fns, date-fns-tz, rrule, React Hook Form and Sentry are listed; none are installed. Time is hand-written in lib/domain/time.ts.','docs/ARCHITECTURE.md §3.3, package.json'],
- ['Docs drift','HouseQueries and Realtime descriptions','§4.1 lists feed(), needs(), calendar(range); the port actually returns raw lists that pure functions shape in the browser. §7.5 says Realtime subscribes per table; it listens only to activity_events.','docs/ARCHITECTURE.md §4.1, §7.5'],
- ['Docs drift','costs.splitwise_copied_at','Still in the §6.2 schema; T29 replaced it with a cost.splitwise_copied activity row.','docs/ARCHITECTURE.md §6.2'],
  ['Misplaced','Nil-UUID system actor, four copies','The same “Roomies itself” actor is built separately in setup.ts, push.ts, jobs.ts and invites.ts.','lib/app/{setup,push,jobs,invites}.ts'],
  ['Misplaced','Behavior in the composition root','sendNotificationsNow (running a use case, logging) lives in compose.ts, which should only wire adapters.','lib/compose.ts'],
  ['Misplaced','Stale comment in change-for-kind','Says polls, runs and costs “refresh everything”; they now map to their own tables.','lib/adapters/change-for-kind.ts:20']
 ];
-const GAP_KINDS = ['All','Not started','Carded','Docs drift','Misplaced'];
+const GAP_KINDS = ['All','Not started','Carded','Misplaced'];
 let gapKind = 'All';
 function renderGaps(){
   $('#gaplist').innerHTML = GAPS.filter(g=>gapKind==='All'||g[0]===gapKind).map(g=>
@@ -850,7 +847,6 @@ const ADV = [
  ['normal','Frontend','Break up the two biggest sheets','ItemSheets.tsx (600 lines) and RunSheet.tsx (560) mix layout, pickers and mutations.','Split by section (header, feelings, handled-by, costs, history) with a small hook per mutation group.','components/items/ItemSheets.tsx, components/runs/RunSheet.tsx'],
  ['normal','Frontend','Avoid the theme flash','A forced Light or Dark theme is applied only after the profile loads, so the first paint shows the system theme.','Mirror the choice into a cookie and render data-theme on the server in app/layout.tsx.','components/shell/ThemeSync.tsx'],
  ['normal','Frontend','Debounce live refetches','A bulk move of 5 tasks writes 5 activity rows, and each one invalidates items, runs and activity.','Coalesce invalidations per animation frame (or 150 ms) in useLiveHouse.','lib/client/hooks.ts:276'],
- ['normal','Docs','Resync ARCHITECTURE with the build','Sections §3.3, §4.1, §6.2, §7.5 and §8 describe the plan, not what shipped (see Unfinished → Docs drift).','One docs-only commit before M5, so E-tasks start from an accurate map.','docs/ARCHITECTURE.md']
 ];
 const ADV_KINDS = ['All','Backend','Frontend','Docs'];
 let advKind = 'All';
