@@ -5,6 +5,7 @@ import { SetupFlow } from '@/components/setup/SetupFlow'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { makeSetupStatus } from '@/lib/app/setup'
 import { depsForJob } from '@/lib/compose'
+import { requestIp } from '@/lib/server/ip'
 import { currentUserId } from '@/lib/server/session'
 
 export const metadata = { title: 'Set up your house · Roomies' }
@@ -12,7 +13,7 @@ export const metadata = { title: 'Set up your house · Roomies' }
 /** The one-time setup link (ARCHITECTURE §5.2). A wrong token looks like any missing page. */
 export default async function SetupPage({ params }: PageProps<'/setup/[token]'>) {
   const { token } = await params
-  const status = await makeSetupStatus(depsForJob())(token)
+  const status = await makeSetupStatus(depsForJob())(await requestIp(), token)
   if (status === 'invalid_token') notFound()
 
   return (

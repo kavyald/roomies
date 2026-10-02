@@ -150,3 +150,7 @@ export const inviteProblemCopy: Record<InviteProblem, string> = {
   revoked: 'This invite was turned off. Ask a roommate for a fresh link.',
   used_up: 'This invite has been used up. Ask a roommate for a fresh link.',
 }
+
+/** Whether an error is about the invite itself (a refused token), not about the person joining. */
+export const isInviteProblem = (e: string): e is InviteProblem =>
+  Object.hasOwn(inviteProblemCopy, e)

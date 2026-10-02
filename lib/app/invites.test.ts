@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { asMember } from '../adapters/contracts/unit-of-work.contract'
-import { depsForTest } from '../compose'
+import { depsForTest, TEST_NOW } from '../compose'
 import type { UserId } from '../domain/ids'
 import { MS_PER_DAY } from '../domain/time'
 import { sampleHouse } from '../testing/sample-house'
@@ -51,7 +51,7 @@ describe('invites: a roommate joins from a link', () => {
     expect(made.value.invite.maxUses).toBe(1) // one open bedroom
     expect(deps.uow.state.invites.get(made.value.invite.id)!.tokenHash).not.toBe(made.value.token)
 
-    const d = await details(made.value.token)
+    const d = await details(IP, made.value.token)
     expect(d.ok && d.value).toMatchObject({ houseName: 'The apartment', invitedBy: 'Kavya' })
     expect(d.ok && d.value.bedrooms.map((b) => [b.name, b.takenBy])).toEqual([
       ['Air', 'Kavya'],
@@ -86,6 +86,10 @@ describe('invites: a roommate joins from a link', () => {
       ok: false,
       error: 'used_up',
     })
+    // Only that refusal reaches the security log.
+    expect(deps.securityLog.events).toEqual([
+      { kind: 'invite_refused', reason: 'used_up', step: 'join.accept', ip: IP, at: TEST_NOW },
+    ])
   })
 
   it('rejects expired, revoked, and unknown links, before sending any code', async () => {
@@ -105,8 +109,40 @@ describe('invites: a roommate joins from a link', () => {
       ok: false,
       error: 'expired',
     })
-    expect(await details('not-a-token')).toEqual({ ok: false, error: 'invalid' })
+    expect(await details(IP, 'not-a-token')).toEqual({ ok: false, error: 'invalid' })
     expect(deps.auth.sentCodes).toEqual([])
+
+    // One security event per refused attempt.
+    const later = deps.clock.now()
+    expect(deps.securityLog.events).toEqual([
+      { kind: 'invite_refused', reason: 'revoked', step: 'join.start', ip: IP, at: TEST_NOW },
+      { kind: 'invite_refused', reason: 'expired', step: 'join.start', ip: IP, at: later },
+      { kind: 'invite_refused', reason: 'invalid', step: 'join.view', ip: IP, at: later },
+    ])
+  })
+
+  it('logs a refused token on the last step too, but not a bedroom someone took', async () => {
+    const { deps, s, admin, newcomer, create, revoke, accept } = await setup()
+    const made = await create(admin, { maxUses: 2 })
+    if (!made.ok) throw new Error(made.error)
+    const maya = await newcomer('maya@example.test')
+    await accept(IP, maya, made.value.token, { displayName: 'Maya', roomId: s.rooms.Fire!.id })
+    await accept(IP, maya, made.value.token, { displayName: ' ' })
+    expect(deps.securityLog.events).toEqual([])
+
+    await revoke(admin, made.value.invite.id)
+    expect(await accept(IP, maya, made.value.token, { displayName: 'Maya' })).toEqual({
+      ok: false,
+      error: 'revoked',
+    })
+    expect(await accept(IP, maya, 'not-a-token', { displayName: 'Maya' })).toEqual({
+      ok: false,
+      error: 'invalid',
+    })
+    expect(deps.securityLog.events.map((e) => e.kind === 'invite_refused' && e.reason)).toEqual([
+      'revoked',
+      'invalid',
+    ])
   })
 
   it('only admins make or revoke links, and admins see the working ones', async () => {
@@ -138,8 +174,8 @@ describe('invites: a roommate joins from a link', () => {
     })
   })
 
-  it('rate-limits each IP', async () => {
-    const { admin, create, start } = await setup()
+  it('rate-limits each IP, logging every refused attempt', async () => {
+    const { deps, admin, create, start, accept, newcomer } = await setup()
     const made = await create(admin, {})
     if (!made.ok) throw new Error(made.error)
     for (let i = 0; i < INVITE_RATE.limit; i++) await start(IP, 'a-wrong-token', 'x@example.test')
@@ -151,6 +187,26 @@ describe('invites: a roommate joins from a link', () => {
     expect(await start('198.51.100.1', made.value.token, 'x@example.test')).toEqual({
       ok: true,
       value: undefined,
+    })
+    expect(deps.securityLog.events.map((e) => [e.kind, e.step, e.ip])).toEqual([
+      ...Array.from({ length: INVITE_RATE.limit }, () => ['invite_refused', 'join.start', IP]),
+      ['rate_limited', 'join.start', IP],
+    ])
+
+    // The last step has its own count, and logs its refusals the same way.
+    const maya = await newcomer('maya@example.test')
+    for (let i = 0; i < INVITE_RATE.limit; i++) {
+      await accept(IP, maya, 'a-wrong-token', { displayName: 'Maya' })
+    }
+    expect(await accept(IP, maya, made.value.token, { displayName: 'Maya' })).toEqual({
+      ok: false,
+      error: 'rate_limited',
+    })
+    expect(deps.securityLog.events.at(-1)).toEqual({
+      kind: 'rate_limited',
+      step: 'join.accept',
+      ip: IP,
+      at: TEST_NOW,
     })
   })
 })

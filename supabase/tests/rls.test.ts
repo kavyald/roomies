@@ -414,3 +414,66 @@ describe('constraints', () => {
     })
   })
 })
+
+describe('server-only tables (rate_limits, security_events)', () => {
+  const SERVER_ONLY = ['rate_limits', 'security_events'] as const
+  const insertInto = {
+    rate_limits: `insert into rate_limits (key, window_start, hits) values ('x', now(), 1)`,
+    security_events: `insert into security_events (at, kind, ip, detail)
+                      values (now(), 'invite_refused', '203.0.113.7', '{"step":"join.start"}')`,
+  }
+
+  it('members, even admins, and signed-out visitors can neither read nor write them', async () => {
+    for (const user of [mine.admin, mine.member]) {
+      await asUser(user, async (db) => {
+        for (const table of SERVER_ONLY) {
+          expect({ table, read: await refused(db, `select 1 from ${table} limit 1`) }).toEqual({
+            table,
+            read: INSUFFICIENT_PRIVILEGE,
+          })
+          expect({ table, write: await refused(db, insertInto[table]) }).toEqual({
+            table,
+            write: INSUFFICIENT_PRIVILEGE,
+          })
+        }
+      })
+    }
+    await asAnon(async (db) => {
+      for (const table of SERVER_ONLY) {
+        expect({ table, read: await refused(db, `select 1 from ${table} limit 1`) }).toEqual({
+          table,
+          read: INSUFFICIENT_PRIVILEGE,
+        })
+        expect({ table, write: await refused(db, insertInto[table]) }).toEqual({
+          table,
+          write: INSUFFICIENT_PRIVILEGE,
+        })
+      }
+    })
+  })
+
+  it('the server (service role) appends security events and reads them back, never edits them', async () => {
+    const db = await pool.connect()
+    try {
+      await db.query('begin')
+      await db.query('set local role service_role')
+      await db.query(insertInto.security_events)
+      const { rows } = await db.query(
+        `select kind, ip, detail from security_events where ip = '203.0.113.7' order by id desc limit 1`,
+      )
+      expect(rows).toEqual([
+        { kind: 'invite_refused', ip: '203.0.113.7', detail: { step: 'join.start' } },
+      ])
+      expect(await refused(db, `update security_events set ip = 'x'`)).toBe(INSUFFICIENT_PRIVILEGE)
+      expect(
+        await refused(
+          db,
+          `insert into security_events (at, kind, ip) values (now(), 'something_else', 'x')`,
+        ),
+      ).toBe('23514')
+    } finally {
+      await db.query('rollback')
+      db.release()
+    }
+  })
+})

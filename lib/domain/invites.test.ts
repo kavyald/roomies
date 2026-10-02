@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { Invite, Member, Room } from './house'
 import { asId, type ActionId, type HouseId, type InviteId, type RoomId, type UserId } from './ids'
-import { acceptInvite, createInvite, openBedrooms, revokeInvite, validateInvite } from './invites'
+import {
+  acceptInvite,
+  createInvite,
+  isInviteProblem,
+  openBedrooms,
+  revokeInvite,
+  validateInvite,
+} from './invites'
 import { instant, MS_PER_DAY, plusMs } from './time'
 
 const houseId = asId<'house'>('h1') as HouseId
@@ -184,5 +191,14 @@ describe('acceptInvite', () => {
     expect(
       acceptInvite(inv, { userId: sam, displayName: 'Sam', ...joining }, { ...ctx, ...extra }),
     ).toEqual({ ok: false, error })
+  })
+})
+
+describe('isInviteProblem', () => {
+  it('is true for problems with the invite, not with the person joining', () => {
+    expect(['invalid', 'expired', 'revoked', 'used_up'].every(isInviteProblem)).toBe(true)
+    expect(['room_taken', 'already_member', 'empty_name', 'toString'].some(isInviteProblem)).toBe(
+      false,
+    )
   })
 })

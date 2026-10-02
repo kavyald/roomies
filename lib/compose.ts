@@ -7,11 +7,13 @@ import { memoryAuth, type MemoryAuth } from './adapters/memory/auth'
 import { MemoryUnitOfWork } from './adapters/memory/db'
 import type { DB } from './adapters/postgres/schema'
 import { postgresRateLimiter } from './adapters/postgres/rate-limiter'
+import { postgresSecurityLog } from './adapters/postgres/security-log'
 import { createDb, PostgresUnitOfWork } from './adapters/postgres/unit-of-work'
 import { fakePush, type FakePush } from './adapters/push/fake'
 import { webPushSender } from './adapters/push/web-push'
 import { cryptoTokens, seqTokens } from './adapters/tokens'
 import { memoryRateLimiter } from './adapters/memory/rate-limiter'
+import { memorySecurityLog } from './adapters/memory/security-log'
 import { supabaseAuthGateway } from './adapters/supabase/auth-gateway'
 import { adminClient, anonClient } from './adapters/supabase/server'
 import { withNotifications } from './app/notify'
@@ -53,6 +55,7 @@ const productionDeps = (env: EnvConfig): AppDeps => ({
   auth: authGateway(env),
   tokens: cryptoTokens,
   limiter: postgresRateLimiter(database(env)),
+  securityLog: postgresSecurityLog(database(env)),
   push: webPushSender({
     subject: env.vapidSubject,
     publicKey: env.public.vapidPublicKey,
@@ -83,6 +86,7 @@ export type TestDeps = AppDeps & {
   readonly ids: SeqIds
   readonly tokens: ReturnType<typeof seqTokens>
   readonly limiter: ReturnType<typeof memoryRateLimiter>
+  readonly securityLog: ReturnType<typeof memorySecurityLog>
   readonly auth: MemoryAuth
   readonly push: FakePush
 }
@@ -100,6 +104,7 @@ export const depsForTest = (overrides: Partial<AppDeps> = {}): TestDeps => {
     auth: memoryAuth(uow, ids),
     tokens: seqTokens(),
     limiter: memoryRateLimiter(),
+    securityLog: memorySecurityLog(),
     push: fakePush(),
     config: { setupToken: 'test-setup-token-0123456789abcdef0123' },
     ...overrides,

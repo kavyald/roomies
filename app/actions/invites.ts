@@ -42,9 +42,7 @@ export async function startJoin(
   const email = emailSchema.safeParse(rawEmail)
   if (!email.success) return err('invalid_email')
   const deps = { ...depsForJob(), auth: authForRequest() }
-  const r = await makeStartInvite(deps)(await requestIp(), token, email.data)
-  if (!r.ok && r.error !== 'rate_limited') console.warn(`join: invite refused (${r.error})`)
-  return r
+  return makeStartInvite(deps)(await requestIp(), token, email.data)
 }
 
 /** Joining, last step (signed in with the code): become a member, with your bedroom. */

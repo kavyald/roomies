@@ -308,7 +308,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
             <tr><td>Polls</td><td class="mono">polls, poll_options, poll_votes</td><td>Saved piece by piece; each piece has its own RLS rule.</td></tr>
             <tr><td>Runs &amp; money</td><td class="mono">runs, costs</td><td><code>items.run_id</code> = current run; the past lives in activity.</td></tr>
             <tr><td>History</td><td class="mono">activity_events</td><td>Append-only, typed subject columns, grouped by <code>action_id</code>. ~37 MB per 5 years.</td></tr>
-            <tr><td>Delivery</td><td class="mono">notifications_outbox, notification_prefs, push_subscriptions, rate_limits</td><td>Outbox written in the same transaction as the change.</td></tr>
+            <tr><td>Delivery</td><td class="mono">notifications_outbox, notification_prefs, push_subscriptions, rate_limits, security_events</td><td>Outbox written in the same transaction as the change. Rate limits and refused join/setup attempts are server-only.</td></tr>
           </tbody>
         </table>
       </div>
@@ -474,7 +474,7 @@ const LAYERS = [
     ['Repos','houses, profiles, members, rooms, contacts, invites, items, feelings, polls, runs, costs, notifications, pushSubscriptions, events'],
     ['EventSink.record(houseId, events, at)','Writes activity_events with the injected clock\'s time. forRun reads a run\'s story inside the transaction; lastForItem reads an item\'s newest row of a kind (the Did it an Undo takes back).'],
     ['HouseQueries · ChangeFeed','The read side and live updates, used by the browser.'],
-    ['Clock · IdGenerator · Tokens · RateLimiter · AuthGateway · PushSender · Config','Everything impure is injected.'] ]},
+    ['Clock · IdGenerator · Tokens · RateLimiter · SecurityLog · AuthGateway · PushSender · Config','Everything impure is injected.'] ]},
   { name:'items.ts', desc:'8 use cases', fns:[
     ['makeCreateItem','Checks open needs for a duplicate first; returns the existing id in the error.'],
     ['makeEditItem · makeMarkDone · makeReopenItem · makeDoChore','Load → pure domain function → save → record events.'],
@@ -539,14 +539,15 @@ const LAYERS = [
     ['PostgresUnitOfWork','begin → set local role authenticated + request.jwt.claims → repos → commit. System jobs use service_role. 720 lines holding every repo.'],
     ['save = update-then-insert','Not upsert, because an upsert also applies SELECT policies. Immutable columns are never rewritten.'],
     ['mappers.ts · schema.ts','Explicit row ↔ domain mapping; Kysely types written by hand and checked by contract round-trips.'],
-    ['postgresRateLimiter','Fixed windows in rate_limits, counted in their own transaction.'] ]},
+    ['postgresRateLimiter','Fixed windows in rate_limits, counted in their own transaction.'],
+    ['postgresSecurityLog','Refused join and setup attempts appended to security_events, in their own transaction.'] ]},
   { name:'supabase/', desc:'the browser read path', fns:[
     ['supabaseHouseQueries','PostgREST reads with the user\'s JWT: house, members, items, feelings, polls, runs, costs, activity (keyset-paged, with the names its rows point at embedded in the same request, A24).'],
     ['supabaseChangeFeed','One Realtime subscription to activity_events inserts for the house.'],
     ['supabaseAuthGateway','createUser / sendCode / deleteUser through the admin and anon clients.'] ]},
   { name:'memory/', desc:'fakes for every port', fns:[
     ['MemoryUnitOfWork','Copy-on-write transactions that mirror each RLS policy by hand, so a cross-house use case fails in unit tests too.'],
-    ['memoryQueries · memoryAuth · memoryRateLimiter · memoryChangeFeed','Same behavior, no Docker.'] ]},
+    ['memoryQueries · memoryAuth · memoryRateLimiter · memorySecurityLog · memoryChangeFeed','Same behavior, no Docker.'] ]},
   { name:'contracts/', desc:'10 shared suites', fns:[
     ['unit-of-work · items · polls · runs · costs · notifications · house-queries · change-feed · auth-gateway · rate-limiter','Each suite runs against the memory adapter and the real one, so fakes can\'t drift silently.'] ]},
   { name:'push/ · clock/ · ids/ · tokens/ · change-for-kind.ts', desc:'small adapters', fns:[
@@ -813,7 +814,6 @@ const GAPS = [
  ['Carded','Polls: withdraw a vote, reopen, deadline','poll.vote_withdrawn and the other poll actions are in the catalog but nothing writes them (T27 note).','Weyve card T55 (M6)'],
  ['Carded','Conflict detection on edits','§7.5 describes optimistic concurrency (where updated_at = :loaded → conflict). Saves are last-write-wins for now (T18).','Weyve card T50 (M6)'],
  ['Carded','Poll and run notifications don\'t deep-link','Item notifications open the item; poll, run and people notifications open Home or House, because there are no /p/[pollId] or /r/[runId] routes.','Weyve card T58 (M6)'],
- ['Carded','security_events table','Invalid invite tokens are only console.warn\'d; the service-role-only table from §6.4 wasn\'t created.','Weyve card T53 (M6)'],
  ['Misplaced','Nil-UUID system actor, four copies','The same “Roomies itself” actor is built separately in setup.ts, push.ts, jobs.ts and invites.ts.','lib/app/{setup,push,jobs,invites}.ts'],
  ['Misplaced','Behavior in the composition root','sendNotificationsNow (running a use case, logging) lives in compose.ts, which should only wire adapters.','lib/compose.ts'],
  ['Misplaced','Stale comment in change-for-kind','Says polls, runs and costs “refresh everything”; they now map to their own tables.','lib/adapters/change-for-kind.ts:20']

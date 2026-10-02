@@ -24,6 +24,7 @@ import type { Feeling } from '../domain/feelings'
 import type { Item, Need } from '../domain/items'
 import type { Result } from '../domain/result'
 import type { Run } from '../domain/runs'
+import type { SecurityEvent } from '../domain/security'
 import type { Instant } from '../domain/time'
 
 // ---- infrastructure ----------------------------------------------------------
@@ -50,6 +51,14 @@ export interface Tokens {
 export interface RateLimiter {
   /** Records one attempt; true while the key is within `limit` attempts per window. */
   hit(key: string, rule: { limit: number; windowMs: number }, now: Instant): Promise<boolean>
+}
+
+/**
+ * Refused join and setup attempts (`security_events`, §5.4), for the owner to look at later.
+ * Like the rate limiter it writes outside the use case's transaction, so a refusal still lands.
+ */
+export interface SecurityLog {
+  record(event: SecurityEvent): Promise<void>
 }
 
 /** What use cases need from configuration. Secrets for adapters stay in the composition root. */
@@ -301,6 +310,7 @@ export type AppDeps = {
   readonly auth: AuthGateway
   readonly tokens: Tokens
   readonly limiter: RateLimiter
+  readonly securityLog: SecurityLog
   readonly push: PushSender
   readonly config: Config
 }

@@ -1,6 +1,6 @@
 'use server'
 
-import { makeSetupHouse, makeSetupStatus } from '@/lib/app/setup'
+import { makeSetupHouse, makeStartSetup } from '@/lib/app/setup'
 import { authForRequest, depsForJob, depsForRequest } from '@/lib/compose'
 import { err, ok, type Result } from '@/lib/domain/result'
 import type { SetupError } from '@/lib/domain/setup'
@@ -8,7 +8,6 @@ import { emailSchema } from '@/lib/schemas/auth'
 import { newHouseSchema } from '@/lib/schemas/setup'
 import { requestIp } from '@/lib/server/ip'
 import { currentUserId } from '@/lib/server/session'
-import { SETUP_RATE } from '@/lib/app/invites'
 
 type Unavailable = 'invalid_token' | 'already_set_up'
 
@@ -19,16 +18,8 @@ export async function startSetup(
 ): Promise<Result<void, Unavailable | 'invalid_email' | 'rate_limited'>> {
   const email = emailSchema.safeParse(rawEmail)
   if (!email.success) return err('invalid_email')
-  const deps = depsForJob()
-  if (!(await deps.limiter.hit(`setup:${await requestIp()}`, SETUP_RATE, deps.clock.now()))) {
-    return err('rate_limited')
-  }
-  const status = await makeSetupStatus(deps)(token)
-  if (status !== 'available') return err(status)
-  const auth = authForRequest()
-  await auth.createUser(email.data) // already_exists is fine: they may be retrying
-  await auth.sendCode(email.data)
-  return ok(undefined)
+  const deps = { ...depsForJob(), auth: authForRequest() }
+  return makeStartSetup(deps)(await requestIp(), token, email.data)
 }
 
 /** Step 3, signed in: create the house. Returns its id for the redirect. */
@@ -41,6 +32,7 @@ export async function finishSetup(
   const me = await currentUserId()
   if (!me) return err('not_signed_in')
   const r = await makeSetupHouse(depsForRequest({ actor: { kind: 'user', userId: me } }))(
+    await requestIp(),
     me,
     token,
     input.data,

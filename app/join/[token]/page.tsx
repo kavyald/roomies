@@ -3,6 +3,7 @@ import { JoinFlow } from '@/components/join/JoinFlow'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { makeInviteDetails } from '@/lib/app/invites'
 import { depsForJob } from '@/lib/compose'
+import { requestIp } from '@/lib/server/ip'
 import { inviteProblemCopy } from '@/lib/domain/invites'
 import { currentUserId } from '@/lib/server/session'
 
@@ -11,7 +12,7 @@ export const metadata = { title: 'Join the house · Roomies' }
 /** Where an invite link lands (ARCHITECTURE §5.2). */
 export default async function JoinPage({ params }: PageProps<'/join/[token]'>) {
   const { token } = await params
-  const invite = await makeInviteDetails(depsForJob())(token)
+  const invite = await makeInviteDetails(depsForJob())(await requestIp(), token)
 
   return (
     <main className="mx-auto grid min-h-dvh max-w-[430px] content-center gap-6 px-4 pt-[max(24px,env(safe-area-inset-top))] pb-[max(24px,env(safe-area-inset-bottom))]">

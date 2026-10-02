@@ -166,6 +166,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | `IdGenerator` | `newId<K>(): Id<K>` | `cryptoIds` (`crypto.randomUUID`) | `seqIds()` |
 | `Tokens` | `newToken()` (128 bits, URL-safe), `hash(token)` (SHA-256): invite tokens are stored only as hashes | `cryptoTokens` | `seqTokens()` |
 | `RateLimiter` | `hit(key, { limit, windowMs }, now): Promise<boolean>`: counts attempts per key in fixed windows, outside the use case's transaction (§5.4) | Postgres (`rate_limits`, service role) | in-memory |
+| `SecurityLog` | `record(event: SecurityEvent): Promise<void>`: appends a refused join or setup attempt (`invite_refused` with its reason, `setup_token_refused`, `rate_limited`; each with its step, IP and time), outside the use case's transaction (§5.4) | Postgres (`security_events`, service role) | `memorySecurityLog()` (keeps `events`) |
 | `HouseQueries` (read side) | Raw reads, each one RLS-filtered: `house`, `members`, `profiles`, `rooms`, `contacts`, `feelings`, `items`, `polls`, `runs`, `costs`, `invites` (admins only), `notificationsOff(userId)`, `itemActivity(houseId, itemId)`, `runActivity(houseId, runId)`, `latestActivity(houseId, kind)`, and `activity(houseId, { before?, limit })`, a page of rows with the `subjects` they name (A24). Screens shape these in the browser with pure functions (`homeFeed`, `needList`, `choreList`, `taskList`, `calendarEntries`, `activityFeed`, …). | Supabase browser client (RLS) | `memoryHouseQueries` |
 | `ChangeFeed` | `subscribe(houseId, onChange: (change: { table }) => void): Unsubscribe` | Supabase Realtime (§7.5) | `memoryChangeFeed` |
 | `AuthGateway` | `createUser(email): Result<UserId, 'already_exists'>`, `sendCode(email)` (only to an existing account, silent either way), `deleteUser(id)`. Checking the code is `verifyOtp` in the sign-in server action, which sets the session cookie. | Supabase Auth (admin client for create/delete, anon client for codes) | `memoryAuth` |
@@ -173,7 +174,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | `Config` | `{ setupToken }`: all a use case needs. Adapter secrets (database URL, service-role key, VAPID keys, cron secret) stay in the composition root. | `appConfig(serverConfig())`; `loadConfig` in `lib/config.ts` validates the environment with Zod, **the only place env is read** | literal object |
 
 **Composition root** (`lib/compose.ts`), the one place where concrete adapters are wired:
-- `depsForRequest(session): AppDeps`: Postgres UoW wrapped in `withNotifications`, system clock, crypto ids and tokens, the Postgres rate limiter, Supabase Auth, the web-push sender, config. Use cases take the actor per call, so RLS applies to the signed-in user.
+- `depsForRequest(session): AppDeps`: Postgres UoW wrapped in `withNotifications`, system clock, crypto ids and tokens, the Postgres rate limiter and security log, Supabase Auth, the web-push sender, config. Use cases take the actor per call, so RLS applies to the signed-in user.
 - `depsForJob(): AppDeps`: the same deps; jobs pass the system actor (`{ kind: 'system' }`), which the UoW runs as `service_role`. Jobs call the **same use cases** as users do. Invite and setup steps that run before someone is a member use these deps too, after checking the token themselves.
 - `depsForTest(overrides?): TestDeps`: in-memory adapters, a fixed clock (`TEST_NOW`), sequential ids and tokens, fake auth and push.
 - `sendNotificationsNow()`: runs the send-notifications job right after a house action that succeeded (via `after()` in `app/actions/env.ts`), logging rather than throwing.
@@ -211,7 +212,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 1. The admin creates an invite (`createInviteAction` → `createInvite`) → a row in `house_invites` with a random 128-bit token (stored **hashed**), `expires_at`, `max_uses`, `revoked_at`.
 2. The link `https://<app>/join/<token>` is shared in the group chat.
 3. A visitor opens the link and enters their name and email. The join page calls the `startJoin` server action (`app/actions/invites.ts`) with the token and email.
-4. `startJoin` runs the `startInvite` use case as the system actor: a rate-limit check, then the token's hash is looked up and the pure `validateInvite` checks expiry, uses, and revocation. Only if the invite is valid does it create the auth user (Supabase Admin API; an existing account is fine) and send the 6-digit code. **Public sign-up is turned off** in Supabase Auth settings, so an email typed into the regular sign-in screen without a valid invite gets no code and no account. A refused token is logged as a server warning.
+4. `startJoin` runs the `startInvite` use case as the system actor: a rate-limit check, then the token's hash is looked up and the pure `validateInvite` checks expiry, uses, and revocation. Only if the invite is valid does it create the auth user (Supabase Admin API; an existing account is fine) and send the 6-digit code. **Public sign-up is turned off** in Supabase Auth settings, so an email typed into the regular sign-in screen without a valid invite gets no code and no account. A refused token goes to `security_events` (§5.4).
 5. The visitor enters the code (which signs them in) and picks an open bedroom → the `acceptJoin` server action runs the `acceptInvite` use case (system actor, re-checking the invite inside the write transaction), which saves their profile, inserts `house_members(house_id, user_id, role='member', status='active', room_id)`, increments uses, records `member.joined`, and notifies all members. **(owner)** There's no approval step.
 6. **Returning sign-in** (`/sign-in`): the `requestCode` server action calls `AuthGateway.sendCode`, which is `signInWithOtp({ email, options: { shouldCreateUser: false } })`. With public sign-up also disabled server-side, this only sends a code to emails that already have an account. The UI shows the same "If you have an account, we sent a code" message either way, so it doesn't reveal who's a member. `verifyCode` checks the code (`verifyOtp`) and sets the session cookie.
 7. From then on, **every house row carries `house_id`**, and RLS policies allow access only when `is_member(house_id)` is true for `auth.uid()`. Server-side use cases keep this protection: the Postgres `UnitOfWork` sets `role authenticated` and the user's JWT claims per transaction (§4.1).
@@ -244,13 +245,13 @@ Admin-only actions (invites, adding and removing members, roles, house details) 
 | "feelings delete own" | `feelings` delete | The one DELETE policy: removing your own current feeling (its history stays in `activity_events`) |
 | "notification prefs read" (+ `shares_house`) | `notification_prefs` select | Housemates read each other's toggles, so whoever records an event enqueues only what the others want (A23); you change only your own |
 | `poll_is_open(p)` | `poll_options`, `poll_votes` insert/update | Options and your own vote only while the poll is open |
-| RLS on, no policies | `rate_limits` | Service role only (the server's system actor) |
+| RLS on, no policies | `rate_limits`, `security_events` | Service role only (the server's system actor); `security_events` is append-only (select, insert, delete for pruning; no update) |
 
 Signed-out visitors (`anon`) have no grants on any table, and `authenticated` has no `DELETE` or `TRUNCATE` except on `feelings`.
 
 **[DECIDED] A4:** no extra "house passcode" on invites. Joins notify everyone, links expire and can be revoked, and admins can remove people in one tap.
 
-**Single-house bootstrap (owner: one house only):** the very first account (you) is created with a one-time `SETUP_TOKEN` env var. Visiting `/setup/<SETUP_TOKEN>` runs the `startSetup` server action (rate-limited; creates your account and sends a code), then `finishSetup` (signed in) runs the `setupHouse` use case, which creates the house and its rooms and makes you admin. After that, the route is permanently disabled once a house exists. It's also blocked by the RLS insert policy "houses setup", which requires `no_house_exists()` (a security-definer check that counts houses outside RLS). This avoids a "whoever signs in first owns the house" race.
+**Single-house bootstrap (owner: one house only):** the very first account (you) is created with a one-time `SETUP_TOKEN` env var. Visiting `/setup/<SETUP_TOKEN>` runs the `startSetup` server action and use case (rate-limited; creates your account and sends a code), then `finishSetup` (signed in) runs the `setupHouse` use case, which creates the house and its rooms and makes you admin. After that, the route is permanently disabled once a house exists. It's also blocked by the RLS insert policy "houses setup", which requires `no_house_exists()` (a security-definer check that counts houses outside RLS). This avoids a "whoever signs in first owns the house" race.
 
 **Who can join, summarized:**
 
@@ -287,7 +288,7 @@ Signed-out visitors (`anon`) have no grants on any table, and `authenticated` ha
 - The service-role key lives only in server env vars (read by `loadConfig`) and is never shipped to the client.
 - **Sensitive fields** (Wi‑Fi, door codes) come later with info items (PRD §13). v1 stores no secrets.
 - File attachments come later (PRD §13). When added: private buckets, `house/<house_id>/<item_id>/<file>` paths, and signed URLs.
-- Rate limits: Supabase Auth's built-in OTP limits, plus our own per-IP limits through the `RateLimiter` port (the `rate_limits` counter table, service role only, no extra vendor). The rules live in `lib/app/invites.ts`: `INVITE_RATE` (10 per 10 minutes) for joining, step 1 (`invite:start:<ip>`) and the last step (`invite:accept:<ip>`), and `SETUP_RATE` (10 per hour) for `startSetup` (`setup:<ip>`). Refused invite tokens are logged as server warnings.
+- Rate limits: Supabase Auth's built-in OTP limits, plus our own per-IP limits through the `RateLimiter` port (the `rate_limits` counter table, service role only, no extra vendor). The rules live in `lib/app/invites.ts`: `INVITE_RATE` (10 per 10 minutes) for joining, step 1 (`invite:start:<ip>`) and the last step (`invite:accept:<ip>`), and `SETUP_RATE` (10 per hour) for `startSetup` (`setup:<ip>`). Refused attempts are recorded in `security_events` through the `SecurityLog` port (written outside the use case's transaction, service role only, never shown to members): `invite_refused` (an unknown, expired, revoked or used-up invite token, with that reason, from the join page or either join step), `setup_token_refused` (a wrong setup token, from the setup page, `startSetup` or `finishSetup`), and `rate_limited` (any of the limits above). Each row has its step (`join.view`, `join.start`, `join.accept`, `setup.view`, `setup.start`, `setup.finish`), the time, and the caller's IP as the rate limiter sees it. The IP is stored plainly, like the `rate_limits` keys: the app has no secret to salt a hash with, and an unsalted hash of an IPv4 address can be reversed in seconds. Sign-in attempts stay with Supabase Auth.
 - Headers (`next.config.ts`): `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` and `Referrer-Policy: strict-origin-when-cross-origin` on every route, and a `Content-Security-Policy` on `/sw.js` only. The session cookie keeps `@supabase/ssr`'s defaults (`SameSite=Lax`). No third-party scripts.
 
 ---
@@ -398,9 +399,11 @@ notification_prefs    (user_id, category: assigned|due|feelings|polls|runs|peopl
 notifications_outbox  (id, user_id, house_id, category, title, body, url, created_at, send_after, sent_at null, error null,
                        dedupe_key null)   -- reminders carry a key, so a job that runs twice enqueues nothing new
 rate_limits           (key, window_start, hits)  PK(key, window_start)   -- per-IP counters (§5.4), service role only
+security_events       (id identity, at, kind: invite_refused|setup_token_refused|rate_limited, ip, detail jsonb { step, reason? })
+                       -- refused join/setup attempts (§5.4), service role only, append-only
 ```
 
-**7 app tables** (items, feelings, polls, poll_options, poll_votes, runs, costs) plus `activity_events` (history) and house, people, and infrastructure. House data tables carry `house_id` and use RLS via `is_member(house_id)` (§5.2). Per-person rows (`profiles`, `push_subscriptions`, `notification_prefs`) are keyed by `user_id` instead, and `rate_limits` is server-only. References to rooms, items, polls and runs from another house's row are refused by composite foreign keys on `(house_id, id)` (`costs.run_id` is a plain foreign key, checked by the use case).
+**7 app tables** (items, feelings, polls, poll_options, poll_votes, runs, costs) plus `activity_events` (history) and house, people, and infrastructure. House data tables carry `house_id` and use RLS via `is_member(house_id)` (§5.2). Per-person rows (`profiles`, `push_subscriptions`, `notification_prefs`) are keyed by `user_id` instead, and `rate_limits` and `security_events` are server-only. References to rooms, items, polls and runs from another house's row are refused by composite foreign keys on `(house_id, id)` (`costs.run_id` is a plain foreign key, checked by the use case).
 
 `updated_at` is kept by the one allowed trigger (`touch_updated_at`) on `items`, `runs`, `polls` and `notification_prefs`.
 
@@ -608,7 +611,7 @@ select changes, actor_id, at from activity_events
 | People | `member.joined` · `member.room_changed` · `member.role_changed` · `member.moved_out` · `member.removed` | member (+ room), note | ✓ | everyone on joined/left · that member on role |
 | Places | `contact.created` · `contact.edited` · `contact.removed` · `room.added` · `room.renamed` · `room.archived` | contact / room, `changes` | ✓ | — |
 
-**Not in this table:** refused invite tokens (server log warnings), sign-in attempts (Supabase Auth), notification delivery (`notifications_outbox`), views, and computed priority.
+**Not in this table:** refused invite and setup tokens (`security_events`, §5.4), sign-in attempts (Supabase Auth), notification delivery (`notifications_outbox`), views, and computed priority.
 
 ---
 
@@ -666,7 +669,7 @@ select changes, actor_id, at from activity_events
 | `splitwiseText` / `copiedToSplitwise` | `(title, amount) → string` / `(cost, { by, actionId }) → DomainEvent` | The copy text, and its `cost.splitwise_copied` event |
 | **House, people and places** (`setup.ts`, `invites.ts`, `members.ts`, `rooms.ts`, `contacts.ts`, `profile.ts`) | | |
 | `setupHouse` | `(input: NewHouse, owner, now, newId, existingProfile?) → Result<{ house; profile; member; rooms; events }, SetupError>` | Default weights, the owner as admin, and the apartment's rooms (`APARTMENT_ROOMS`). `safeEqual` compares the setup token. |
-| `validateInvite` | `(inv: Invite \| undefined, now) → Result<Invite, 'invalid' \| 'expired' \| 'revoked' \| 'used_up'>` | The repo looks the token's hash up first |
+| `validateInvite` | `(inv: Invite \| undefined, now) → Result<Invite, 'invalid' \| 'expired' \| 'revoked' \| 'used_up'>` | The repo looks the token's hash up first; `isInviteProblem` tells these four apart from the person's own errors (they go to `security_events`, §5.4) |
 | `createInvite` / `revokeInvite` / `acceptInvite` | `(input, ctx: { …, openSpots, tokenHash }) → Result<…, 'bad_limits'>` / `(inv, by, now, actionId) → Result<…, 'already_revoked'>` / `(inv, joining, ctx) → Result<{ invite; member; profile; events }, InviteProblem \| 'already_member' \| 'room_taken' \| 'empty_name'>` | `max_uses` defaults to the open bedrooms (`openBedrooms`, at least 1); 1–20 uses, 1–30 days |
 | `moveOut` / `setRole` | `(target, members, by, now, actionId, note?) → Result<…, 'not_allowed' \| 'already_moved_out' \| 'last_admin'>` / `(target, role, members, by, actionId) → Result<…, 'not_allowed' \| 'no_change' \| 'last_admin' \| 'not_active'>` | The house always keeps an admin |
 | `anonymizeProfile` | `(p: Profile) → Profile` | "Former roommate" |
@@ -701,8 +704,8 @@ select changes, actor_id, at from activity_events
 | | `deleteAccount` (none): moves you out, anonymizes your profile, then deletes the auth user | `void` | `last_admin` | `auth` |
 | `me.ts` | `updateMySettings` (`SettingsPatch`: theme, quiet hours) · `setNotificationEnabled` (`{ category, enabled }`) | `Profile` / the input | `bad_time`, `no_change` | uow only |
 | `invites.ts` | `createInvite` (`NewInvite`) · `revokeInvite` (an id) · `listInvites` (admins) | `{ invite, token }` / `Invite` / `Invite[]` | `not_admin`, `bad_limits`, `already_revoked` | `tokens` |
-| | `inviteDetails(token)` · `startInvite(ip, token, email)` · `acceptInvite(ip, userId, token, { displayName, roomId? })`: system actor, before membership (§5.2) | `{ houseId, houseName, invitedBy, bedrooms }` / `void` / the house id | `InviteProblem`, `rate_limited`, `already_member`, `room_taken`, `empty_name` | `tokens`, `limiter`, `auth` (start) |
-| `setup.ts` | `setupStatus(token)` · `setupHouse(owner, token, NewHouse)` | `'available' \| 'already_set_up' \| 'invalid_token'` / `House` | `SetupError`, `invalid_token`, `already_set_up` | `config` |
+| | `inviteDetails(ip, token)` · `startInvite(ip, token, email)` · `acceptInvite(ip, userId, token, { displayName, roomId? })`: system actor, before membership (§5.2); refusals go to the security log (§5.4) | `{ houseId, houseName, invitedBy, bedrooms }` / `void` / the house id | `InviteProblem`, `rate_limited`, `already_member`, `room_taken`, `empty_name` | `tokens`, `limiter`, `securityLog`, `auth` (start) |
+| `setup.ts` | `setupStatus(ip, token)` · `startSetup(ip, token, email)` · `setupHouse(ip, owner, token, NewHouse)`; a wrong token or a rate limit is logged (§5.4) | `'available' \| 'already_set_up' \| 'invalid_token'` / `void` / `House` | `SetupError`, `invalid_token`, `already_set_up`, `rate_limited` (start) | `config`, `securityLog`, `limiter` + `auth` (start) |
 | `session.ts` | `whereTo(userId)`, as the `user` actor | `{ to: 'house', houseId } \| { to: 'moved_out' } \| { to: 'no_house' }` | none | uow only |
 | `push.ts` | `savePushSubscription` (`{ subscription, userAgent? }`) | `true` | `invalid_subscription` | |
 | **Jobs** (system actor, no input; §7.3) | `runReminders` (`jobs.ts`) · `closeDuePolls` (`jobs.ts`) · `sendNotifications` (`push.ts`) | counts | none | `push` (send) |
@@ -817,13 +820,13 @@ components/
 lib/
   domain/                    -- PURE, one module per concept: ids, time, money, result, actor, house, events, activity,
                                 format, rooms, setup, invites, members, contacts, profile, items, lists, feelings,
-                                priority, weights, runs, polls, costs, calendar, notifications, reminders, push
+                                priority, weights, runs, polls, costs, calendar, notifications, reminders, push, security
   app/                       -- ports.ts + use cases (makeX(deps)): items, runs, polls, costs, contacts, house, invites,
-                                setup, session, me, push, jobs; notify.ts (withNotifications)
+                                setup, session, me, push, jobs; notify.ts (withNotifications); security.ts (withinRate)
   adapters/
-    postgres/                -- Kysely UoW + repos, row ↔ domain mappers, schema.ts (hand-written table types), rate limiter
+    postgres/                -- Kysely UoW + repos, row ↔ domain mappers, schema.ts (hand-written table types), rate limiter, security log
     supabase/                -- HouseQueries + ChangeFeed (browser), AuthGateway, server clients
-    memory/                  -- in-memory UoW (RLS rules mirrored in db.ts), HouseQueries + ChangeFeed, auth, rate limiter
+    memory/                  -- in-memory UoW (RLS rules mirrored in db.ts), HouseQueries + ChangeFeed, auth, rate limiter, security log
     contracts/               -- shared contract suites, run against memory + Postgres/Supabase
     push/                    -- web-push sender, fake
     clock/  ids/  tokens/
