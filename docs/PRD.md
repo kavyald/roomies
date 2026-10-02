@@ -292,7 +292,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
   - is **not** tied to a specific email **(owner)**. Whoever opens it can join, which is why joins notify everyone.
 - **Joining:** open the link → enter name + email → type the 6-digit code → pick your bedroom → you're in. **(owner)** It's instant, with no admin approval.
 - **Signing in later:** enter your email → type the code. This only works for emails that already have an account.
-- **Roles:** `admin` (manage invites, remove members, delete the house) and `member` (everything else, including settings). **(owner)**
+- **Roles:** `admin` (manage invites, remove members) and `member` (everything else, including settings). **(owner)**
 - **Moving out:** an admin (or the person themselves) marks a member as moved out. They lose access, and their name stays on past items.
 - **Deleting your account:** removes your email and profile. Your name on past items becomes "Former roommate."
 - **Access guarantee:** nobody outside the house can read or write its data, and this is enforced at the database layer.
@@ -326,8 +326,9 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 | **M3: Polls & runs** | Polls, runs (grocery, order, visit, event), costs, calendar | A grocery run, a poll, and a super visit can each be completed locally |
 | **M4: Notifications & polish** | Push, reminders, polish, end-to-end tests | Reminders and push work locally, and the E2E suite is green in CI |
 | **M5: Hosting & launch** | The external services: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production | Everyone is on production from their phones |
+| **M6: Usability & personal needs** | Fewer taps (swipe, simpler item views, quicker runs), needs for one person or the house, the gaps chosen from the docs↔code audit (D35), docs that match the build | Every action hits its tap target, item views fit at 375pt without scrolling, and personal needs work end to end |
 
-The tasks are on the **roomies** board in Weyve.
+M6 is built locally before launch, so production waits on its test task (Q6). The tasks are on the **roomies** board in Weyve.
 
 ---
 
@@ -383,5 +384,11 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D27 | Heads-ups and the calendar icon are v2 (design parked in §13) | Owner |
 | D28 | Sign-in codes come from a house Gmail address, and the app lives at a `*.vercel.app` URL. No custom domain in v1. | Owner |
 | D29 | Everything that needs an outside account is its own, later milestone (M5). M0–M4 are built and checked entirely on one Mac. | Owner |
+| D30 | Removing an item is called "Delete" in the app. The row stays for history and the toast offers Undo. No archive list, no 30-day window (T62). | Owner |
+| D31 | House → Rooms is a compact grid grouped Bedrooms / Bathrooms / Spaces (T60) | Owner |
+| D32 | Extra pushes: feeling weights changed, a new poll option, a new point person, tasks moved into a visit (T59) | Owner |
+| D33 | Offline shows the offline page only. No cached data. | Owner |
+| D34 | Not building: deleting the house, a move-in checklist, a "Handled 💛" toast, adding or archiving rooms, a room's element setting, item counts on rooms | Owner |
+| D35 | Built from the docs↔code audit: conflict detection on edits, "Handled by" follows the run, an app-wide CSP, `security_events`, undo "Did it", poll withdraw / reopen / deadline, run rename and point person, cost edit and remove, poll and run deep links, notification settings in one section (T50–T58, T61) | Owner |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.

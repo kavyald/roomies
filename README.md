@@ -2,7 +2,7 @@
 
 A shared, phone-first hub for a house of roommates: what we need to buy, what needs doing, what we need to decide, and how everyone feels about it.
 
-> **Status: M0–M4 built** on the `v1` branch: everything runs locally. M5 (hosting and launch) is next. Tasks are planned and tracked on the **roomies** board in Weyve.
+> **Status: M0–M4 built** on the `v1` branch: everything runs locally. M6 (usability and personal needs) is in progress, also built locally; M5 (hosting and launch) comes after it. Tasks are planned and tracked on the **roomies** board in Weyve.
 
 ## The problem
 
@@ -48,7 +48,7 @@ Things to try: vote on "Which vacuum?", record the landlord's reply on the Landl
 | [Frontend](docs/FRONTEND.md) | Visual language (inspired by Focus Friend), color system, the apartment's rooms, screens, copy voice, and motion |
 | [Testing](docs/TESTING.md) | Test layers, tools, commands, CI, and what each milestone's test task proves |
 
-## Planned stack
+## Stack
 
 - **Next.js** (App Router) + TypeScript + Tailwind, installable as a **PWA**
 - **Supabase**: Postgres with row-level security, email-code auth, Realtime, and pg_cron
@@ -67,8 +67,9 @@ Everything targets free tiers for one house of 2–8 people.
 | **M3 Polls, runs & calendar** | Polls, runs, requests and visits, costs, calendar |
 | **M4 Notifications & polish** | Web push, reminders, polish, end-to-end tests |
 | **M5 Hosting & launch** | Everything that needs an outside account: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production |
+| **M6 Usability & personal needs** | Fewer taps (swipe, simpler item views, quicker runs), needs for one person or the house, the gaps from the docs↔code audit, docs that match the build |
 
-Roughly 61 working days for one person, including a test task at the end of each milestone. M0–M4 run entirely on one Mac with no accounts; M5 is where the sign-ups happen. The critical path runs through the core plumbing, items, runs, and requests and visits. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
+Each milestone ends with a test task. M0–M4 and M6 run entirely on one Mac with no accounts; M5 is where the sign-ups happen, and launch waits for M6. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
 
 The tasks, their dependencies and progress are on the **roomies** board in Weyve.
 
@@ -88,7 +89,7 @@ One command runs the whole suite, stopping at the first failure:
 pnpm install && pnpm test:all
 ```
 
-It resets the local database, then runs typecheck, lint, formatting, unit, use-case and component tests (with coverage targets), contract and row-level-security tests against local Supabase, and the end-to-end journeys on the iPhone 15 profile (including axe on every screen, light and dark). It takes about two minutes. The pieces run on their own too: `pnpm test`, `pnpm test:db`, `pnpm test:e2e`. See [docs/TESTING.md](docs/TESTING.md).
+It resets the local database, then runs typecheck, lint, formatting, unit, use-case and component tests (with coverage targets), contract and row-level-security tests against local Supabase, and the end-to-end journeys on the iPhone 15 profile (including axe on every screen, light and dark). It takes a few minutes. The pieces run on their own too: `pnpm test`, `pnpm test:db`, `pnpm test:e2e`. See [docs/TESTING.md](docs/TESTING.md).
 
 ## Repo layout
 

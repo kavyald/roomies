@@ -245,8 +245,9 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
       <div class="ms done" role="listitem"><b>M3</b><span>Polls, runs, calendar</span></div>
       <div class="ms done" role="listitem"><b>M4</b><span>Notifications</span></div>
       <div class="ms todo" role="listitem"><b>M5</b><span>Hosting &amp; launch</span></div>
+      <div class="ms todo" role="listitem"><b>M6</b><span>Usability &amp; personal needs</span></div>
     </div>
-    <p class="small soft">M0–M4 are done and passed <code>pnpm test:all</code> at Q4; T40 (the Activity tab's first pass) has landed since. That's 42 of the 48 tasks on the Weyve board. M5 (E1–E5 + Q5) needs your Supabase, Gmail and Vercel accounts, so the app so far has only run on your Mac against local Supabase in Docker.</p>
+    <p class="small soft">M0–M4 are done and passed <code>pnpm test:all</code> at Q4; T40 (the Activity tab's first pass) and T41 (the join name field) have landed since. That's 44 of the 72 tasks on the Weyve board. M6 (T42–T62 + Q6) is in progress and is built locally before launch, so E5 waits on Q6. M5 (E1–E5 + Q5) needs your Supabase, Gmail and Vercel accounts, so the app so far has only run on your Mac against local Supabase in Docker.</p>
     <div class="stats">
       <div class="stat"><b>~20k</b><span>lines of app code (tests excluded)</span></div>
       <div class="stat"><b>74</b><span>test files, plus 21 Playwright journeys</span></div>
@@ -419,7 +420,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
   <!-- GAPS -->
   <section id="gaps" aria-labelledby="h-gaps">
     <h2 id="h-gaps">Unfinished or misplaced</h2>
-    <p class="lede">Things I found that are planned but not built, built differently from the docs, or sitting in an odd place. Filter by kind.</p>
+    <p class="lede">Things I found that are planned but not built, built differently from the docs, or sitting in an odd place. “Carded” ones are on an M6 card. Two earlier gaps were settled by the owner instead: offline shows the offline page only (D33), and rooms can't be added or archived (D34). Filter by kind.</p>
     <div class="filter seg" id="gapfilter" role="group" aria-label="Filter"></div>
     <div class="list" id="gaplist"></div>
   </section>
@@ -432,7 +433,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
     <div class="list" id="advlist"></div>
   </section>
 
-  <footer>Built from <code>docs/</code> (PRD, ARCHITECTURE, FRONTEND, TESTING) and a read of the source on <code>v1</code> at <code>21ecdb5</code> (Q4); file references point at that commit. Updated 1 Oct 2026 for T40 (A24). The implementation plan and build log it first drew on were retired that day; tasks and their decisions now live on the Weyve cards.</footer>
+  <footer>Built from <code>docs/</code> (PRD, ARCHITECTURE, FRONTEND, TESTING) and a read of the source on <code>v1</code> at <code>21ecdb5</code> (Q4); file references point at that commit. Updated 1 Oct 2026 for T40 (A24), and 2 Oct 2026 for M6 and the owner's decisions D30–D35. The implementation plan and build log it first drew on were retired on 1 Oct; tasks and their decisions now live on the Weyve cards.</footer>
 </div>
 
 <dialog class="sheet" id="sheet" aria-labelledby="sheet-title">
@@ -772,7 +773,7 @@ const FRONT = [
 const PROD = [
  ['D10 · D8','One house, invite-only','A one-time setup link creates the house; after that, the only way in is an invite link (expires in 7 days, max uses = open bedrooms). Joins notify everyone.',[]],
  ['D15','Things never change type','When the vacuum arrives, the need is done; “Assemble the vacuum” is a new task and “Keep it?” a new poll.',[]],
- ['D5 · D26','Feelings instead of urgency flags','😰 Anxious, 😤 Frustrated, 😕 Confused, 🙂 Fine, 😐 Meh, 🙏 Thanks. Always named, always about items (never people), with an optional note. They replace comments.',[]],
+ ['D5 · D26','Feelings instead of urgency flags','😰 Anxious, 😤 Frustrated, 😕 Confused, 🙂 Fine, 😌 Not a big deal, 🙏 Thanks. Always named, always about items (never people), with an optional note. They replace comments.',[]],
  ['D7','Feeling weights are the house\'s','One house-wide setting any member can change (−20…+40). Saving re-ranks everyone\'s feed and shows a card on Home.',[]],
  ['D2 · D6','No scoreboards','No chore balance, no “who\'s done what”, no weekly check-in or house mood.',[]],
  ['D3 · D20','Polls: ties are ties','Most votes wins. A tie says “Tie” and the app does nothing automatic. Anyone can add options while it\'s open.',[]],
@@ -805,16 +806,15 @@ $('#prlist').innerHTML = PR.map((p,i)=>'<div class="pr"><span class="k">'+String
 
 /* ---------------- Gaps ---------------- */
 const GAPS = [
- ['Not started','M5: hosting and launch','E1–E5 and Q5 are untouched by design: hosted Supabase (staging + prod), the Gmail sender, Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is also not installed yet.','Weyve cards E1–E5 and Q5 (M5)'],
- ['Partly built','Offline shows no data','ARCHITECTURE §7.7 promises “the last cached data read-only when offline”. The service worker caches pages and build assets, but data comes from Supabase over another origin and TanStack Query isn\'t persisted, so an offline open shows the shell with nothing in it.','public/sw.js, lib/client/provider.tsx'],
- ['Partly built','Swipe actions on cards','FRONTEND principle 6 and §5 call for swipe right = done, left = feeling. Deferred in T24 to “M4 polish”; T37 didn\'t add them. The check button covers “done”.','components/items/ItemCard.tsx'],
- ['Partly built','30-day restore window','The archive confirm says “You can bring it back for 30 days”, but restoreItem has no time check and nothing purges. Either enforce it or change the copy.','components/items/ItemSheets.tsx:575, lib/domain/items.ts:326'],
- ['Partly built','Undo for “Did it” and vote withdrawal','chore.undone and poll.vote_withdrawn exist in the event catalog but have no use cases (T21, T27 note these).','lib/domain/events.ts'],
- ['Partly built','Rooms: add, archive, set element','room.added and room.archived are in the catalog; only rename and reorder are built (T17).','lib/app/house.ts'],
- ['Partly built','Conflict detection on edits','§7.5 describes optimistic concurrency (where updated_at = :loaded → conflict). Saves are last-write-wins for now (T18).','lib/adapters/postgres/unit-of-work.ts'],
- ['Partly built','Poll and run notifications don\'t deep-link','Item notifications open the item; poll, run and people notifications open Home or House, because there are no /p/[pollId] or /r/[runId] routes.','lib/domain/notifications.ts:142–199'],
- ['Partly built','“Handled by” vs. the run\'s contact','Editing a task\'s “Handled by” while it sits on a request or visit isn\'t blocked, so the two can disagree (T30 note).','components/items/HandledByPicker.tsx'],
- ['Partly built','security_events table','Invalid invite tokens are only console.warn\'d; the service-role-only table from §6.4 wasn\'t created.','lib/app/invites.ts'],
+ ['Not started','M5: hosting and launch','E1–E5 and Q5 are untouched by design: hosted Supabase (staging + prod), the Gmail sender, Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is also not installed yet. E5 now also waits on Q6, since M6 is built first.','Weyve cards E1–E5 and Q5 (M5)'],
+ ['Carded','Swipe actions on cards','FRONTEND principle 6 and §5 call for swipe right = done, left = feeling. The check button covers “done” until then.','Weyve card T43 (M6)'],
+ ['Carded','“Delete” instead of the 30-day restore','The archive confirm promises 30 days, but nothing enforces it. The owner chose “Delete” with Undo and no window (D30).','Weyve card T62 (M6)'],
+ ['Carded','Undo for “Did it”','chore.undone is in the event catalog but has no use case (T21 note).','Weyve card T54 (M6)'],
+ ['Carded','Polls: withdraw a vote, reopen, deadline','poll.vote_withdrawn and the other poll actions are in the catalog but nothing writes them (T27 note).','Weyve card T55 (M6)'],
+ ['Carded','Conflict detection on edits','§7.5 describes optimistic concurrency (where updated_at = :loaded → conflict). Saves are last-write-wins for now (T18).','Weyve card T50 (M6)'],
+ ['Carded','Poll and run notifications don\'t deep-link','Item notifications open the item; poll, run and people notifications open Home or House, because there are no /p/[pollId] or /r/[runId] routes.','Weyve card T58 (M6)'],
+ ['Carded','“Handled by” vs. the run\'s contact','Editing a task\'s “Handled by” while it sits on a request or visit isn\'t blocked, so the two can disagree (T30 note).','Weyve card T51 (M6)'],
+ ['Carded','security_events table','Invalid invite tokens are only console.warn\'d; the service-role-only table from §6.4 wasn\'t created.','Weyve card T53 (M6)'],
  ['Docs drift','ARCHITECTURE §8 file tree','Lists /api/invites/*, /api/push/subscribe, /api/setup, /api/account/delete, p/[pollId], r/[runId], settings/, components/rooms/ and Storybook. Reality: server actions, sheets, /me, and /dev/kit.','docs/ARCHITECTURE.md §8'],
  ['Docs drift','ARCHITECTURE §3.3 libraries','date-fns, date-fns-tz, rrule, React Hook Form and Sentry are listed; none are installed. Time is hand-written in lib/domain/time.ts.','docs/ARCHITECTURE.md §3.3, package.json'],
  ['Docs drift','HouseQueries and Realtime descriptions','§4.1 lists feed(), needs(), calendar(range); the port actually returns raw lists that pure functions shape in the browser. §7.5 says Realtime subscribes per table; it listens only to activity_events.','docs/ARCHITECTURE.md §4.1, §7.5'],
@@ -823,7 +823,7 @@ const GAPS = [
  ['Misplaced','Behavior in the composition root','sendNotificationsNow (running a use case, logging) lives in compose.ts, which should only wire adapters.','lib/compose.ts'],
  ['Misplaced','Stale comment in change-for-kind','Says polls, runs and costs “refresh everything”; they now map to their own tables.','lib/adapters/change-for-kind.ts:20']
 ];
-const GAP_KINDS = ['All','Not started','Partly built','Docs drift','Misplaced'];
+const GAP_KINDS = ['All','Not started','Carded','Docs drift','Misplaced'];
 let gapKind = 'All';
 function renderGaps(){
   $('#gaplist').innerHTML = GAPS.filter(g=>gapKind==='All'||g[0]===gapKind).map(g=>
@@ -841,10 +841,9 @@ const ADV = [
  ['top','Backend','Stop the outbox from double-sending','Two senders can run at once (the after() call following each action and the 5-minute job). pending() selects unsent rows with no lock, so both can push the same message before either marks it sent.','Claim rows first: SELECT … FOR UPDATE SKIP LOCKED, or UPDATE … SET claimed_at = now() WHERE sent_at IS NULL AND claimed_at IS NULL RETURNING *.','lib/adapters/postgres/unit-of-work.ts:406, lib/app/push.ts:46'],
  ['top','Backend','Send pushes outside the database transaction','makeSendNotifications calls the push services inside uow.run, holding a pooled connection for up to 100 messages × browsers of network calls. On Vercel with Supabase\'s transaction pooler, that invites timeouts; a crash after sending but before commit re-sends everything.','Claim in one short transaction, send with no transaction open, then mark sent in a second short one.','lib/app/push.ts'],
  ['top','Backend','Revisit sign-in enumeration before launch','The app\'s own form always answers the same, but GoTrue\'s /auth/v1/otp answers unknown emails with a 422 and known ones with 200, and the anon key is public. Anyone can check whether an email has an account.','In E1, confirm the hosted behavior; if it still differs, put the auth endpoint behind the server route only or accept and document the risk.','Weyve card T03 (notes)'],
- ['high','Backend','Bound what the browser loads','items(houseId) and costs(houseId) return every row ever, including done and archived ones, and every activity event refetches items. Fine today; after a year of groceries it\'s thousands of rows on every tap.','Load open items plus a recent-done window (e.g. 30 days, which also matches restore), and fetch costs by month.','lib/adapters/supabase/house-queries.ts:85,95'],
- ['high','Frontend','Make offline match the promise, or change the promise','Right now an offline open shows an empty shell.','Persist the TanStack cache to IndexedDB (persistQueryClient) and show a read-only banner; or edit ARCHITECTURE §7.7 to say “offline page only”.','public/sw.js, lib/client/provider.tsx'],
- ['high','Frontend','Deep links for polls and runs','Push taps for polls and runs land on Home, where you then hunt for the thing.','Add /h/[id]/p/[pollId] and /r/[runId] that open the existing sheets, the same way /i/[itemId] does, and point notifications at them.','lib/domain/notifications.ts, app/h/[houseId]/'],
- ['high','Backend','Add conflict detection to edits','Two roommates editing the same task (title, date, assignee) silently overwrite each other.','Carry updatedAt in the domain item and save with WHERE updated_at = :loaded; map zero rows to a conflict error and a “Someone just changed this” toast.','lib/adapters/postgres/unit-of-work.ts'],
+ ['high','Backend','Bound what the browser loads','items(houseId) and costs(houseId) return every row ever, including done and archived ones, and every activity event refetches items. Fine today; after a year of groceries it\'s thousands of rows on every tap.','Load open items plus a recent-done window (e.g. 30 days), and fetch costs by month.','lib/adapters/supabase/house-queries.ts:85,95'],
+ ['high','Frontend','Deep links for polls and runs','Push taps for polls and runs land on Home, where you then hunt for the thing.','Add /h/[id]/p/[pollId] and /r/[runId] that open the existing sheets, the same way /i/[itemId] does, and point notifications at them.','Weyve card T58 (M6)'],
+ ['high','Backend','Add conflict detection to edits','Two roommates editing the same task (title, date, assignee) silently overwrite each other.','Carry updatedAt in the domain item and save with WHERE updated_at = :loaded; map zero rows to a conflict error and a “Someone just changed this” toast.','Weyve card T50 (M6)'],
  ['normal','Backend','Guard the RLS mirror against drift','memory/db.ts re-implements each policy by hand. Contract tests catch behavior drift, but a new policy with no mirror goes unnoticed until someone writes a test for it.','Add a db test that lists pg_policies and compares it with a named list exported from memory/db.ts.','lib/adapters/memory/db.ts, supabase/tests/rls.test.ts'],
  ['normal','Backend','Split the Postgres unit of work','One 720-line file holds every repo, so each new table grows it.','One file per repo (items.ts, runs.ts, polls.ts…) with unit-of-work.ts assembling them.','lib/adapters/postgres/unit-of-work.ts'],
  ['normal','Backend','One system actor, one home','Four copies of the nil-UUID actor.','Export ROOMIES_SYSTEM from lib/domain/actor.ts; move sendNotificationsNow into lib/server.','lib/app/*.ts, lib/compose.ts'],
@@ -864,7 +863,7 @@ filterBar($('#advfilter'), ADV_KINDS, ()=>advKind, k=>advKind=k, renderAdv, k=>k
 renderAdv();
 
 /* ---------------- Priority calculator ---------------- */
-const FEEL = [['anxious','😰','Anxious',20],['frustrated','😤','Frustrated',15],['confused','😕','Confused',5],['fine','🙂','Fine',0],['meh','😐','Meh',-5],['thanks','🙏','Thanks',0]];
+const FEEL = [['anxious','😰','Anxious',20],['frustrated','😤','Frustrated',15],['confused','😕','Confused',5],['fine','🙂','Fine',0],['meh','😌','Not a big deal',-5],['thanks','🙏','Thanks',0]];
 const counts = {anxious:0,frustrated:0,confused:0,fine:0,meh:0,thanks:0};
 const DUE = {none:[0,'No date'],w7:[5,'Within 7 days'],w3:[15,'Within 3 days'],today:[25,'Due today'],p1:[35+2,'1 day past'],p4:[35+8,'4 days past'],p10:[35+15,'10 days past']};
 const feelEl = $('#feel');

@@ -17,7 +17,7 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 ## 1. How testing is split
 
 - **Every task tests itself.** Its definition of done asks for unit tests on pure domain functions, use-case tests on the in-memory adapters, contract tests for new ports or adapters, and an RLS test for any new table.
-- **Every milestone ends with a test task (Q0–Q5).** It adds the tests that cross task boundaries (end-to-end journeys, RLS across tables, rules that span features), fills gaps against the milestone's exit criteria, and keeps `pnpm test:all` green. A milestone is done when its Q task passes.
+- **Every milestone ends with a test task (Q0–Q6).** It adds the tests that cross task boundaries (end-to-end journeys, RLS across tables, rules that span features), fills gaps against the milestone's exit criteria, and keeps `pnpm test:all` green. A milestone is done when its Q task passes.
 - **What can't run on a Mac is a manual checklist** in E4 (§7): installing on a real iPhone, iOS push, and VoiceOver.
 
 ---

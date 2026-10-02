@@ -2,14 +2,14 @@
 
 Read this first. It covers where the project stands, how the work is planned (on the Weyve board), and how to keep that board in sync while you build.
 
-## Current state (as of 2026-09-30, after M4)
+## Current state (as of 2026-10-02, M6 in progress)
 
-**M0–M4 are done** (on `v1`): foundations, house & members, items, polls, runs & calendar, and notifications & polish. What's left is **M5** (hosting & launch), which needs the owner's Supabase, Gmail and Vercel accounts: **don't start it unless the owner says so.** Locally you can do everything in M2 (needs/chores/tasks, feelings, the ranked Home feed, feeling weights, live updates) plus: start a run from Needs and work it (done / move / back to the pool / finish, with "Did you spend money?"), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (Spent this month on House, Open Splitwise), and see Coming up on Home and the month calendar. M4 added notifications: every recorded event can enqueue outbox messages in the same transaction (`withNotifications`), pg_cron calls `/api/cron/<job>` (tick, send-notifications, reminders, close-polls), Web Push goes to browsers that turned it on (production builds only; the service worker doesn't register on `pnpm dev`), and each person has settings at `/h/[houseId]/me` (categories, quiet hours, theme).
+**M0–M4 are done** (on `v1`): foundations, house & members, items, polls, runs & calendar, and notifications & polish. Since then T40 (the Activity tab, first pass) and T41 (the join name field) landed. **M6** (usability & personal needs, T42–T62 + Q6) is in progress; it's built locally before launch, so E5 (production) waits on Q6. **M5** (hosting & launch) still needs the owner's Supabase, Gmail and Vercel accounts: **don't start it unless the owner says so.** Locally you can do everything in M2 (needs/chores/tasks, feelings, the ranked Home feed, feeling weights, live updates) plus: start a run from Needs and work it (done / move / back to the pool / finish, with "Did you spend money?"), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (Spent this month on House, Open Splitwise), and see Coming up on Home and the month calendar. M4 added notifications: every recorded event can enqueue outbox messages in the same transaction (`withNotifications`), pg_cron calls `/api/cron/<job>` (tick, send-notifications, reminders, close-polls), Web Push goes to browsers that turned it on (production builds only; the service worker doesn't register on `pnpm dev`), and each person has settings at `/h/[houseId]/me` (categories, quiet hours, theme).
 
 ```
 docs/                        PRD, ARCHITECTURE (decision log A1–A24), FRONTEND, TESTING, architecture-guide.html, archive/ (mockup-v1.html; ignored by docs-check)
-app/                         Next.js routes: /sign-in, /setup/[token], /join/[token], / (routes you to your house), /h/[houseId]/{,needs,chores,tasks,house,activity,calendar,i/[itemId]}, /dev/kit, /offline, actions/
-components/ui/               the UI kit (see /dev/kit in light + dark); components/shell, house, auth, items (sheets, cards, feelings), runs, polls, costs, calendar, home, needs, chores, tasks
+app/                         Next.js routes: /sign-in, /setup/[token], /join/[token], / (routes you to your house), /h/[houseId]/{,needs,chores,tasks,house,activity,calendar,me,i/[itemId]}, /dev/kit, /offline, actions/
+components/ui/               the UI kit (see /dev/kit in light + dark); components/shell, house, auth, setup, join, me, activity, items (sheets, cards, feelings), runs, polls, costs, calendar, home, needs, chores, tasks
 lib/domain/                  pure types + functions (ids, time/DST, money, result, actor, house, events, activity, format, rooms, setup, invites, members, items, lists, feelings, priority, weights, runs, polls, costs, calendar)
 lib/app/                     ports.ts + use cases (contacts, session/whereTo, setup, invites, house, items, runs, polls, costs)
 lib/adapters/                memory/ (fakes with RLS-equivalent rules), postgres/ (Kysely UoW), supabase/ (HouseQueries, AuthGateway, server clients), contracts/
@@ -22,7 +22,7 @@ proxy.ts                     Next 16's middleware: refreshes the session, guards
 ```
 
 - **Run it:** `pnpm supabase start`, then `pnpm env:local` (writes `.env.local` from `supabase status`), then `pnpm dev`. For scheduled jobs, `pnpm cron:local <port>` points the local pg_cron schedule at that dev server (it stores the URL and `CRON_SECRET` in the local Vault; a DB reset clears them). Sign in as `owner@roomies.test`; the code arrives in Mailpit at http://127.0.0.1:54324.
-- **Test it:** `pnpm test` (unit + coverage), `pnpm test:db`, `pnpm test:e2e`, or `pnpm test:all` for everything (about a minute; resets the local DB).
+- **Test it:** `pnpm test` (unit + coverage), `pnpm test:db`, `pnpm test:e2e`, or `pnpm test:all` for everything (a few minutes; resets the local DB).
 - **Surprises so far** (details in each task's Weyve card notes):
   - Next 16: `middleware.ts` is now `proxy.ts`, request APIs are async only, and `next dev` refuses a second dev server in the same folder. `AGENTS.md` holds the Next agent block so `next dev` leaves this file alone; read `node_modules/next/dist/docs/` before using a Next API.
   - TypeScript stays on 5.9 (typescript-eslint caps it), ESLint on 9.
@@ -72,11 +72,12 @@ The tasks are the cards on the Weyve **roomies** project (below). Each card hold
   - **M3** Polls, runs & calendar
   - **M4** Notifications & polish
   - **M5** Hosting & launch (exit criteria and suggested order are on the E5 card; PRD §12 has every milestone's exit criteria)
-- **M0–M4 run entirely on this Mac**, using local Supabase in Docker with no accounts.
+  - **M6** Usability & personal needs (built before launch: E5 depends on Q6)
+- **M0–M4 and M6 run entirely on this Mac**, using local Supabase in Docker with no accounts.
 - **M5 is off limits unless the owner says otherwise.** It needs Supabase, Gmail and Vercel accounts, which only the owner can create.
 - **Order:** dependencies are hard: don't start a task until everything it depends on is committed. `find_tasks` with `ready: true` lists what can start.
 - **Test tasks:** each milestone's Q task adds the tests that span its tasks (end-to-end journeys, RLS across tables) and keeps `pnpm test:all` green. **A milestone isn't done until its Q task passes**, so a task added to a milestone also becomes a dependency of its Q task.
-- **Tags:** every card has its milestone (`M0`–`M5`) and one topic: `topic:platform`, `topic:ui-shell`, `topic:people`, `topic:items`, `topic:priority`, `topic:coordination`, `topic:activity`, `topic:notifications` or `topic:launch`. Q cards are tagged `tests` instead of a topic, and cards that need outside accounts also carry `external`. Size is in each card's notes. On the canvas, each topic is a lane, ordered left to right by dependency depth; place a new card in its topic's lane.
+- **Tags:** every card has its milestone (`M0`–`M6`) and one topic: `topic:platform`, `topic:ui-shell`, `topic:people`, `topic:items`, `topic:priority`, `topic:coordination`, `topic:activity`, `topic:notifications` or `topic:launch`. Q cards are tagged `tests` instead of a topic, and cards that need outside accounts also carry `external`. Size is in each card's notes. On the canvas, each topic is a lane, ordered left to right by dependency depth; place a new card in its topic's lane.
 - **Edges:** keep only direct dependencies; don't add one that already follows through another path.
 - **Changing the plan:** edit the cards directly (name, WHAT, Done when, tags, dependency edges). There is no generated doc to keep in step.
 
