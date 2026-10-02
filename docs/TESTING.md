@@ -1,8 +1,8 @@
 # Roomies — Test Suite
 
-**Status:** In use. The M0–M4 suites are built and green; M5's smoke suite and the manual checklist (§7) come with E1–E5.  
+**Status:** In use. The M0–M4 suites are built and green; M6's (Q6) is planned; M5's smoke suite and the manual checklist (§7) come with E1–E5.  
 **Built from:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [PRD.md](./PRD.md)  
-**Last updated:** 2026-10-01
+**Last updated:** 2026-10-02
 
 One command runs everything:
 
@@ -26,7 +26,7 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 
 | Layer | What it checks | Tool | Where | Needs local Supabase? |
 |---|---|---|---|---|
-| **Static** | Types, layer boundaries (`eslint-plugin-boundaries`), banned copy words | `tsc`, ESLint, a copy-lint test | whole repo | No |
+| **Static** | Types, layer boundaries (`eslint-plugin-boundaries`), formatting, banned copy words | `tsc`, ESLint, Prettier, and a copy-lint test (`components/ui/copy.test.ts`, which runs with the unit tests) | whole repo | No |
 | **Unit** | Pure domain functions: priority, feed rules, runs, polls, costs, time and money | Vitest | `lib/domain/**/*.test.ts` | No |
 | **Use case** | Use cases on the in-memory adapters, with a fixed clock and sequential ids | Vitest + `depsForTest()` | `lib/app/**/*.test.ts` | No |
 | **Component** | Screens and components with a fake `AppClient` (pre-membership screens like join call server actions directly; their tests `vi.mock` those modules) | Vitest + Testing Library (jsdom) | `app/**/*.test.tsx`, `components/**/*.test.tsx` | No |
@@ -44,10 +44,11 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 
 | Command | Runs | Speed | Needs |
 |---|---|---|---|
-| `pnpm test` | Static, unit, use-case, component | Seconds | Nothing |
-| `pnpm test:db` | Contract suites on Postgres, database tests | Under a minute | `supabase start` (it checks `supabase status` and prints a hint if not) |
-| `pnpm test:e2e` | Playwright journeys; starts `next dev` itself | A few minutes | `supabase start` |
-| **`pnpm test:all`** | All of the above, in order, stopping at the first failure. Runs `supabase db reset` once first. | A few minutes | Docker Desktop |
+| `pnpm test` | Unit, use-case and component tests (the Vitest `unit` project, including the copy lint), with the coverage targets | Seconds | Nothing |
+| `pnpm typecheck` · `pnpm lint` · `pnpm format:check` | The static checks | Seconds | Nothing |
+| `pnpm test:db` | Contract suites on Postgres, database tests (the Vitest `db` project) | Under a minute | `supabase start` (its global setup prints a hint if it can't reach the database) |
+| `pnpm test:e2e` | Playwright journeys. It builds the app and serves the production build on port 3210 (`pnpm build && pnpm start`, not `next dev`), reusing a server already on that port except in CI. With `BASE_URL` set it skips that and runs against the given URL. | A few minutes | `supabase start` |
+| **`pnpm test:all`** | Everything, in order, stopping at the first failure: `supabase db reset` once, `.env.local` from `supabase status`, then typecheck, lint, format:check, `test`, `test:db`, `test:e2e`. | A few minutes | Docker Desktop, with local Supabase started |
 | `pnpm test:smoke` | The smoke journey against `BASE_URL` | Seconds | A deployed URL (M5) |
 
 `pnpm test --watch` is the everyday loop while building a task.
@@ -57,12 +58,15 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 ## 4. Test data and isolation
 
 - **`lib/testing/`** holds:
-  - `fixedClock(instant)` and `seqIds()`;
-  - builders: `aHouse`, `aMember`, `aNeed`, `aChore`, `aTask`, `aRun`, `aPoll`, `aContact`;
-  - `sampleHouse()`, which mirrors the v1 mockup's people and rooms (Air, Fire, Water, Earth, Bathrooms 1–3, …).
+  - `fixedClock(instant)` and `seqIds()`, re-exported from the adapters, plus the fixed instant `T0`;
+  - builders for domain rows: `aHouse`, `aProfile`, `aMember`, `aRoom`, `aContact`, `anInvite`;
+  - `sampleHouse()`, which mirrors the v1 mockup's people and rooms (Air, Fire, Water, Earth, Bathrooms 1–3, …);
+  - `fakeAppClient()` over the in-memory adapters, for component tests;
+  - for database tests (`db.ts`): `asUser`, `asOwner`, `asAnon`, `refused`, and `aDbHouse()`, a house with an admin, a member, a room, a contact and an invite;
+  - the Mailpit helper (`latestCode`) and JWT minting for test clients.
 
-  The lint rules allow `lib/testing/` to be imported only from test files.
-- **One house per test.** Every database and E2E test creates its own house through the builders. Tests never share rows, so they can run in parallel and nothing needs truncating. `supabase db reset` runs once per `test:all` to apply migrations and `seed.sql`.
+  Use-case tests get their dependencies from `depsForTest()` in `lib/compose.ts`. The lint rules allow `lib/testing/` to be imported only from test files.
+- **One house per test.** Database tests make theirs with `aDbHouse()`, and E2E journeys with `anOwner()` in `e2e/support.ts` (a real account that is admin of a new house with the apartment's rooms). Tests never share rows, so they can run in parallel and nothing needs truncating. `supabase db reset` runs once per `test:all` to apply migrations and `seed.sql`.
 - **`asUser(userId, fn)`** opens a transaction with `set local role authenticated` plus the user's JWT claims, which is the same mechanism the UnitOfWork uses. RLS tests go through the real path, and `auth.uid()` equals the user inside `fn`.
 - **Time is always injected.** No test depends on the real clock. Daylight-saving tests use fixed instants on both sides of a change in the house's time zone.
 - **Sign-in codes in E2E** are read from the local Mailpit API (`localhost:54324`). Nothing reaches a real inbox.
@@ -73,11 +77,11 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 
 | Job | Runs | When |
 |---|---|---|
-| **fast** | `pnpm test` | Every push and PR |
-| **full** | `supabase start` (Supabase CLI setup action; Docker comes with Actions), then `pnpm test:db` and `pnpm test:e2e` | Every push and PR |
+| **fast** | `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` | Every push and PR |
+| **full** | `pnpm supabase start` with the services the tests don't use left off (Studio, Logflare, Vector, imgproxy, Edge Runtime, Storage, Supavisor; Docker comes with Actions), `.env.local` from it, Playwright's WebKit, then `pnpm test:db` and `pnpm test:e2e` | Every push and PR |
 | **smoke** (from M5) | `pnpm test:smoke` against staging | After each staging deploy |
 
-`fast` and `full` are required checks on `main`. Playwright traces and screenshots are uploaded when a test fails.
+`fast` and `full` are required checks on `main`. When `full` fails, the Playwright report and test results (traces, screenshots) are uploaded.
 
 **Coverage targets**, enforced by `pnpm test`: domain ≥95% of lines, use cases ≥90%. UI code has no target because the E2E journeys cover it.
 
@@ -93,6 +97,7 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 | **Q3** M3 tests | One run per item (domain and database); move, back to the pool, hand to contact, done; a request closes itself when empty; the visit feed rule; `itemPath` / `runHistory`; equal cost splits; calendar ranges across DST; a 2–2 poll is a tie; options can be added until close. | `m3-runs`: a grocery run finished with a cost; a poll with a tie; landlord request → sent → reply recorded by moving 2 tasks to a visit and 1 back with a note. |
 | **Q4** M4 tests + full suite | `notificationsFor` quiet hours and prefs; the outbox is written in the same transaction; reminders are idempotent under a fixed clock; the push sender drops 404/410 subscriptions (fake); copy lint (no "overdue," "failed," or "missed" about a person); axe on every screen. Coverage targets on. | `m4-notifications`, plus every earlier journey in one run. **`pnpm test:all` is green on a fresh clone and in CI.** |
 | **Q5** Remote smoke suite | — | `smoke`: against staging after each deploy, with a dedicated smoke house; read-only against prod after launch. |
+| **Q6** M6 tests | RLS and the CHECK on `items.for_member`; the duplicate-need rule with owners; the tests from M6's audit cards; axe on every changed screen in light and dark. | Journeys that count taps: finishing an item takes 1, sharing a feeling 2, a repeating chore 3 plus typing, a grocery run about 6, a personal need its title plus 1. Every swipe has a button that does the same thing. |
 
 ---
 

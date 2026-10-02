@@ -137,7 +137,7 @@ Inputs are always ≥ 16px, which prevents iOS from zooming in on focus.
 | Chore | `sparkles` | "As needed" or "About every 7 days" |
 | Task | `check-circle` | Task |
 | Task handled by a contact | `phone` | "Handled by: Super" |
-| Poll | `vote` | "Poll · 2/4 voted" |
+| Poll | `bar-chart-3` | "Poll · 2/4 voted" |
 | Run | `shopping-cart` (grocery/order) · `calendar` (visit/event) | "Kavya's run" / "Super visit" |
 | On a run (badge) | same as the run | "On Kavya's run · Sat" |
 | Cost | `receipt` | "$189 · Wren paid" |
@@ -192,7 +192,7 @@ FIRST FLOOR                                         BASEMENT
 | B | Fitness space | common (door to the garden) | neutral |
 | — | Garden | outdoor | neutral |
 
-- Rooms are editable in House → Rooms (rename, reorder, add, archive, set the element color).
+- Rooms can be renamed and reordered in House → Rooms.
 
 **[DECIDED] (owner)** Air, Fire, Water, and Earth are the four bedrooms, one per roommate. The craft room is shared. The baths are Bathroom 1 and 2 (upstairs, full) and Bathroom 3 (downstairs, half). The space with the garden door is the Fitness space.
 
@@ -324,7 +324,7 @@ A full-height sheet:
 
 - **Settings → Feeling weights**: six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, **Save for the house**. "One setting for the whole house. Anyone can change it."
 - **Spent this month**: total and your share.
-- **Rooms** grouped by floor, with open-item counts. Tap a room to see its items.
+- **Rooms** grouped by floor. Tap one to rename it or move it up or down.
 - **Contacts** with Copy number. **Roommates**. **Invite link** (admins).
 - **Activity**: everything that happened in the house, newest first, one line per action (a bulk move is one line), under day headings ("Today", "Yesterday", "Mon, Sep 28"). Each line has the person's avatar, the sentence ("Kavya felt 😰 about Lemons"), and a topic icon and word with the time. A filter row (All · Items · Polls & runs · Money · House) narrows it, and **Show earlier** loads older history. A line about an item, run or poll opens its sheet in place.
 
@@ -337,10 +337,8 @@ A full-height sheet:
 
 ## 6. Delight (kept small)
 
-- **Mark an item done:** the checkbox fills with a quick spring and a short burst of 5–6 small dots in the completer's element color (≤ 500ms).
-- **A Top item gets resolved:** the card fades out with a gentle "Handled 💛" toast.
-- **Move-in checklist done:** a one-time full-screen card, "You're all moved in," with a confetti burst in all four element colors.
-- Everything respects `prefers-reduced-motion`, falling back to a simple fade.
+- **Finishing something** (Got it, Done, Did it): a burst of 10 small dots, in plum and the four element inks, flies out in an upward half-ring just above the toast and fades in about 650ms. It's decorative and hidden from screen readers.
+- Everything respects `prefers-reduced-motion`: transitions and animations become instant, and the burst doesn't show at all.
 - **[DECIDED] (owner)** No unlockable decorations or reward loop.
 
 ---
@@ -377,9 +375,9 @@ Rules:
 | `--ease-out` | `cubic-bezier(.22,1,.36,1)` | Sheets, transitions |
 | `--dur-fast` | 120ms | Press states |
 | `--dur-base` | 240ms | Sheets, toggles |
-| `--dur-slow` | 480ms | Completion burst |
+| `--dur-slow` | 480ms | Longer transitions (the completion burst runs its own 650ms) |
 
-Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss. Reduced motion leaves only fades.
+Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss. Reduced motion makes transitions and animations instant.
 
 ---
 
@@ -388,13 +386,13 @@ Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss. 
 | Concern | Decision |
 |---|---|
 | Tokens | CSS variables in `app/globals.css` for `:root`, `[data-theme=dark]`, and `@media (prefers-color-scheme: dark)`, exposed to Tailwind v4 via `@theme`. Element colors are tokens (`--air-fill`, `--air-ink`, ...), and components take an `element` prop instead of raw hex. No raw hex values in components. |
-| Components | `components/ui/`: `Card`, `Button`, `Chip` (type / room / tier), `Avatar` (initials + element), `Sheet`, `TabBar`, `ListRow`, `SegmentedControl`, `Toast`, `EmptyState`, `FeelingPicker`, `RoomPicker`, `ComingUpStrip`, `MonthCalendar`, `NeedsList`, `PollSheet`, `RunPicker`, `RunChecklist`, `PlanVisitSheet`, `SpentSheet`, `FeelingWeights`. Radix / Vaul for accessible sheet behavior. |
+| Components | The kit in `components/ui/`: `Card`, `Button`, `Chip` (plus `RoomChip` and `TierChip`), `Avatar` (initials + element), `Sheet`, `TabBar`, `ListRow`, `SegmentedControl`, `Toast` (and the completion burst), `EmptyState`; see it at `/dev/kit` in light and dark. Feature components live in their own folders (`components/items`, `polls`, `runs`, `costs`, `calendar`, `home`, `needs`, `chores`, `tasks`, `house`, `activity`, …). Sheets use Vaul (which brings its own Radix Dialog for the focus trap and labels); the app doesn't use Radix directly. |
 | Data | `rooms` table (see Architecture §6), `items.room_id` (optional), `house_members.room_id` for the member's bedroom, which drives their color. No per-user avatar config. |
-| Animation | CSS transitions + Framer Motion for sheets and list reordering only |
+| Animation | CSS transitions and keyframes only (Vaul animates the sheets). No Framer Motion. |
 | Safe areas | `env(safe-area-inset-*)` on the tab bar, "+" button, and sheets. `viewport-fit=cover`. |
 | Performance | Home interactive in < 2s on a mid-range iPhone over 4G. No web font on iOS. |
 | Accessibility | WCAG AA (verified above), emoji have text labels, avatars have labels ("Maya, Fire room"), no color-only meaning (element icons + tier words), a VoiceOver pass per milestone |
-| Visual QA | Playwright screenshots at 375pt and 430pt widths, light + dark |
+| Visual QA | axe on every screen in light and dark on the iPhone 15 profile (`e2e/m4-a11y.spec.ts`), plus the by-eye check at 375pt in light and dark from each task's definition of done. No screenshot comparisons. |
 
 ---
 
