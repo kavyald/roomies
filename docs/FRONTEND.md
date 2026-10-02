@@ -268,7 +268,7 @@ Tap **🙂+** on a card or detail, or swipe left:
 
 A full-height sheet:
 - category chips, title, meta rows (room, assignee, date)
-- **Tasks: "Handled by"** is always shown. It reads *One of us · Needs outside help?* or *Super · (555) 010-2231 · Copy · Change*, and either link opens **Who's handling it?**: One of us, the contacts, or **+ Someone new** (name + optional phone).
+- **Tasks: "Handled by"** is always shown. It reads *One of us · Needs outside help?* or *Super · (555) 010-2231 · Copy · Change*, and either link opens **Who's handling it?**: One of us, the contacts, or **+ Someone new** (name + optional phone). On a request or visit it reads *It's on the Landlord request. Move it to change who's handling it.* with **Open the Landlord request** instead, because "Handled by" follows the run (PRD §6.3).
 - **Polls about this** (vote inline) + **"+ Poll about this"**
 - **Costs** (+ **Add cost**: amount, who paid, then Open Splitwise)
 - **How the house feels** (current feelings + notes, **Earlier**)

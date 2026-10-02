@@ -71,6 +71,7 @@ const PROBLEM: Record<string, string> = {
   unknown_room: "That room isn't there anymore.",
   unknown_contact: "That contact isn't there anymore.",
   bad_repeat: 'Pick between 1 and 365 days.',
+  on_a_run: "It's on a request or visit. Move it there to change who's handling it.",
 }
 const oops = "Couldn't reach the house. Check your connection and try again."
 
@@ -535,7 +536,12 @@ function ItemDetailSheet({
         <p className="m-0 rounded-2xl bg-paper px-3.5 py-3 leading-snug">{item.note}</p>
       )}
       {pickingHandler && item.category === 'task' && (
-        <HandledByPicker houseId={houseId} task={item} onDone={() => setPickingHandler(false)} />
+        <HandledByPicker
+          houseId={houseId}
+          task={item}
+          onDone={() => setPickingHandler(false)}
+          onOpenRun={openRun}
+        />
       )}
       <HouseFeels
         houseId={houseId}

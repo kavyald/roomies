@@ -80,7 +80,10 @@ export type AppCommands = {
     id: ItemId
     patch: ItemPatch
   }): Promise<
-    CommandResult<Item, ItemError | ReferenceError | 'duplicate_need' | 'no_change' | 'not_found'>
+    CommandResult<
+      Item,
+      ItemError | ReferenceError | 'duplicate_need' | 'no_change' | 'on_a_run' | 'not_found'
+    >
   >
   markDone(
     id: ItemId,

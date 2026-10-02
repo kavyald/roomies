@@ -814,7 +814,6 @@ const GAPS = [
  ['Carded','Polls: withdraw a vote, reopen, deadline','poll.vote_withdrawn and the other poll actions are in the catalog but nothing writes them (T27 note).','Weyve card T55 (M6)'],
  ['Carded','Conflict detection on edits','§7.5 describes optimistic concurrency (where updated_at = :loaded → conflict). Saves are last-write-wins for now (T18).','Weyve card T50 (M6)'],
  ['Carded','Poll and run notifications don\'t deep-link','Item notifications open the item; poll, run and people notifications open Home or House, because there are no /p/[pollId] or /r/[runId] routes.','Weyve card T58 (M6)'],
- ['Carded','“Handled by” vs. the run\'s contact','Editing a task\'s “Handled by” while it sits on a request or visit isn\'t blocked, so the two can disagree (T30 note).','Weyve card T51 (M6)'],
  ['Carded','security_events table','Invalid invite tokens are only console.warn\'d; the service-role-only table from §6.4 wasn\'t created.','Weyve card T53 (M6)'],
  ['Misplaced','Nil-UUID system actor, four copies','The same “Roomies itself” actor is built separately in setup.ts, push.ts, jobs.ts and invites.ts.','lib/app/{setup,push,jobs,invites}.ts'],
  ['Misplaced','Behavior in the composition root','sendNotificationsNow (running a use case, logging) lives in compose.ts, which should only wire adapters.','lib/compose.ts'],

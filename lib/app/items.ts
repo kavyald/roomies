@@ -100,7 +100,7 @@ const change =
 
 export const makeEditItem = (deps: Deps) => {
   return (actor: HouseActor, input: { id: ItemId; patch: ItemPatch }) =>
-    change<ItemError | ReferenceError | 'duplicate_need' | 'no_change'>(
+    change<ItemError | ReferenceError | 'duplicate_need' | 'no_change' | 'on_a_run'>(
       deps,
       async (item, { by, actionId, repos }) => {
         const bad = await checkReferences(repos, actor, input.patch)

@@ -91,4 +91,14 @@ test('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; 
   const history = detail.getByRole('region', { name: 'Run history' })
   await expect(history).toContainText('Added to Landlord request')
   await expect(history).toContainText('Moved to Landlord visit · Sending a plumber Thu')
+
+  // "Handled by" follows the visit (T51): the picker says so and opens the visit instead.
+  await detail.getByRole('button', { name: 'Change', exact: true }).click()
+  const picker = detail.getByRole('region', { name: "Who's handling it?" })
+  await expect(picker).toContainText(
+    "It's on the Landlord visit. Move it to change who's handling it.",
+  )
+  await expect(picker.getByRole('radiogroup')).toHaveCount(0)
+  await picker.getByRole('button', { name: 'Open the Landlord visit' }).click()
+  await expect(page.getByRole('dialog', { name: 'Landlord visit' })).toBeVisible()
 })

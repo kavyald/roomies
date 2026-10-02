@@ -2,11 +2,13 @@
 // run of its own house and of the kind it says, and the access rules.
 
 import { beforeAll, describe, expect, it } from 'vitest'
+import { makeEditItem } from '../../app/items'
 import { AccessDenied, ConstraintViolation } from '../../app/ports'
 import type { Contact } from '../../domain/house'
 import type { Need, Task } from '../../domain/items'
 import type { Batch, Request, Run, Visit } from '../../domain/runs'
 import { instant, type LocalDate, type LocalTime } from '../../domain/time'
+import { fixedClock } from '../clock'
 import { asMember, seedHouse, system, type UnitOfWorkHarness } from './unit-of-work.contract'
 
 const T = instant(Date.UTC(2026, 8, 29, 16, 0))
@@ -121,6 +123,24 @@ export const runsContract = (name: string, makeHarness: () => Promise<UnitOfWork
       await expect(
         s.putItem(s.need('Butter', { run: { id: theirs.id, kind: 'batch' } })),
       ).rejects.toBeInstanceOf(ConstraintViolation)
+    })
+
+    it('a task read back carries its run, so "handled by" stays with a request or visit (T51)', async () => {
+      const s = await setup()
+      const req = s.request()
+      await s.putRun(req)
+      const leak = s.task('Leak', {
+        run: { id: req.id, kind: 'request' },
+        contactId: s.landlord.id,
+      })
+      await s.putItem(leak)
+      const edit = makeEditItem({ uow: h.uow, ids: h.ids, clock: fixedClock(T) })
+      expect(await edit(s.me, { id: leak.id, patch: { contactId: null } })).toEqual({
+        ok: false,
+        error: 'on_a_run',
+        detail: { runId: req.id },
+      })
+      expect(await h.uow.run(s.me, (r) => r.items.get(leak.id))).toEqual(leak)
     })
 
     it("members read and write their house's runs only, and start them in their own name", async () => {

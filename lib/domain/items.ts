@@ -169,16 +169,28 @@ const sameWhen = (a?: When, b?: When) => a?.date === b?.date && a?.time === b?.t
 /**
  * Edits an item. The category never changes. Assignee and "handled by" changes get their own
  * events (they notify / show differently); everything else is one `item.edited` with the diff.
+ * A task on a request or visit keeps that run's contact: moving it is how "handled by" changes
+ * there (PRD §6.3), so a different contact returns `on_a_run` with the run's id.
  */
 export const editItem = (
   item: Item,
   patch: ItemPatch,
   ctx: { by: UserId; actionId: ActionId; openNeeds: readonly Need[] },
-): Result<{ item: Item; events: DomainEvent[] }, ItemError | 'duplicate_need' | 'no_change'> => {
+): Result<
+  { item: Item; events: DomainEvent[] },
+  ItemError | 'duplicate_need' | 'no_change' | 'on_a_run'
+> => {
   if (item.category !== 'chore' && patch.repeatDays !== undefined)
     return err('invalid_for_category')
   if (item.category !== 'task' && patch.contactId) return err('invalid_for_category')
   if (!checkRepeat(patch.repeatDays)) return err('bad_repeat')
+  if (
+    item.category === 'task' &&
+    patch.contactId !== undefined &&
+    (patch.contactId ?? undefined) !== item.contactId &&
+    (item.run?.kind === 'request' || item.run?.kind === 'visit')
+  )
+    return err('on_a_run', { runId: item.run.id })
 
   let title = item.title
   if (patch.title !== undefined) {

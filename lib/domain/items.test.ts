@@ -6,6 +6,7 @@ import {
   type HouseId,
   type ItemId,
   type RoomId,
+  type RunId,
   type UserId,
 } from './ids'
 import {
@@ -217,6 +218,28 @@ describe('editItem', () => {
         { by: kavya, actionId: a, openNeeds: [need('Soap')] },
       ).ok,
     ).toBe(true)
+  })
+
+  it('"handled by" follows the request or visit a task is on; moving it is how that changes', () => {
+    const landlord = asId<'contact'>('landlord') as ContactId
+    const plumber = asId<'contact'>('plumber') as ContactId
+    const run = asId<'run'>('r') as RunId
+    const by = { by: kavya, actionId: a, openNeeds: [] }
+    for (const kind of ['request', 'visit'] as const) {
+      const onRun: Task = { ...task, contactId: landlord, run: { id: run, kind } }
+      for (const contactId of [plumber, null])
+        expect(editItem(onRun, { contactId }, by)).toEqual({
+          ok: false,
+          error: 'on_a_run',
+          detail: { runId: run },
+        })
+      // The same contact isn't a change, and the rest of the task can still be edited.
+      const r = editItem(onRun, { contactId: landlord, title: 'Leak' }, by)
+      expect(r.ok && r.value.events.map((e) => e.kind)).toEqual(['item.edited'])
+    }
+    // A batch has no contact, so a task on one can be handed to anyone.
+    const onBatch: Task = { ...task, run: { id: run, kind: 'batch' } }
+    expect(editItem(onBatch, { contactId: plumber }, by).ok).toBe(true)
   })
 })
 

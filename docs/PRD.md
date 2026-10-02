@@ -152,6 +152,7 @@ Every item has:
 - **Optional "Handled by":** pick a **contact** (super, landlord, provider) when someone outside the house needs to do it. The task shows "Handled by: Super," the contact's number (copy button), and appears under the *Outside help* filter.
   - **Setting it:** when adding the task, or **any time later** from the task's detail ("Needs outside help?" / "Change"). You can pick an existing contact, **add someone new** right there (name + optional phone, saved to Contacts), or switch back to "One of us." **[DECIDED] (owner)**
   - Planning a visit or adding it to a contact's list also sets it.
+  - **While the task is on a request or visit, "Handled by" follows that run.** To change it, move the task (Move to…, Back to the pool…, Hand to…); "Who's handling it?" says so and opens the run.
 - **"Handled by" is who *should* handle it.** Whether they've actually taken it on is tracked by the **request** and **visit** it's on (§6.5): *on the landlord list · not sent* → *sent to landlord · 2 days ago* → *landlord visit · Thu 10:00* → *fixed*.
 - **"Add to Landlord list"** on a task with a contact puts it on that contact's unsent request (starting one if needed).
 - Tasks can have a date (shows on the calendar) and an assignee.
@@ -373,7 +374,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D16 | Runs batch any needs, tasks, and chores. Visits are runs with a contact. | Owner |
 | D17 | Polls stand alone or attach to an item | Owner |
 | D18 | Items are stored in one table with per-category columns (Architecture §6) | Owner |
-| D19 | "Handled by" can be set or changed on any task at any time, including adding a new contact inline | Owner |
+| D19 | "Handled by" can be set or changed on any task at any time, including adding a new contact inline; on a request or visit it follows the run (D35) | Owner |
 | D20 | Anyone can add poll options until the poll closes | Owner |
 | D21 | Runs have three kinds: batch, request (gathering → sent → closed), visit (contact has taken it on) | Owner |
 | D22 | Recording a reply = bulk actions on tasks in a run: move to a visit/run, back to the pool with a note, hand to another contact, done. No reply form. | Owner |

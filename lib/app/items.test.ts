@@ -13,6 +13,7 @@ import {
   makeRestoreItem,
   makeSetFeeling,
 } from './items'
+import { makeAddToRequest } from './runs'
 
 const setup = async () => {
   const deps = depsForTest()
@@ -99,6 +100,36 @@ describe('items, end to end on the memory adapters', () => {
       'item.restored',
     ])
     expect(deps.uow.state.items.get(leak.value.id)).not.toHaveProperty('archivedAt')
+  })
+
+  it('keeps "handled by" with the request a task is on, and says which run to move it from', async () => {
+    const { deps, s, as, create, edit, kinds } = await setup()
+    const leak = await create(as('Kavya'), {
+      category: 'task',
+      title: 'Leak under the sink',
+      contactId: s.contacts.landlord.id,
+    })
+    if (!leak.ok) throw new Error(leak.error)
+    const req = await makeAddToRequest(deps)(as('Kavya'), { taskId: leak.value.id })
+    if (!req.ok) throw new Error(req.error)
+    const before = kinds()
+
+    expect(
+      await edit(as('Sam'), { id: leak.value.id, patch: { contactId: s.contacts.super.id } }),
+    ).toEqual({ ok: false, error: 'on_a_run', detail: { runId: req.value.id } })
+    expect(await edit(as('Sam'), { id: leak.value.id, patch: { contactId: null } })).toMatchObject({
+      ok: false,
+      error: 'on_a_run',
+    })
+    // Nothing changed or was recorded.
+    expect(deps.uow.state.items.get(leak.value.id)).toMatchObject({
+      contactId: s.contacts.landlord.id,
+    })
+    expect(kinds()).toEqual(before)
+    // Other edits still go through.
+    expect(
+      await edit(as('Sam'), { id: leak.value.id, patch: { title: 'Leak under the sink!' } }),
+    ).toMatchObject({ ok: true })
   })
 
   it('only points at people, rooms, and contacts of this house', async () => {

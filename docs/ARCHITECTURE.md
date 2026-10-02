@@ -627,7 +627,7 @@ select changes, actor_id, at from activity_events
 |---|---|---|
 | **Items** (`items.ts`) | | |
 | `createItem` | `(input: NewItem, ctx: { by, now, id, houseId, actionId, openNeeds }) → Result<{ item; events }, ItemError \| 'duplicate_need'>` | `ItemError` = `empty_title` · `title_too_long` · `invalid_for_category` · `bad_repeat`. A duplicate open need returns the existing one's id in `detail.existingId`. |
-| `editItem` | `(i: Item, patch: ItemPatch, ctx: { by, actionId, openNeeds }) → Result<{ item; events }, ItemError \| 'duplicate_need' \| 'no_change'>` | Category can't change. "Handled by" (tasks only) is a patch field (`contactId`), recorded as `item.handled_by_changed`; assignee changes as `item.assigned`; the rest as one `item.edited` with the diff. |
+| `editItem` | `(i: Item, patch: ItemPatch, ctx: { by, actionId, openNeeds }) → Result<{ item; events }, ItemError \| 'duplicate_need' \| 'no_change' \| 'on_a_run'>` | Category can't change. "Handled by" (tasks only) is a patch field (`contactId`), recorded as `item.handled_by_changed`; a task on a request or visit keeps that run's contact (`on_a_run`, with the run's id in `detail`): moving it is how "Handled by" changes there; assignee changes as `item.assigned`; the rest as one `item.edited` with the diff. |
 | `markDone` / `reopenItem` | `(i: Need \| Task, by, now, actionId) → Result<…, 'already_done' \| 'archived'>` / `(i, by, actionId, openNeeds) → Result<…, 'not_done' \| 'duplicate_need'>` | Got it / Done, and its undo |
 | `doChore` | `(c: Chore, by, now, actionId) → Result<{ chore; events }, 'archived'>` | Updates last done |
 | `archiveItem` / `restoreItem` | `(i, by, now, actionId) → Result<…, 'already_archived'>` / `(i, by, actionId, openNeeds) → Result<…, 'not_archived' \| 'duplicate_need'>` | |
@@ -685,7 +685,7 @@ select changes, actor_id, at from activity_events
 
 | File | Use cases (input) | Output | Errors (besides `not_found`) | Deps beyond uow, clock, ids |
 |---|---|---|---|---|
-| `items.ts` | `createItem` (`NewItem`) · `editItem` (`{ id, patch }`, which also sets "Handled by") · `markDone` · `reopenItem` · `doChore` · `archiveItem` · `restoreItem` (an item id) | `Item` | `ItemError`, `unknown_member` / `unknown_room` / `unknown_contact`, `duplicate_need`, `no_change`, `already_done`, `not_done`, `archived`, `not_for_chores`, `not_a_chore`, `already_archived`, `not_archived` | |
+| `items.ts` | `createItem` (`NewItem`) · `editItem` (`{ id, patch }`, which also sets "Handled by") · `markDone` · `reopenItem` · `doChore` · `archiveItem` · `restoreItem` (an item id) | `Item` | `ItemError`, `unknown_member` / `unknown_room` / `unknown_contact`, `duplicate_need`, `no_change`, `on_a_run` (edit), `already_done`, `not_done`, `archived`, `not_for_chores`, `not_a_chore`, `already_archived`, `not_archived` | |
 | | `setFeeling` (`{ itemId, kind \| null, note? }`) | `Feeling \| null` | `no_change`, `note_too_long` | |
 | `runs.ts` | `startRun` (`NewRun & { itemIds }`) · `addToRun` (`{ runId, itemIds }`) · `startRequest` (`{ contactId, itemIds }`) · `planVisit` (`{ contactId, itemIds, when? }`) · `addToRequest` (`{ taskId }`) | `Run` | the domain errors above, `unknown_member` | |
 | | `markRunItemsDone` · `returnToPool` (`{ runId, itemIds, note?, clearContact }`) · `moveRunItems` (`{ fromRunId, toRunId, itemIds, note? }`) · `handToContact` (`{ runId, itemIds, contactId, note? }`) · `moveToNewVisit` (`{ fromRunId, itemIds, when?, contactId?, note? }`) | `Run` / `Run[]` (from, to) | the domain errors above, `no_contact` | |
