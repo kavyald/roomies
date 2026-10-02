@@ -229,7 +229,7 @@ export const activityLine = (
       case 'item.reopened':
         return `${actor} reopened ${item(r)}`
       case 'item.archived':
-        return `${actor} archived ${item(r)}`
+        return `${actor} deleted ${item(r)}`
       case 'item.restored':
         return `${actor} brought back ${item(r)}`
       case 'item.assigned':

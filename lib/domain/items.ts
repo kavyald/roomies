@@ -385,7 +385,7 @@ export const undoChore = (
   })
 }
 
-/** Deleting is archiving (PRD §5); restorable. Leaves any run it was on. */
+/** "Delete" in the app (PRD D30): sets archived_at, keeping the row for history; restorable. Leaves any run it was on. */
 export const archiveItem = (
   item: Item,
   by: UserId,

@@ -7,12 +7,12 @@ import { cn } from './cn'
 export type MenuItem = {
   label: string
   onSelect: () => void
-  /** Quieter actions that take something away (Archive). */
+  /** Quieter actions that take something away (Delete). */
   tone?: 'normal' | 'soft'
 }
 
 /**
- * The "…" button and its menu: the less-used actions on a sheet (Edit, Archive). Arrow keys move,
+ * The "…" button and its menu: the less-used actions on a sheet (Edit, Delete). Arrow keys move,
  * Escape closes it (and only it: `data-keeps-escape` tells the Sheet not to close too).
  */
 export function OverflowMenu({ label = 'More', items }: { label?: string; items: MenuItem[] }) {

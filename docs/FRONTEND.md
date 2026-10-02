@@ -266,8 +266,8 @@ Tap **🙂+** on a card or detail, or swipe left:
 ### 5.4 Item detail
 
 A sheet, simplest first, so the title, the primary action and the meta rows fit on a 375pt screen without scrolling:
-- **Header:** the title, with the category under it ("Task", "Chore · About every 7 days", "· Archived"), and a **…** menu beside Close holding **Edit** and **Archive**. Archive asks first, in place of the primary action: "Archive this? You can bring it back for 30 days." · **Keep it** / **Archive**.
-- **The primary action** at the top: **Done** (task) · **Got it** (need) · **Did it** (chore); **Not done after all** once it's done; **Bring it back** when archived.
+- **Header:** the title, with the category under it ("Task", "Chore · About every 7 days", "· Deleted"), and a **…** menu beside Close holding **Edit** and **Delete**. Delete asks first, in place of the primary action: "Delete this? You can undo it right after." · **Keep it** / **Delete**. Deleting closes the sheet with a "Deleted." toast and **Undo** (PRD D30); a deleted item opened from Activity has no menu.
+- **The primary action** at the top: **Done** (task) · **Got it** (need) · **Did it** (chore); **Not done after all** once it's done; **Bring it back** when deleted (opened from Activity).
 - **Meta rows:** Room · Last done (chores) · When / Needed by · Who's on it · Handled by (tasks) · Ask them · On a run · Done/Got it. Then the note.
 - **Tasks: "Handled by"** is always shown. It reads *One of us · Needs outside help?* or *Super · (555) 010-2231 · Copy · Change*, and either link opens **Who's handling it?**: One of us, the contacts, or **+ Someone new** (name + optional phone). On a request or visit it reads *It's on the Landlord request. Move it to change who's handling it.* with **Open the Landlord request** instead, because "Handled by" follows the run (PRD §6.3).
 - **How the house feels** stays open (current feelings + notes, **Earlier**, **🙂+ Share a feeling**): it's the core interaction.
@@ -355,7 +355,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 | Poll tie | "It's a tie (1–1). Talk it out?" | "Vote failed" |
 | Network error | "Couldn't reach the house. Check your connection and try again." | "Error 500" |
 | Invite expired | "This invite has expired. Ask a roommate for a fresh link." | "Invalid token" |
-| Archive confirm | "Archive this? You can bring it back for 30 days." | "Are you sure?" |
+| Delete confirm | "Delete this? You can undo it right after." | "Are you sure?" · "Archive this? You can bring it back for 30 days." |
 
 Rules:
 - Use people's names in copy, never their room name. The element shows up in the avatar color, not the words.

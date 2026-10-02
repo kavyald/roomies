@@ -118,7 +118,7 @@ Every item has:
 | feelings | one current feeling + note per member (§7) |
 | done | who and when |
 
-- **[DECIDED]** Deleting is archiving. Archived items can be restored for 30 days.
+- **[DECIDED]** (owner, D30) Removing an item is called **Delete**. It asks first ("Delete this? You can undo it right after."), and the toast offers Undo. The row is kept for history (soft delete), and a deleted item opened from the activity log can be brought back. There's no archive list and no time limit.
 - **[DECIDED]** Any member can edit any item. Edits go to the activity log.
 
 ---
@@ -277,7 +277,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 
 ## 9. Activity log
 
-- A reverse-chronological record of every change: items added, edited, done, or archived; feelings; poll votes and results; runs started and finished; costs added; members joining; settings changed.
+- A reverse-chronological record of every change: items added, edited, done, or deleted (and brought back); feelings; poll votes and results; runs started and finished; costs added; members joining; settings changed.
 - **[DECIDED]** Written in the same transaction as the change, so it's always complete.
 - **[DECIDED] (owner) It's the only place history lives.** An item's path through requests and visits, Earlier feelings, votes and cost edits are all read back from it. It's append-only: undo adds a new entry ("reopened") and never erases one. A bulk action (moving 3 tasks) shows as one line. Details and the full event list are in Architecture §6.4.
 

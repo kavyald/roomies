@@ -319,7 +319,7 @@ export type RunStep = {
 
 /**
  * The steps items took through runs, oldest first. Checking an item off while it's on a run
- * (item.done / chore.done with a run) counts as done there; archiving it takes it off.
+ * (item.done / chore.done with a run) counts as done there; deleting it (item.archived) takes it off.
  */
 export const runSteps = (rows: readonly StoredActivityRow[]): RunStep[] =>
   [...rows]
@@ -337,7 +337,7 @@ export const runSteps = (rows: readonly StoredActivityRow[]): RunStep[] =>
         case 'run.item_returned':
           return [{ ...base, what: 'returned', ...(r.note && { note: r.note }) }]
         case 'item.archived':
-          return [{ ...base, what: 'returned', note: 'Archived' }]
+          return [{ ...base, what: 'returned', note: 'Deleted' }]
         case 'run.item_moved':
           return r.toRunId
             ? [{ ...base, what: { movedTo: r.toRunId }, ...(r.note && { note: r.note }) }]

@@ -59,10 +59,10 @@ test('a task gets its details from "More options", and the detail sheet shows th
   await expect(detail.getByRole('button', { name: 'Not done after all' })).toBeVisible()
 })
 
-test('the detail sheet keeps Edit and Archive in its "…" menu, and the extras closed', async ({
+test('the detail sheet keeps Edit and Delete in its "…" menu, and the extras closed', async ({
   page,
 }) => {
-  await ownerOnHouseTab(page)
+  const owner = await ownerOnHouseTab(page)
   await addWithThreeTaps(page, 'A task', 'Descale the kettel')
   await page
     .getByRole('status')
@@ -98,11 +98,45 @@ test('the detail sheet keeps Edit and Archive in its "…" menu, and the extras 
   await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible()
   detail = page.getByRole('dialog', { name: 'Descale the kettle' })
 
+  // Delete (PRD D30): asks first, then the toast offers Undo; nothing promises a window.
   await detail.getByRole('button', { name: 'More actions' }).click()
-  await detail.getByRole('menuitem', { name: 'Archive' }).click()
-  const confirm = detail.getByRole('group', { name: 'Archive this?' })
-  await expect(confirm).toContainText('You can bring it back for 30 days.')
-  await confirm.getByRole('button', { name: 'Archive' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Archived.' })).toBeVisible()
+  await detail.getByRole('menuitem', { name: 'Delete' }).click()
+  const confirm = detail.getByRole('group', { name: 'Delete this?' })
+  await expect(confirm).toContainText('You can undo it right after.')
+  await confirm.getByRole('button', { name: 'Keep it' }).click()
+  await expect(confirm).toBeHidden()
+  await detail.getByRole('button', { name: 'More actions' }).click()
+  await detail.getByRole('menuitem', { name: 'Delete' }).click()
+  await detail
+    .getByRole('group', { name: 'Delete this?' })
+    .getByRole('button', { name: 'Delete' })
+    .click()
+  const deleted = page.getByRole('status').filter({ hasText: 'Deleted.' })
+  await expect(deleted).toBeVisible()
   await expect(detail).toBeHidden()
+  await deleted.getByRole('button', { name: 'Undo' }).click()
+
+  const tasks = page.getByRole('list', { name: 'Tasks' })
+  await page.getByRole('link', { name: 'Tasks' }).click() // in-app, so the Undo request finishes
+  const card = tasks.getByRole('button', { name: 'Descale the kettle', exact: true })
+  await expect(card).toBeVisible()
+
+  // Deleted again, it can still be opened from Activity and brought back.
+  await card.click()
+  detail = page.getByRole('dialog', { name: 'Descale the kettle' })
+  await detail.getByRole('button', { name: 'More actions' }).click()
+  await detail.getByRole('menuitem', { name: 'Delete' }).click()
+  await detail
+    .getByRole('group', { name: 'Delete this?' })
+    .getByRole('button', { name: 'Delete' })
+    .click()
+  await expect(page.getByRole('status').filter({ hasText: 'Deleted.' })).toBeVisible()
+  await expect(card).toHaveCount(0)
+  await page.goto(`/h/${owner.houseId}/activity`)
+  await page.getByRole('button', { name: /Kavya deleted Descale the kettle/ }).click()
+  detail = page.getByRole('dialog', { name: 'Descale the kettle' })
+  await expect(detail).toContainText('Task · Deleted')
+  await detail.getByRole('button', { name: 'Bring it back' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Brought back.' })).toBeVisible()
+  await expect(detail).not.toContainText('Deleted')
 })

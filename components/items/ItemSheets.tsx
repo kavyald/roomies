@@ -315,7 +315,7 @@ function ItemDetailSheet({
   const celebrate = useCelebrate()
   const copy = useCopy()
   const [editing, setEditing] = useState(false)
-  const [confirmArchive, setConfirmArchive] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [pickingHandler, setPickingHandler] = useState(false)
   const edit = useEditItem(houseId)
   const done = useMarkDone(houseId)
@@ -529,7 +529,7 @@ function ItemDetailSheet({
     ? []
     : [
         { label: 'Edit', onSelect: () => setEditing(true) },
-        { label: 'Archive', tone: 'soft' as const, onSelect: () => setConfirmArchive(true) },
+        { label: 'Delete', tone: 'soft' as const, onSelect: () => setConfirmDelete(true) },
       ]
 
   return (
@@ -537,16 +537,17 @@ function ItemDetailSheet({
       open
       onOpenChange={(o) => !o && onClose()}
       title={item.title}
-      description={item.archivedAt ? `${kind} · Archived` : kind}
+      description={item.archivedAt ? `${kind} · Deleted` : kind}
       actions={<OverflowMenu label="More actions" items={menu} />}
     >
-      {confirmArchive && !item.archivedAt ? (
-        <ArchiveConfirm
+      {confirmDelete && !item.archivedAt ? (
+        <DeleteConfirm
           busy={busy}
-          onKeep={() => setConfirmArchive(false)}
-          onArchive={async () => {
+          onKeep={() => setConfirmDelete(false)}
+          onDelete={async () => {
+            // Deleting keeps the row (archived_at) so history still points at it; Undo restores.
             const r = await archive.mutateAsync(item.id)
-            say(r, 'Archived.', () => restore.mutate(item.id))
+            say(r, 'Deleted.', () => restore.mutate(item.id))
             if (r.ok) onClose()
           }}
         />
@@ -601,27 +602,27 @@ function ItemDetailSheet({
   )
 }
 
-/** "Archive this?" in place of the primary action, after Archive in the "…" menu. */
-function ArchiveConfirm({
+/** "Delete this?" in place of the primary action, after Delete in the "…" menu (PRD D30). */
+function DeleteConfirm({
   busy,
   onKeep,
-  onArchive,
+  onDelete,
 }: {
   busy: boolean
   onKeep: () => void
-  onArchive: () => void
+  onDelete: () => void
 }) {
   const first = useRef<HTMLButtonElement>(null)
   useEffect(() => first.current?.focus(), [])
   return (
-    <div role="group" aria-label="Archive this?" className="grid gap-2 rounded-2xl bg-paper p-3.5">
-      <p className="m-0 font-semibold">Archive this? You can bring it back for 30 days.</p>
+    <div role="group" aria-label="Delete this?" className="grid gap-2 rounded-2xl bg-paper p-3.5">
+      <p className="m-0 font-semibold">Delete this? You can undo it right after.</p>
       <div className="grid grid-cols-2 gap-2">
         <Button ref={first} variant="secondary" disabled={busy} onClick={onKeep}>
           Keep it
         </Button>
-        <Button disabled={busy} onClick={onArchive}>
-          Archive
+        <Button disabled={busy} onClick={onDelete}>
+          Delete
         </Button>
       </div>
     </div>

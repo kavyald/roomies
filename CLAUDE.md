@@ -41,7 +41,7 @@ proxy.ts                     Next 16's middleware: refreshes the session, guards
   - Port 3000 on this Mac is often taken by another project's server; `.claude/launch.json` (untracked) uses auto ports.
   - Jobs locally: `pnpm cron:local <port>` stores the app URL and `CRON_SECRET` in Supabase Vault so pg_cron can reach `pnpm dev`; without it the schedule sends nothing. Postgres `ON CONFLICT` also checks the SELECT policy, so the outbox uses it only for dedupe-keyed (system) rows.
   - Activity lines get their names from `subjects`, embedded in the same `activity_events` request (A24); a new subject kind needs its embed there and in the memory adapter. Feelings are always their emoji in copy (owner).
-  - `components/ui/copy.test.ts` fails on "overdue", "failed" or "missed" in any user-facing string; `e2e/m4-a11y` runs axe on every screen, so add new screens there.
+  - `components/ui/copy.test.ts` fails on "overdue", "failed" or "missed" in any user-facing string, and on "archive" or "30 days" in the item screens (items are "deleted", PRD D30; the data model still says `archived_at` / `item.archived`); `e2e/m4-a11y` runs axe on every screen, so add new screens there.
   - The disk once filled up and corrupted Docker's images. If `supabase start` shows unhealthy containers, check `df -h /` first.
 
 - **Roomies** is a phone-first PWA for one house of roommates. It covers needs, chores, tasks, polls and runs (batch, request, visit), with feelings that raise an item's priority.

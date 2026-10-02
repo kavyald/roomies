@@ -89,7 +89,7 @@ describe('activityLine: every kind', () => {
     ['item.done', { itemId: id('i1') }, 'Kavya finished Leak under the sink'],
     ['item.done', { itemId: id('n1') }, 'Kavya got Tomatoes'],
     ['item.reopened', { itemId: id('i1') }, 'Kavya reopened Leak under the sink'],
-    ['item.archived', { itemId: id('i1') }, 'Kavya archived Leak under the sink'],
+    ['item.archived', { itemId: id('i1') }, 'Kavya deleted Leak under the sink'],
     ['item.restored', { itemId: id('i1') }, 'Kavya brought back Leak under the sink'],
     [
       'item.assigned',

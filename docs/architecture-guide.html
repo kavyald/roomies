@@ -479,7 +479,7 @@ const LAYERS = [
   { name:'items.ts', desc:'8 use cases', fns:[
     ['makeCreateItem','Checks open needs for a duplicate first; returns the existing id in the error.'],
     ['makeEditItem · makeMarkDone · makeReopenItem · makeDoChore','Load → pure domain function → save → record events.'],
-    ['makeArchiveItem · makeRestoreItem','Deleting is archiving; restore writes item.restored.'],
+    ['makeArchiveItem · makeRestoreItem','“Delete” in the app (D30): a soft delete via archived_at, recorded as item.archived; Undo and Bring it back write item.restored.'],
     ['makeSetFeeling','Current feeling on the row; the previous one goes into the event.'] ]},
   { name:'runs.ts', desc:'13 use cases', fns:[
     ['makeStartRun · makeAddToRun · makeMarkRunItemsDone','Batches of needs, chores and tasks.'],
@@ -769,7 +769,7 @@ const FRONT = [
  ['T19','Native pickers','Rooms and people are native selects (rooms grouped by floor); dates are native inputs.',['Custom pickers: more code, worse accessibility on iPhone.']],
  ['D11','Cozy via color, shape and tone','Cream paper, brown ink, a plum accent, pill buttons and a “sticker” edge instead of blurry shadows. No custom art.',['Focus Friend-style characters: parked; also its guilt mechanic.']],
  ['FRONTEND §3','Color means something','Four element colors say who and where; plum says how urgent. Item types get icon + label on a neutral chip. All pairs pass WCAG AA, tested in contrast.test.ts.',[]],
- ['FRONTEND §7','Kind copy, enforced','copy.test.ts walks every UI string and fails on “overdue”, “failed” or “missed”. The only lateness phrase is “This one\'s been waiting a bit”.',[]],
+ ['FRONTEND §7','Kind copy, enforced','copy.test.ts walks every UI string and fails on “overdue”, “failed” or “missed”, and on “archive” or “30 days” in the item screens (items are deleted, D30). The only lateness phrase is “This one\'s been waiting a bit”.',[]],
  ['Q4','Accessibility gate','axe runs on every screen in light and dark and fails on serious issues too. Item cards are named by their title for VoiceOver.',[]],
  ['T36','Theme: Auto / Light / Dark','Stored per person on their profile; ThemeSync applies it to &lt;html data-theme&gt; once the profile loads.',[]]
 ];
@@ -811,7 +811,6 @@ $('#prlist').innerHTML = PR.map((p,i)=>'<div class="pr"><span class="k">'+String
 const GAPS = [
  ['Not started','M5: hosting and launch','E1–E5 and Q5 are untouched by design: hosted Supabase (staging + prod), the Gmail sender, Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is also not installed yet. E5 now also waits on Q6, since M6 is built first.','Weyve cards E1–E5 and Q5 (M5)'],
  ['Carded','Swipe actions on cards','FRONTEND principle 6 and §5 call for swipe right = done, left = feeling. The check button covers “done” until then.','Weyve card T43 (M6)'],
- ['Carded','“Delete” instead of the 30-day restore','The archive confirm promises 30 days, but nothing enforces it. The owner chose “Delete” with Undo and no window (D30).','Weyve card T62 (M6)'],
  ['Carded','Polls: withdraw a vote, reopen, deadline','poll.vote_withdrawn and the other poll actions are in the catalog but nothing writes them (T27 note).','Weyve card T55 (M6)'],
  ['Carded','Conflict detection on edits','§7.5 describes optimistic concurrency (where updated_at = :loaded → conflict). Saves are last-write-wins for now (T18).','Weyve card T50 (M6)'],
  ['Misplaced','Nil-UUID system actor, four copies','The same “Roomies itself” actor is built separately in setup.ts, push.ts, jobs.ts and invites.ts.','lib/app/{setup,push,jobs,invites}.ts'],

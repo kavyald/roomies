@@ -328,7 +328,7 @@ describe('reading history back', () => {
       { itemId: 'Milk', state: { at: 'done', when: T } },
       { itemId: 'Eggs', state: { at: 'moved', to: 'saturday', note: 'Sold out' } },
       { itemId: 'Soap', state: { at: 'returned', note: 'We have some' } },
-      { itemId: 'Mop', state: { at: 'returned', note: 'Archived' } },
+      { itemId: 'Mop', state: { at: 'returned', note: 'Deleted' } },
     ])
     expect(runProgress(ledger)).toEqual({ done: 1, total: 4 })
 

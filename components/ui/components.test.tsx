@@ -118,7 +118,7 @@ describe('OverflowMenu', () => {
         label="More actions"
         items={[
           { label: 'Edit', onSelect: edit },
-          { label: 'Archive', onSelect: () => {} },
+          { label: 'Delete', onSelect: () => {} },
         ]}
       />,
     )
@@ -127,7 +127,7 @@ describe('OverflowMenu', () => {
     expect(button.getAttribute('aria-expanded')).toBe('true')
     expect(document.activeElement?.textContent).toBe('Edit')
     await userEvent.keyboard('{ArrowDown}')
-    expect(document.activeElement?.textContent).toBe('Archive')
+    expect(document.activeElement?.textContent).toBe('Delete')
     await userEvent.keyboard('{ArrowDown}')
     expect(document.activeElement?.textContent).toBe('Edit')
     await userEvent.keyboard('{Escape}')

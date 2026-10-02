@@ -159,7 +159,7 @@ function Contents() {
             label="More actions"
             items={[
               { label: 'Edit', onSelect: () => toast('Edit') },
-              { label: 'Archive', tone: 'soft', onSelect: () => toast('Archive') },
+              { label: 'Delete', tone: 'soft', onSelect: () => toast('Delete') },
             ]}
           />
         </div>
