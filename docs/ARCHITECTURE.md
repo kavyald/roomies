@@ -804,8 +804,8 @@ app/
   api/cron/[job]/            -- the only route handler: tick, reminders, close-polls, send-notifications (§7.3)
 proxy.ts                     -- Next 16's proxy (was middleware): refreshes the session, sends signed-out visitors away from /h/*
 components/
-  ui/                        -- Avatar (initials + element), Button, Card, Chip, EmptyState, ListRow, SegmentedControl,
-                                Sheet (vaul), TabBar, Toast
+  ui/                        -- Avatar (initials + element), Button, Card, Chip, Disclosure, EmptyState, ListRow,
+                                OverflowMenu, SegmentedControl, Sheet (vaul), TabBar, Toast
   shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, InstallGuide, ServiceWorker, ThemeSync
   auth/  setup/  join/       -- sign-in, setup and join flows
   home/  needs/  chores/  tasks/  calendar/  activity/  house/  me/   -- one folder per screen

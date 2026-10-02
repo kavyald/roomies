@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Avatar, initials } from './Avatar'
 import { TierChip } from './Chip'
+import { Disclosure } from './Disclosure'
+import { OverflowMenu } from './OverflowMenu'
 import { SegmentedControl } from './SegmentedControl'
 import { ToastProvider, useCelebrate } from './Toast'
 import { useState } from 'react'
@@ -88,5 +90,58 @@ describe('completion burst', () => {
     act(() => vi.advanceTimersByTime(800))
     expect(container.querySelector('.motion-reduce\\:hidden')).toBeNull()
     vi.useRealTimers()
+  })
+})
+
+describe('Disclosure', () => {
+  it('is a named region whose row says the summary and whether it is open', async () => {
+    render(
+      <Disclosure title="Costs" summary="$42.00">
+        <p>$42.00 · Wren paid</p>
+      </Disclosure>,
+    )
+    const region = screen.getByRole('region', { name: 'Costs' })
+    const row = screen.getByRole('button', { name: 'Costs', description: '$42.00' })
+    expect(row.getAttribute('aria-expanded')).toBe('false')
+    expect(region.textContent).not.toContain('Wren paid')
+    await userEvent.click(row)
+    expect(row.getAttribute('aria-expanded')).toBe('true')
+    expect(region.textContent).toContain('Wren paid')
+  })
+})
+
+describe('OverflowMenu', () => {
+  it('opens a menu, moves with arrow keys, and closes on Escape back to its button', async () => {
+    const edit = vi.fn()
+    render(
+      <OverflowMenu
+        label="More actions"
+        items={[
+          { label: 'Edit', onSelect: edit },
+          { label: 'Archive', onSelect: () => {} },
+        ]}
+      />,
+    )
+    const button = screen.getByRole('button', { name: 'More actions' })
+    await userEvent.click(button)
+    expect(button.getAttribute('aria-expanded')).toBe('true')
+    expect(document.activeElement?.textContent).toBe('Edit')
+    await userEvent.keyboard('{ArrowDown}')
+    expect(document.activeElement?.textContent).toBe('Archive')
+    await userEvent.keyboard('{ArrowDown}')
+    expect(document.activeElement?.textContent).toBe('Edit')
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(document.activeElement).toBe(button)
+
+    await userEvent.click(button)
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    expect(edit).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('shows nothing when there is nothing to do', () => {
+    const { container } = render(<OverflowMenu items={[]} />)
+    expect(container.innerHTML).toBe('')
   })
 })

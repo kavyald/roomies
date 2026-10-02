@@ -13,22 +13,31 @@ export function Sheet({
   onOpenChange,
   title,
   description,
+  actions,
   children,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
   description?: string
+  /** Beside Close: e.g. the "…" menu (OverflowMenu). */
+  actions?: ReactNode
   children: ReactNode
 }) {
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange} repositionInputs={false}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-40 bg-scrim" />
-        <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[88dvh] max-w-[430px] flex-col rounded-t-[28px] bg-card shadow-[0_-1.5px_0_var(--outline)] outline-none">
+        <Drawer.Content
+          // An open menu inside the sheet closes itself on Escape; the sheet stays.
+          onEscapeKeyDown={(e) => {
+            if ((e.target as Element | null)?.closest?.('[data-keeps-escape]')) e.preventDefault()
+          }}
+          className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[88dvh] max-w-[430px] flex-col rounded-t-[28px] bg-card shadow-[0_-1.5px_0_var(--outline)] outline-none"
+        >
           <div aria-hidden className="mx-auto mt-2 h-[5px] w-10 flex-none rounded-[3px] bg-line" />
-          <div className="flex items-start justify-between gap-3 px-[18px] pt-2.5 pb-1.5">
-            <div>
+          <div className="flex items-start justify-between gap-1 px-[18px] pt-2.5 pb-1.5">
+            <div className="min-w-0 flex-1 pr-2">
               <Drawer.Title className="m-0 text-xl leading-tight font-extrabold text-balance">
                 {title}
               </Drawer.Title>
@@ -40,6 +49,7 @@ export function Sheet({
                 <Drawer.Description className="sr-only">{title}</Drawer.Description>
               )}
             </div>
+            {actions}
             <Drawer.Close
               aria-label="Close"
               className="grid size-11 flex-none place-items-center rounded-full text-neutral-ink"

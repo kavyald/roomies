@@ -1,6 +1,7 @@
 'use client'
 
 import { useCardContext } from '@/components/items/useCardContext'
+import { Disclosure } from '@/components/ui/Disclosure'
 import { useHouse, useItemActivity } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import { relativeTime } from '@/lib/domain/format'
@@ -9,7 +10,7 @@ import { itemPath, type RunStep } from '@/lib/domain/runs'
 
 /**
  * An item's path through runs (PRD §6.5 "History"): "Added to Groceries → Moved to Saturday · Sold
- * out → Done", from its activity.
+ * out → Done", from its activity. A closed "History · 3" section on the item's detail.
  */
 export function ItemRunPath({ houseId, itemId }: { houseId: HouseId; itemId: ItemId }) {
   const activity = useItemActivity(houseId, itemId)
@@ -32,10 +33,7 @@ export function ItemRunPath({ houseId, itemId }: { houseId: HouseId; itemId: Ite
     return s.note ? `${base} · ${s.note}` : base
   }
   return (
-    <section aria-label="Run history" className="grid gap-2">
-      <h3 className="m-0 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
-        History
-      </h3>
+    <Disclosure title="History" label="Run history" summary={steps.length}>
       <ol className="m-0 grid list-none gap-1.5 p-0 text-sm">
         {steps.map((s) => (
           <li key={s.id} className="flex justify-between gap-3">
@@ -44,6 +42,6 @@ export function ItemRunPath({ houseId, itemId }: { houseId: HouseId; itemId: Ite
           </li>
         ))}
       </ol>
-    </section>
+    </Disclosure>
   )
 }

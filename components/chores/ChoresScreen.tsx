@@ -1,7 +1,6 @@
 'use client'
 
 import { Sparkles } from 'lucide-react'
-import { FeelingCounts } from '@/components/items/Feelings'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { choreMeta } from '@/components/items/meta'
 import { ItemCard } from '@/components/items/ItemCard'
@@ -59,11 +58,7 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
           <ItemCard
             item={c}
             ctx={ctx}
-            top={
-              feelingsBy.get(c.id)?.length ? (
-                <FeelingCounts feelings={feelingsBy.get(c.id)!} />
-              ) : undefined
-            }
+            feelings={feelingsBy.get(c.id)}
             meta={choreMeta(c, now, tz, (u) => ctx.person(u)?.name)}
             onOpen={() => openItem(c.id)}
             checkLabel={`Did it: ${c.title}`}

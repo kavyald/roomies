@@ -4,16 +4,20 @@ import { Receipt } from 'lucide-react'
 import { useState } from 'react'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Button } from '@/components/ui/Button'
+import { Disclosure } from '@/components/ui/Disclosure'
 import { useToast } from '@/components/ui/Toast'
 import { useAddCost, useCosts } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import type { HouseId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
-import { formatCents } from '@/lib/domain/money'
+import { formatCents, sumCents } from '@/lib/domain/money'
 import { useCostFields } from './CostForm'
 import { useSplitwise } from './useSplitwise'
 
-/** Costs on an item ("$189 · Wren paid") and **Add cost** (FRONTEND §5.4). */
+/**
+ * "Costs · $189.00" on an item: a closed section with each cost ("$189 · Wren paid") and **Add
+ * cost** (FRONTEND §5.4).
+ */
 export function ItemCosts({ houseId, item }: { houseId: HouseId; item: Item }) {
   const { me } = useAppClient()
   const costs = useCosts(houseId)
@@ -25,33 +29,30 @@ export function ItemCosts({ houseId, item }: { houseId: HouseId; item: Item }) {
   const [adding, setAdding] = useState(false)
   const mine = (costs.data ?? []).filter((c) => c.for && 'item' in c.for && c.for.item === item.id)
 
+  const total = sumCents(mine.map((c) => c.amount))
+
   return (
-    <section aria-label="Costs" className="grid gap-2">
+    <Disclosure title="Costs" summary={mine.length > 0 ? formatCents(total) : undefined}>
       {mine.length > 0 && (
-        <>
-          <h3 className="m-0 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
-            Costs
-          </h3>
-          <ul className="m-0 grid list-none gap-1.5 p-0">
-            {mine.map((c) => (
-              <li key={c.id} className="flex items-center gap-2 text-sm">
-                <Receipt aria-hidden className="size-4 text-ink-soft" />
-                <span className="flex-1 font-bold">
-                  {formatCents(c.amount)} ·{' '}
-                  {c.paidBy === me ? 'You paid' : `${ctx.person(c.paidBy)?.name ?? 'Someone'} paid`}
-                  {c.note && <span className="font-semibold text-ink-soft"> · {c.note}</span>}
-                </span>
-                <button
-                  type="button"
-                  className="min-h-11 text-sm font-extrabold text-accent-ink"
-                  onClick={() => splitwise(c, item.title)}
-                >
-                  Open Splitwise
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
+        <ul className="m-0 grid list-none gap-1.5 p-0">
+          {mine.map((c) => (
+            <li key={c.id} className="flex items-center gap-2 text-sm">
+              <Receipt aria-hidden className="size-4 text-ink-soft" />
+              <span className="flex-1 font-bold">
+                {formatCents(c.amount)} ·{' '}
+                {c.paidBy === me ? 'You paid' : `${ctx.person(c.paidBy)?.name ?? 'Someone'} paid`}
+                {c.note && <span className="font-semibold text-ink-soft"> · {c.note}</span>}
+              </span>
+              <button
+                type="button"
+                className="min-h-11 text-sm font-extrabold text-accent-ink"
+                onClick={() => splitwise(c, item.title)}
+              >
+                Open Splitwise
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
       {adding ? (
         <div className="grid gap-2 rounded-2xl bg-paper p-3">
@@ -83,6 +84,6 @@ export function ItemCosts({ houseId, item }: { houseId: HouseId; item: Item }) {
           <Receipt aria-hidden className="size-4" /> Add cost
         </button>
       )}
-    </section>
+    </Disclosure>
   )
 }

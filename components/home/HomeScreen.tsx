@@ -2,12 +2,10 @@
 
 import { Heart } from 'lucide-react'
 import { useState } from 'react'
-import { FeelingCounts } from '@/components/items/Feelings'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { ItemCard } from '@/components/items/ItemCard'
 import { itemMeta } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
-import { TierChip } from '@/components/ui/Chip'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { useCelebrate, useToast } from '@/components/ui/Toast'
@@ -128,12 +126,9 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
                   <ItemCard
                     item={item}
                     ctx={ctx}
-                    top={
-                      <span className="flex items-center justify-between gap-2">
-                        <TierChip tier={tier} />
-                        {feelings?.length ? <FeelingCounts feelings={feelings} /> : null}
-                      </span>
-                    }
+                    tier={tier}
+                    feelings={feelings}
+                    showCategory
                     meta={itemMeta(item, now, tz, (u) => ctx.person(u)?.name)}
                     onOpen={() => openItem(item.id)}
                     checkLabel={`${CHECK[item.category]}: ${item.title}`}

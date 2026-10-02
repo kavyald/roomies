@@ -19,10 +19,9 @@ test('"Which vacuum?" on a need and a standalone "House name?" both work, and 2â
   await weNeed.press('Enter')
   const needs = page.getByRole('list', { name: 'Needs' })
   await needs.getByRole('button', { name: /^Vacuum/ }).click()
-  await page
-    .getByRole('dialog', { name: 'Vacuum' })
-    .getByRole('button', { name: 'Poll about this' })
-    .click()
+  const vacuum = page.getByRole('dialog', { name: 'Vacuum' })
+  await vacuum.getByRole('button', { name: 'Polls', exact: true }).click()
+  await vacuum.getByRole('button', { name: 'Poll about this' }).click()
   let sheet = page.getByRole('dialog', { name: 'Poll about this' })
   await sheet.getByLabel('Question').fill('Which vacuum?')
   await sheet.getByLabel('Option 1', { exact: true }).fill('Dyson V8')

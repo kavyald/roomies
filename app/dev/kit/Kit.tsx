@@ -6,8 +6,10 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Chip, RoomChip, TierChip } from '@/components/ui/Chip'
+import { Disclosure, DisclosureGroup } from '@/components/ui/Disclosure'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { OverflowMenu } from '@/components/ui/OverflowMenu'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet } from '@/components/ui/Sheet'
 import { ToastProvider, useToast } from '@/components/ui/Toast'
@@ -138,6 +140,29 @@ function Contents() {
             onClick={() => toast('Air')}
           />
         </ListGroup>
+      </Section>
+
+      <Section title="Sections">
+        <DisclosureGroup>
+          <Disclosure title="Why is this here?" summary={<TierChip tier="high" />}>
+            <p className="m-0 text-sm">Normal priority +25 · 😤 Kavya +15</p>
+          </Disclosure>
+          <Disclosure title="Costs" summary="$189.00">
+            <p className="m-0 text-sm">$189.00 · Wren paid</p>
+          </Disclosure>
+        </DisclosureGroup>
+      </Section>
+
+      <Section title="Overflow menu">
+        <div className="flex justify-end">
+          <OverflowMenu
+            label="More actions"
+            items={[
+              { label: 'Edit', onSelect: () => toast('Edit') },
+              { label: 'Archive', tone: 'soft', onSelect: () => toast('Archive') },
+            ]}
+          />
+        </div>
       </Section>
 
       <Section title="Empty state">

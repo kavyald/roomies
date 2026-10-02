@@ -1,13 +1,23 @@
 'use client'
 
 import { BarChart3, Copy, ShoppingCart } from 'lucide-react'
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
-import { Chip, RoomChip } from '@/components/ui/Chip'
+import { RoomChip } from '@/components/ui/Chip'
+import { DisclosureGroup } from '@/components/ui/Disclosure'
+import { OverflowMenu } from '@/components/ui/OverflowMenu'
 import { Sheet } from '@/components/ui/Sheet'
 import { useCelebrate, useToast } from '@/components/ui/Toast'
-import { cn } from '@/components/ui/cn'
 import { useCopy } from '@/components/house/useCopy'
 import {
   useAddToRequest,
@@ -383,8 +393,8 @@ function ItemDetailSheet({
   }
 
   const rows: [string, React.ReactNode][] = []
+  if (room) rows.push(['Room', <RoomChip key="room" name={room.name} element={room.element} />])
   if (item.category === 'chore') {
-    rows.push(['How often', scheduleLabel(item)])
     rows.push([
       'Last done',
       item.lastDone
@@ -484,8 +494,11 @@ function ItemDetailSheet({
     ])
   }
 
-  const primary = item.archivedAt
-    ? null
+  const primary: { label: string; quiet?: boolean; run: () => Promise<unknown> } = item.archivedAt
+    ? {
+        label: 'Bring it back',
+        run: async () => say(await restore.mutateAsync(item.id), 'Brought back.'),
+      }
     : item.category === 'chore'
       ? {
           label: 'Did it',
@@ -498,6 +511,7 @@ function ItemDetailSheet({
       : isDone
         ? {
             label: 'Not done after all',
+            quiet: true,
             run: async () => say(await reopen.mutateAsync(item.id), 'Back on the list.'),
           }
         : {
@@ -513,17 +527,45 @@ function ItemDetailSheet({
               ),
           }
 
+  const kind =
+    item.category === 'chore' ? `Chore · ${scheduleLabel(item)}` : CATEGORY[item.category].label
+  const menu = item.archivedAt
+    ? []
+    : [
+        { label: 'Edit', onSelect: () => setEditing(true) },
+        { label: 'Archive', tone: 'soft' as const, onSelect: () => setConfirmArchive(true) },
+      ]
+
   return (
-    <Sheet open onOpenChange={(o) => !o && onClose()} title={item.title}>
-      <div className="flex flex-wrap gap-1.5">
-        <Chip icon={CATEGORY[item.category].icon}>
-          {item.category === 'chore' ? scheduleLabel(item) : CATEGORY[item.category].label}
-        </Chip>
-        {room && <RoomChip name={room.name} element={room.element} />}
-        {item.archivedAt && <Chip>Archived</Chip>}
-      </div>
+    <Sheet
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={item.title}
+      description={item.archivedAt ? `${kind} · Archived` : kind}
+      actions={<OverflowMenu label="More actions" items={menu} />}
+    >
+      {confirmArchive && !item.archivedAt ? (
+        <ArchiveConfirm
+          busy={busy}
+          onKeep={() => setConfirmArchive(false)}
+          onArchive={async () => {
+            const r = await archive.mutateAsync(item.id)
+            say(r, 'Archived.', () => restore.mutate(item.id))
+            if (r.ok) onClose()
+          }}
+        />
+      ) : (
+        <Button
+          block
+          variant={primary.quiet ? 'secondary' : 'primary'}
+          disabled={busy}
+          onClick={primary.run}
+        >
+          {primary.label}
+        </Button>
+      )}
       {rows.length > 0 && (
-        <dl className="m-0 grid grid-cols-[auto_1fr] items-center gap-x-3.5 gap-y-2.5">
+        <dl className="m-0 grid grid-cols-[auto_1fr] items-center gap-x-3.5 gap-y-2">
           {rows.map(([k, val]) => (
             <div key={k} className="contents">
               <dt className="text-[0.8rem] font-bold text-ink-soft">{k}</dt>
@@ -551,56 +593,41 @@ function ItemDetailSheet({
           return name ? { name, element: elementOf(u) } : undefined
         }}
       />
-      {isOpen(item) && (
-        <WhyHere houseId={houseId} item={item} name={(u) => nameOf(u) ?? 'Former roommate'} />
-      )}
-      <ItemPolls houseId={houseId} item={item} />
-      <ItemCosts houseId={houseId} item={item} />
-      <ItemRunPath houseId={houseId} itemId={item.id} />
-
-      {primary && (
-        <Button block disabled={busy} onClick={primary.run}>
-          {primary.label}
-        </Button>
-      )}
-      {!item.archivedAt && (
-        <Button variant="secondary" block disabled={busy} onClick={() => setEditing(true)}>
-          Edit
-        </Button>
-      )}
-      {item.archivedAt ? (
-        <Button
-          block
-          disabled={busy}
-          onClick={async () => say(await restore.mutateAsync(item.id), 'Brought back.')}
-        >
-          Bring it back
-        </Button>
-      ) : confirmArchive ? (
-        <div className={cn('grid gap-2 rounded-2xl bg-paper p-3.5')}>
-          <p className="m-0 font-semibold">Archive this? You can bring it back for 30 days.</p>
-          <Button
-            variant="secondary"
-            block
-            disabled={busy}
-            onClick={async () => {
-              const r = await archive.mutateAsync(item.id)
-              say(r, 'Archived.', () => restore.mutate(item.id))
-              if (r.ok) onClose()
-            }}
-          >
-            Archive
-          </Button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="min-h-11 text-sm font-bold text-ink-soft underline"
-          onClick={() => setConfirmArchive(true)}
-        >
-          Archive
-        </button>
-      )}
+      <DisclosureGroup>
+        {isOpen(item) && (
+          <WhyHere houseId={houseId} item={item} name={(u) => nameOf(u) ?? 'Former roommate'} />
+        )}
+        <ItemPolls houseId={houseId} item={item} />
+        <ItemCosts houseId={houseId} item={item} />
+        <ItemRunPath houseId={houseId} itemId={item.id} />
+      </DisclosureGroup>
     </Sheet>
+  )
+}
+
+/** "Archive this?" in place of the primary action, after Archive in the "…" menu. */
+function ArchiveConfirm({
+  busy,
+  onKeep,
+  onArchive,
+}: {
+  busy: boolean
+  onKeep: () => void
+  onArchive: () => void
+}) {
+  const first = useRef<HTMLButtonElement>(null)
+  useEffect(() => first.current?.focus(), [])
+  return (
+    <div role="group" aria-label="Archive this?" className="grid gap-2 rounded-2xl bg-paper p-3.5">
+      <p className="m-0 font-semibold">Archive this? You can bring it back for 30 days.</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Button ref={first} variant="secondary" disabled={busy} onClick={onKeep}>
+          Keep it
+        </Button>
+        <Button disabled={busy} onClick={onArchive}>
+          Archive
+        </Button>
+      </div>
+    </div>
   )
 }

@@ -134,7 +134,7 @@ Inputs are always ≥ 16px, which prevents iOS from zooming in on focus.
 | Concept / state | Icon | Label on chip |
 |---|---|---|
 | Need | `shopping-bag` | Need |
-| Chore | `sparkles` | "As needed" or "About every 7 days" |
+| Chore | `sparkles` | Chore (on Home; the rhythm, "As needed" or "About every 7 days", is plain text on the Chores tab and under the detail's title) |
 | Task | `check-circle` | Task |
 | Task handled by a contact | `phone` | "Handled by: Super" |
 | Poll | `bar-chart-3` | "Poll · 2/4 voted" |
@@ -231,10 +231,9 @@ Tabs: **Home · Needs · Chores · Tasks · House**. The calendar opens from Hom
 │ Runs in progress              │  ← "Wren's grocery run · 1/3 · Sat"
 │ Needs attention    Mine | All │
 │ ┌───────────────────────────┐ │
-│ │ ●● Top          😤1       │ │
+│ │ ●● Top [✓ Task]   😤1     │ │
 │ │ Leak under the sink       │ │
-│ │ [✓ Task] [📞 Landlord]    │ │
-│ │ [Kitchen]                 │ │
+│ │ [Kitchen] [📞 Landlord]   │ │
 │ │ (K) Due yesterday         │ │
 │ └───────────────────────────┘ │
 │                          (+)  │
@@ -242,7 +241,7 @@ Tabs: **Home · Needs · Chores · Tasks · House**. The calendar opens from Hom
 └───────────────────────────────┘
 ```
 
-- **Card:** tier chip → title → chips (category, handled-by, room, "On X's run") → meta line (assignee + date or last done + feelings).
+- **Card:** one line with the tier chip (and, on Home only, the category chip) and the feelings ("😤1 🙏2") → title → at most two chips: the room, then "On X's run" or, when it isn't on a run, "Handled by: Landlord" → one meta line (the assignee's avatar + the date, or "Last done 9 days ago · Wren"). On the Chores tab the first line shows the chore's rhythm ("About every 7 days") instead of a category. The card's button is named by the title; the rest is its description.
 - **Swipe:** right = done, left = share a feeling.
 - A card appears when someone changes the feeling weights ("Maya set 😰 Anxious to +30").
 
@@ -266,14 +265,13 @@ Tap **🙂+** on a card or detail, or swipe left:
 
 ### 5.4 Item detail
 
-A full-height sheet:
-- category chips, title, meta rows (room, assignee, date)
+A sheet, simplest first, so the title, the primary action and the meta rows fit on a 375pt screen without scrolling:
+- **Header:** the title, with the category under it ("Task", "Chore · About every 7 days", "· Archived"), and a **…** menu beside Close holding **Edit** and **Archive**. Archive asks first, in place of the primary action: "Archive this? You can bring it back for 30 days." · **Keep it** / **Archive**.
+- **The primary action** at the top: **Done** (task) · **Got it** (need) · **Did it** (chore); **Not done after all** once it's done; **Bring it back** when archived.
+- **Meta rows:** Room · Last done (chores) · When / Needed by · Who's on it · Handled by (tasks) · Ask them · On a run · Done/Got it. Then the note.
 - **Tasks: "Handled by"** is always shown. It reads *One of us · Needs outside help?* or *Super · (555) 010-2231 · Copy · Change*, and either link opens **Who's handling it?**: One of us, the contacts, or **+ Someone new** (name + optional phone). On a request or visit it reads *It's on the Landlord request. Move it to change who's handling it.* with **Open the Landlord request** instead, because "Handled by" follows the run (PRD §6.3).
-- **Polls about this** (vote inline) + **"+ Poll about this"**
-- **Costs** (+ **Add cost**: amount, who paid, then Open Splitwise)
-- **How the house feels** (current feelings + notes, **Earlier**)
-- **"Why is this here?"** (the score breakdown)
-- **Done** (or **Did it** for a chore)
+- **How the house feels** stays open (current feelings + notes, **Earlier**, **🙂+ Share a feeling**): it's the core interaction.
+- **Tap-to-open sections**, closed by default, each a row with a short summary: **Why is this here?** (the tier; open, the score breakdown) · **Polls** (how many; open, the polls and **+ Poll about this**) · **Costs** (the total, "$42.00"; open, each cost with Open Splitwise and **Add cost**: amount, who paid) · **History** (how many steps; open, the item's path through runs). Each section is a named region, and its row says whether it's open, so they work with VoiceOver.
 
 ### 5.5 Needs tab
 
@@ -386,7 +384,7 @@ Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss. 
 | Concern | Decision |
 |---|---|
 | Tokens | CSS variables in `app/globals.css` for `:root`, `[data-theme=dark]`, and `@media (prefers-color-scheme: dark)`, exposed to Tailwind v4 via `@theme`. Element colors are tokens (`--air-fill`, `--air-ink`, ...), and components take an `element` prop instead of raw hex. No raw hex values in components. |
-| Components | The kit in `components/ui/`: `Card`, `Button`, `Chip` (plus `RoomChip` and `TierChip`), `Avatar` (initials + element), `Sheet`, `TabBar`, `ListRow`, `SegmentedControl`, `Toast` (and the completion burst), `EmptyState`; see it at `/dev/kit` in light and dark. Feature components live in their own folders (`components/items`, `polls`, `runs`, `costs`, `calendar`, `home`, `needs`, `chores`, `tasks`, `house`, `activity`, …). Sheets use Vaul (which brings its own Radix Dialog for the focus trap and labels); the app doesn't use Radix directly. |
+| Components | The kit in `components/ui/`: `Card`, `Button`, `Chip` (plus `RoomChip` and `TierChip`), `Avatar` (initials + element), `Sheet` (with an `actions` slot beside Close), `OverflowMenu` (the **…** menu), `Disclosure` + `DisclosureGroup` (tap-to-open sections), `TabBar`, `ListRow`, `SegmentedControl`, `Toast` (and the completion burst), `EmptyState`; see it at `/dev/kit` in light and dark. Feature components live in their own folders (`components/items`, `polls`, `runs`, `costs`, `calendar`, `home`, `needs`, `chores`, `tasks`, `house`, `activity`, …). Sheets use Vaul (which brings its own Radix Dialog for the focus trap and labels); the app doesn't use Radix directly. |
 | Data | `rooms` table (see Architecture §6), `items.room_id` (optional), `house_members.room_id` for the member's bedroom, which drives their color. No per-user avatar config. |
 | Animation | CSS transitions and keyframes only (Vaul animates the sheets). No Framer Motion. |
 | Safe areas | `env(safe-area-inset-*)` on the tab bar, "+" button, and sheets. `viewport-fit=cover`. |

@@ -58,3 +58,51 @@ test('a task gets its details from "More options", and the detail sheet shows th
   await expect(page.getByRole('status').filter({ hasText: 'Done. 💛' })).toBeVisible()
   await expect(detail.getByRole('button', { name: 'Not done after all' })).toBeVisible()
 })
+
+test('the detail sheet keeps Edit and Archive in its "…" menu, and the extras closed', async ({
+  page,
+}) => {
+  await ownerOnHouseTab(page)
+  await addWithThreeTaps(page, 'A task', 'Descale the kettel')
+  await page
+    .getByRole('status')
+    .filter({ hasText: 'Added.' })
+    .getByRole('button', { name: 'Open' })
+    .click()
+  let detail = page.getByRole('dialog', { name: 'Descale the kettel' })
+  await expect(detail.getByRole('button', { name: 'Done', exact: true })).toBeVisible()
+  await expect(detail.getByRole('button', { name: 'Edit' })).toHaveCount(0)
+
+  // Costs is a closed section: a named region with a row that opens it.
+  const costs = detail.getByRole('region', { name: 'Costs' })
+  const costsRow = costs.getByRole('button', { name: 'Costs', exact: true })
+  await expect(costsRow).toHaveAttribute('aria-expanded', 'false')
+  await expect(costs.getByRole('button', { name: 'Add cost' })).toHaveCount(0)
+  await costsRow.click()
+  await expect(costsRow).toHaveAttribute('aria-expanded', 'true')
+  await expect(costs.getByRole('button', { name: 'Add cost' })).toBeVisible()
+
+  // Escape closes just the menu, not the sheet.
+  const more = detail.getByRole('button', { name: 'More actions' })
+  await more.click()
+  await expect(detail.getByRole('menuitem', { name: 'Edit' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(detail.getByRole('menu')).toHaveCount(0)
+  await expect(more).toBeFocused()
+  await expect(detail).toBeVisible()
+
+  await more.click()
+  await detail.getByRole('menuitem', { name: 'Edit' }).click()
+  await page.getByLabel('What needs doing?').fill('Descale the kettle')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible()
+  detail = page.getByRole('dialog', { name: 'Descale the kettle' })
+
+  await detail.getByRole('button', { name: 'More actions' }).click()
+  await detail.getByRole('menuitem', { name: 'Archive' }).click()
+  const confirm = detail.getByRole('group', { name: 'Archive this?' })
+  await expect(confirm).toContainText('You can bring it back for 30 days.')
+  await confirm.getByRole('button', { name: 'Archive' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Archived.' })).toBeVisible()
+  await expect(detail).toBeHidden()
+})

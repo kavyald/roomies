@@ -44,11 +44,18 @@ test('finishing a grocery run with $42.50 records one cost on the run and update
     .getByRole('button', { name: /^Vacuum/ })
     .click()
   const detail = page.getByRole('dialog', { name: 'Vacuum' })
+  await detail.getByRole('button', { name: 'Costs', exact: true }).click()
   await detail.getByRole('button', { name: 'Add cost' }).click()
   await detail.getByLabel('Amount').fill('$189')
   await detail.getByLabel('Who paid').selectOption({ label: 'Wren' })
   await detail.getByRole('button', { name: 'Save cost' }).click()
-  await expect(detail.getByRole('region', { name: 'Costs' })).toContainText('$189.00 · Wren paid')
+  const costs = detail.getByRole('region', { name: 'Costs' })
+  await expect(costs).toContainText('$189.00 · Wren paid')
+  // The closed section still shows the total.
+  await costs.getByRole('button', { name: 'Costs', exact: true }).click()
+  await expect(
+    costs.getByRole('button', { name: 'Costs', exact: true }),
+  ).toHaveAccessibleDescription('$189.00')
   await page.keyboard.press('Escape')
   await page.getByRole('link', { name: 'House' }).click()
   await expect(page.getByLabel('Spent this month')).toContainText('Spent this month: $231.50')

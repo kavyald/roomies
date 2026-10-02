@@ -80,6 +80,7 @@ test('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; 
   const tasks = page.getByRole('list', { name: 'Tasks' })
   await tasks.getByRole('button', { name: 'Window latch', exact: true }).click()
   let detail = page.getByRole('dialog', { name: 'Window latch' })
+  await detail.getByRole('button', { name: 'History' }).click()
   await expect(detail.getByRole('region', { name: 'Run history' })).toContainText(
     "Back in the pool from Landlord request · That one's on us",
   )
@@ -89,6 +90,7 @@ test('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; 
   await tasks.getByRole('button', { name: 'Leak under the sink', exact: true }).click()
   detail = page.getByRole('dialog', { name: 'Leak under the sink' })
   const history = detail.getByRole('region', { name: 'Run history' })
+  await history.getByRole('button', { name: 'History' }).click()
   await expect(history).toContainText('Added to Landlord request')
   await expect(history).toContainText('Moved to Landlord visit · Sending a plumber Thu')
 

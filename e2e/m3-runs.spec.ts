@@ -72,6 +72,7 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
   await row('Eggs').getByRole('button', { name: /^Eggs/ }).click()
   const detail = page.getByRole('dialog', { name: 'Eggs' })
   const history = detail.getByRole('region', { name: 'Run history' })
+  await history.getByRole('button', { name: 'History' }).click()
   await expect(history).toContainText('Added to Groceries')
   await expect(history).toContainText('Moved to Saturday · Sold out')
   await page.keyboard.press('Escape')

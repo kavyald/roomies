@@ -2,7 +2,6 @@
 
 import { CheckCircle } from 'lucide-react'
 import { useState } from 'react'
-import { FeelingCounts } from '@/components/items/Feelings'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { ItemCard } from '@/components/items/ItemCard'
 import { whenLabel } from '@/components/items/meta'
@@ -90,12 +89,7 @@ export function TasksScreen({ houseId }: { houseId: HouseId }) {
               <ItemCard
                 item={t}
                 ctx={ctx}
-                top={
-                  feelingsBy.get(t.id)?.length ? (
-                    <FeelingCounts feelings={feelingsBy.get(t.id)!} />
-                  ) : undefined
-                }
-                hideCategory
+                feelings={feelingsBy.get(t.id)}
                 meta={whenLabel(t, now, tz)}
                 onOpen={() => openItem(t.id)}
                 checkLabel={`Done: ${t.title}`}

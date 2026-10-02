@@ -63,9 +63,10 @@ describe('HomeScreen: Needs attention', () => {
     const feed = await screen.findByRole('list', { name: 'Needs attention' })
     const cards = await within(feed).findAllByRole('listitem')
     expect(cards.map((c) => c.textContent)).toEqual([
-      expect.stringMatching(/^●● TopFix the leak/),
-      expect.stringMatching(/^High😰1Toilet paper/),
-      expect.stringMatching(/^NormalBuy a plunger/),
+      // Tier and category on one line with the feelings, then the title.
+      expect.stringMatching(/^●● TopTaskFix the leak/),
+      expect.stringMatching(/^HighNeed😰1Toilet paper/),
+      expect.stringMatching(/^NormalTaskBuy a plunger/),
     ])
 
     await userEvent.click(screen.getByRole('button', { name: 'Mine' }))
