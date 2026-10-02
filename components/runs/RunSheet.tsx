@@ -40,6 +40,7 @@ import { useSplitwise } from '@/components/costs/useSplitwise'
 import { useContactChoice } from './ContactChoice'
 import { requestStage } from './meta'
 import { AddMore, SendRequest, VisitDate } from './RunExtras'
+import { RunHeader } from './RunHeader'
 
 type Panel = null | 'move' | 'back' | 'hand'
 const NEW_VISIT = '__new_visit'
@@ -159,15 +160,15 @@ function RunSheetFor({
   )
   const canNewVisit = run.kind !== 'batch' && tasksOnly
 
-  const who = ctx.person(run.runner)?.name
+  // Who's on it (and Change / Rename) is RunHeader's line, just below.
   const header = [
-    run.kind === 'batch' ? who && `${who}'s on it` : who && `Point person: ${who}`,
     run.kind === 'request' && requestStage(run, now, tz),
     run.kind === 'batch' && run.when && describeWhen(run.when, now, tz),
     open ? `${doneCount} of ${total} done` : run.kind === 'request' ? undefined : 'Finished',
   ]
     .filter(Boolean)
     .join(' · ')
+    .replace(/^./, (c) => c.toUpperCase())
 
   const doneLabel = run.kind === 'batch' ? 'Done' : 'Fixed'
 
@@ -195,6 +196,7 @@ function RunSheetFor({
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()} title={label} description={header}>
+      <RunHeader houseId={houseId} run={run} />
       {run.kind === 'visit' && <VisitDate houseId={houseId} run={run} />}
 
       {ledger.length === 0 ? (

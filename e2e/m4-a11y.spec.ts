@@ -57,5 +57,20 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(page.getByRole('dialog', { name: 'Add something' })).toBeVisible()
     await check(page, 'add sheet')
+
+    // A run's sheet, with its header's rename and point-person controls open (T56).
+    await page.keyboard.press('Escape')
+    await page.goto(`${h}/needs`)
+    await page.getByRole('button', { name: 'Start a run' }).click()
+    const start = page.getByRole('dialog', { name: 'Start a run' })
+    await start.getByRole('checkbox', { name: 'Olive oil', exact: true }).check()
+    await start.getByRole('button', { name: 'Start run' }).click()
+    const run = page.getByRole('dialog', { name: "Kavya's run" })
+    await run.getByRole('button', { name: "Change who's on it" }).click()
+    await expect(run.getByLabel("Who's on it?", { exact: true })).toBeVisible()
+    await check(page, 'run sheet (point person)')
+    await run.getByRole('button', { name: 'Rename this run' }).click()
+    await expect(run.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
+    await check(page, 'run sheet (rename)')
   })
 }

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { ownerOnHouseTab } from './support'
+import { randomUUID } from 'node:crypto'
+import { asOwner } from '../lib/testing/db'
+import { aRoommate, ownerOnHouseTab } from './support'
 
 test('a run from Needs: done, moved to another run, put back with a note, and finishing returns the rest', async ({
   page,
@@ -81,4 +83,73 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
   await expect(inProgress).toContainText('Saturday')
   await expect(inProgress).toContainText('0/2')
   await expect(inProgress).not.toContainText('Groceries')
+})
+
+test("a run can be renamed, handed to a roommate, and named back; a visit's point person changes; Activity says so (T56)", async ({
+  page,
+}) => {
+  const owner = await ownerOnHouseTab(page)
+  await aRoommate(owner, 'Sam')
+  const landlord = randomUUID()
+  await asOwner((db) =>
+    db.query(`insert into contacts (id, house_id, name) values ($1, $2, 'Landlord')`, [
+      landlord,
+      owner.houseId,
+    ]),
+  )
+
+  await page.goto(`/h/${owner.houseId}/needs`)
+  const weNeed = page.getByLabel('We need…')
+  await weNeed.fill('Milk')
+  await weNeed.press('Enter')
+  await page.getByRole('button', { name: 'Start a run' }).click()
+  const start = page.getByRole('dialog', { name: 'Start a run' })
+  await start.getByRole('checkbox', { name: 'Milk', exact: true }).check()
+  await start.getByRole('button', { name: 'Start run' }).click()
+
+  let run = page.getByRole('dialog', { name: "Kavya's run" })
+  await expect(run).toContainText("Kavya's on it")
+  await run.getByRole('button', { name: 'Rename this run' }).click()
+  await expect(run.getByRole('textbox', { name: 'Name', exact: true })).toHaveAttribute(
+    'placeholder',
+    "Kavya's run",
+  )
+  await run.getByRole('textbox', { name: 'Name', exact: true }).fill('Saturday shop')
+  await run.getByRole('button', { name: 'Save' }).click()
+  run = page.getByRole('dialog', { name: 'Saturday shop' })
+  await expect(run).toBeVisible()
+
+  await run.getByRole('button', { name: "Change who's on it" }).click()
+  await run.getByLabel("Who's on it?", { exact: true }).selectOption({ label: 'Sam' })
+  await run.getByRole('button', { name: 'Save' }).click()
+  await expect(run).toContainText("Sam's on it")
+  await expect(page.getByRole('status').filter({ hasText: "Sam's on it now." })).toBeVisible()
+
+  await run.getByRole('button', { name: 'Rename this run' }).click()
+  await run.getByRole('button', { name: "Use “Sam's run”" }).click()
+  await expect(page.getByRole('dialog', { name: "Sam's run" })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  // A visit has a point person instead.
+  await page.goto(`/h/${owner.houseId}/tasks`)
+  const section = page.getByRole('region', { name: 'Requests & visits' })
+  await section.getByRole('button', { name: 'New', exact: true }).click()
+  const newRun = page.getByRole('dialog', { name: 'New request or visit' })
+  await newRun.getByRole('button', { name: "They've agreed" }).click()
+  await newRun.getByLabel('Who', { exact: true }).selectOption({ label: 'Landlord' })
+  await newRun.getByRole('button', { name: 'Plan visit' }).click()
+  const visit = page.getByRole('dialog', { name: 'Landlord visit' })
+  await expect(visit).toContainText('Point person: Kavya')
+  await visit.getByRole('button', { name: 'Change the point person' }).click()
+  await visit.getByLabel('Point person', { exact: true }).selectOption({ label: 'Sam' })
+  await visit.getByRole('button', { name: 'Save' }).click()
+  await expect(visit).toContainText('Point person: Sam')
+  await page.keyboard.press('Escape')
+
+  await page.goto(`/h/${owner.houseId}/activity`)
+  await expect(page.getByText("Kavya renamed Sam's run to Saturday shop")).toBeVisible()
+  // Lines name a run as it is now: by the end it's untitled again, so the hand-over reads by runner.
+  await expect(page.getByText("Kavya handed Kavya's run to Sam")).toBeVisible()
+  await expect(page.getByText("Kavya renamed Saturday shop to Sam's run")).toBeVisible()
+  await expect(page.getByText('Kavya made Sam the point person for Landlord visit')).toBeVisible()
 })

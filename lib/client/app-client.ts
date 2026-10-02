@@ -216,6 +216,14 @@ export type AppCommands = {
     runId: RunId
     when: When | null
   }): Promise<CommandResult<Run, 'not_a_visit' | 'no_change' | 'not_found'>>
+  renameRun(input: {
+    runId: RunId
+    title: string | null
+  }): Promise<CommandResult<Run, 'finished' | 'title_too_long' | 'no_change' | 'not_found'>>
+  setRunner(input: {
+    runId: RunId
+    runner: UserId
+  }): Promise<CommandResult<Run, 'finished' | 'no_change' | 'unknown_member' | 'not_found'>>
   createPoll(input: {
     question: string
     itemId?: ItemId

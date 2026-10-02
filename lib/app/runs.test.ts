@@ -14,7 +14,9 @@ import {
   makeHandToContact,
   makeMoveToNewVisit,
   makePlanVisit,
+  makeRenameRun,
   makeSendRequest,
+  makeSetRunner,
   makeSetVisitDate,
   makeStartRequest,
   makeFinishRun,
@@ -170,6 +172,51 @@ describe('runs, end to end on the memory adapters', () => {
       ok: false,
       error: 'unknown_member',
     })
+  })
+})
+
+describe('renaming a run and changing its point person', () => {
+  it('renames, hands over, and records both; a finished run stays as it was', async () => {
+    const t = await setup()
+    const [milk] = await t.needs('Milk')
+    const run = await t.start(t.as('Kavya'), { itemIds: [milk!] })
+    if (!run.ok) throw new Error(run.error)
+    const rename = makeRenameRun(t.deps)
+    const setRunner = makeSetRunner(t.deps)
+
+    const named = await rename(t.as('Wren'), { runId: run.value.id, title: 'Saturday shop' })
+    expect(named).toMatchObject({ ok: true, value: { title: 'Saturday shop' } })
+    const handed = await setRunner(t.as('Wren'), {
+      runId: run.value.id,
+      runner: t.s.people.Wren,
+    })
+    expect(handed).toMatchObject({ ok: true, value: { runner: t.s.people.Wren } })
+    expect(t.deps.uow.state.activity.slice(-2)).toMatchObject([
+      { kind: 'run.renamed', changes: { title: [null, 'Saturday shop'] } },
+      {
+        kind: 'run.point_person_changed',
+        memberId: t.s.people.Wren,
+        changes: { runner: [t.s.people.Kavya, t.s.people.Wren] },
+      },
+    ])
+    const usual = await rename(t.as('Kavya'), { runId: run.value.id, title: null })
+    expect(usual.ok && usual.value).not.toHaveProperty('title')
+
+    expect(
+      await setRunner(t.as('Kavya'), { runId: run.value.id, runner: 'ghost' as UserId }),
+    ).toEqual({ ok: false, error: 'unknown_member' })
+    expect(await rename(t.as('Kavya'), { runId: 'nope' as RunId, title: 'x' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    })
+    await t.finish(t.as('Wren'), { runId: run.value.id })
+    expect(await rename(t.as('Kavya'), { runId: run.value.id, title: 'Late' })).toEqual({
+      ok: false,
+      error: 'finished',
+    })
+    expect(
+      await setRunner(t.as('Kavya'), { runId: run.value.id, runner: t.s.people.Kavya }),
+    ).toEqual({ ok: false, error: 'finished' })
   })
 })
 

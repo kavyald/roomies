@@ -607,6 +607,61 @@ export const setVisitDate = (
   })
 }
 
+/**
+ * Rename a run while it's still going. An empty title (or null) goes back to the usual name
+ * ("Kavya's run", "Landlord visit").
+ */
+export const renameRun = (
+  r: Run,
+  title: string | null,
+  ctx: Ctx,
+): Result<{ run: Run; events: DomainEvent[] }, 'finished' | 'title_too_long' | 'no_change'> => {
+  if (!isRunOpen(r)) return err('finished')
+  const next = title?.trim() || null
+  if (next && next.length > MAX_RUN_TITLE) return err('title_too_long')
+  const before = r.title ?? null
+  if (next === before) return err('no_change')
+  const { title: _old, ...rest } = r
+  return ok({
+    run: (next ? { ...rest, title: next } : rest) as Run,
+    events: [
+      {
+        kind: 'run.renamed',
+        runId: r.id,
+        changes: { title: [before, next] },
+        actionId: ctx.actionId,
+        by: ctx.by,
+      },
+    ],
+  })
+}
+
+/**
+ * Who's doing a batch, or the point person on a request or visit, while it's still going. The use
+ * case checks they're a current member.
+ */
+export const setRunner = (
+  r: Run,
+  runner: UserId,
+  ctx: Ctx,
+): Result<{ run: Run; events: DomainEvent[] }, 'finished' | 'no_change'> => {
+  if (!isRunOpen(r)) return err('finished')
+  if (r.runner === runner) return err('no_change')
+  return ok({
+    run: { ...r, runner },
+    events: [
+      {
+        kind: 'run.point_person_changed',
+        runId: r.id,
+        memberId: runner,
+        changes: { runner: [r.runner, runner] },
+        actionId: ctx.actionId,
+        by: ctx.by,
+      },
+    ],
+  })
+}
+
 /** Tasks on a visit come back to the feed when the visit is within 3 days (PRD §8.1). */
 export const visitDateOf = (
   item: Item,

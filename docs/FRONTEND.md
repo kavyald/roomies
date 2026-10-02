@@ -302,7 +302,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 
 ### 5.9 Run sheet (batch, request, visit)
 
-- **Header:** point person or runner, the contact (for requests and visits), and the date (a visit shows *Change / Set a date*).
+- **Header:** point person or runner, the contact (for requests and visits), and the date (a visit shows *Change / Set a date*). While the run is going, *Change* hands it to another roommate and *Rename* edits its name (empty, or *Use "Kavya's run"*, goes back to the usual name).
 - **Request stage line:** "Gathering: not sent yet" or "Sent 2 days ago by text · no reply recorded yet."
 - **Rows:** every item that's been on the run. Pending ones have a **selection checkbox**, and resolved ones show where they went ("Moved → Landlord visit", "Back in the pool · that one's on us", "✓ Fixed").
 - **Selection actions** (a row of buttons that apply to the selected items; *Select all* first):

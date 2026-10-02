@@ -17,8 +17,10 @@ import {
   handToContact,
   inArrivalOrder,
   planVisit,
+  renameRun,
   requestMessage,
   sendRequest,
+  setRunner,
   setVisitDate,
   startRequest,
   visitDateOf,
@@ -462,6 +464,61 @@ describe('requests and visits', () => {
 })
 
 const g = () => batch()
+
+describe('renaming a run and its point person', () => {
+  it('renames an open run, and an empty name goes back to the usual one', () => {
+    const named = renameRun(batch(), '  Saturday shop ', ctx)
+    expect(named.ok && named.value.run.title).toBe('Saturday shop')
+    expect(named.ok && named.value.events).toEqual([
+      {
+        kind: 'run.renamed',
+        runId: 'groceries',
+        changes: { title: [null, 'Saturday shop'] },
+        actionId: act,
+        by: kavya,
+      },
+    ])
+    const back = named.ok && renameRun(named.value.run, '  ', ctx)
+    expect(back && back.ok && 'title' in back.value.run).toBe(false)
+    expect(back && back.ok && back.value.events[0]).toMatchObject({
+      changes: { title: ['Saturday shop', null] },
+    })
+    expect(renameRun(visit(), null, ctx)).toMatchObject({ error: 'no_change' })
+    expect(renameRun(batch('g', { title: 'Groceries' }), 'Groceries', ctx)).toMatchObject({
+      error: 'no_change',
+    })
+    expect(renameRun(request({ at: 'sent', sentAt: T, via: 'text' }), 'Leaks', ctx).ok).toBe(true)
+    expect(renameRun(batch(), 'x'.repeat(81), ctx)).toMatchObject({ error: 'title_too_long' })
+  })
+
+  it("changes who's on a batch or the point person on a visit", () => {
+    const r = setRunner(visit(), wren, ctx)
+    expect(r.ok && r.value.run.runner).toBe(wren)
+    expect(r.ok && r.value.events).toEqual([
+      {
+        kind: 'run.point_person_changed',
+        runId: 'visit',
+        memberId: wren,
+        changes: { runner: [kavya, wren] },
+        actionId: act,
+        by: kavya,
+      },
+    ])
+    expect(setRunner(batch(), kavya, ctx)).toMatchObject({ error: 'no_change' })
+    expect(setRunner(request(), wren, ctx).ok).toBe(true)
+  })
+
+  it('leaves finished and closed runs alone', () => {
+    const finished = batch('done', { state: { open: false, finishedAt: T } })
+    const closed = request({ at: 'closed', closedAt: T })
+    expect(renameRun(finished, 'Late', ctx)).toMatchObject({ error: 'finished' })
+    expect(renameRun(closed, 'Late', ctx)).toMatchObject({ error: 'finished' })
+    expect(setRunner(finished, wren, ctx)).toMatchObject({ error: 'finished' })
+    expect(setRunner(visit({ state: { open: false, finishedAt: T } }), wren, ctx)).toMatchObject({
+      error: 'finished',
+    })
+  })
+})
 
 describe('inArrivalOrder', () => {
   it('orders items the way they came onto the run; strangers go last', () => {

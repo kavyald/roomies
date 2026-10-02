@@ -657,6 +657,7 @@ select changes, actor_id, at from activity_events
 | `markRunItemsDone` | `(r, items, ctx & { remainingOnRun }) → Result<{ run; items; events }, 'nothing_selected' \| 'not_on_run'>` | Done (or last done for chores) and clears `item.run` |
 | `finishRun` | `(r, stillOn, ctx & { doneOnRun }) → Result<{ run: Batch \| Visit; items; events }, 'finished' \| 'not_finishable'>` | Items still on it go back to the pool with "Not done this time" (one `run.item_returned` each) |
 | `setVisitDate` | `(r, when \| null, ctx) → Result<{ run: Visit; events }, 'not_a_visit' \| 'no_change'>` | |
+| `renameRun` / `setRunner` | `(r, title \| null, ctx) → Result<{ run; events }, 'finished' \| 'title_too_long' \| 'no_change'>` / `(r, runner: UserId, ctx) → Result<{ run; events }, 'finished' \| 'no_change'>` | Open runs only. An empty title goes back to the usual name (`runLabel`). `run.renamed` carries `{ title: [before, after] }`; `run.point_person_changed` carries the member and `{ runner: [before, after] }`. |
 | `runSteps` / `itemPath` / `runLedger` | `(rows) → RunStep[]` / `(rows, itemId) → RunStep[]` / `(runId, steps, onRunNow) → LedgerEntry[]` | Pure readers over the activity rows in §6.4; `runProgress`, `inArrivalOrder`, `runLabel`, `visitDateOf` build on them |
 | **Money** (`costs.ts`, `money.ts`) | | |
 | `addCost` | `(input: NewCost, ctx: { by, now, id, houseId, actionId }) → Result<{ cost; events }, 'not_positive' \| 'too_large' \| 'note_too_long'>` | Who paid defaults to whoever adds it |
@@ -690,6 +691,7 @@ select changes, actor_id, at from activity_events
 | `runs.ts` | `startRun` (`NewRun & { itemIds }`) · `addToRun` (`{ runId, itemIds }`) · `startRequest` (`{ contactId, itemIds }`) · `planVisit` (`{ contactId, itemIds, when? }`) · `addToRequest` (`{ taskId }`) | `Run` | the domain errors above, `unknown_member` | |
 | | `markRunItemsDone` · `returnToPool` (`{ runId, itemIds, note?, clearContact }`) · `moveRunItems` (`{ fromRunId, toRunId, itemIds, note? }`) · `handToContact` (`{ runId, itemIds, contactId, note? }`) · `moveToNewVisit` (`{ fromRunId, itemIds, when?, contactId?, note? }`) | `Run` / `Run[]` (from, to) | the domain errors above, `no_contact` | |
 | | `sendRequest` (`{ runId, via }`) · `setVisitDate` (`{ runId, when \| null }`) | `{ run, message }` / `Run` | `not_gathering`, `empty`, `not_a_visit`, `no_change` | |
+| | `renameRun` (`{ runId, title \| null }`) · `setRunner` (`{ runId, runner }`, any current member) | `Run` | `finished`, `title_too_long`, `no_change`, `unknown_member` | |
 | | `finishRun` (`{ runId, spent?, paidBy?, note? }`) | `{ run, cost? }` | `finished`, `not_finishable`, `unknown_member`, cost errors | |
 | `polls.ts` | `createPoll` (`NewPoll`) · `vote` (`{ pollId, optionId }`) · `addPollOption` (`{ pollId, label, note? }`) · `closePoll` (`{ pollId }`) | `Poll` / `{ poll, result }` | the domain errors above | |
 | `costs.ts` | `addCost` (`NewCost`) · `copiedToSplitwise` (`{ costId }`) | `Cost` | `not_positive`, `too_large`, `note_too_long`, `unknown_member` | |

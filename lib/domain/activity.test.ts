@@ -428,6 +428,50 @@ describe('T40: what a line is about, what it opens, and what else it says', () =
     expect(n.person(KAVYA)).toBe('Kavya')
   })
 
+  it('T56: a rename says what it was and what it is; a hand-over says who has it now', () => {
+    const subjects: ActivitySubjects = {
+      ...noSubjects,
+      runs: {
+        b: { kind: 'batch', runner: MAYA },
+        t: { kind: 'batch', runner: MAYA, title: 'Costco' },
+        v: { kind: 'visit', runner: MAYA, contactId: id('super') },
+      },
+    }
+    const n = activityNames(subjects, names)
+    const say = (kind: EventKind, extra: Partial<StoredActivityRow>) =>
+      activityLine([row(kind, extra)], n, member)!.text
+    expect(say('run.renamed', { runId: id('t'), changes: { title: [null, 'Costco'] } })).toBe(
+      "Kavya renamed Maya's run to Costco",
+    )
+    expect(say('run.renamed', { runId: id('b'), changes: { title: ['Costco', null] } })).toBe(
+      "Kavya renamed Costco to Maya's run",
+    )
+    expect(
+      say('run.renamed', { runId: id('t'), changes: { title: ['Groceries', 'Costco'] } }),
+    ).toBe('Kavya renamed Groceries to Costco')
+    expect(say('run.renamed', { runId: id('x'), changes: { title: [null, 'Costco'] } })).toBe(
+      'Kavya renamed a run to Costco',
+    )
+    const handed = { memberId: MAYA, changes: { runner: [KAVYA, MAYA] } }
+    expect(say('run.point_person_changed', { runId: id('b'), ...handed })).toBe(
+      "Kavya handed Kavya's run to Maya",
+    )
+    expect(say('run.point_person_changed', { runId: id('t'), ...handed })).toBe(
+      'Kavya handed Costco to Maya',
+    )
+    expect(say('run.point_person_changed', { runId: id('b'), ...handed, actorId: MAYA })).toBe(
+      "Maya took over Kavya's run",
+    )
+    expect(say('run.point_person_changed', { runId: id('v'), ...handed })).toBe(
+      'Kavya made Maya the point person for Super visit',
+    )
+    expect(say('run.point_person_changed', { runId: id('v'), ...handed, actorId: MAYA })).toBe(
+      'Maya is the point person for Super visit now',
+    )
+    const line = activityLine([row('run.renamed', { runId: id('t') })], n, member)!
+    expect(line).toMatchObject({ topic: 'run', target: { kind: 'run', id: 't' } })
+  })
+
   it('filters by what a line is about', () => {
     const lines = [
       line('item.created', { itemId: id('n1') }),

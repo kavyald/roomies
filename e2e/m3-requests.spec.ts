@@ -68,7 +68,7 @@ test('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; 
   await sheet.getByLabel('Note').fill("That one's on us")
   await sheet.getByRole('button', { name: 'Put back' }).click()
   await expect(rows).toContainText("Back in the pool · That one's on us")
-  await expect(sheet).toContainText('all sorted')
+  await expect(sheet).toContainText('All sorted')
   await page.keyboard.press('Escape')
 
   // The request closed itself; the visit is there.

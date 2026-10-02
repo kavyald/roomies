@@ -26,6 +26,8 @@ export type ActivityNames = {
   person(id: UserId): string | undefined
   item?(id: ItemId): { title: string; category?: 'need' | 'chore' | 'task' } | undefined
   run?(id: RunId): string | undefined
+  /** What a run's name is made of, to name it as it was before a rename or hand-over. */
+  runRef?(id: RunId): RunRef | undefined
   poll?(id: PollId): string | undefined
   option?(id: OptionId): string | undefined
   cost?(id: CostId): string | undefined // e.g. "$42.50"
@@ -75,6 +77,7 @@ export const activityNames = (
     const r = s.runs[id]
     return r && runLabel(r, house)
   },
+  runRef: (id) => s.runs[id],
   poll: (id) => s.polls[id],
   option: (id) => s.options[id],
   cost: (id) => {
@@ -187,6 +190,19 @@ export const activityLine = (
     (r.contactId && names.contact(r.contactId)) || 'a contact'
   const room = (r: StoredActivityRow) => (r.roomId && names.room(r.roomId)) || 'a room'
   const member = (r: StoredActivityRow) => who(r.memberId)
+  const refOf = (id: RunId | undefined) => (id ? names.runRef?.(id) : undefined)
+  // A run's usual name, without its title ("Kavya's run", "Landlord visit").
+  const usualName = (id: RunId | undefined) => {
+    const ref = refOf(id)
+    if (!ref) return undefined
+    const { title: _title, ...usual } = ref
+    return runLabel(usual, names)
+  }
+  // A run's name as it was with someone else on it ("Sam's run", or its title).
+  const nameWith = (id: RunId | undefined, runner: UserId) => {
+    const ref = refOf(id)
+    return ref && runLabel({ ...ref, runner }, names)
+  }
   const change = (r: StoredActivityRow, field: string): [unknown, unknown] | undefined =>
     (r.changes as Record<string, [unknown, unknown]> | undefined)?.[field]
 
@@ -254,12 +270,28 @@ export const activityLine = (
         return `${actor} changed their vote on ${poll(r)}`
       case 'run.created':
         return `${actor} started ${run(r.runId)}`
-      case 'run.renamed':
-        return `${actor} renamed ${run(r.runId)}`
+      case 'run.renamed': {
+        // A null side is the run's usual name ("Kavya's run").
+        const title = change(r, 'title')
+        if (!title) return `${actor} renamed ${run(r.runId)}`
+        const named = (t: unknown) => (typeof t === 'string' ? t : (usualName(r.runId) ?? 'a run'))
+        return `${actor} renamed ${named(title[0])} to ${named(title[1])}`
+      }
       case 'run.date_set':
         return `${actor} set a date for ${run(r.runId)}`
-      case 'run.point_person_changed':
-        return `${actor} made ${member(r)} the point person for ${run(r.runId)}`
+      case 'run.point_person_changed': {
+        if (refOf(r.runId)?.kind !== 'batch')
+          return r.memberId === r.actorId
+            ? `${actor} is the point person for ${run(r.runId)} now`
+            : `${actor} made ${member(r)} the point person for ${run(r.runId)}`
+        // A batch reads as who it was with before: "Kavya handed Sam's run to Maya".
+        const before = change(r, 'runner')?.[0]
+        const was =
+          (typeof before === 'string' && nameWith(r.runId, before as UserId)) || run(r.runId)
+        return r.memberId === r.actorId
+          ? `${actor} took over ${was}`
+          : `${actor} handed ${was} to ${member(r)}`
+      }
       case 'run.item_added':
         return `${actor} added ${items(ofKind('run.item_added'))} to ${run(r.runId)}`
       case 'run.item_moved':

@@ -54,4 +54,6 @@ export const moveToNewVisitSchema = z.object({
   contactId: z.uuid().optional(),
   note,
 })
+export const renameRunSchema = z.object({ runId: z.uuid(), title: z.string().max(200).nullable() })
+export const setRunnerSchema = z.object({ runId: z.uuid(), runner: z.uuid() })
 export const setVisitDateSchema = z.object({ runId: z.uuid(), when: whenSchema.nullable() })

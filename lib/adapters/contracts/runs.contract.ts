@@ -194,6 +194,52 @@ export const runsContract = (name: string, makeHarness: () => Promise<UnitOfWork
       ])
     })
 
+    it('T56: renames, goes back to its usual name, and changes hands, with both in its story', async () => {
+      const s = await setup()
+      const run = s.visit()
+      await s.putRun(run)
+      const actionId = h.ids.newId<'action'>()
+      const named: Visit = { ...run, title: 'Plumber Thursday', runner: s.admin }
+      await h.uow.run(s.me, async (r) => {
+        await r.runs.save(named)
+        await r.events.record(
+          s.house.id,
+          [
+            {
+              kind: 'run.renamed',
+              runId: run.id,
+              changes: { title: [null, 'Plumber Thursday'] },
+              actionId,
+              by: s.member,
+            },
+            {
+              kind: 'run.point_person_changed',
+              runId: run.id,
+              memberId: s.admin,
+              changes: { runner: [s.member, s.admin] },
+              actionId,
+              by: s.member,
+            },
+          ],
+          T,
+        )
+      })
+      expect(await s.getRun(run.id)).toEqual(named)
+      const { title: _title, ...usual } = named
+      await s.putRun(usual)
+      expect(await s.getRun(run.id)).toEqual(usual)
+      const story = await h.uow.run(s.me, (r) => r.events.forRun(s.house.id, run.id))
+      expect(story).toMatchObject([
+        { kind: 'run.renamed', changes: { title: [null, 'Plumber Thursday'] } },
+        {
+          kind: 'run.point_person_changed',
+          memberId: s.admin,
+          changes: { runner: [s.member, s.admin] },
+        },
+      ])
+      await expect(s.putRun({ ...usual, title: ' ' })).rejects.toBeInstanceOf(ConstraintViolation)
+    })
+
     it('a run keeps its kind', async () => {
       const s = await setup()
       const run = s.batch()

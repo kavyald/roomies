@@ -7,7 +7,9 @@ import {
   makeHandToContact,
   makeMoveToNewVisit,
   makePlanVisit,
+  makeRenameRun,
   makeSendRequest,
+  makeSetRunner,
   makeSetVisitDate,
   makeStartRequest,
   makeFinishRun,
@@ -25,7 +27,9 @@ import {
   handToContactSchema,
   moveToNewVisitSchema,
   planVisitSchema,
+  renameRunSchema,
   sendRequestSchema,
+  setRunnerSchema,
   setVisitDateSchema,
   startRequestSchema,
   finishRunSchema,
@@ -188,6 +192,23 @@ export async function setVisitDateAction(houseId: HouseId, input: unknown) {
     setVisitDateSchema,
     (deps, actor, i) =>
       makeSetVisitDate(deps)(actor, { runId: i.runId as RunId, when: i.when as When | null }),
+    houseEnv(houseId),
+  )(input)
+}
+
+export async function renameRunAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    renameRunSchema,
+    (deps, actor, i) => makeRenameRun(deps)(actor, { runId: i.runId as RunId, title: i.title }),
+    houseEnv(houseId),
+  )(input)
+}
+
+export async function setRunnerAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    setRunnerSchema,
+    (deps, actor, i) =>
+      makeSetRunner(deps)(actor, { runId: i.runId as RunId, runner: i.runner as UserId }),
     houseEnv(houseId),
   )(input)
 }

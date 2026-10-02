@@ -173,6 +173,10 @@ export const useMoveToNewVisit = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'moveToNewVisit'>) => c.moveToNewVisit(i), RUN_AFFECTS)
 export const useSetVisitDate = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'setVisitDate'>) => c.setVisitDate(i), RUN_AFFECTS)
+export const useRenameRun = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'renameRun'>) => c.renameRun(i), RUN_AFFECTS)
+export const useSetRunner = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'setRunner'>) => c.setRunner(i), RUN_AFFECTS)
 
 export const useCosts = (houseId: HouseId) => {
   const { queries } = useAppClient()

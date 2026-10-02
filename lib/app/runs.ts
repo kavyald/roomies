@@ -19,9 +19,11 @@ import {
   markRunItemsDone,
   moveRunItems,
   planVisit,
+  renameRun,
   requestMessage,
   returnToPool,
   sendRequest,
+  setRunner,
   setVisitDate,
   startRequest,
   runLedger,
@@ -384,4 +386,28 @@ export const makeSetVisitDate = (deps: Deps) =>
     if (!r.ok) return r
     await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
     return ok(r.value.run as Run)
+  })
+
+/** Rename a run that's still going; null or an empty title brings back the usual name. */
+export const makeRenameRun = (deps: Deps) =>
+  inTx(deps, async (actor, input: { runId: RunId; title: string | null }, ctx) => {
+    const run = await loadRun(ctx.repos, actor, input.runId)
+    if (!run) return err('not_found')
+    const r = renameRun(run, input.title, ctx)
+    if (!r.ok) return r
+    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    return ok(r.value.run)
+  })
+
+/** Who's doing a batch, or the point person on a request or visit: any current member. */
+export const makeSetRunner = (deps: Deps) =>
+  inTx(deps, async (actor, input: { runId: RunId; runner: UserId }, ctx) => {
+    const run = await loadRun(ctx.repos, actor, input.runId)
+    if (!run) return err('not_found')
+    const m = await ctx.repos.members.get(actor.houseId, input.runner)
+    if (!m?.status.active) return err('unknown_member')
+    const r = setRunner(run, input.runner, ctx)
+    if (!r.ok) return r
+    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    return ok(r.value.run)
   })
