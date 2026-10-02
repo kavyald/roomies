@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/Button'
 import { RoomChip } from '@/components/ui/Chip'
 import { DisclosureGroup } from '@/components/ui/Disclosure'
 import { OverflowMenu } from '@/components/ui/OverflowMenu'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet } from '@/components/ui/Sheet'
 import { useCelebrate, useToast } from '@/components/ui/Toast'
 import { useCopy } from '@/components/house/useCopy'
@@ -55,8 +56,10 @@ import { CATEGORY, scheduleLabel, whenLabel } from './meta'
 import { WhyHere } from './WhyHere'
 
 type Sheets = {
+  /** The "+" sheet: the picker, or straight to one kind's form. */
   openAdd(category?: Category): void
-  openItem(id: ItemId): void
+  /** An item's detail sheet; `note` opens it on the note editor for my feeling. */
+  openItem(id: ItemId, opts?: { note?: boolean }): void
   openRun(id: RunId): void
   startRun(): void
   openPoll(id: PollId): void
@@ -93,7 +96,7 @@ export function ItemSheetsProvider({
   children: ReactNode
 }) {
   const [adding, setAdding] = useState<{ category?: Category } | null>(null)
-  const [openId, setOpenId] = useState<ItemId | null>(null)
+  const [open, setOpen] = useState<{ id: ItemId; note?: boolean } | null>(null)
   const [runId, setRunId] = useState<RunId | null>(null)
   const [starting, setStarting] = useState(false)
   const [pollId, setPollId] = useState<PollId | null>(null)
@@ -101,21 +104,21 @@ export function ItemSheetsProvider({
   const sheets = useMemo<Sheets>(
     () => ({
       openAdd: (category) => setAdding({ category }),
-      openItem: (id) => {
+      openItem: (id, opts) => {
         setRunId(null)
-        setOpenId(id)
+        setOpen({ id, note: opts?.note })
       },
       openRun: (id) => {
-        setOpenId(null)
+        setOpen(null)
         setRunId(id)
       },
       startRun: () => setStarting(true),
       openPoll: (id) => {
-        setOpenId(null)
+        setOpen(null)
         setPollId(id)
       },
       newPoll: (about) => {
-        setOpenId(null)
+        setOpen(null)
         setNewPoll({ about })
       },
     }),
@@ -131,7 +134,7 @@ export function ItemSheetsProvider({
           onClose={() => setAdding(null)}
           onOpen={(id) => {
             setAdding(null)
-            setOpenId(id)
+            setOpen({ id })
           }}
           onPoll={() => {
             setAdding(null)
@@ -143,7 +146,15 @@ export function ItemSheetsProvider({
           }}
         />
       )}
-      {openId && <ItemDetailSheet houseId={houseId} id={openId} onClose={() => setOpenId(null)} />}
+      {open && (
+        <ItemDetailSheet
+          key={open.id}
+          houseId={houseId}
+          id={open.id}
+          noteFirst={open.note}
+          onClose={() => setOpen(null)}
+        />
+      )}
       {runId && <RunSheet houseId={houseId} runId={runId} onClose={() => setRunId(null)} />}
       {pollId && (
         <PollSheet
@@ -152,7 +163,7 @@ export function ItemSheetsProvider({
           onClose={() => setPollId(null)}
           onOpenItem={(id) => {
             setPollId(null)
-            setOpenId(id)
+            setOpen({ id })
           }}
         />
       )}
@@ -202,21 +213,23 @@ function AddSheet({
   const create = useCreateItem(houseId)
   const toast = useToast()
 
-  const add = async (v: ItemFormValues) => {
-    if (!category) return
+  /** Adds it; true once the house has it (added, or pointed at the one already there). */
+  const save = async (v: ItemFormValues): Promise<boolean> => {
+    if (!category) return false
     const r = await create.mutateAsync(toNewItem(category, v))
     if (r.ok) {
       toast('Added.', { label: 'Open', onClick: () => onOpen(r.value.id) })
-      return onClose()
+      return true
     }
     if (r.error === 'duplicate_need' && r.detail?.existingId) {
       toast("That's already on the list.", {
         label: 'Open',
         onClick: () => onOpen(r.detail!.existingId as ItemId),
       })
-      return onClose()
+      return true
     }
     toast(PROBLEM[r.error] ?? oops)
+    return false
   }
 
   if (!category) {
@@ -258,14 +271,35 @@ function AddSheet({
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()} title={CATEGORY[category].article}>
+      <SegmentedControl
+        wide
+        label="What are you adding?"
+        value={category}
+        onChange={setCategory}
+        options={[
+          { value: 'need', label: 'Need' },
+          { value: 'chore', label: 'Chore' },
+          { value: 'task', label: 'Task' },
+        ]}
+      />
       <ItemForm
         houseId={houseId}
         category={category}
         initial={valuesFrom()}
         submitLabel="Add"
         busy={create.isPending}
-        onSubmit={add}
+        onSubmit={async (v) => {
+          if (await save(v)) onClose()
+        }}
+        onAddAnother={save}
       />
+      <button
+        type="button"
+        onClick={() => setCategory(null)}
+        className="min-h-11 justify-self-center text-sm font-bold text-accent-ink"
+      >
+        A poll or a run instead?
+      </button>
     </Sheet>
   )
 }
@@ -298,10 +332,13 @@ const patchFrom = (item: Item, v: ItemFormValues): ItemPatch => {
 function ItemDetailSheet({
   houseId,
   id,
+  noteFirst,
   onClose,
 }: {
   houseId: HouseId
   id: ItemId
+  /** Opened from "Add a note" after a one-tap feeling. */
+  noteFirst?: boolean
   onClose: () => void
 }) {
   const item = useItem(houseId, id)
@@ -585,6 +622,7 @@ function ItemDetailSheet({
       <HouseFeels
         houseId={houseId}
         itemId={item.id}
+        startWithNote={noteFirst}
         person={(u) => {
           const name = nameOf(u)
           return name ? { name, element: elementOf(u) } : undefined

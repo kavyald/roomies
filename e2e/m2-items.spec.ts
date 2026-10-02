@@ -59,8 +59,7 @@ test('a duplicate need points to the first, Did it resets a chore, 😰 moves a 
   await feed.nth(1).getByRole('button', { name: 'Fix the latch', exact: true }).click()
   const detail = page.getByRole('dialog', { name: 'Fix the latch' })
   await detail.getByRole('button', { name: '🙂+ Share a feeling' }).click()
-  await detail.getByRole('radio', { name: /Anxious/ }).click()
-  await detail.getByRole('button', { name: 'Share with the house' }).click()
+  await detail.getByRole('button', { name: 'Anxious', exact: true }).click()
   await expect(detail.getByRole('region', { name: 'How the house feels' })).toContainText(
     'You · 😰 Anxious',
   )

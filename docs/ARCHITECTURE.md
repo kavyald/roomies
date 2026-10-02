@@ -642,7 +642,7 @@ select changes, actor_id, at from activity_events
 | `isInFeed` | `(i: Item, f: Feeling[], now, tz, { visitDate? }) → boolean` | PRD §8.1 rules (§7.1) |
 | `homeFeed` | `(items, feelingsOf, { weights, now, tz, filter: 'mine' \| 'all', me, visitDate? }) → FeedEntry[]` | Needs attention: in-feed items, highest score first, then the sooner date, then the newest |
 | **Feelings and weights** (`feelings.ts`, `weights.ts`) | | |
-| `setFeeling` | `(current: Feeling \| null, next: { kind, note? } \| null, ctx: { itemId, by, now, actionId }) → Result<{ feeling \| null; events }, 'no_change' \| 'note_too_long'>` | The event carries `previous`; `earlierFeelings(rows)` reads them back |
+| `setFeeling` | `(current: Feeling \| null, next: { kind, note? } \| null, ctx: { itemId, by, now, actionId }) → Result<{ feeling \| null; events }, 'no_change' \| 'note_too_long'>` | The event carries `previous`; `earlierFeelings(rows)` reads them back, leaving out a version whose note was added or edited on the same feeling |
 | `isValidWeight` / `stepWeight` | `(n) → boolean` / `(n, ±1) → number` | −20…+40, steps of 5 |
 | `setFeelingWeights` | `(house: House, next: FeelingWeights, ctx: { by, actionId }) → Result<{ house; events }, 'out_of_range' \| 'no_change'>` | `describeWeightsChange` words the Home card |
 | **Polls** (`polls.ts`) | | |
@@ -816,7 +816,7 @@ app/
 proxy.ts                     -- Next 16's proxy (was middleware): refreshes the session, sends signed-out visitors away from /h/*
 components/
   ui/                        -- Avatar (initials + element), Button, Card, Chip, Disclosure, EmptyState, ListRow,
-                                OverflowMenu, SegmentedControl, Sheet (vaul), TabBar, Toast
+                                OverflowMenu, SegmentedControl, Sheet (vaul), Swipeable, TabBar, Toast
   shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, InstallGuide, ServiceWorker, ThemeSync, DeepLinks (OpenPoll, OpenRun)
   auth/  setup/  join/       -- sign-in, setup and join flows
   home/  needs/  chores/  tasks/  calendar/  activity/  house/  me/   -- one folder per screen
@@ -845,7 +845,7 @@ lib/
   testing/                   -- test-only: fixed clock, builders, sampleHouse, fake AppClient, asUser() (db.ts), Mailpit, JWTs
 supabase/
   config.toml  migrations/  seed.sql  tests/ (RLS, isolation, setup, jobs, poll votes; Vitest)
-e2e/                         -- Playwright journeys per milestone (m0-sign-in … m4-settings, m4-a11y)
+e2e/                         -- Playwright journeys per milestone (m0-sign-in … m4-settings, m4-a11y, m6-fewer-taps)
 scripts/                     -- env-local, cron-local, test-all, activity-sizing, make-icons
 public/
   sw.js  icons/

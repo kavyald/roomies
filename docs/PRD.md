@@ -228,7 +228,7 @@ A run is **a batch of items handled together**. There are three kinds:
 
 - **Opt-in.** A roommate adds a feeling to an item only when they think the house should know how they feel about it. Nobody is prompted. **(owner)**
 - **About the item, never the person.** There's no per-person mood, and avatars never show feelings. **(owner)**
-- **One current feeling + an optional note** (≤ 280 chars) per member per item. Changing it moves the old one to an **Earlier** list, so the conversation isn't lost. **(owner)** Feeling notes replace comments.
+- **One current feeling + an optional note** (≤ 280 chars) per member per item. Changing it moves the old one to an **Earlier** list, so the conversation isn't lost (adding or editing the note keeps it the same feeling). **(owner)** Feeling notes replace comments.
 - **Always named.** There's no anonymous option. **(owner)**
 - When someone adds 😰 or 😤, the item's assignee gets a notification.
 

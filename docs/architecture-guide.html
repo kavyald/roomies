@@ -565,7 +565,7 @@ const LAYERS = [
     ['useLiveHouse','ChangeFeed → keysForTable → invalidateQueries.'],
     ['push.ts · install.ts · use-now.ts','Web Push subscribe, Home Screen install detection, a ticking “now”.'] ]},
   { name:'components/', desc:'95 files', fns:[
-    ['ui/','Button, Card, Chip, Avatar, Sheet (vaul), OverflowMenu, Disclosure, TabBar, ListRow, SegmentedControl, Toast, EmptyState. Contrast and copy are unit-tested.'],
+    ['ui/','Button, Card, Chip, Avatar, Sheet (vaul), OverflowMenu, Disclosure, Swipeable, TabBar, ListRow, SegmentedControl, Toast, EmptyState. Contrast and copy are unit-tested.'],
     ['items/ · runs/ · polls/ · costs/','ItemSheets (600 lines) and RunSheet (560) are the two heaviest screens.'],
     ['home/ · needs/ · chores/ · tasks/ · house/ · me/ · calendar/ · activity/','One folder per tab or screen.'],
     ['shell/','AppShell, HouseProviders, InstallGuide, ServiceWorker (production only), ThemeSync, DeepLinks (OpenPoll, OpenRun).'] ]}
@@ -812,7 +812,6 @@ $('#prlist').innerHTML = PR.map((p,i)=>'<div class="pr"><span class="k">'+String
 /* ---------------- Gaps ---------------- */
 const GAPS = [
  ['Not started','M5: hosting and launch','E1–E5 and Q5 are untouched by design: hosted Supabase (staging + prod), the Gmail sender, Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is also not installed yet. E5 now also waits on Q6, since M6 is built first.','Weyve cards E1–E5 and Q5 (M5)'],
- ['Carded','Swipe actions on cards','FRONTEND principle 6 and §5 call for swipe right = done, left = feeling. The check button covers “done” until then.','Weyve card T43 (M6)'],
  ['Carded','Polls: withdraw a vote, reopen, deadline','poll.vote_withdrawn and the other poll actions are in the catalog but nothing writes them (T27 note).','Weyve card T55 (M6)'],
  ['Carded','Conflict detection on edits','§7.5 describes optimistic concurrency (where updated_at = :loaded → conflict). Saves are last-write-wins for now (T18).','Weyve card T50 (M6)'],
  ['Misplaced','Nil-UUID system actor, four copies','The same “Roomies itself” actor is built separately in setup.ts, push.ts, jobs.ts and invites.ts.','lib/app/{setup,push,jobs,invites}.ts'],

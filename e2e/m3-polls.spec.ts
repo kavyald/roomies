@@ -45,8 +45,12 @@ test('"Which vacuum?" on a need and a standalone "House name?" both work, and 2â
   await page.keyboard.press('Escape')
   await expect(needs.getByRole('listitem').filter({ hasText: 'Vacuum' })).toContainText('Poll')
 
-  // A standalone poll from +, voted 2â€“2.
+  // A standalone poll from + (on Needs it opens a need; the form leads back to the picker).
   await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await page
+    .getByRole('dialog', { name: 'A need' })
+    .getByRole('button', { name: 'A poll or a run instead?' })
+    .click()
   await page
     .getByRole('dialog', { name: 'Add something' })
     .getByRole('button', { name: /^A poll/ })

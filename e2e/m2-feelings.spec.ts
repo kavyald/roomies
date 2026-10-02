@@ -15,29 +15,36 @@ test('changing a feeling moves the old one into Earlier, and a feeling moves a n
   const rows = page.getByRole('list', { name: 'Needs' }).getByRole('listitem')
   await expect(rows.first()).toContainText('Olive oil') // newest first, before any feelings
 
-  // Share 😰 on toilet paper, with a note.
-  await rows
-    .filter({ hasText: 'Toilet paper' })
-    .getByRole('button', { name: /^Toilet paper/ })
+  // Share 😰 on toilet paper in two taps (🙂+, then the emoji), then add a note from the toast.
+  await page.getByRole('button', { name: 'Share a feeling: Toilet paper' }).click()
+  await page
+    .getByRole('group', { name: 'How do you feel about this?' })
+    .getByRole('button', { name: 'Anxious' })
     .click()
+  const shared = page
+    .getByRole('status')
+    .filter({ hasText: 'Shared. The house can see how you feel.' })
+  await expect(shared).toBeVisible()
+  await shared.getByRole('button', { name: 'Add a note' }).click()
   const detail = page.getByRole('dialog', { name: 'Toilet paper' })
-  await detail.getByRole('button', { name: '🙂+ Share a feeling' }).click()
-  await detail.getByRole('radio', { name: /Anxious/ }).click()
-  await detail.getByLabel('Add a note (optional)').fill("We're on the last roll")
-  await detail.getByRole('button', { name: 'Share with the house' }).click()
-  await expect(
-    page.getByRole('status').filter({ hasText: 'Shared. The house can see how you feel.' }),
-  ).toBeVisible()
+  await detail.getByLabel('Add a note to your 😰').fill("We're on the last roll")
+  await detail.getByRole('button', { name: 'Save note' }).click()
   const feels = detail.getByRole('region', { name: 'How the house feels' })
+  // Wait for the save itself: until then the note is only in the text box.
+  await expect(feels.getByRole('button', { name: 'Edit my note' })).toBeVisible()
   await expect(feels).toContainText('You · 😰 Anxious')
   await expect(feels).toContainText("We're on the last roll")
 
-  // Change it: the old one moves to Earlier.
+  // Change it in the sheet: one tap on another emoji; the old one moves to Earlier.
   await feels.getByRole('button', { name: 'Change my feeling' }).click()
-  await detail.getByRole('radio', { name: /Frustrated/ }).click()
-  await detail.getByLabel('Add a note (optional)').fill('Third time this month')
-  await detail.getByRole('button', { name: 'Share with the house' }).click()
+  await feels.getByRole('button', { name: 'Frustrated' }).click()
   await expect(feels).toContainText('You · 😤 Frustrated')
+  await feels.getByRole('button', { name: 'Add a note' }).click()
+  await feels.getByLabel('Add a note to your 😤').fill('Third time this month')
+  await feels.getByRole('button', { name: 'Save note' }).click()
+  // Wait for the save itself: until then the note is only in the text box.
+  await expect(feels.getByRole('button', { name: 'Edit my note' })).toBeVisible()
+  await expect(feels).toContainText('Third time this month')
   await feels.getByRole('button', { name: /Earlier \(1\)/ }).click()
   const earlier = feels.getByRole('list', { name: 'Earlier feelings' })
   await expect(earlier).toContainText('😰 Anxious')

@@ -245,10 +245,14 @@ export const activityLine = (
         return `${actor} did ${items(ofKind('chore.done'))}`
       case 'feeling.set': {
         // The emoji, as everywhere else in the app (owner, 2026-10-01).
-        const next = (r.changes as { next?: { kind?: FeelingKind } } | undefined)?.next?.kind
-        return next
-          ? `${actor} felt ${FEELING_META[next].emoji} about ${item(r)}`
-          : `${actor} shared a feeling about ${item(r)}`
+        type F = { kind?: FeelingKind; note?: string } | null
+        const c = r.changes as { previous?: F; next?: F } | undefined
+        const next = c?.next?.kind
+        if (!next) return `${actor} shared a feeling about ${item(r)}`
+        // A note added after a one-tap feeling is the same feeling, with words now (T43).
+        if (c?.previous?.kind === next && c.next?.note)
+          return `${actor} added a note to ${FEELING_META[next].emoji} about ${item(r)}`
+        return `${actor} felt ${FEELING_META[next].emoji} about ${item(r)}`
       }
       case 'poll.created':
         return `${actor} asked ${poll(r)}`

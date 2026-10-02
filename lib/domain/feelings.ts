@@ -106,14 +106,19 @@ export const setFeeling = (
 }
 
 /**
- * The Earlier list for an item: each feeling that was replaced or removed, newest first, read from
- * the item's activity rows (§6.4 "Earlier feelings on an item").
+ * The Earlier list for an item: each feeling that was replaced by a different one or removed,
+ * newest first, read from the item's activity rows (§6.4 "Earlier feelings on an item"). Adding or
+ * editing the note on the same feeling (one tap, then "Add a note") keeps it the same feeling, so
+ * that version isn't listed.
  */
 export const earlierFeelings = (rows: readonly StoredActivityRow[]): Feeling[] =>
   rows
     .filter((r) => r.kind === 'feeling.set' || r.kind === 'feeling.removed')
     .sort((a, b) => b.id - a.id)
-    .map((r) => (r.changes as { previous?: Feeling | null } | undefined)?.previous)
+    .map((r) => {
+      const c = r.changes as { previous?: Feeling | null; next?: Feeling | null } | undefined
+      return c?.previous && c.next?.kind === c.previous.kind ? null : c?.previous
+    })
     .filter((f): f is Feeling => !!f)
 
 /** The sum of the house's weights for an item's current feelings (PRD §8.1). */

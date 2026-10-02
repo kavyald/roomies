@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle, Phone, ShoppingBag, Sparkles, Wind } from 'lucide-react'
+import { Check, CheckCircle, Phone, ShoppingBag, Sparkles, Wind } from 'lucide-react'
 import { useState } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -12,6 +12,7 @@ import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { OverflowMenu } from '@/components/ui/OverflowMenu'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet } from '@/components/ui/Sheet'
+import { Swipeable } from '@/components/ui/Swipeable'
 import { ToastProvider, useToast } from '@/components/ui/Toast'
 import { houseTabs } from '@/components/shell/tabs'
 import { TabBar } from '@/components/ui/TabBar'
@@ -125,6 +126,28 @@ function Contents() {
         </Card>
       </Section>
 
+      <Section title="Swipe">
+        <Swipeable
+          className="rounded-[20px]"
+          right={{
+            label: 'Done',
+            icon: <Check aria-hidden className="size-5" strokeWidth={3} />,
+            className: 'bg-accent text-on-accent',
+            onSwipe: () => toast('Done. 💛'),
+          }}
+          left={{
+            label: 'Feeling',
+            icon: <span aria-hidden>🙂</span>,
+            className: 'bg-top-fill text-top-ink',
+            onSwipe: () => toast('The emoji tray opens'),
+          }}
+        >
+          <Card onClick={() => toast('Opened')}>
+            <h3 className="m-0 text-[1.0625rem] leading-tight font-bold">Swipe me either way</h3>
+          </Card>
+        </Swipeable>
+      </Section>
+
       <Section title="List rows">
         <ListGroup label="Roommates">
           <ListRow
@@ -183,7 +206,7 @@ function Contents() {
       >
         <p className="m-0">Sheet content goes here.</p>
         <Button block onClick={() => setSheet(false)}>
-          Share with the house
+          Done
         </Button>
       </Sheet>
     </div>

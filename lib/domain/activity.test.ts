@@ -402,6 +402,21 @@ describe('T40: what a line is about, what it opens, and what else it says', () =
     )
   })
 
+  it('a note added to the same feeling says so', () => {
+    const noted = line('feeling.set', {
+      itemId: id('n1'),
+      changes: { previous: { kind: 'anxious' }, next: { kind: 'anxious', note: 'Last one' } },
+    })
+    expect(noted.text).toBe('Kavya added a note to 😰 about Tomatoes')
+    expect(noted.detail).toBe('“Last one”')
+    expect(
+      line('feeling.set', {
+        itemId: id('n1'),
+        changes: { previous: { kind: 'fine' }, next: { kind: 'anxious', note: 'Now it leaks' } },
+      }).text,
+    ).toBe('Kavya felt 😰 about Tomatoes')
+  })
+
   it('names come from the page subjects plus the house', () => {
     const page = (s: Partial<ActivitySubjects>): ActivitySubjects => ({ ...noSubjects, ...s })
     const subjects = mergeSubjects([

@@ -4,7 +4,7 @@ import { Heart } from 'lucide-react'
 import { useState } from 'react'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { ItemCard } from '@/components/items/ItemCard'
-import { itemMeta } from '@/components/items/meta'
+import { FINISH, itemMeta } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
 import { useDidIt } from '@/components/items/useDidIt'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -33,8 +33,6 @@ const EMPTY: Record<FeedFilter, string> = {
   all: 'Nothing needs attention right now. Enjoy the quiet.',
   mine: "Nothing's on you right now.",
 }
-
-const CHECK: Record<Item['category'], string> = { need: 'Got it', task: 'Done', chore: 'Did it' }
 
 /**
  * Home (FRONTEND §5.1): Needs attention, ranked by priority (PRD §8.1). Coming up, polls and runs
@@ -127,7 +125,7 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
                     showCategory
                     meta={itemMeta(item, now, tz, (u) => ctx.person(u)?.name)}
                     onOpen={() => openItem(item.id)}
-                    checkLabel={`${CHECK[item.category]}: ${item.title}`}
+                    checkLabel={`${FINISH[item.category]}: ${item.title}`}
                     onCheck={() => check(item)}
                   />
                 </li>

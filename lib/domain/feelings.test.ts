@@ -94,6 +94,17 @@ describe('earlierFeelings', () => {
     ]
     expect(earlierFeelings(rows)).toEqual([frustrated, anxious])
   })
+
+  it('leaves out a version whose note was added or edited on the same feeling', () => {
+    const plain = { itemId, by: maya, kind: 'anxious', at: instant(1) } as Feeling
+    const noted = { ...plain, note: 'Last roll', at: instant(2) } as Feeling
+    const rows: StoredActivityRow[] = [
+      row(1, 'feeling.set', null),
+      { ...row(2, 'feeling.set', plain), changes: { previous: plain, next: noted } },
+      row(3, 'feeling.removed', noted),
+    ]
+    expect(earlierFeelings(rows)).toEqual([noted])
+  })
 })
 
 describe('scores and counts', () => {

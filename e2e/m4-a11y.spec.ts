@@ -48,6 +48,18 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()
       await check(page, path)
     }
+    // The emoji tray on a row, and + on Needs (straight to a need, with Add another).
+    await page.goto(`${h}/needs`)
+    await page.getByRole('button', { name: 'Share a feeling: Olive oil' }).click()
+    await expect(page.getByRole('group', { name: 'How do you feel about this?' })).toBeVisible()
+    await check(page, 'emoji tray')
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Add', exact: true }).click()
+    await expect(page.getByRole('dialog', { name: 'A need' })).toBeVisible()
+    await check(page, 'add sheet (a need)')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: 'A need' })).toBeHidden()
+
     await page.goto(`${h}/i/${task}`)
     await expect(page.getByRole('dialog', { name: 'Fix the latch' })).toBeVisible()
     await check(page, 'item')

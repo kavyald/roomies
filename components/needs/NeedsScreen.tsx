@@ -3,7 +3,8 @@
 import { BarChart3, Check, Plus, ShoppingBag, ShoppingCart } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
-import { FeelingCounts } from '@/components/items/Feelings'
+import { FeelingButton, FeelingCounts, FeelingTray } from '@/components/items/Feelings'
+import { feelSide, finishSide } from '@/components/items/ItemCard'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { whenLabel } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
@@ -11,6 +12,7 @@ import { onRunLabel, RUN_ICON } from '@/components/runs/meta'
 import { Button } from '@/components/ui/Button'
 import { Chip, RoomChip } from '@/components/ui/Chip'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { Swipeable } from '@/components/ui/Swipeable'
 import { useCelebrate, useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
 import {
@@ -29,7 +31,8 @@ import { needList } from '@/lib/domain/lists'
 
 /**
  * The shared shopping list (FRONTEND §5.5): "We need…" at the top, then each open need with a
- * Got it circle. No Soon flag: a feeling says "we need this soon" (T23).
+ * Got it circle and a 🙂+ (swipe right and left do the same). No Soon flag: a feeling says "we need
+ * this soon" (T23).
  */
 export function NeedsScreen({ houseId }: { houseId: HouseId }) {
   const items = useItems(houseId)
@@ -50,6 +53,13 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
   const [title, setTitle] = useState('')
   const [highlight, setHighlight] = useState<ItemId | null>(null)
   const rows = useRef(new Map<string, HTMLLIElement>())
+  // One emoji tray open at a time; closing it puts focus back on that row's 🙂+.
+  const [tray, setTray] = useState<ItemId | null>(null)
+  const feelButtons = useRef(new Map<string, HTMLButtonElement>())
+  const closeTray = () => {
+    if (tray) feelButtons.current.get(tray)?.focus({ preventScroll: true })
+    setTray(null)
+  }
 
   useEffect(() => {
     if (!highlight) return
@@ -145,43 +155,72 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
                   else rows.current.delete(n.id)
                 }}
                 className={cn(
-                  'flex items-center gap-1 border-b-[1.5px] border-line bg-card pl-1.5 transition-colors duration-500 last:border-b-0',
+                  'border-b-[1.5px] border-line bg-card transition-colors duration-500 last:border-b-0',
                   highlight === n.id && 'bg-top-fill',
                 )}
               >
-                <button
-                  type="button"
-                  aria-label={`Got it: ${n.title}`}
-                  onClick={() => gotIt(n.id, n.title)}
-                  className="group grid size-11 flex-none place-items-center rounded-full"
+                <Swipeable
+                  className="bg-inherit"
+                  right={{ ...finishSide('Got it'), onSwipe: () => gotIt(n.id, n.title) }}
+                  left={{ ...feelSide, onSwipe: () => setTray(n.id) }}
                 >
-                  <span className="grid size-7 place-items-center rounded-full bg-card text-transparent shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ink)_30%,transparent)] group-hover:text-ink-soft">
-                    <Check aria-hidden className="size-4" strokeWidth={3} />
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openItem(n.id)}
-                  className="grid min-h-12 flex-1 gap-1 py-2.5 pr-3.5 text-left"
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="font-bold">{n.title}</span>
-                    <FeelingCounts feelings={feelingsBy.get(n.id) ?? []} />
-                  </span>
-                  {(n.note || room || when || onRun || polled) && (
-                    <span className="flex flex-wrap items-center gap-1.5 text-[0.8rem] font-semibold text-ink-soft">
-                      {onRun && (
-                        <Chip icon={RUN_ICON[onRun.run.kind]}>
-                          {onRunLabel(onRun.run, onRun.label)}
-                        </Chip>
+                  <div className="flex items-center gap-1 bg-inherit pl-1.5">
+                    <button
+                      type="button"
+                      aria-label={`Got it: ${n.title}`}
+                      onClick={() => gotIt(n.id, n.title)}
+                      className="group grid size-11 flex-none place-items-center rounded-full"
+                    >
+                      <span className="grid size-7 place-items-center rounded-full bg-card text-transparent shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ink)_30%,transparent)] group-hover:text-ink-soft">
+                        <Check aria-hidden className="size-4" strokeWidth={3} />
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openItem(n.id)}
+                      className="grid min-h-12 min-w-0 flex-1 gap-1 py-2.5 text-left"
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="font-bold">{n.title}</span>
+                        <FeelingCounts feelings={feelingsBy.get(n.id) ?? []} />
+                      </span>
+                      {(n.note || room || when || onRun || polled) && (
+                        <span className="flex flex-wrap items-center gap-1.5 text-[0.8rem] font-semibold text-ink-soft">
+                          {onRun && (
+                            <Chip icon={RUN_ICON[onRun.run.kind]}>
+                              {onRunLabel(onRun.run, onRun.label)}
+                            </Chip>
+                          )}
+                          {polled && <Chip icon={BarChart3}>Poll</Chip>}
+                          {room && <RoomChip name={room.name} element={room.element} />}
+                          {when && <span>{when}</span>}
+                          {n.note && <span className="truncate">{n.note}</span>}
+                        </span>
                       )}
-                      {polled && <Chip icon={BarChart3}>Poll</Chip>}
-                      {room && <RoomChip name={room.name} element={room.element} />}
-                      {when && <span>{when}</span>}
-                      {n.note && <span className="truncate">{n.note}</span>}
-                    </span>
-                  )}
-                </button>
+                    </button>
+                    <FeelingButton
+                      ref={(el) => {
+                        if (el) feelButtons.current.set(n.id, el)
+                        else feelButtons.current.delete(n.id)
+                      }}
+                      title={n.title}
+                      open={tray === n.id}
+                      controls={`tray-${n.id}`}
+                      className="mr-1"
+                      onClick={() => (tray === n.id ? closeTray() : setTray(n.id))}
+                    />
+                  </div>
+                </Swipeable>
+                {tray === n.id && (
+                  <FeelingTray
+                    id={`tray-${n.id}`}
+                    houseId={houseId}
+                    itemId={n.id}
+                    className="px-2.5 pb-2.5"
+                    onDone={closeTray}
+                    onAddNote={() => openItem(n.id, { note: true })}
+                  />
+                )}
               </li>
             )
           })}

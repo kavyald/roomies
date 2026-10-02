@@ -26,8 +26,7 @@ test('an as-needed chore shows on Home only after someone shares a feeling, and 
   await page.getByRole('button', { name: /^Descale the kettle/ }).click()
   const detail = page.getByRole('dialog', { name: 'Descale the kettle' })
   await detail.getByRole('button', { name: '🙂+ Share a feeling' }).click()
-  await detail.getByRole('radio', { name: /Frustrated/ }).click()
-  await detail.getByRole('button', { name: 'Share with the house' }).click()
+  await detail.getByRole('button', { name: 'Frustrated', exact: true }).click()
   await expect(detail.getByRole('region', { name: 'How the house feels' })).toContainText(
     'You · 😤 Frustrated',
   )

@@ -13,6 +13,9 @@ export const CATEGORY: Record<
   task: { label: 'Task', icon: CheckCircle, blurb: 'A one-off', article: 'A task' },
 }
 
+/** The word for finishing each kind of item: the check button, the swipe, the detail sheet. */
+export const FINISH: Record<Category, string> = { need: 'Got it', chore: 'Did it', task: 'Done' }
+
 export const scheduleLabel = (c: Chore): string =>
   c.repeatDays ? `About every ${c.repeatDays === 1 ? 'day' : `${c.repeatDays} days`}` : 'As needed'
 

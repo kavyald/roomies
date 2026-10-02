@@ -38,6 +38,7 @@ proxy.ts                     Next 16's middleware: refreshes the session, guards
   - Item cards are named by their title for VoiceOver (tier, chips and meta are the description), so locate them with `getByRole('button', { name: title, exact: true })`.
   - When a member leaves, record the event *before* updating the membership (they can't write the log afterwards).
   - Never nest a control inside a row button: `ListRow`'s `trailing` sits beside it.
+  - Cards and Needs rows swipe (`components/ui/Swipeable`, pointer events, `touch-action: pan-y`): right finishes, left opens the emoji tray. Each also has a 🙂+ button named "Share a feeling: <title>" beside its own button. In e2e, swipe with `page.mouse` (down, move with `steps`, up); in jsdom, stub `setPointerCapture` (Vaul needs it too).
   - Port 3000 on this Mac is often taken by another project's server; `.claude/launch.json` (untracked) uses auto ports.
   - Jobs locally: `pnpm cron:local <port>` stores the app URL and `CRON_SECRET` in Supabase Vault so pg_cron can reach `pnpm dev`; without it the schedule sends nothing. Postgres `ON CONFLICT` also checks the SELECT policy, so the outbox uses it only for dedupe-keyed (system) rows.
   - Activity lines get their names from `subjects`, embedded in the same `activity_events` request (A24); a new subject kind needs its embed there and in the memory adapter. Feelings are always their emoji in copy (owner).

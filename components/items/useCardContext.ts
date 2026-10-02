@@ -24,6 +24,7 @@ export const useCardContext = (houseId: HouseId): CardContext => {
       contact: (id: string) => contactMap.get(id)?.name,
     }
     return {
+      houseId,
       rooms: roomMap,
       contacts: contactMap,
       run: (id) => {
@@ -37,5 +38,5 @@ export const useCardContext = (houseId: HouseId): CardContext => {
         return { name, element: roomId ? roomMap.get(roomId)?.element : undefined }
       },
     }
-  }, [rooms.data, contacts.data, profiles.data, members.data, runs.data])
+  }, [houseId, rooms.data, contacts.data, profiles.data, members.data, runs.data])
 }

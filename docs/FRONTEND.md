@@ -242,23 +242,23 @@ Tabs: **Home · Needs · Chores · Tasks · House**. The calendar opens from Hom
 ```
 
 - **Card:** one line with the tier chip (and, on Home only, the category chip) and the feelings ("😤1 🙏2") → title → at most two chips: the room, then "On X's run" or, when it isn't on a run, "Handled by: Landlord" → one meta line (the assignee's avatar + the date, or "Last done 9 days ago · Wren"). On the Chores tab the first line shows the chore's rhythm ("About every 7 days") instead of a category. The card's button is named by the title; the rest is its description.
-- **Swipe:** right = done, left = share a feeling.
+- **Beside the card:** the check circle (**Done** / **Got it** / **Did it**, whose toast offers **Undo**) and, under it, **🙂+**, which opens the emoji tray under the card (§5.2). Neither sits inside the card's button.
+- **Swipe** (cards here and on Chores and Tasks, and Needs rows): right = finish it (the same as the check circle, with **Undo** in the toast), left = open the emoji tray. Only sideways drags count, so the list still scrolls, and a drag is never a tap. While dragging, the card slides over a strip that says what letting go does ("✓ Done" on the left, "🙂 Feeling" on the right); short of 88px it springs back and nothing happens. The buttons are the non-swipe way for VoiceOver and keyboards, and reduced motion makes the spring back instant.
 - A card appears when someone changes the feeling weights ("Maya set 😰 Anxious to +30").
 
 ### 5.2 Sharing a feeling (the most important interaction)
 
-Tap **🙂+** on a card or detail, or swipe left:
-- "How do you feel about this?" · "Only if it matters to you. The house will see it."
-- Six big emoji buttons: Anxious 😰 · Frustrated 😤 · Confused 😕 · Fine 🙂 · Not a big deal 😌 · Thanks 🙏
-- An optional note, then **Share with the house**. A toast: "Shared. The house can see how you feel. 💛"
-- Tap your own feeling to change or remove it. The old one moves to **Earlier**.
+Two taps from any card: **🙂+** (or a swipe left), then an emoji.
+- The emoji tray, "How do you feel about this?": six buttons, Anxious 😰 · Frustrated 😤 · Confused 😕 · Fine 🙂 · Not a big deal 😌 · Thanks 🙏 (named by their word for VoiceOver; the detail sheet shows the words too, under "Only if it matters to you. The house will see it."). Escape closes it.
+- **Tapping an emoji shares it straight away**; there's no separate Share step. A toast: "Shared. The house can see how you feel. 💛" with **Add a note**, which opens the item on a note box for your feeling (**Save note**). The detail sheet also has **Add a note** / **Edit my note** once you've shared one.
+- Your current one shows pressed; **tapping it again removes it** ("Removed your feeling."). Tapping another changes it, and the old one moves to **Earlier**. Adding or editing the note keeps it the same feeling, so that doesn't add to Earlier; the activity line reads "Kavya added a note to 😰 about Lemons".
 
 ### 5.3 Add sheet (+)
 
-1. Pick one of five tiles: **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch).
-2. Title (autofocused) + **Add**. Optional fields by type:
+1. On **Needs, Chores or Tasks**, the + opens that kind's form directly. On Home (and House) it asks first: one of five tiles, **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch). The form has a *Need · Chore · Task* switch at the top (the title stays) and **A poll or a run instead?** at the bottom, which goes back to the tiles.
+2. Title (autofocused) + **Add**, or **Add another**, which adds it and keeps the sheet open with the title (and note) cleared and the other fields kept, so three needs in a row take one sheet. Optional fields by type, behind **More options** except a chore's rhythm:
    - **Need:** needed by, room
-   - **Chore:** *As needed* or *About every N days*, room, optional assignee
+   - **Chore:** *As needed* or *About every N days* (always shown, so a repeating chore is +, *About every…*, **Add**), room, optional assignee
    - **Task:** date, room, assignee, **Handled by** (a contact)
    - **Poll:** a question, 2+ options (each with an optional note), an optional deadline. It can be started from an item ("+ Poll about this") or on its own.
    - **Run:** the item picker (below)
@@ -275,7 +275,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 
 ### 5.5 Needs tab
 
-- The shared list. Needs with a feeling come first (by priority), then newest. Each row has a check circle (**Got it**), the title, an optional note, its feeling emoji, and badges ("On Wren's run", "Poll", "$189"). There's no Soon toggle: a 😰 or 😤 feeling is how someone says "we need this soon."
+- The shared list. Needs with a feeling come first (by priority), then newest. Each row has a check circle (**Got it**, with **Undo** in the toast), the title, an optional note, its feeling emoji, badges ("On Wren's run", "Poll", "$189"), and **🙂+** at the end, which opens the emoji tray under the row. Rows swipe like cards (§5.1): right = Got it, left = the tray. There's no Soon toggle: a 😰 or 😤 feeling is how someone says "we need this soon."
 - An add field at the top: "We need…". Adding something already on the list points to the existing one.
 - **Start a run**: a sheet with a checklist of open needs (*Select all* / *Clear*; needs with a feeling show their emoji and are listed first), an optional title ("Amazon order"), and an optional date → **Start run**.
 
@@ -385,7 +385,7 @@ Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss. 
 | Concern | Decision |
 |---|---|
 | Tokens | CSS variables in `app/globals.css` for `:root`, `[data-theme=dark]`, and `@media (prefers-color-scheme: dark)`, exposed to Tailwind v4 via `@theme`. Element colors are tokens (`--air-fill`, `--air-ink`, ...), and components take an `element` prop instead of raw hex. No raw hex values in components. |
-| Components | The kit in `components/ui/`: `Card`, `Button`, `Chip` (plus `RoomChip` and `TierChip`), `Avatar` (initials + element), `Sheet` (with an `actions` slot beside Close), `OverflowMenu` (the **…** menu), `Disclosure` + `DisclosureGroup` (tap-to-open sections), `TabBar`, `ListRow`, `SegmentedControl`, `Toast` (and the completion burst), `EmptyState`; see it at `/dev/kit` in light and dark. Feature components live in their own folders (`components/items`, `polls`, `runs`, `costs`, `calendar`, `home`, `needs`, `chores`, `tasks`, `house`, `activity`, …). Sheets use Vaul (which brings its own Radix Dialog for the focus trap and labels); the app doesn't use Radix directly. |
+| Components | The kit in `components/ui/`: `Card`, `Button`, `Chip` (plus `RoomChip` and `TierChip`), `Avatar` (initials + element), `Sheet` (with an `actions` slot beside Close), `OverflowMenu` (the **…** menu), `Disclosure` + `DisclosureGroup` (tap-to-open sections), `TabBar`, `ListRow`, `SegmentedControl`, `Swipeable` (swipe right / left on a card or row), `Toast` (and the completion burst), `EmptyState`; see it at `/dev/kit` in light and dark. Feature components live in their own folders (`components/items`, `polls`, `runs`, `costs`, `calendar`, `home`, `needs`, `chores`, `tasks`, `house`, `activity`, …). Sheets use Vaul (which brings its own Radix Dialog for the focus trap and labels); the app doesn't use Radix directly. |
 | Data | `rooms` table (see Architecture §6), `items.room_id` (optional), `house_members.room_id` for the member's bedroom, which drives their color. No per-user avatar config. |
 | Animation | CSS transitions and keyframes only (Vaul animates the sheets). No Framer Motion. |
 | Safe areas | `env(safe-area-inset-*)` on the tab bar, "+" button, and sheets. `viewport-fit=cover`. |

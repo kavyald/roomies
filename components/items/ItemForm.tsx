@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronDown } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -59,8 +59,10 @@ const Label = ({ htmlFor, children }: { htmlFor: string; children: React.ReactNo
 )
 
 /**
- * Title first (FRONTEND §5.3): a title and "Add" is enough. The optional fields for the category
- * sit behind "More options" when adding, and are all shown when editing.
+ * Title first (FRONTEND §5.3): a title and "Add" is enough. A chore's "How often?" always shows;
+ * the other optional fields sit behind "More options" when adding, and are all shown when editing.
+ * "Add another" (when adding) keeps the sheet open: it clears the title and note for the next one
+ * and keeps the rest (room, date, who).
  */
 export function ItemForm({
   houseId,
@@ -70,6 +72,7 @@ export function ItemForm({
   busy,
   expanded: startExpanded = false,
   onSubmit,
+  onAddAnother,
 }: {
   houseId: HouseId
   category: Category
@@ -78,8 +81,11 @@ export function ItemForm({
   busy: boolean
   expanded?: boolean
   onSubmit: (v: ItemFormValues) => void
+  /** Adds this one and keeps the form open; resolves true once the house has it. */
+  onAddAnother?: (v: ItemFormValues) => Promise<boolean>
 }) {
   const [v, setV] = useState(initial)
+  const titleRef = useRef<HTMLInputElement>(null)
   const [expanded, setExpanded] = useState(startExpanded)
   const rooms = useRooms(houseId)
   const members = useMembers(houseId)
@@ -99,12 +105,20 @@ export function ItemForm({
     e.preventDefault()
     if (v.title.trim()) onSubmit(v)
   }
+  const another = async () => {
+    if (!v.title.trim() || !onAddAnother) return
+    if (await onAddAnother(v)) {
+      setV((p) => ({ ...p, title: '', note: '' }))
+      titleRef.current?.focus()
+    }
+  }
 
   return (
     <form onSubmit={submit} className="grid gap-3.5">
       <div className="grid gap-1.5">
         <Label htmlFor="item-title">{titleLabel}</Label>
         <input
+          ref={titleRef}
           id="item-title"
           className={inputClass}
           autoFocus
@@ -114,6 +128,40 @@ export function ItemForm({
           onChange={(e) => set('title', e.target.value)}
         />
       </div>
+
+      {category === 'chore' && (
+        <div className="grid gap-1.5">
+          <span className="text-[0.8rem] font-extrabold text-ink-soft">How often?</span>
+          <SegmentedControl
+            wide
+            label="How often"
+            value={v.repeat}
+            onChange={(r) => set('repeat', r)}
+            options={[
+              { value: 'as_needed', label: 'As needed' },
+              { value: 'every', label: 'About every…' },
+            ]}
+          />
+          {v.repeat === 'every' && (
+            <div className="flex items-center gap-2">
+              <input
+                id="repeat-days"
+                aria-label="Days between"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={365}
+                className={`${inputClass} w-24`}
+                value={v.repeatDays}
+                onChange={(e) =>
+                  set('repeatDays', Math.max(1, Math.min(365, Number(e.target.value) || 1)))
+                }
+              />
+              <span className="font-semibold">days</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {!expanded && (
         <button
@@ -127,40 +175,6 @@ export function ItemForm({
 
       {expanded && (
         <>
-          {category === 'chore' && (
-            <div className="grid gap-1.5">
-              <span className="text-[0.8rem] font-extrabold text-ink-soft">How often?</span>
-              <SegmentedControl
-                wide
-                label="How often"
-                value={v.repeat}
-                onChange={(r) => set('repeat', r)}
-                options={[
-                  { value: 'as_needed', label: 'As needed' },
-                  { value: 'every', label: 'About every…' },
-                ]}
-              />
-              {v.repeat === 'every' && (
-                <div className="flex items-center gap-2">
-                  <input
-                    id="repeat-days"
-                    aria-label="Days between"
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={365}
-                    className={`${inputClass} w-24`}
-                    value={v.repeatDays}
-                    onChange={(e) =>
-                      set('repeatDays', Math.max(1, Math.min(365, Number(e.target.value) || 1)))
-                    }
-                  />
-                  <span className="font-semibold">days</span>
-                </div>
-              )}
-            </div>
-          )}
-
           {category !== 'chore' && (
             <div className="grid grid-cols-[1fr_auto] gap-2">
               <div className="grid gap-1.5">
@@ -269,9 +283,20 @@ export function ItemForm({
         </>
       )}
 
-      <Button type="submit" block disabled={busy || !v.title.trim()}>
-        {submitLabel}
-      </Button>
+      {onAddAnother ? (
+        <div className="grid grid-cols-2 gap-2">
+          <Button type="submit" disabled={busy || !v.title.trim()}>
+            {submitLabel}
+          </Button>
+          <Button variant="secondary" disabled={busy || !v.title.trim()} onClick={another}>
+            Add another
+          </Button>
+        </div>
+      ) : (
+        <Button type="submit" block disabled={busy || !v.title.trim()}>
+          {submitLabel}
+        </Button>
+      )}
     </form>
   )
 }

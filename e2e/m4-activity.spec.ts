@@ -13,18 +13,24 @@ test('the activity log names things, shows feelings as emoji, opens a line, and 
   await needs.getByRole('button', { name: 'Toilet paper', exact: true }).click()
   const detail = page.getByRole('dialog', { name: 'Toilet paper' })
   await detail.getByRole('button', { name: '🙂+ Share a feeling' }).click()
-  await detail.getByRole('radio', { name: /Anxious/ }).click()
-  await detail.getByLabel('Add a note (optional)').fill('Last roll')
-  await detail.getByRole('button', { name: 'Share with the house' }).click()
-  await expect(detail.getByRole('region', { name: 'How the house feels' })).toContainText(
-    'You · 😰 Anxious',
-  )
+  await detail.getByRole('button', { name: 'Anxious', exact: true }).click()
+  const feels = detail.getByRole('region', { name: 'How the house feels' })
+  await expect(feels).toContainText('You · 😰 Anxious')
+  await feels.getByRole('button', { name: 'Add a note' }).click()
+  await feels.getByLabel('Add a note to your 😰').fill('Last roll')
+  await feels.getByRole('button', { name: 'Save note' }).click()
+  // Wait for the save itself: until then the note is only in the text box.
+  await expect(feels.getByRole('button', { name: 'Edit my note' })).toBeVisible()
+  await expect(feels).toContainText('Last roll')
   await page.keyboard.press('Escape')
 
   await page.goto(`/h/${owner.houseId}/activity`)
   await expect(page.getByRole('heading', { name: 'Today', level: 2 })).toBeVisible()
   const felt = page.getByRole('button', { name: /Kavya felt 😰 about Toilet paper/ })
-  await expect(felt).toContainText('“Last roll”')
+  // The note came a moment later (one-tap feelings), so it's its own line.
+  await expect(
+    page.getByRole('button', { name: /Kavya added a note to 😰 about Toilet paper/ }),
+  ).toContainText('“Last roll”')
   await expect(page.getByRole('button', { name: /Kavya added Toilet paper/ })).toContainText('Need')
   await expect(page.getByText(/something/)).toHaveCount(0)
 

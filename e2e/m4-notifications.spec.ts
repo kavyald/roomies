@@ -66,13 +66,17 @@ test('a 😰 on my task reaches my outbox, a poll I turned off does not, and the
   await samPage.getByRole('button', { name: 'Fix the latch', exact: true }).click()
   const detail = samPage.getByRole('dialog', { name: 'Fix the latch' })
   await detail.getByRole('button', { name: '🙂+ Share a feeling' }).click()
-  await detail.getByRole('radio', { name: /Anxious/ }).click()
-  await detail.getByRole('button', { name: 'Share with the house' }).click()
+  await detail.getByRole('button', { name: 'Anxious', exact: true }).click()
   await expect(detail.getByRole('region', { name: 'How the house feels' })).toContainText(
     'You · 😰 Anxious',
   )
   await samPage.keyboard.press('Escape')
+  // On Tasks, + opens a task; the form leads back to the picker for a poll.
   await samPage.getByRole('button', { name: 'Add', exact: true }).click()
+  await samPage
+    .getByRole('dialog', { name: 'A task' })
+    .getByRole('button', { name: 'A poll or a run instead?' })
+    .click()
   await samPage
     .getByRole('dialog', { name: 'Add something' })
     .getByRole('button', { name: /^A poll/ })
