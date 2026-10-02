@@ -6,6 +6,7 @@ import {
   type ActionId,
   type HouseId,
   type ItemId,
+  type OptionId,
   type PollId,
   type RunId,
   type UserId,
@@ -215,6 +216,22 @@ describe('notificationsFor', () => {
   })
 
   it.each([
+    [
+      'poll.option_added',
+      '/h/h/p/p',
+      { kind: 'poll.option_added', pollId: 'p', optionId: 'o2', by: sam },
+    ],
+    [
+      'run.point_person_changed',
+      '/h/h/r/v',
+      { kind: 'run.point_person_changed', runId: 'v', memberId: wren, changes: {} },
+    ],
+    [
+      'run.item_moved',
+      '/h/h/r/v',
+      { kind: 'run.item_moved', runId: 'g', toRunId: 'v', itemId: leak },
+    ],
+    ['settings.feeling_weights_changed', '/h/h', { kind: 'settings.feeling_weights_changed' }],
     ['item.assigned', '/h/h/i/leak', { kind: 'item.assigned', itemId: leak, memberId: wren }],
     ['poll.created', '/h/h/p/p', { kind: 'poll.created', pollId: 'p' }],
     ['poll.closed', '/h/h/p/p', { kind: 'poll.closed', pollId: 'p', payload: {} }],
@@ -222,7 +239,10 @@ describe('notificationsFor', () => {
     ['run.date_set', '/h/h/r/v', { kind: 'run.date_set', runId: 'v', changes: {} }],
     ['member.joined', '/h/h/house', { kind: 'member.joined', memberId: sam }],
   ])('a %s message opens %s', (_, url, event) => {
-    const msgs = notificationsFor([{ ...event, actionId: act, by: kavya } as DomainEvent], ctx())
+    const msgs = notificationsFor(
+      [{ actionId: act, by: kavya, changes: { anxious: [20, 30] }, ...event } as DomainEvent],
+      extras(),
+    )
     expect(msgs.length).toBeGreaterThan(0)
     expect(new Set(msgs.map((m) => m.url))).toEqual(new Set([url]))
   })
@@ -259,5 +279,202 @@ describe('notificationsFor', () => {
         ctx(),
       ),
     ).toEqual([]) // no date to announce
+  })
+})
+
+// D32 (T59): the extra pushes.
+const vacuum = 'p' as PollId
+const visit = 'v' as RunId
+const extras = (o: Partial<NotificationContext> = {}): NotificationContext =>
+  ctx({
+    items: new Map([
+      [leak, { title: 'Leak under the sink' }],
+      ['hinge', { title: 'Loose hinge' }],
+      ['tile', { title: 'Cracked tile' }],
+    ]),
+    polls: new Map([
+      [
+        'p',
+        {
+          question: 'Which vacuum?',
+          options: new Map([
+            ['o1', 'Shark'],
+            ['o2', 'Dyson V8'],
+          ]),
+          voters: [kavya, wren],
+        },
+      ],
+    ]),
+    runs: new Map([
+      ['g', { label: "Kavya's run", kind: 'batch', runner: kavya }],
+      ['t', { label: 'Costco haul', kind: 'batch', runner: wren, title: 'Costco haul' }],
+      ['v', { label: 'Landlord visit', kind: 'visit', runner: wren, date: 'Thu' }],
+    ]),
+    ...o,
+  })
+
+describe('extra pushes (D32)', () => {
+  const weights = (changes: Record<string, [number, number]>, by = kavya): DomainEvent => ({
+    kind: 'settings.feeling_weights_changed',
+    changes,
+    actionId: act,
+    by,
+  })
+  const added = (by: UserId): DomainEvent => ({
+    kind: 'poll.option_added',
+    pollId: vacuum,
+    optionId: 'o2' as OptionId,
+    actionId: act,
+    by,
+  })
+  const pointPerson = (runId: string, memberId: UserId, by: UserId, before?: UserId) =>
+    ({
+      kind: 'run.point_person_changed',
+      runId: runId as RunId,
+      memberId,
+      changes: before ? { runner: [before, memberId] } : {},
+      actionId: act,
+      by,
+    }) as DomainEvent
+  const moved = (itemId: string, by: UserId, actionId = act, toRunId = visit): DomainEvent => ({
+    kind: 'run.item_moved',
+    runId: 'g' as RunId,
+    toRunId,
+    itemId: itemId as ItemId,
+    actionId,
+    by,
+  })
+
+  it('new feeling weights tell everyone but the changer, feelings as their emoji', () => {
+    const msgs = notificationsFor([weights({ anxious: [20, 30] })], extras())
+    expect(msgs.map((m) => [m.userId, m.category, m.title, m.body, m.url])).toEqual(
+      [wren, sam].map((u) => [
+        u,
+        'feelings',
+        'Kavya set 😰 to +30',
+        'Home is ranked with the new weights.',
+        '/h/h',
+      ]),
+    )
+    expect(notificationsFor([weights({ meh: [-5, -10] })], extras())[0]!.title).toBe(
+      'Kavya set 😌 to −10',
+    )
+    expect(
+      notificationsFor([weights({ anxious: [30, 20], meh: [0, -5] }, sam)], extras()).map((m) => [
+        m.userId,
+        m.title,
+      ]),
+    ).toEqual([
+      [kavya, 'Sam reset the feeling weights'],
+      [wren, 'Sam reset the feeling weights'],
+    ])
+    expect(
+      notificationsFor([weights({ anxious: [20, 35], meh: [-5, 10] })], extras())[0]!.title,
+    ).toBe('Kavya changed the feeling weights')
+  })
+
+  it('a new poll option tells people who already voted, not the one who added it', () => {
+    // Sam hasn't voted, so only Kavya and Wren hear about it.
+    expect(
+      notificationsFor([added(sam)], extras()).map((m) => [m.userId, m.category, m.title, m.body]),
+    ).toEqual(
+      [kavya, wren].map((u) => [
+        u,
+        'polls',
+        'New option on Which vacuum?: Dyson V8',
+        'Sam added it. Want to switch your vote?',
+      ]),
+    )
+    expect(who(notificationsFor([added(wren)], extras()))).toEqual([kavya])
+    const noVotes = extras({ polls: new Map([['p', { question: 'Which vacuum?' }]]) })
+    expect(notificationsFor([added(sam)], noVotes)).toEqual([])
+  })
+
+  it('a new point person hears it, unless they picked themselves', () => {
+    expect(
+      notificationsFor([pointPerson('v', wren, kavya, kavya)], extras()).map((m) => [
+        m.userId,
+        m.category,
+        m.title,
+        m.body,
+      ]),
+    ).toEqual([
+      [
+        wren,
+        'runs',
+        "You're the point person for Landlord visit",
+        'Kavya asked you to take this on.',
+      ],
+    ])
+    expect(notificationsFor([pointPerson('v', wren, wren, kavya)], extras())).toEqual([])
+    // A batch is handed over: "Kavya handed you Sam's run", or the run's own name.
+    expect(
+      notificationsFor(
+        [
+          pointPerson('g', wren, kavya, sam),
+          pointPerson('g', sam, kavya, kavya),
+          pointPerson('t', sam, kavya, wren),
+        ],
+        extras(),
+      ).map((m) => [m.userId, m.title, m.body]),
+    ).toEqual([
+      [wren, "Kavya handed you Sam's run", "It's yours now. Tap to see what's on it."],
+      [sam, 'Kavya handed you their run', "It's yours now. Tap to see what's on it."],
+      [sam, 'Kavya handed you Costco haul', "It's yours now. Tap to see what's on it."],
+    ])
+  })
+
+  it('tasks moved into a visit tell its point person once per action, not if they moved them', () => {
+    const bulk = notificationsFor(
+      [moved('leak', kavya), moved('hinge', kavya), moved('tile', kavya)],
+      extras(),
+    )
+    expect(bulk.map((m) => [m.userId, m.category, m.title, m.body, m.url])).toEqual([
+      [
+        wren,
+        'runs',
+        '3 tasks moved to Landlord visit',
+        'Kavya added them to your visit.',
+        '/h/h/r/v',
+      ],
+    ])
+    expect(notificationsFor([moved('hinge', sam)], extras()).map((m) => [m.title, m.body])).toEqual(
+      [['Loose hinge moved to Landlord visit', 'Sam added it to your visit.']],
+    )
+    // Two separate actions in one batch are two messages.
+    const other = asId<'action'>('b') as ActionId
+    expect(
+      who(notificationsFor([moved('leak', kavya), moved('hinge', kavya, other)], extras())),
+    ).toEqual([wren, wren])
+    expect(notificationsFor([moved('leak', wren)], extras())).toEqual([]) // into their own visit
+    // Moving into a batch isn't announced.
+    expect(notificationsFor([moved('leak', kavya, act, 't' as RunId)], extras())).toEqual([])
+  })
+
+  it('toggles and quiet hours apply to the extra pushes too', () => {
+    const late = at('2026-09-29', '23:15')
+    const c = extras({
+      now: late,
+      people: [
+        person(kavya, 'Kavya', { off: new Set(['polls']) }),
+        person(wren, 'Wren', { off: new Set(['runs', 'feelings']) }),
+        person(sam, 'Sam', { quietHours: q('00:00', '00:00') }), // no quiet hours
+      ],
+    })
+    const msgs = notificationsFor(
+      [
+        weights({ anxious: [20, 30] }),
+        added(sam),
+        pointPerson('v', wren, kavya),
+        moved('leak', kavya),
+      ],
+      c,
+    )
+    // Weights reach Sam only (Wren turned feelings off); the option reaches Wren, held until 8am
+    // (Kavya turned polls off); Wren turned runs off, so the point person and the move are quiet.
+    expect(msgs.map((m) => [m.userId, m.category, m.sendAfter])).toEqual([
+      [sam, 'feelings', late],
+      [wren, 'polls', at('2026-09-30', '08:00')],
+    ])
   })
 })

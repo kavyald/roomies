@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { asMember } from '../adapters/contracts/unit-of-work.contract'
 import { depsForTest } from '../compose'
-import type { UserId } from '../domain/ids'
+import type { ItemId, UserId } from '../domain/ids'
 import { sampleHouse } from '../testing/sample-house'
+import { makeSetFeelingWeights } from './house'
 import { makeCreateItem, makeEditItem, makeSetFeeling } from './items'
-import { makeCreatePoll } from './polls'
-import { makeStartRun } from './runs'
+import { makeAddPollOption, makeCreatePoll, makeVote } from './polls'
+import {
+  makeMoveRunItems,
+  makePlanVisit,
+  makeSetRunner,
+  makeStartRequest,
+  makeStartRun,
+} from './runs'
 
 const setup = async () => {
   const deps = depsForTest()
@@ -90,5 +97,80 @@ describe('the outbox, written with the events', () => {
     })
     expect(r.ok).toBe(false)
     expect(t.outbox()).toEqual([])
+  })
+})
+
+describe('the extra pushes (D32), written with the events', () => {
+  it('a bulk move into a visit tells its point person once', async () => {
+    const t = await setup()
+    const landlord = t.s.contacts.landlord.id
+    const ids: ItemId[] = []
+    for (const title of ['Leak', 'Door', 'Window']) {
+      const r = await makeCreateItem(t.deps)(t.as('Kavya'), { category: 'task', title })
+      if (!r.ok) throw new Error(r.error)
+      ids.push(r.value.id)
+    }
+    const req = await makeStartRequest(t.deps)(t.as('Kavya'), { contactId: landlord, itemIds: ids })
+    const visit = await makePlanVisit(t.deps)(t.as('Kavya'), { contactId: landlord, itemIds: [] })
+    if (!req.ok || !visit.ok) throw new Error('setup')
+    t.outbox().length = 0
+
+    // Picking yourself is quiet; picking Wren tells Wren.
+    await makeSetRunner(t.deps)(t.as('Sam'), { runId: visit.value.id, runner: t.s.people.Sam })
+    expect(t.outbox()).toEqual([])
+    await makeSetRunner(t.deps)(t.as('Kavya'), { runId: visit.value.id, runner: t.s.people.Wren })
+    expect(t.outbox().map((m) => [m.userId, m.category, m.title, m.url])).toEqual([
+      [
+        t.s.people.Wren,
+        'runs',
+        "You're the point person for Landlord visit",
+        `/h/${t.s.house.id}/r/${visit.value.id}`,
+      ],
+    ])
+    t.outbox().length = 0
+
+    const moved = await makeMoveRunItems(t.deps)(t.as('Kavya'), {
+      fromRunId: req.value.id,
+      toRunId: visit.value.id,
+      itemIds: ids,
+    })
+    expect(moved.ok).toBe(true)
+    expect(t.outbox().map((m) => [m.userId, m.title, m.body])).toEqual([
+      [t.s.people.Wren, '3 tasks moved to Landlord visit', 'Kavya added them to your visit.'],
+    ])
+  })
+
+  it('a new option tells people who voted; new weights tell everyone but the changer', async () => {
+    const t = await setup()
+    const poll = await makeCreatePoll(t.deps)(t.as('Kavya'), {
+      question: 'House name?',
+      options: [{ label: 'The Nest' }, { label: 'Burrow' }],
+    })
+    if (!poll.ok) throw new Error(poll.error)
+    await makeVote(t.deps)(t.as('Wren'), {
+      pollId: poll.value.id,
+      optionId: poll.value.options[0]!.id,
+    })
+    t.outbox().length = 0
+    await makeAddPollOption(t.deps)(t.as('Sam'), { pollId: poll.value.id, label: 'Den' })
+    expect(t.outbox().map((m) => [m.userId, m.category, m.title])).toEqual([
+      [t.s.people.Wren, 'polls', 'New option on House name?: Den'],
+    ])
+    t.outbox().length = 0
+
+    await makeSetFeelingWeights(t.deps)(t.as('Jo'), {
+      ...t.s.house.settings.feelingWeights,
+      anxious: 30,
+    })
+    expect(
+      t
+        .outbox()
+        .map((m) => [m.userId, m.category, m.title])
+        .sort(),
+    ).toEqual(
+      (['Kavya', 'Sam', 'Wren'] as const)
+        .map((n) => [t.s.people[n], 'feelings', 'Jo set 😰 to +30'])
+        .sort(),
+    )
   })
 })

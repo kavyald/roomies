@@ -23,8 +23,12 @@ const NOTIFYING = new Set<DomainEvent['kind']>([
   'feeling.set',
   'poll.created',
   'poll.closed',
+  'poll.option_added',
   'run.created',
   'run.date_set',
+  'run.point_person_changed',
+  'run.item_moved',
+  'settings.feeling_weights_changed',
   'member.joined',
   'member.moved_out',
   'member.removed',
@@ -102,6 +106,8 @@ export const outboxFor = async (
               {
                 question: p.question,
                 ...(!p.state.open && { result: resultLine(p, resultOf(p)) }),
+                options: new Map(p.options.map((o) => [o.id as string, o.label])),
+                voters: p.votes.map((v) => v.user),
               },
             ],
           ]
@@ -111,9 +117,14 @@ export const outboxFor = async (
   const runs: NotificationContext['runs'] = new Map(
     (
       await Promise.all(
-        [...new Set(relevant.flatMap((e) => ('runId' in e && e.runId ? [e.runId] : [])))].map(
-          (id) => repos.runs.get(id),
-        ),
+        [
+          ...new Set(
+            relevant.flatMap((e) => [
+              ...('runId' in e && e.runId ? [e.runId] : []),
+              ...('toRunId' in e ? [e.toRunId] : []),
+            ]),
+          ),
+        ].map((id) => repos.runs.get(id)),
       )
     ).flatMap((r) =>
       r
@@ -123,6 +134,8 @@ export const outboxFor = async (
               {
                 label: runLabel(r, labels),
                 kind: r.kind,
+                runner: r.runner,
+                ...(r.title && { title: r.title }),
                 ...(r.kind !== 'request' && r.when && { date: describeWhen(r.when, now, tz) }),
               },
             ],

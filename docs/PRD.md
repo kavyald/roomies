@@ -270,7 +270,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 
 - **House → Settings → Feeling weights**: one row per feeling with its emoji, name, and a number (−20 to +40, in steps of 5), plus **Reset to defaults**.
 - **One setting for the whole house.** **Any member** can change it. **(owner)**
-- Saving re-ranks the feed for everyone, is logged, and shows a card on Home ("Maya set 😰 Anxious to +30").
+- Saving re-ranks the feed for everyone, is logged, and shows a card on Home ("Maya set 😰 Anxious to +30"). Everyone else also gets a push ("Maya set 😰 to +30", §11, D32).
 - The other parts of the formula are fixed in v1.
 
 ---
@@ -311,6 +311,11 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 | Someone started a run ("Add anything?") | everyone | on |
 | A run with a date is tomorrow (delivery, visit) | everyone | on |
 | Someone joined | everyone | on |
+| Someone moved out, or your role changed | everyone / that member | on |
+| The feeling weights changed (D32) | everyone but whoever changed them | on |
+| A new option on a poll you voted on (D32) | people who already voted | on |
+| You're the new point person on a run (D32) | that person, unless they picked themselves | on |
+| Tasks moved into a visit you're the point person for (D32) | that person, once per move, unless they moved them | on |
 
 - **Web Push** only, which requires adding the app to the Home Screen on iOS. The email digest fallback comes later (§13).
 - Quiet hours per person (default 10pm–8am), with per-category toggles in personal settings.

@@ -597,19 +597,19 @@ select changes, actor_id, at from activity_events
 | Family | Kinds | Subject columns | Feed | Notify |
 |---|---|---|---|---|
 | Items | `item.created` · `item.edited` · `item.done` · `item.reopened` · `item.archived` · `item.restored` | item (+ run if done on one), `changes` | ✓ | — |
-| | `item.assigned` | item, member, `changes` | ✓ | new assignee |
+| | `item.assigned` | item, member, `changes` | ✓ | new assignee (not if they took it) |
 | | `item.handled_by_changed` | item, contact, `changes` | ✓ | — |
 | | `chore.done` · `chore.undone` | item (+ run if done on one), `changes {lastDone: [before, after]}` | ◐ · — | — |
-| Feelings | `feeling.set` · `feeling.removed` | item, `changes {previous, next}` | ✓ · — | assignee on 😰/😤 |
-| Polls | `poll.created` · `poll.closed` · `poll.reopened` · `poll.deadline_changed` | poll (+ item, winning option) | ✓ | everyone on created/closed |
-| | `poll.option_added` | poll, option, note | ✓ | people who already voted |
+| Feelings | `feeling.set` · `feeling.removed` | item, `changes {previous, next}` | ✓ · — | assignee on 😰/😤 (not their own) |
+| Polls | `poll.created` · `poll.closed` · `poll.reopened` · `poll.deadline_changed` | poll (+ item, winning option) | ✓ | everyone but whoever did it, on created/closed |
+| | `poll.option_added` | poll, option, note | ✓ | people who already voted, not whoever added it (D32) |
 | | `poll.voted` · `poll.vote_changed` · `poll.vote_withdrawn` | poll, option | ◐ · ◐ · — | — |
-| Runs | `run.created` · `run.renamed` · `run.date_set` · `run.point_person_changed` | run (+ contact, member), `changes` | ✓ | everyone on batch created ("Add anything?") and date set · new point person |
-| | `run.item_added` · `run.item_moved` · `run.item_returned` · `run.item_done` | item, run, to_run (moves), note | ◐ | point person on items moved into their visit |
+| Runs | `run.created` · `run.renamed` · `run.date_set` · `run.point_person_changed` | run (+ contact, member), `changes` | ✓ | everyone but whoever did it, on batch created ("Add anything?") and date set · the new point person, not if they picked themselves (D32) |
+| | `run.item_added` · `run.item_moved` · `run.item_returned` · `run.item_done` | item, run, to_run (moves), note | ◐ | a visit's point person on tasks moved into it, one message per action, not if they moved them (D32) |
 | | `request.sent` · `request.closed` · `run.finished` | run (+ contact) | ✓ | — |
 | Money | `cost.added` · `cost.edited` · `cost.removed` · `cost.splitwise_copied` | cost (+ item or run, member who paid) | ✓ · ✓ · ✓ · — | — |
-| House | `house.created` · `settings.feeling_weights_changed` · `invite.created` · `invite.revoked` | `changes` / `payload` | ✓ (invites: admins) | everyone on weights |
-| People | `member.joined` · `member.room_changed` · `member.role_changed` · `member.moved_out` · `member.removed` | member (+ room), note | ✓ | everyone on joined/left · that member on role |
+| House | `house.created` · `settings.feeling_weights_changed` · `invite.created` · `invite.revoked` | `changes` / `payload` | ✓ (invites: admins) | everyone but the changer, on weights (D32; the Home card stays) |
+| People | `member.joined` · `member.room_changed` · `member.role_changed` · `member.moved_out` · `member.removed` | member (+ room), note | ✓ | everyone else on joined/left (not whoever removed them) · that member on role (not their own change) |
 | Places | `contact.created` · `contact.edited` · `contact.removed` · `room.added` · `room.renamed` · `room.archived` | contact / room, `changes` | ✓ | — |
 
 **Not in this table:** refused invite and setup tokens (`security_events`, §5.4), sign-in attempts (Supabase Auth), notification delivery (`notifications_outbox`), views, and computed priority.
@@ -763,7 +763,7 @@ Jobs are **use cases** run as the system actor with `depsForJob()`, behind one r
 | `close-polls` → `closeDuePolls` | hourly, at :05 | Closes polls past `closes_at` and records the result (which tells the house) |
 | `send-notifications` → `sendNotifications` | every 5 min, plus right after each house action that succeeded (`after()` → `sendNotificationsNow`) | Sends due outbox rows (`send_after` ≤ now, so quiet hours are already applied) by Web Push, 100 at a time. A subscription the push service calls gone is marked `gone_at`. |
 
-Immediate notifications (assigned, 😰/😤, new poll, run started) come from the use case's events via `notificationsFor` and are written to the outbox in the same transaction.
+Immediate notifications (assigned, 😰/😤, new poll or option, run started, new point person, tasks moved into your visit, new feeling weights, people; §6.4's Notify column) come from the use case's events via `notificationsFor` and are written to the outbox in the same transaction.
 
 ### 7.4 Web Push on iOS
 
@@ -771,7 +771,7 @@ Immediate notifications (assigned, 😰/😤, new poll, run started) come from t
 - Flow: the user taps "Turn on notifications" (House tab or `/me`) → `Notification.requestPermission()` → `pushManager.subscribe({ applicationServerKey })` (`lib/client/push.ts`) → the `savePushSubscriptionAction` server action → the `savePushSubscription` use case → stored in `push_subscriptions` (same endpoint: refreshed, not duplicated).
 - The send-notifications job sends with `web-push` (`PushSender`). A 404/410 response sets `gone_at` on the subscription (`markGone`); nothing is deleted, and gone subscriptions aren't sent to again.
 - The service worker registers only in production builds (`pnpm build && pnpm start`), never on `pnpm dev`.
-- The service worker handles `push` (show) and `notificationclick` (open the deep link). Each message's `url` is the thing it's about: an item (`/h/[houseId]/i/[itemId]`), a poll (`/p/[pollId]`) or a run (`/r/[runId]`), each opening its sheet over Home; people messages (joined, moved out, role) open House. The push `tag` is `category:url`, so a newer message about the same poll or run replaces the older one on the device.
+- The service worker handles `push` (show) and `notificationclick` (open the deep link). Each message's `url` is the thing it's about: an item (`/h/[houseId]/i/[itemId]`), a poll (`/p/[pollId]`) or a run (`/r/[runId]`), each opening its sheet over Home; people messages (joined, moved out, role) open House, and new feeling weights open Home (its weights card). The push `tag` is `category:url`, so a newer message about the same poll or run replaces the older one on the device.
 - The email digest fallback is **later** (PRD §13).
 
 ### 7.5 Realtime
@@ -938,6 +938,6 @@ iPhone UX specifics:
 | A20 | Test suite | One runner (Vitest) for everything but E2E, plus Playwright. RLS tests in Vitest via `asUser()`, not pgTAP. One house per test for isolation. `pnpm test:all` is the gate, and each milestone ends with a test task (Q0–Q6). | Owner |
 | A21 | UnitOfWork and EventSink details (T06) | `uow.run` also rolls back when the use case resolves to `{ ok: false }`, so bailing out halfway never leaves partial writes. `EventSink.record(houseId, events, at)` takes the house and the injected `now`, so activity times come from the same clock as the rest of the use case (no `default now()` drift in tests). | Build (T06) |
 | A22 | Who can change feeling weights (T25) | Any active member, through the policy "houses members set feeling weights": its WITH CHECK calls `only_feeling_weights_changed(...)`, a stable security-definer helper that compares the new row with the stored one minus `feeling_weights`. A CHECK (`valid_feeling_weights`) keeps each weight a known feeling, −20…+40 in steps of 5. Both are integrity rules like `is_member`, not logic RPCs. House saves never rewrite `created_by` / `created_at`. | Build (T25), per PRD §8.2 (owner) |
-| A23 | Where the outbox is written (T33) | `lib/app/notify.ts` wraps the UnitOfWork (`withNotifications`, applied in compose): after `events.record`, it looks up the people, their `notification_prefs`, quiet hours, and what the events are about, and enqueues `notificationsFor(...)` in the same transaction. Adapters stay free of notification rules, and use cases don't change. `notification_prefs` rows are readable by housemates (whoever records an event enqueues for the others). v1 notifies on PRD §11's triggers plus role changes; feeling-weight changes (a Home card instead), new poll options, and point-person changes don't push. | Build (T33) |
+| A23 | Where the outbox is written (T33) | `lib/app/notify.ts` wraps the UnitOfWork (`withNotifications`, applied in compose): after `events.record`, it looks up the people, their `notification_prefs`, quiet hours, and what the events are about, and enqueues `notificationsFor(...)` in the same transaction. Adapters stay free of notification rules, and use cases don't change. `notification_prefs` rows are readable by housemates (whoever records an event enqueues for the others). v1 notifies on PRD §11's triggers plus role changes. **Amended (owner, D32, T59):** these push too, where T33 had left them out: feeling-weight changes (everyone but the changer, `feelings`, opening Home; the Home card stays), a new poll option (people who already voted, `polls`), a new point person (`runs`), and tasks moved into a visit (its point person, `runs`, one message per action). No new category: each fits an existing toggle, whose label now says so. §6.4's Notify column lists exactly what `notificationsFor` sends. | Build (T33), amended T59 |
 | A24 | Naming what activity lines are about (T40) | `HouseQueries.activity` returns each page with `subjects`: the titles, run labels, poll questions, option labels and cost amounts its rows point at, embedded in the same PostgREST request through the `activity_events` foreign keys (the two run keys are named explicitly). One request per page, whatever the size of the house's history; RLS filters embedded rows too. Lines name their topic and open the item, run or poll sheet in place on tap (no route links, so nothing is prefetched). Feelings read as their emoji ("Kavya felt 😰 about Lemons"). | Owner (2026-10-01), built in T40 |
 | A25 | Offline behavior (T46) | Online only. The service worker caches build assets, icons and the last copy of each page, and falls back to `/offline`; house data isn't cached or persisted, so nothing is readable or writable offline. The earlier plan (the last cached data, read-only) is dropped, not deferred. | Owner (2026-10-02) |

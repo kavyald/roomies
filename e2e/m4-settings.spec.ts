@@ -9,15 +9,14 @@ test('personal settings: turn a category off, keep quiet hours, and switch to da
   await page.getByRole('link', { name: 'Your settings' }).click()
   await expect(page.getByRole('heading', { name: 'You', level: 1 })).toBeVisible()
 
-  const polls = page.getByRole('switch', { name: 'New polls, and polls closing' })
+  const polls = page.getByRole('switch', { name: 'New polls, new options, and polls closing' })
   await expect(polls).toHaveAttribute('aria-checked', 'true')
   await polls.click()
   await expect(polls).toHaveAttribute('aria-checked', 'false')
   await page.reload()
-  await expect(page.getByRole('switch', { name: 'New polls, and polls closing' })).toHaveAttribute(
-    'aria-checked',
-    'false',
-  )
+  await expect(
+    page.getByRole('switch', { name: 'New polls, new options, and polls closing' }),
+  ).toHaveAttribute('aria-checked', 'false')
 
   // Quiet hours are on by default (10pm–8am) and can be changed.
   await expect(page.getByRole('switch', { name: 'Quiet hours' })).toHaveAttribute(
