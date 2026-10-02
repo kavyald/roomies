@@ -5,7 +5,7 @@
 import type { DomainEvent } from './events'
 import type { ActionId, HouseId, ItemId, OptionId, PollId, UserId } from './ids'
 import { err, ok, type Result } from './result'
-import type { Instant } from './time'
+import { toIso, type Instant } from './time'
 
 export type PollOption = {
   readonly id: OptionId
@@ -224,6 +224,72 @@ export const closePoll = (
       },
     ],
   })
+}
+
+/** Take my vote back while it's open (tap your pick again, PRD §6.4). */
+export const withdrawVote = (
+  p: Poll,
+  ctx: Ctx,
+): Result<{ poll: Poll; events: DomainEvent[] }, 'closed' | 'no_vote'> => {
+  if (!isPollOpen(p, ctx.now)) return err('closed')
+  if (!p.votes.some((v) => v.user === ctx.by)) return err('no_vote')
+  return ok({
+    poll: { ...p, votes: p.votes.filter((v) => v.user !== ctx.by) },
+    events: [{ kind: 'poll.vote_withdrawn', pollId: p.id, actionId: ctx.actionId, by: ctx.by }],
+  })
+}
+
+const isoOrNull = (i: Instant | undefined) => (i ? toIso(i) : null)
+
+/** The poll with this deadline, or none. */
+const withDeadline = (p: Poll, closesAt: Instant | undefined): Poll => {
+  const { closesAt: _old, ...rest } = p
+  return closesAt ? { ...rest, closesAt } : rest
+}
+
+const deadlineChanged = (p: Poll, next: Instant | undefined, ctx: Ctx): DomainEvent => ({
+  kind: 'poll.deadline_changed',
+  pollId: p.id,
+  changes: { closesAt: [isoOrNull(p.closesAt), isoOrNull(next)] },
+  actionId: ctx.actionId,
+  by: ctx.by,
+})
+
+/**
+ * Anyone can reopen a closed poll: the result is cleared (it's read from the votes again), options
+ * and votes unlock, and votes cast before it closed stay. A deadline that has already passed is
+ * taken off (a second event in the same action), or it would close again straight away.
+ */
+export const reopenPoll = (
+  p: Poll,
+  ctx: Ctx,
+): Result<{ poll: Poll; events: DomainEvent[] }, 'not_closed'> => {
+  if (p.state.open) return err('not_closed')
+  const passed = !!p.closesAt && p.closesAt.epochMs <= ctx.now.epochMs
+  const reopened: Poll = { ...p, state: { open: true } }
+  return ok({
+    poll: passed ? withDeadline(reopened, undefined) : reopened,
+    events: [
+      { kind: 'poll.reopened', pollId: p.id, actionId: ctx.actionId, by: ctx.by },
+      ...(passed ? [deadlineChanged(p, undefined, ctx)] : []),
+    ],
+  })
+}
+
+/**
+ * Change or clear an open poll's deadline. A poll that's past its deadline but not closed yet can
+ * still get a later one (the hourly job hasn't closed it).
+ */
+export const setPollDeadline = (
+  p: Poll,
+  closesAt: Instant | null,
+  ctx: Ctx,
+): Result<{ poll: Poll; events: DomainEvent[] }, 'closed' | 'in_the_past' | 'no_change'> => {
+  if (!p.state.open) return err('closed')
+  if (closesAt && closesAt.epochMs <= ctx.now.epochMs) return err('in_the_past')
+  if ((p.closesAt?.epochMs ?? null) === (closesAt?.epochMs ?? null)) return err('no_change')
+  const next = closesAt ?? undefined
+  return ok({ poll: withDeadline(p, next), events: [deadlineChanged(p, next, ctx)] })
 }
 
 /** "Dyson V8 wins (3–1)", "It's a tie. Talk it out?", "No votes". */

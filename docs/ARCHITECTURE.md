@@ -160,7 +160,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | Port | Methods (abridged) | Production adapter | Test adapter |
 |---|---|---|---|
 | `UnitOfWork` | `run<T>(actor, fn: (repos: Repos) => Promise<T>): Promise<T>`, one transaction per call. It rolls back when `fn` throws **or resolves to a failed `Result`** (A21). A broken CHECK/unique rule throws `ConstraintViolation`, a broken RLS rule `AccessDenied`. | Postgres (`PostgresUnitOfWork`): `begin` → a member or user gets `set local role authenticated` + `set_config('request.jwt.claims', …)` so **RLS still applies**; the system actor gets `set local role service_role` → `commit` | `MemoryUnitOfWork` (`lib/adapters/memory/db.ts`, which mirrors each RLS rule) |
-| `Repos` (inside a UoW) | `houses`, `profiles`, `members`, `rooms`, `contacts`, `invites`, `items`, `feelings`, `runs`, `polls`, `costs`, `notifications`, `pushSubscriptions`, `events`. Most have `get` / `listByHouse` / `save`. Exceptions: `costs` is `listByHouse` / `add` only (costs are insert-only in v1); `polls` saves piece by piece (`create` / `addOption` / `setVote` / `saveState`, one RLS rule each); `feelings` also has `remove`; `notifications` is `offFor` / `setEnabled` / `enqueue` / `pending` / `markSent`; `pushSubscriptions` is `save` / `forUsers` / `markOk` / `markGone`. Saves are update-then-insert, not upsert (RLS on upserts). | Kysely queries | in-memory tables |
+| `Repos` (inside a UoW) | `houses`, `profiles`, `members`, `rooms`, `contacts`, `invites`, `items`, `feelings`, `runs`, `polls`, `costs`, `notifications`, `pushSubscriptions`, `events`. Most have `get` / `listByHouse` / `save`. Exceptions: `costs` is `listByHouse` / `add` only (costs are insert-only in v1); `polls` saves piece by piece (`create` / `addOption` / `setVote` / `removeVote` / `saveState`, one RLS rule each; `saveState` writes the deadline and closing or reopening); `feelings` also has `remove`; `notifications` is `offFor` / `setEnabled` / `enqueue` / `pending` / `markSent`; `pushSubscriptions` is `save` / `forUsers` / `markOk` / `markGone`. Saves are update-then-insert, not upsert (RLS on upserts). | Kysely queries | in-memory tables |
 | `EventSink` (`repos.events`) | `record(houseId, events: DomainEvent[], at: Instant)`: stamps rows with the injected clock's `at` (A21) and writes `activity_events`; `withNotifications(uow)` (A23) makes the same call also write `notifications_outbox` in the **same transaction** (transactional outbox). `forRun(houseId, runId)` reads a run's story (rows on it or moved into it) inside the transaction; `lastForItem(houseId, itemId, kind)` reads an item's newest row of a kind (the `chore.done` an Undo takes back, T54). | Postgres | in-memory |
 | `Clock` | `now(): Instant` | `systemClock` | `fixedClock(t)` |
 | `IdGenerator` | `newId<K>(): Id<K>` | `cryptoIds` (`crypto.randomUUID`) | `seqIds()` |
@@ -242,12 +242,13 @@ Admin-only actions (invites, adding and removing members, roles, house details) 
 | `can_claim_house(h)` in "members admin insert" | `house_members` insert | The setup owner adds *themselves* as the first admin of the house they created, while it has no members |
 | "members update own" (+ `member_role`) | `house_members` update | You move out or change your room, never your role; someone who moved out can't reactivate themselves |
 | "houses members set feeling weights" (+ `only_feeling_weights_changed`) | `houses` update | Any member saves the row when nothing but `settings.feeling_weights` differs from the stored one (A22, PRD §8.2) |
-| "feelings delete own" | `feelings` delete | The one DELETE policy: removing your own current feeling (its history stays in `activity_events`) |
+| "feelings delete own" | `feelings` delete | One of two DELETE policies (with "poll votes withdraw own while open"): removing your own current feeling (its history stays in `activity_events`) |
 | "notification prefs read" (+ `shares_house`) | `notification_prefs` select | Housemates read each other's toggles, so whoever records an event enqueues only what the others want (A23); you change only your own |
 | `poll_is_open(p)` | `poll_options`, `poll_votes` insert/update | Options and your own vote only while the poll is open |
+| "poll votes withdraw own while open" (+ `poll_is_open`) | `poll_votes` delete | Taking back your own vote while the poll is open (T55). Reopening and changing the deadline go through "polls update" (any member; `closed_at` and `closes_at` can be cleared) |
 | RLS on, no policies | `rate_limits`, `security_events` | Service role only (the server's system actor); `security_events` is append-only (select, insert, delete for pruning; no update) |
 
-Signed-out visitors (`anon`) have no grants on any table, and `authenticated` has no `DELETE` or `TRUNCATE` except on `feelings`.
+Signed-out visitors (`anon`) have no grants on any table, and `authenticated` has no `DELETE` or `TRUNCATE` except `DELETE` on `feelings` and `poll_votes`.
 
 **[DECIDED] A4:** no extra "house passcode" on invites. Joins notify everyone, links expire and can be revoked, and admins can remove people in one tap.
 
@@ -361,7 +362,7 @@ polls           (id, house_id, question, item_id null,      -- about an item (sa
                  closes_at null, closed_at null, created_by, created_at, updated_at)
 poll_options    (id, poll_id, house_id, label, note null, added_by, added_at, sort_order)
                  unique (poll_id, lower(btrim(label)))      -- options can be added while the poll is open
-poll_votes      (poll_id, user_id, house_id, option_id, voted_at)     PK(poll_id, user_id)   -- one vote each, changeable while open
+poll_votes      (poll_id, user_id, house_id, option_id, voted_at)     PK(poll_id, user_id)   -- one vote each, changeable or withdrawn while open
                  foreign key (poll_id, option_id) references poll_options (poll_id, id)
 
 -- runs ---------------------------------------------------------------------------
@@ -649,6 +650,9 @@ select changes, actor_id, at from activity_events
 | `vote` | `(p: Poll, option, ctx) → Result<{ poll; vote; events }, 'closed' \| 'unknown_option' \| 'no_change'>` | Changing a vote replaces it |
 | `addPollOption` | `(p: Poll, { label, note? }, ctx & { id }) → Result<{ poll; option; events }, 'closed' \| 'duplicate_label' \| …>` | Any member, while open. Existing votes are untouched. |
 | `closePoll` | `(p: Poll, ctx: { by: UserId \| null, now, actionId }) → Result<{ poll; result; events }, 'already_closed'>` | `resultOf`: most votes wins, a tie → `{ tie }`, and no votes → `{ noVotes }` (D3). `tally`, `resultLine` for display. |
+| `withdrawVote` | `(p: Poll, ctx) → Result<{ poll; events }, 'closed' \| 'no_vote'>` | Your own vote, while open (`poll.vote_withdrawn`, hidden in the feed) |
+| `reopenPoll` | `(p: Poll, ctx) → Result<{ poll; events }, 'not_closed'>` | Any member. Votes stay; the result is read from them again. A deadline that has passed is taken off in the same action (`poll.reopened` + `poll.deadline_changed`) |
+| `setPollDeadline` | `(p: Poll, closesAt: Instant \| null, ctx) → Result<{ poll; events }, 'closed' \| 'in_the_past' \| 'no_change'>` | Change or clear (null) an open poll's deadline; `changes.closesAt` is `[before, after]` as ISO strings or null |
 | **Runs** (`runs.ts`) | | |
 | `startRun` | `(input: NewRun, items, ctx: { by, now, actionId, id, houseId }) → Result<{ run: Batch; items; events }, 'nothing_selected' \| 'already_on_a_run' \| 'done_item' \| 'title_too_long'>` | Sets `item.run` on each item |
 | `startRequest` / `planVisit` | `(input: { contactId, title?, runner?, when? }, tasks, ctx) → Result<{ run; items; events }, 'already_on_a_run' \| 'done_item' \| 'tasks_only' \| 'title_too_long'>` | Either may start empty. A visit's date is optional. |
@@ -697,7 +701,7 @@ select changes, actor_id, at from activity_events
 | | `sendRequest` (`{ runId, via }`) · `setVisitDate` (`{ runId, when \| null }`) | `{ run, message }` / `Run` | `not_gathering`, `empty`, `not_a_visit`, `no_change` | |
 | | `renameRun` (`{ runId, title \| null }`) · `setRunner` (`{ runId, runner }`, any current member) | `Run` | `finished`, `title_too_long`, `no_change`, `unknown_member` | |
 | | `finishRun` (`{ runId, spent?, paidBy?, note? }`) | `{ run, cost? }` | `finished`, `not_finishable`, `unknown_member`, cost errors | |
-| `polls.ts` | `createPoll` (`NewPoll`) · `vote` (`{ pollId, optionId }`) · `addPollOption` (`{ pollId, label, note? }`) · `closePoll` (`{ pollId }`) | `Poll` / `{ poll, result }` | the domain errors above | |
+| `polls.ts` | `createPoll` (`NewPoll`) · `vote` (`{ pollId, optionId }`) · `addPollOption` (`{ pollId, label, note? }`) · `closePoll` (`{ pollId }`) · `withdrawVote` (`{ pollId }`) · `reopenPoll` (`{ pollId }`) · `setPollDeadline` (`{ pollId, closesAt \| null }`) | `Poll` / `{ poll, result }` | the domain errors above | |
 | `costs.ts` | `addCost` (`NewCost`) · `copiedToSplitwise` (`{ costId }`) | `Cost` | `not_positive`, `too_large`, `note_too_long`, `unknown_member` | |
 | `contacts.ts` | `createContact` (`NewContact`) · `editContact` (`{ id, patch }`) · `removeContact` (an id) | `Contact` | `empty_name`, `no_change`, `already_removed` | |
 | `house.ts` | `moveOut` (`{ userId, note? }`: "I moved out", or an admin removing someone) · `setRole` (`{ userId, role }`) · `renameRoom` (`{ roomId, name }`) · `moveRoom` (`{ roomId, direction }`) · `setFeelingWeights` (`FeelingWeights`, any member) | `Member` / `Room` / `Room[]` / `House` | `not_allowed`, `already_moved_out`, `last_admin`, `not_active`, `no_change`, `empty_name`, `at_edge`, `out_of_range` | |
@@ -840,7 +844,7 @@ lib/
   client/                    -- AppClient interface + React context + TanStack hooks, query keys, install + push helpers
   testing/                   -- test-only: fixed clock, builders, sampleHouse, fake AppClient, asUser() (db.ts), Mailpit, JWTs
 supabase/
-  config.toml  migrations/  seed.sql  tests/ (RLS, isolation, setup, jobs; Vitest)
+  config.toml  migrations/  seed.sql  tests/ (RLS, isolation, setup, jobs, poll votes; Vitest)
 e2e/                         -- Playwright journeys per milestone (m0-sign-in … m4-settings, m4-a11y)
 scripts/                     -- env-local, cron-local, test-all, activity-sizing, make-icons
 public/

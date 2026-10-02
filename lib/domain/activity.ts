@@ -261,7 +261,9 @@ export const activityLine = (
       case 'poll.reopened':
         return `${actor} reopened ${poll(r)}`
       case 'poll.deadline_changed':
-        return `${actor} changed when ${poll(r)} closes`
+        return change(r, 'closesAt')?.[1] === null
+          ? `${actor} took the deadline off ${poll(r)}`
+          : `${actor} changed when ${poll(r)} closes`
       case 'poll.option_added':
         return `${actor} added ${option(r)} to ${poll(r)}`
       case 'poll.voted':

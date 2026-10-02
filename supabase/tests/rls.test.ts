@@ -66,13 +66,16 @@ describe('RLS is on everywhere', () => {
     expect(rows.map((r) => r.relname)).toEqual([])
   })
 
-  it('nothing is deleted except your own current feeling (its history is in activity)', async () => {
+  it('nothing is deleted except your own current feeling or open vote (history is in activity)', async () => {
     const { rows } = await asOwner((db) =>
       db.query(
-        `select tablename, policyname from pg_policies where schemaname = 'public' and cmd = 'DELETE'`,
+        `select tablename, policyname from pg_policies where schemaname = 'public' and cmd = 'DELETE' order by tablename`,
       ),
     )
-    expect(rows).toEqual([{ tablename: 'feelings', policyname: 'feelings delete own' }])
+    expect(rows).toEqual([
+      { tablename: 'feelings', policyname: 'feelings delete own' },
+      { tablename: 'poll_votes', policyname: 'poll votes withdraw own while open' },
+    ])
   })
 })
 
@@ -105,9 +108,9 @@ describe('reading', () => {
     })
   })
 
-  it('nobody deletes runs, polls, votes, options, or costs', async () => {
+  it('nobody deletes runs, polls, options, or costs (votes: poll-votes.test.ts)', async () => {
     await asUser(mine.member, async (db) => {
-      for (const table of ['runs', 'polls', 'poll_options', 'poll_votes', 'costs']) {
+      for (const table of ['runs', 'polls', 'poll_options', 'costs']) {
         expect({ table, code: await refused(db, `delete from ${table}`) }).toEqual({
           table,
           code: INSUFFICIENT_PRIVILEGE,

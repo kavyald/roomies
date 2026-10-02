@@ -4,7 +4,18 @@ import { depsForTest } from '../compose'
 import type { ItemId, OptionId, PollId, UserId } from '../domain/ids'
 import { sampleHouse } from '../testing/sample-house'
 import { makeCreateItem } from './items'
-import { makeAddPollOption, makeClosePoll, makeCreatePoll, makeVote } from './polls'
+import { instant, toIso } from '../domain/time'
+import {
+  makeAddPollOption,
+  makeClosePoll,
+  makeCreatePoll,
+  makeReopenPoll,
+  makeSetPollDeadline,
+  makeVote,
+  makeWithdrawVote,
+} from './polls'
+
+const DAY = 86_400_000
 
 const setup = async () => {
   const deps = depsForTest()
@@ -18,6 +29,9 @@ const setup = async () => {
     vote: makeVote(deps),
     add: makeAddPollOption(deps),
     close: makeClosePoll(deps),
+    withdraw: makeWithdrawVote(deps),
+    reopen: makeReopenPoll(deps),
+    deadline: makeSetPollDeadline(deps),
     kinds: () => deps.uow.state.activity.map((a) => a.kind),
   }
 }
@@ -77,6 +91,59 @@ describe('polls, end to end on the memory adapters', () => {
     for (const [who, o] of votes) await t.vote(t.as(who), { pollId: p.value.id, optionId: o })
     const closed = await t.close(t.as('Kavya'), { pollId: p.value.id })
     expect(closed.ok && closed.value.result).toEqual({ tie: [nest, burrow], votes: 2 })
+  })
+
+  it('withdraw a vote, reopen a closed poll, and change or clear the deadline', async () => {
+    const t = await setup()
+    const now = t.deps.clock.now().epochMs
+    const p = await t.create(t.as('Kavya'), {
+      question: 'House name?',
+      options: [{ label: 'The Nest' }, { label: 'Burrow' }],
+      closesAt: instant(now + DAY),
+    })
+    if (!p.ok) throw new Error(p.error)
+    const [nest] = p.value.options.map((o) => o.id)
+    const pollId = p.value.id
+    await t.vote(t.as('Wren'), { pollId, optionId: nest! })
+    await t.vote(t.as('Sam'), { pollId, optionId: nest! })
+
+    const withdrawn = await t.withdraw(t.as('Wren'), { pollId })
+    expect(withdrawn.ok && withdrawn.value.votes.map((v) => v.user)).toEqual([t.s.people.Sam])
+    expect(await t.withdraw(t.as('Wren'), { pollId })).toEqual({ ok: false, error: 'no_vote' })
+
+    const later = await t.deadline(t.as('Jo'), { pollId, closesAt: instant(now + 3 * DAY) })
+    expect(later.ok && later.value.closesAt).toEqual(instant(now + 3 * DAY))
+    expect(await t.deadline(t.as('Jo'), { pollId, closesAt: instant(now - 1) })).toEqual({
+      ok: false,
+      error: 'in_the_past',
+    })
+    const cleared = await t.deadline(t.as('Jo'), { pollId, closesAt: null })
+    expect(cleared.ok && cleared.value.closesAt).toBeUndefined()
+
+    expect(await t.reopen(t.as('Sam'), { pollId })).toEqual({ ok: false, error: 'not_closed' })
+    await t.close(t.as('Kavya'), { pollId })
+    expect(await t.withdraw(t.as('Sam'), { pollId })).toEqual({ ok: false, error: 'closed' })
+    const reopened = await t.reopen(t.as('Sam'), { pollId })
+    expect(reopened.ok && reopened.value.state).toEqual({ open: true })
+    expect(reopened.ok && reopened.value.votes).toHaveLength(1)
+    expect((await t.withdraw(t.as('Sam'), { pollId })).ok).toBe(true)
+
+    expect(t.kinds().filter((k) => k.startsWith('poll.'))).toEqual([
+      'poll.created',
+      'poll.voted',
+      'poll.voted',
+      'poll.vote_withdrawn',
+      'poll.deadline_changed',
+      'poll.deadline_changed',
+      'poll.closed',
+      'poll.reopened',
+      'poll.vote_withdrawn',
+    ])
+    expect(t.deps.uow.state.activity.find((a) => a.kind === 'poll.deadline_changed')).toMatchObject(
+      {
+        changes: { closesAt: [toIso(instant(now + DAY)), toIso(instant(now + 3 * DAY))] },
+      },
+    )
   })
 
   it("another house's polls and items are not found", async () => {

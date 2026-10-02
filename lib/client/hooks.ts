@@ -214,6 +214,12 @@ export const useAddPollOption = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'addPollOption'>) => c.addPollOption(i), ['polls'])
 export const useClosePoll = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'closePoll'>) => c.closePoll(i), ['polls'])
+export const useWithdrawVote = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'withdrawVote'>) => c.withdrawVote(i), ['polls'])
+export const useReopenPoll = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'reopenPoll'>) => c.reopenPoll(i), ['polls'])
+export const useSetPollDeadline = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'setPollDeadline'>) => c.setPollDeadline(i), ['polls'])
 
 export const useCreateItem = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: NewItem) => c.createItem(i), ['items'])

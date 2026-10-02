@@ -71,7 +71,7 @@ export const remindersFor = (input: ReminderInput): Draft[] => {
         title: `Closing tomorrow: ${poll.question}`,
         body: "Your vote isn't in yet.",
         url: `${home}/p/${poll.id}`,
-        dedupeKey: `poll-closing:${poll.id}:${p.userId}`,
+        dedupeKey: `poll-closing:${poll.id}:${tomorrow}:${p.userId}`,
       })
     }
   }

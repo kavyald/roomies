@@ -122,6 +122,19 @@ describe('reminders for polls and runs', () => {
     expect(remindersFor(input({ polls: [closed] }))).toEqual([])
   })
 
+  it('a poll reopened or given a new deadline is reminded about again (T55)', () => {
+    const first = remindersFor(input({ polls: [poll('2026-09-30')] }))
+    // Same poll, deadline moved: the reminder the day before the new date has a fresh key.
+    const moved = remindersFor(
+      input({
+        now: at('2026-10-02', '09:00'),
+        polls: [{ ...poll('2026-09-30'), closesAt: at('2026-10-03', '23:59') }],
+      }),
+    )
+    expect(moved).toHaveLength(first.length)
+    expect(moved[0]!.dedupeKey).not.toBe(first[0]!.dedupeKey)
+  })
+
   it('a batch or visit dated tomorrow reminds everyone', () => {
     const runs: Run[] = [
       {

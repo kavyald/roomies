@@ -8,12 +8,16 @@ import {
   addPollOption,
   closePoll,
   createPoll,
+  reopenPoll,
+  setPollDeadline,
   vote,
+  withdrawVote,
   type NewPoll,
   type Poll,
   type PollResult,
 } from '../domain/polls'
 import { err, ok } from '../domain/result'
+import type { Instant } from '../domain/time'
 
 type Deps = Pick<AppDeps, 'uow' | 'clock' | 'ids'>
 
@@ -98,4 +102,52 @@ export const makeClosePoll =
       await repos.polls.saveState(r.value.poll)
       await repos.events.record(actor.houseId, r.value.events, now)
       return ok({ poll: r.value.poll as Poll, result: r.value.result as PollResult })
+    })
+
+/** Take my vote back while it's open. */
+export const makeWithdrawVote =
+  ({ uow, clock, ids }: Deps) =>
+  (actor: HouseActor, input: { pollId: PollId }) =>
+    uow.run(actor, async (repos) => {
+      const by = actorUser(actor)
+      const poll = await loadPoll(repos, actor, input.pollId)
+      if (!poll || !by) return err('not_found')
+      const now = clock.now()
+      const r = withdrawVote(poll, { by, now, actionId: ids.newId() })
+      if (!r.ok) return r
+      await repos.polls.removeVote(poll, by)
+      await repos.events.record(actor.houseId, r.value.events, now)
+      return ok(r.value.poll)
+    })
+
+/** Anyone can reopen a closed poll; the votes cast before it closed stay. */
+export const makeReopenPoll =
+  ({ uow, clock, ids }: Deps) =>
+  (actor: HouseActor, input: { pollId: PollId }) =>
+    uow.run(actor, async (repos) => {
+      const by = actorUser(actor)
+      const poll = await loadPoll(repos, actor, input.pollId)
+      if (!poll || !by) return err('not_found')
+      const now = clock.now()
+      const r = reopenPoll(poll, { by, now, actionId: ids.newId() })
+      if (!r.ok) return r
+      await repos.polls.saveState(r.value.poll)
+      await repos.events.record(actor.houseId, r.value.events, now)
+      return ok(r.value.poll)
+    })
+
+/** Change or clear an open poll's deadline (null clears it). */
+export const makeSetPollDeadline =
+  ({ uow, clock, ids }: Deps) =>
+  (actor: HouseActor, input: { pollId: PollId; closesAt: Instant | null }) =>
+    uow.run(actor, async (repos) => {
+      const by = actorUser(actor)
+      const poll = await loadPoll(repos, actor, input.pollId)
+      if (!poll || !by) return err('not_found')
+      const now = clock.now()
+      const r = setPollDeadline(poll, input.closesAt, { by, now, actionId: ids.newId() })
+      if (!r.ok) return r
+      await repos.polls.saveState(r.value.poll)
+      await repos.events.record(actor.houseId, r.value.events, now)
+      return ok(r.value.poll)
     })

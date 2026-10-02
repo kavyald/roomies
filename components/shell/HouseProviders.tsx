@@ -31,7 +31,10 @@ import {
   addPollOptionAction,
   closePollAction,
   createPollAction,
+  reopenPollAction,
+  setPollDeadlineAction,
   voteAction,
+  withdrawVoteAction,
 } from '@/app/actions/polls'
 import {
   addToRequestAction,
@@ -114,6 +117,9 @@ export function HouseProviders({
       vote: (input) => voteAction(houseId, input),
       addPollOption: (input) => addPollOptionAction(houseId, input),
       closePoll: (input) => closePollAction(houseId, input),
+      withdrawVote: (input) => withdrawVoteAction(houseId, input),
+      reopenPoll: (input) => reopenPollAction(houseId, input),
+      setPollDeadline: (input) => setPollDeadlineAction(houseId, input),
       addCost: (input) => addCostAction(houseId, input),
       copiedToSplitwise: (input) => copiedToSplitwiseAction(houseId, input),
       savePushSubscription: (input) => savePushSubscriptionAction(houseId, input),

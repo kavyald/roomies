@@ -487,8 +487,9 @@ const LAYERS = [
     ['makeStartRequest · makeAddToRequest · makeSendRequest','Gathering → sent. The server rebuilds the numbered message for the event.'],
     ['makePlanVisit · makeSetVisitDate','Visits with an optional date.'],
     ['makeFinishRun','Returns leftovers to the pool and can record “Did you spend money?” as a cost in the same transaction.'] ]},
-  { name:'polls.ts · costs.ts', desc:'6 use cases', fns:[
+  { name:'polls.ts · costs.ts', desc:'9 use cases', fns:[
     ['makeCreatePoll · makeVote · makeAddPollOption · makeClosePoll','Anyone adds options while open; ties are ties.'],
+    ['makeWithdrawVote · makeReopenPoll · makeSetPollDeadline','Take your vote back while open; anyone reopens or changes the deadline.'],
     ['makeAddCost · makeCopiedToSplitwise','Costs are insert-only; “copied” is only an activity row.'] ]},
   { name:'house · invites · setup · contacts · me · session', desc:'people and places', fns:[
     ['makeSetupHouse · makeSetupStatus','One-time bootstrap guarded by SETUP_TOKEN and RLS.'],
@@ -519,6 +520,7 @@ const LAYERS = [
     ['runLabel · visitDateOf · inArrivalOrder','Shared words and ordering for screens and notifications.'] ]},
   { name:'polls.ts · costs.ts · money.ts', desc:'decisions and money', fns:[
     ['createPoll · vote · addPollOption · closePoll · tally · resultOf','Most votes wins; a tie is { tie }; no votes is { noVotes } (D3).'],
+    ['withdrawVote · reopenPoll · setPollDeadline','Votes stay on reopen; a passed deadline comes off with it.'],
     ['addCost · monthlySpend · splitwiseText','Integer cents, equal split among active members.'],
     ['parseCents · formatCents · splitEqually','Money never touches floats.'] ]},
   { name:'events.ts · activity.ts', desc:'history', fns:[

@@ -15,3 +15,10 @@ export const addPollOptionSchema = z.object({
   note: z.string().max(1000).optional(),
 })
 export const closePollSchema = z.object({ pollId: z.uuid() })
+export const withdrawVoteSchema = z.object({ pollId: z.uuid() })
+export const reopenPollSchema = z.object({ pollId: z.uuid() })
+/** `closesAt: null` clears the deadline. */
+export const setPollDeadlineSchema = z.object({
+  pollId: z.uuid(),
+  closesAt: z.iso.datetime({ offset: true }).nullable(),
+})

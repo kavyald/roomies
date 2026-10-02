@@ -13,10 +13,13 @@ import {
   closePoll,
   createPoll,
   isPollOpen,
+  reopenPoll,
   resultLine,
   resultOf,
+  setPollDeadline,
   tally,
   vote,
+  withdrawVote,
   type Poll,
 } from './polls'
 import { instant } from './time'
@@ -196,6 +199,119 @@ describe('results', () => {
     expect(resultOf(vacuum())).toEqual({ noVotes: true })
     const r = closePoll(vacuum(), { ...ctx(), by: null })
     expect(r.ok && r.value.events[0]).toMatchObject({ payload: { result: 'no_votes' }, by: null })
+  })
+})
+
+describe('withdrawing a vote', () => {
+  it('takes my vote back while it is open; others stay', () => {
+    const p = castAll(vacuum(), [
+      [kavya, 'shark'],
+      [wren, 'dyson v8'],
+    ])
+    const r = withdrawVote(p, ctx())
+    expect(r.ok && r.value.poll.votes).toEqual([{ user: wren, option: 'dyson v8', at: T }])
+    expect(r.ok && r.value.events).toEqual([
+      { kind: 'poll.vote_withdrawn', pollId: 'p', actionId: act, by: kavya },
+    ])
+  })
+
+  it("refuses when I haven't voted, or it's closed or past its deadline", () => {
+    expect(withdrawVote(vacuum(), ctx())).toEqual({ ok: false, error: 'no_vote' })
+    const voted = castAll(vacuum(), [[kavya, 'shark']])
+    const closed = closePoll(voted, ctx())
+    expect(closed.ok && withdrawVote(closed.value.poll, ctx())).toEqual({
+      ok: false,
+      error: 'closed',
+    })
+    expect(withdrawVote({ ...voted, closesAt: instant(500) }, ctx())).toEqual({
+      ok: false,
+      error: 'closed',
+    })
+  })
+})
+
+describe('reopening', () => {
+  const closedWith = (p: Poll) => {
+    const r = closePoll(p, ctx())
+    if (!r.ok) throw new Error(r.error)
+    return r.value.poll
+  }
+
+  it('opens a closed poll again: votes stay, options and voting unlock', () => {
+    const closed = closedWith(castAll(vacuum(), [[wren, 'shark']]))
+    const r = reopenPoll(closed, ctx(sam))
+    if (!r.ok) throw new Error(r.error)
+    expect(r.value.poll.state).toEqual({ open: true })
+    expect(r.value.poll.votes).toHaveLength(1)
+    expect(r.value.events).toEqual([{ kind: 'poll.reopened', pollId: 'p', actionId: act, by: sam }])
+    expect(vote(r.value.poll, opt('dyson v8'), ctx(wren)).ok).toBe(true)
+    expect(addPollOption(r.value.poll, { label: 'Bissell' }, { ...ctx(), id: opt('b') }).ok).toBe(
+      true,
+    )
+  })
+
+  it('keeps a deadline still ahead, and takes off one that has passed', () => {
+    const ahead = reopenPoll(closedWith({ ...vacuum(), closesAt: instant(9_000) }), ctx())
+    expect(ahead.ok && ahead.value.poll.closesAt).toEqual(instant(9_000))
+    expect(ahead.ok && ahead.value.events).toHaveLength(1)
+
+    const passed = reopenPoll(closedWith({ ...vacuum(), closesAt: instant(500) }), ctx())
+    if (!passed.ok) throw new Error(passed.error)
+    expect(passed.value.poll).not.toHaveProperty('closesAt')
+    expect(isPollOpen(passed.value.poll, T)).toBe(true)
+    expect(passed.value.events.map((e) => e.kind)).toEqual([
+      'poll.reopened',
+      'poll.deadline_changed',
+    ])
+    expect(passed.value.events[1]).toMatchObject({
+      changes: { closesAt: ['1970-01-01T00:00:00.500Z', null] },
+    })
+  })
+
+  it('refuses a poll that is still open', () => {
+    expect(reopenPoll(vacuum(), ctx())).toEqual({ ok: false, error: 'not_closed' })
+  })
+})
+
+describe('changing the deadline', () => {
+  it('sets, moves and clears it, recording before and after', () => {
+    const set = setPollDeadline(vacuum(), instant(5_000), ctx())
+    if (!set.ok) throw new Error(set.error)
+    expect(set.value.poll.closesAt).toEqual(instant(5_000))
+    expect(set.value.events).toEqual([
+      {
+        kind: 'poll.deadline_changed',
+        pollId: 'p',
+        changes: { closesAt: [null, '1970-01-01T00:00:05.000Z'] },
+        actionId: act,
+        by: kavya,
+      },
+    ])
+    const cleared = setPollDeadline(set.value.poll, null, ctx())
+    if (!cleared.ok) throw new Error(cleared.error)
+    expect(cleared.value.poll).not.toHaveProperty('closesAt')
+    expect(cleared.value.events[0]).toMatchObject({
+      changes: { closesAt: ['1970-01-01T00:00:05.000Z', null] },
+    })
+  })
+
+  it('a poll past its deadline but not closed yet can get a later one', () => {
+    const due = { ...vacuum(), closesAt: instant(500) }
+    const r = setPollDeadline(due, instant(5_000), ctx())
+    expect(r.ok && isPollOpen(r.value.poll, T)).toBe(true)
+  })
+
+  it('refuses a closed poll, a time that has passed, and no change', () => {
+    const closed = closePoll(vacuum(), ctx())
+    expect(closed.ok && setPollDeadline(closed.value.poll, instant(5_000), ctx())).toEqual({
+      ok: false,
+      error: 'closed',
+    })
+    expect(setPollDeadline(vacuum(), T, ctx())).toEqual({ ok: false, error: 'in_the_past' })
+    expect(setPollDeadline(vacuum(), null, ctx())).toEqual({ ok: false, error: 'no_change' })
+    expect(
+      setPollDeadline({ ...vacuum(), closesAt: instant(5_000) }, instant(5_000), ctx()),
+    ).toEqual({ ok: false, error: 'no_change' })
   })
 })
 

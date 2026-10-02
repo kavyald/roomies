@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Plus } from 'lucide-react'
+import { CalendarClock, Check, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Field } from '@/components/auth/fields'
 import { useCardContext } from '@/components/items/useCardContext'
@@ -16,14 +16,17 @@ import {
   useItems,
   useMembers,
   usePolls,
+  useReopenPoll,
+  useSetPollDeadline,
   useVote,
+  useWithdrawVote,
 } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import { useNow } from '@/lib/client/use-now'
 import { describeWhen } from '@/lib/domain/format'
 import type { HouseId, ItemId, PollId } from '@/lib/domain/ids'
 import { isPollOpen, resultOf, tally } from '@/lib/domain/polls'
-import { localDateOf } from '@/lib/domain/time'
+import { instantAt, localDateOf, toIso, type LocalDate, type LocalTime } from '@/lib/domain/time'
 import { resultLine } from './meta'
 
 const PROBLEM: Record<string, string> = {
@@ -31,9 +34,13 @@ const PROBLEM: Record<string, string> = {
   empty_label: 'Give the option a name.',
   label_too_long: 'That option is a bit long.',
   closed: 'This poll is closed.',
+  in_the_past: "Pick a day that hasn't passed yet.",
 }
 
-/** The poll sheet (FRONTEND §5.8): tap an option to vote, tap another to change. */
+/**
+ * The poll sheet (FRONTEND §5.8): tap an option to vote, tap another to change, tap yours again to
+ * take it back. The deadline can be changed while it's open, and a closed poll can be reopened.
+ */
 export function PollSheet({
   houseId,
   pollId,
@@ -56,9 +63,14 @@ export function PollSheet({
   const vote = useVote(houseId)
   const add = useAddPollOption(houseId)
   const close = useClosePoll(houseId)
+  const withdraw = useWithdrawVote(houseId)
+  const reopen = useReopenPoll(houseId)
+  const setDeadline = useSetPollDeadline(houseId)
   const [adding, setAdding] = useState(false)
   const [label, setLabel] = useState('')
   const [note, setNote] = useState('')
+  // The deadline editor: null while it's not open, else the day picked (YYYY-MM-DD, '' for none).
+  const [deadline, setDeadlineDraft] = useState<string | null>(null)
 
   const poll = polls.data?.find((p) => p.id === pollId)
   if (!poll) return null
@@ -78,7 +90,23 @@ export function PollSheet({
     .filter(Boolean)
     .join(' · ')
   const result = !poll.state.open ? resultOf(poll) : undefined
-  const busy = vote.isPending || add.isPending || close.isPending
+  const busy =
+    vote.isPending ||
+    add.isPending ||
+    close.isPending ||
+    withdraw.isPending ||
+    reopen.isPending ||
+    setDeadline.isPending
+  const today = localDateOf(now, tz)
+  const closesOn = poll.closesAt ? localDateOf(poll.closesAt, tz) : undefined
+  const saveDeadline = async (day: string | null) => {
+    // A deadline closes it at the end of that day, in the house's time zone (as when it started).
+    const closesAt = day ? toIso(instantAt(day as LocalDate, '23:59' as LocalTime, tz)) : null
+    const r = await setDeadline.mutateAsync({ pollId: poll.id, closesAt })
+    if (!r.ok && r.error !== 'no_change')
+      return toast(PROBLEM[r.error] ?? "Couldn't change the deadline. Try again.")
+    setDeadlineDraft(null)
+  }
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()} title={poll.question} description={status}>
@@ -99,7 +127,12 @@ export function PollSheet({
           {resultLine(poll, result)}
         </p>
       )}
-      <div role="radiogroup" aria-label="Options" className="grid gap-2">
+      <div
+        role="radiogroup"
+        aria-label="Options"
+        aria-describedby={open && mine ? 'poll-withdraw-hint' : undefined}
+        className="grid gap-2"
+      >
         {poll.options.map((o) => {
           const voters = poll.votes.filter((v) => v.option === o.id)
           const chosen = mine === o.id
@@ -113,7 +146,14 @@ export function PollSheet({
               aria-checked={chosen}
               disabled={!open || busy}
               onClick={async () => {
-                if (chosen) return
+                if (chosen) {
+                  const r = await withdraw.mutateAsync({ pollId: poll.id })
+                  return toast(
+                    r.ok
+                      ? 'Vote taken back.'
+                      : (PROBLEM[r.error] ?? "Couldn't do that. Try again."),
+                  )
+                }
                 const r = await vote.mutateAsync({ pollId: poll.id, optionId: o.id })
                 if (!r.ok) toast(PROBLEM[r.error] ?? "Couldn't vote. Try again.")
               }}
@@ -148,6 +188,11 @@ export function PollSheet({
           )
         })}
       </div>
+      {open && mine && (
+        <p id="poll-withdraw-hint" className="m-0 text-[0.8rem] font-semibold text-ink-soft">
+          Changed your mind? Tap your pick again to take your vote back.
+        </p>
+      )}
 
       {open &&
         (adding ? (
@@ -194,7 +239,64 @@ export function PollSheet({
           </button>
         ))}
 
-      {poll.state.open && (
+      {poll.state.open &&
+        (deadline === null ? (
+          <div className="flex min-h-11 items-center gap-2">
+            <CalendarClock aria-hidden className="size-4 text-ink-soft" />
+            <span className="flex-1 text-sm font-bold">
+              {closesOn ? `Closes ${describeWhen({ date: closesOn }, now, tz)}` : 'No deadline'}
+            </span>
+            <button
+              type="button"
+              className="min-h-11 px-1 text-sm font-extrabold text-accent-ink"
+              aria-label={closesOn ? 'Change the deadline' : undefined}
+              disabled={busy}
+              onClick={() => setDeadlineDraft(closesOn ?? '')}
+            >
+              {closesOn ? 'Change' : 'Add a deadline'}
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-2 rounded-2xl bg-paper p-3">
+            <Field
+              id="poll-deadline-edit"
+              label="Closes"
+              type="date"
+              min={today}
+              value={deadline}
+              onChange={(e) => setDeadlineDraft(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="small"
+                disabled={busy || !deadline}
+                onClick={() => saveDeadline(deadline)}
+              >
+                Save
+              </Button>
+              {closesOn && (
+                <Button
+                  size="small"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => saveDeadline(null)}
+                >
+                  No deadline
+                </Button>
+              )}
+              <Button
+                size="small"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => setDeadlineDraft(null)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ))}
+
+      {poll.state.open ? (
         <Button
           variant="secondary"
           block
@@ -205,6 +307,20 @@ export function PollSheet({
           }}
         >
           Close poll
+        </Button>
+      ) : (
+        <Button
+          variant="secondary"
+          block
+          disabled={busy}
+          onClick={async () => {
+            const r = await reopen.mutateAsync({ pollId: poll.id })
+            toast(
+              r.ok ? 'Poll reopened. Votes can change again.' : "Couldn't reopen it. Try again.",
+            )
+          }}
+        >
+          Reopen poll
         </Button>
       )}
     </Sheet>

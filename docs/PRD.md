@@ -162,8 +162,8 @@ Every item has:
 - **A question + 2 or more options.** It's either **about an item** ("Which vacuum?" on the Vacuum need, "Keep it?" on the Vacuum need after it arrives) or **standalone** ("House name?").
 - Options have a label and an optional note (e.g. a link or a price: "Dyson V8, $189").
 - **[DECIDED] (owner) Anyone can add options while the poll is open**, not just at creation. Existing votes stay. People who already voted can switch to the new option. Each option shows who added it. Duplicate labels are rejected, and once the poll closes, options are locked.
-- **Voting:** each member picks one option and can change their vote until the poll closes.
-- **Closing:** anyone can close it, or it closes at an optional deadline.
+- **Voting:** each member picks one option and can change their vote, or take it back, until the poll closes.
+- **Closing:** anyone can close it, or it closes at an optional deadline. Anyone can change or clear the deadline while it's open, and anyone can reopen a closed poll: the votes stay, the result goes away until it closes again, and a deadline that has already passed comes off.
 - **[DECIDED] (owner) Result:** the option with the most votes wins. **If the top options are tied, the result is "Tie,"** the app does nothing automatically, and the house talks it out (in feeling notes or in person).
 - Open polls show on Home with how many people have voted.
 - Polls don't change other items. Acting on a result ("buy the Dyson," "return it") is a new task or need someone adds.

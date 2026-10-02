@@ -396,6 +396,15 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
           votes: [...stored!.votes.filter((v) => v.user !== vote.user), vote],
         })
       },
+      // "poll votes withdraw own while open": your own row, while it's open. Postgres deletes
+      // nothing when the policy refuses, and the adapter reports that as AccessDenied.
+      removeVote: async (poll, user) => {
+        const stored = s.polls.get(poll.id)
+        if (!stored || !isMember(s, a, stored.houseId)) deny('poll_votes')
+        if (a.kind !== 'system' && user !== uid(a)) deny('poll_votes')
+        if (!stored!.state.open || !stored!.votes.some((v) => v.user === user)) deny('poll_votes')
+        s.polls.set(poll.id, { ...stored!, votes: stored!.votes.filter((v) => v.user !== user) })
+      },
       saveState: async (poll) => {
         const stored = s.polls.get(poll.id)
         if (!stored || !isMember(s, a, stored.houseId)) deny('polls')

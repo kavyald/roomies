@@ -269,6 +269,15 @@ export type AppCommands = {
   closePoll(input: {
     pollId: PollId
   }): Promise<CommandResult<{ poll: Poll; result: PollResult }, 'already_closed' | 'not_found'>>
+  withdrawVote(input: {
+    pollId: PollId
+  }): Promise<CommandResult<Poll, 'closed' | 'no_vote' | 'not_found'>>
+  reopenPoll(input: { pollId: PollId }): Promise<CommandResult<Poll, 'not_closed' | 'not_found'>>
+  /** An ISO instant, or null to clear it. */
+  setPollDeadline(input: {
+    pollId: PollId
+    closesAt: string | null
+  }): Promise<CommandResult<Poll, 'closed' | 'in_the_past' | 'no_change' | 'not_found'>>
   savePushSubscription(input: {
     endpoint: string
     keys: { p256dh: string; auth: string }

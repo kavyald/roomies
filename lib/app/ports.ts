@@ -124,7 +124,8 @@ export interface ItemRepo {
 
 /**
  * Polls are saved piece by piece, because each piece has its own rule: anyone adds an option or
- * casts their own vote while it's open; opening and closing is the poll row.
+ * casts (or takes back) their own vote while it's open; the deadline, closing and reopening are the
+ * poll row.
  */
 export interface PollRepo {
   get(id: PollId): Promise<Poll | undefined>
@@ -134,7 +135,9 @@ export interface PollRepo {
   addOption(poll: Poll, option: PollOption): Promise<void>
   /** Casts or changes this member's vote. */
   setVote(poll: Poll, vote: Vote): Promise<void>
-  /** Its deadline and whether it's closed. */
+  /** Takes back this member's vote while it's open; throws `AccessDenied` if there's none to take. */
+  removeVote(poll: Poll, user: UserId): Promise<void>
+  /** Its deadline and whether it's closed (closing and reopening). */
   saveState(poll: Poll): Promise<void>
 }
 

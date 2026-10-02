@@ -138,6 +138,11 @@ describe('activityLine: every kind', () => {
     ['poll.reopened', { pollId: id('p') }, 'Kavya reopened “Which vacuum?”'],
     ['poll.deadline_changed', { pollId: id('p') }, 'Kavya changed when “Which vacuum?” closes'],
     [
+      'poll.deadline_changed',
+      { pollId: id('p'), changes: { closesAt: ['2026-10-03T03:59:00.000Z', null] } },
+      'Kavya took the deadline off “Which vacuum?”',
+    ],
+    [
       'poll.option_added',
       { pollId: id('p'), optionId: id('o') },
       'Kavya added “Dyson V8” to “Which vacuum?”',

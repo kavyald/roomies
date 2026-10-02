@@ -296,9 +296,10 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 ### 5.8 Poll sheet
 
 - The question, and what it's about (a link to the item) if anything.
-- Options as big rows with vote counts and voter avatars. Tap to vote, tap another to change.
+- Options as big rows with vote counts and voter avatars. Tap to vote, tap another to change, tap yours again to take your vote back (a hint says so once you've voted).
 - **Add an option** (label + optional note) is at the bottom while the poll is open. Each option shows who added it, and people who already voted can switch.
-- "2 of 4 voted · closes Fri." **Close poll** shows the result: "Dyson V8 wins (3–1)," or **"It's a tie. Talk it out?"**
+- "2 of 4 voted · closes Fri." While it's open, a deadline row ("Closes Fri" · **Change**, or "No deadline" · **Add a deadline**) opens a date field with **Save**, **No deadline** and **Cancel**.
+- **Close poll** shows the result: "Dyson V8 wins (3–1)," or **"It's a tie. Talk it out?"** A closed poll has **Reopen poll** instead.
 
 ### 5.9 Run sheet (batch, request, visit)
 

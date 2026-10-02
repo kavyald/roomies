@@ -590,6 +590,15 @@ const reposFor = (trx: Trx): Repos => {
           () => trx.insertInto('poll_votes').values(row).execute(),
         )
       },
+      removeVote: async (poll, user) => {
+        // "poll votes withdraw own while open" deletes nothing when it refuses.
+        const r = await trx
+          .deleteFrom('poll_votes')
+          .where('poll_id', '=', poll.id)
+          .where('user_id', '=', user)
+          .executeTakeFirst()
+        if (Number(r.numDeletedRows) === 0) throw new AccessDenied('poll_votes')
+      },
       saveState: async (poll) => {
         const r = await trx
           .updateTable('polls')

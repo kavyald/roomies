@@ -102,6 +102,58 @@ export const pollsContract = (name: string, makeHarness: () => Promise<UnitOfWor
       ).rejects.toBeInstanceOf(AccessDenied)
     })
 
+    it('you take back only your own vote, only while it is open (T55)', async () => {
+      const s = await setup()
+      const p = s.poll()
+      await h.uow.run(s.as(s.member), (r) => r.polls.create(p))
+      const nest = p.options[0]!.id
+      await h.uow.run(s.as(s.member), (r) =>
+        r.polls.setVote(p, { user: s.member, option: nest, at: T }),
+      )
+      await h.uow.run(s.as(s.admin), (r) =>
+        r.polls.setVote(p, { user: s.admin, option: nest, at: T }),
+      )
+      await expect(
+        h.uow.run(s.as(s.member), (r) => r.polls.removeVote(p, s.admin)),
+      ).rejects.toBeInstanceOf(AccessDenied)
+      await h.uow.run(s.as(s.member), (r) => r.polls.removeVote(p, s.member))
+      expect((await s.get(p.id))?.votes.map((v) => v.user)).toEqual([s.admin])
+      // Nothing left to take back.
+      await expect(
+        h.uow.run(s.as(s.member), (r) => r.polls.removeVote(p, s.member)),
+      ).rejects.toBeInstanceOf(AccessDenied)
+
+      await h.uow.run(s.as(s.member), (r) =>
+        r.polls.saveState({ ...p, state: { open: false, closedAt: T } }),
+      )
+      await expect(
+        h.uow.run(s.as(s.admin), (r) => r.polls.removeVote(p, s.admin)),
+      ).rejects.toBeInstanceOf(AccessDenied)
+      expect((await s.get(p.id))?.votes).toHaveLength(1)
+    })
+
+    it('any member reopens a closed poll and changes or clears its deadline (T55)', async () => {
+      const s = await setup()
+      const p = s.poll({ closesAt: T })
+      await h.uow.run(s.as(s.member), (r) => r.polls.create(p))
+      await h.uow.run(s.as(s.member), (r) =>
+        r.polls.saveState({ ...p, state: { open: false, closedAt: T } }),
+      )
+      // Reopened by someone else, with the deadline taken off: closed_at and closes_at clear.
+      const { closesAt: _gone, ...noDeadline } = p
+      await h.uow.run(s.as(s.admin), (r) => r.polls.saveState(noDeadline))
+      const reopened = await s.get(p.id)
+      expect(reopened?.state).toEqual({ open: true })
+      expect(reopened?.closesAt).toBeUndefined()
+      // Options and votes unlock again.
+      await h.uow.run(s.as(s.admin), (r) =>
+        r.polls.setVote(p, { user: s.admin, option: p.options[0]!.id, at: LATER }),
+      )
+      await h.uow.run(s.as(s.member), (r) => r.polls.saveState({ ...p, closesAt: LATER }))
+      expect((await s.get(p.id))?.closesAt).toEqual(LATER)
+      expect((await s.get(p.id))?.votes).toHaveLength(1)
+    })
+
     it('labels are unique in a poll (any case), and a vote must be for one of its options', async () => {
       const s = await setup()
       const p = s.poll()
