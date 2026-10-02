@@ -464,7 +464,7 @@ const LAYERS = [
   { name:'app/api/cron/[job]', desc:'the only API route', fns:[
     ['POST tick | reminders | close-polls | send-notifications','Constant-time check of x-cron-secret, then the job use case with depsForJob(). Unknown job → 404; failure → 500 without details.'] ]},
   { name:'proxy.ts', desc:'Next 16 middleware', fns:[
-    ['proxy(request)','Refreshes the Supabase session cookie on every page request and sends signed-out visitors on /h/* to /sign-in. Pages re-check; RLS guards the data regardless.'] ]},
+    ['proxy(request)','Sets the page Content-Security-Policy with a fresh nonce (lib/server/csp.ts), refreshes the Supabase session cookie on every page request and sends signed-out visitors on /h/* to /sign-in. Pages re-check; RLS guards the data regardless.'] ]},
   { name:'lib/server/session.ts', desc:'who is asking', fns:[
     ['currentUserId()','Verifies the user with Supabase Auth (getUser), not just by decoding the cookie.'],
     ['currentActor(houseId)','Builds a member actor; membership itself is enforced by RLS.'] ]}
@@ -584,7 +584,7 @@ const NODES = {
  sw:{x:30,y:94,w:196,h:26,t:'Service worker',s:'app shell · push display',fill:'n'},
  gmail:{x:246,y:30,w:94,h:26,t:'Gmail SMTP',s:'sign-in codes',fill:'card'},
  wpush:{x:246,y:94,w:94,h:26,t:'Web Push',s:'Apple · Google',fill:'card'},
- proxy:{x:30,y:202,w:300,h:24,t:'proxy.ts',s:'refresh session · guard /h/*',fill:'n'},
+ proxy:{x:30,y:202,w:300,h:24,t:'proxy.ts',s:'CSP nonce · refresh session · guard /h/*',fill:'n'},
  actions:{x:30,y:236,w:145,h:30,t:'Server actions',s:'app/actions · Zod',fill:'n'},
  cron:{x:185,y:236,w:145,h:30,t:'Cron routes',s:'/api/cron/[job]',fill:'n'},
  app:{x:30,y:276,w:300,h:30,t:'Use cases',s:'lib/app · makeX(deps) · UnitOfWork',fill:'water'},
@@ -624,7 +624,7 @@ const NODE_INFO = {
  sw:{eyebrow:'Browser', title:'Service worker', layer:null, what:'Caches the app shell and hashed build assets, falls back to /offline, and shows pushes and opens their links.', files:'public/sw.js, components/shell/ServiceWorker.tsx', why:'Hand-written instead of a library. Registers only in production builds so pnpm dev never serves stale chunks.'},
  gmail:{eyebrow:'Outside service · M5', title:'Gmail SMTP', layer:null, what:'A dedicated house Gmail sends the 6-digit codes through Supabase\'s custom SMTP. Locally, codes land in Mailpit.', files:'supabase/config.toml, supabase/templates/code.html', why:'Supabase\'s built-in sender won\'t reach roommates, and a domain isn\'t needed in v1. Resend + a domain is the upgrade (A18).'},
  wpush:{eyebrow:'Outside service', title:'Web Push services', layer:null, what:'Apple and Google\'s push endpoints deliver VAPID-signed messages to installed browsers.', files:'lib/adapters/push/web-push.ts', why:'The only way to notify an iPhone without an App Store app. iOS needs the PWA added to the Home Screen first.'},
- proxy:{eyebrow:'Entry point', title:'proxy.ts', layer:'entry', what:'Next 16\'s renamed middleware. Refreshes the session cookie and redirects signed-out visitors away from /h/*.', files:'proxy.ts', why:'A convenience gate only. Pages re-check the session, and RLS guards the data either way.'},
+ proxy:{eyebrow:'Entry point', title:'proxy.ts', layer:'entry', what:'Next 16\'s renamed middleware. Sets the page CSP with a fresh nonce, refreshes the session cookie and redirects signed-out visitors away from /h/*.', files:'proxy.ts, lib/server/csp.ts', why:'The CSP nonce lets only Next\'s own scripts run (ARCHITECTURE §5.4, A26). The redirect is a convenience gate only. Pages re-check the session, and RLS guards the data either way.'},
  actions:{eyebrow:'Entry point', title:'Server actions', layer:'entry', what:'Every write enters here: Zod parse, find the actor, build deps, call one use case, return its Result.', files:'app/actions/*.ts, lib/server/action.ts', why:'Replaces the /api/invites, /api/push and /api/setup routes the architecture first sketched. Same thin shape, less plumbing.'},
  cron:{eyebrow:'Entry point', title:'Cron routes', layer:'entry', what:'POST /api/cron/<job> for tick, reminders, close-polls and send-notifications, guarded by x-cron-secret.', files:'app/api/cron/[job]/route.ts, lib/server/cron.ts', why:'Jobs call the same use cases as people do, with the system actor (A11). No Vercel Cron needed.'},
  app:{eyebrow:'Layer 2', title:'Use cases', layer:'app', what:'makeX(deps) factories. Load via repos, call the domain, save, record events, all in one transaction.', files:'lib/app/*.ts, lib/app/ports.ts', why:'Dependency injection without a container: time, ids, push and auth are all passed in, so every use case runs against in-memory fakes in milliseconds.'},
@@ -766,6 +766,7 @@ const BACK = [
 const FRONT = [
  ['A1','PWA, not an App Store app','Roommates open a link; installing to the Home Screen unlocks push on iOS 16.4+. An install guide nudges iOS users.',['React Native / Expo: TestFlight and a $99/yr account break “just a link”.']],
  ['A25','Online only','The service worker caches build assets and the last copy of each page, and falls back to /offline. House data is never cached, so nothing is readable or writable offline.',['Cached data, read-only (persisting the TanStack cache): considered and not built (owner, 2026-10-02).']],
+ ['A26','A CSP nonce on every page','proxy.ts sets a Content-Security-Policy with a fresh nonce and \'strict-dynamic\', so only Next\'s own scripts run; connect-src names the Supabase origin from config. Every page renders per request; styles keep \'unsafe-inline\' for Vaul and Radix.',['\'unsafe-inline\' scripts: static pages stay, but any injected script runs.','Experimental SRI hashes: static pages, but experimental.']],
  ['§8','Client components + TanStack Query','Screens are client components reading through hooks; Realtime invalidates query keys. Server rendering is mostly the shell.',['Server components for data: harder to combine with live updates and the AppClient seam.']],
  ['T19','Sheets, not pages, for items','Add and detail open as bottom sheets over the current tab (vaul). /h/[id]/i/[itemId] deep-links to a sheet over Home.',['Nested sheets were avoided: pickers are inline inside the sheet.']],
  ['T19','Native pickers','Rooms and people are native selects (rooms grouped by floor); dates are native inputs.',['Custom pickers: more code, worse accessibility on iPhone.']],

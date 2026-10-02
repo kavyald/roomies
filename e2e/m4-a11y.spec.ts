@@ -1,9 +1,30 @@
-// Axe on every screen, light and dark (TESTING.md Q4): no critical or serious issues.
+// Axe on every screen, light and dark (TESTING.md Q4): no critical or serious issues, and no
+// Content-Security-Policy violations (T52, ARCHITECTURE §5.4).
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 import { aPoll, aRun, anItem, anOwner, dismissInstallGuide, signIn } from './support'
 
+/** Collects CSP violations from the console and from `securitypolicyviolation` events. */
+const watchCsp = async (page: Page) => {
+  const seen: string[] = []
+  page.on('console', (m) => {
+    if (m.text().includes('Content Security Policy')) seen.push(`console: ${m.text()}`)
+  })
+  await page.exposeFunction('__reportCspViolation', (v: string) => seen.push(`event: ${v}`))
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (e) => {
+      const report = (window as unknown as { __reportCspViolation: (v: string) => void })
+        .__reportCspViolation
+      report(`${e.effectiveDirective} blocked ${e.blockedURI || 'inline'} on ${location.pathname}`)
+    })
+  })
+  return seen
+}
+
+let cspViolations: string[] = []
+
 const check = async (page: Page, screen: string) => {
+  expect(cspViolations, `${screen}: CSP violations`).toEqual([])
   const { violations } = await new AxeBuilder({ page }).analyze()
   const bad = violations
     .filter((v) => v.impact === 'critical' || v.impact === 'serious')
@@ -14,7 +35,11 @@ const check = async (page: Page, screen: string) => {
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`every screen passes axe in ${colorScheme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme })
-    await page.goto('/sign-in')
+    cspViolations = await watchCsp(page)
+    const signInPage = await page.goto('/sign-in')
+    const csp = (await signInPage?.allHeaders())?.['content-security-policy'] ?? ''
+    expect(csp).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/)
+    expect(csp).toContain("frame-ancestors 'none'")
     await expect(page.getByLabel('Your email')).toBeVisible()
     await check(page, 'sign-in')
     await page.goto('/join/not-a-real-token')

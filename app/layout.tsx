@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { connection } from 'next/server'
 import { ServiceWorker } from '@/components/shell/ServiceWorker'
 import { ToastProvider } from '@/components/ui/Toast'
 import { devToolsEnabled } from '@/lib/config'
@@ -23,7 +24,10 @@ export const viewport: Viewport = {
   ],
 }
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default async function RootLayout({ children }: LayoutProps<'/'>) {
+  // Every page renders per request so Next can put the proxy's CSP nonce on its scripts; a page
+  // prerendered at build time would carry no nonce and its scripts would be blocked (§5.4).
+  await connection()
   return (
     <html lang="en">
       <body className="min-h-dvh antialiased">

@@ -2,6 +2,7 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { AUTH_COOKIE_OPTIONS } from './cookies'
 
 export type CookieJar = {
   getAll(): { name: string; value: string }[]
@@ -12,6 +13,7 @@ export type CookieJar = {
 /** Acts as whoever the request's session cookie says. Reading it refreshes an expiring session. */
 export const sessionClient = (url: string, anonKey: string, jar: CookieJar): SupabaseClient =>
   createServerClient(url, anonKey, {
+    cookieOptions: AUTH_COOKIE_OPTIONS,
     cookies: {
       getAll: () => jar.getAll(),
       setAll: (cookies) => {

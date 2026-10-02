@@ -14,11 +14,11 @@ lib/domain/                  pure types + functions (ids, time/DST, money, resul
 lib/app/                     ports.ts + use cases (contacts, session/whereTo, setup, invites, house, items, runs, polls, costs)
 lib/adapters/                memory/ (fakes with RLS-equivalent rules), postgres/ (Kysely UoW), supabase/ (HouseQueries, AuthGateway, server clients), contracts/
 lib/compose.ts               server composition root; lib/compose.client.ts is the browser one
-lib/client/                  AppClient, provider, TanStack hooks;  lib/server/ makeAction + session
+lib/client/                  AppClient, provider, TanStack hooks;  lib/server/ makeAction + session + csp
 lib/testing/                 test-only helpers: builders, sampleHouse, asUser/asOwner (db.ts), Mailpit, JWT minting
 supabase/                    config.toml, migrations/, seed.sql (owner@roomies.test + "The apartment" with its 17 rooms), tests/ (RLS, isolation, setup)
 e2e/                         Playwright journeys (iPhone 15 profile)
-proxy.ts                     Next 16's middleware: refreshes the session, guards /h/*
+proxy.ts                     Next 16's middleware: sets the page CSP (nonce), refreshes the session, guards /h/*
 ```
 
 - **Run it:** `pnpm supabase start`, then `pnpm env:local` (writes `.env.local` from `supabase status`), then `pnpm dev`. For scheduled jobs, `pnpm cron:local <port>` points the local pg_cron schedule at that dev server (it stores the URL and `CRON_SECRET` in the local Vault; a DB reset clears them). Sign in as `owner@roomies.test`; the code arrives in Mailpit at http://127.0.0.1:54324.
