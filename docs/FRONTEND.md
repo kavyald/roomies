@@ -281,7 +281,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 
 ### 5.6 Chores tab
 
-- Chore cards sorted by how overdue they are against their rhythm (as-needed chores last), each with "Last done 9 days ago · Wren" and a one-tap **Did it**.
+- Chore cards sorted by how overdue they are against their rhythm (as-needed chores last), each with "Last done 9 days ago · Wren" and a one-tap **Did it**. Its toast (here, on Home, and in the detail sheet) offers **Undo**, which puts the chore back to its last done before; if someone has done it again since, it says "It's been done again since. Nothing to undo."
 
 ### 5.7 Tasks tab
 

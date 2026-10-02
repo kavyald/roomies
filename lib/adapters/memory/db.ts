@@ -413,6 +413,15 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
               .filter((r) => r.houseId === houseId && (r.runId === runId || r.toRunId === runId))
               .sort((x, y) => x.id - y.id)
           : [],
+      lastForItem: async (houseId, itemId, kind) =>
+        isMember(s, a, houseId)
+          ? s.activity
+              .filter((r) => r.houseId === houseId && r.itemId === itemId && r.kind === kind)
+              .reduce<StoredActivityRow | undefined>(
+                (m, r) => (!m || r.id > m.id ? r : m),
+                undefined,
+              )
+          : undefined,
       record: async (houseId, events, at) => {
         for (const e of events) {
           if (!isMember(s, a, houseId) || (a.kind !== 'system' && e.by !== a.userId)) {

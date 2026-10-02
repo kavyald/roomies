@@ -11,12 +11,14 @@ import {
 } from './ids'
 import {
   archiveItem,
+  choreDoneChange,
   createItem,
   doChore,
   editItem,
   markDone,
   reopenItem,
   restoreItem,
+  undoChore,
   type Chore,
   type Need,
   type Task,
@@ -270,6 +272,87 @@ describe('done, did it, undo, archive', () => {
     expect(doChore({ ...chore, archivedAt: now }, wren, now, a)).toEqual({
       ok: false,
       error: 'archived',
+    })
+  })
+
+  it('"Did it" keeps the last done it replaced, for Undo', () => {
+    const before = { at: instant(10), by: kavya }
+    const first = doChore(chore, wren, now, a)
+    expect(first.ok && first.value.events[0]).toMatchObject({
+      changes: { lastDone: [null, { at: now, by: wren }] },
+    })
+    const again = doChore({ ...chore, lastDone: before }, wren, now, a)
+    expect(again.ok && again.value.events[0]).toMatchObject({
+      changes: { lastDone: [before, { at: now, by: wren }] },
+    })
+  })
+
+  describe('undoChore', () => {
+    const before = { at: instant(10), by: kavya }
+    const mine = { at: now, by: wren }
+    const didIt = { ...chore, lastDone: mine }
+
+    it('puts the chore back to the last done it had before', () => {
+      const r = undoChore(didIt, now, { previous: before, next: mine }, wren, a)
+      expect(r.ok && r.value.chore.lastDone).toEqual(before)
+      expect(r.ok && r.value.events).toEqual([
+        {
+          kind: 'chore.undone',
+          itemId: 'Trash',
+          changes: { lastDone: [mine, before] },
+          actionId: a,
+          by: wren,
+        },
+      ])
+    })
+
+    it('back to never done when it had never been done', () => {
+      const r = undoChore(didIt, now, { previous: null, next: mine }, wren, a)
+      expect(r.ok && r.value.chore).not.toHaveProperty('lastDone')
+      expect(r.ok && r.value.events[0]).toMatchObject({ changes: { lastDone: [mine, null] } })
+    })
+
+    it('refuses once the chore has been done again since, by anyone', () => {
+      const later = { at: instant(2000), by: kavya }
+      const redone = { ...chore, lastDone: later }
+      expect(undoChore(redone, now, { previous: mine, next: later }, wren, a)).toEqual({
+        ok: false,
+        error: 'done_again',
+      })
+      // My own later Did it isn't the one being undone either.
+      const mineLater = { ...chore, lastDone: { at: instant(2000), by: wren } }
+      expect(undoChore(mineLater, now, undefined, wren, a)).toMatchObject({ error: 'done_again' })
+      // Someone else's Did it at the same moment isn't mine to undo.
+      expect(undoChore(didIt, now, { previous: before, next: mine }, kavya, a)).toMatchObject({
+        error: 'done_again',
+      })
+    })
+
+    it("refuses when there's nothing it can put back", () => {
+      expect(undoChore(chore, now, undefined, wren, a)).toEqual({
+        ok: false,
+        error: 'nothing_to_undo',
+      })
+      // An older row without changes, or a last done that came from a run, not Did it.
+      expect(undoChore(didIt, now, undefined, wren, a)).toMatchObject({ error: 'nothing_to_undo' })
+      expect(
+        undoChore(didIt, now, { previous: null, next: { at: instant(5), by: wren } }, wren, a),
+      ).toMatchObject({ error: 'nothing_to_undo' })
+    })
+
+    it('reads back what a chore.done row changed', () => {
+      const r = doChore({ ...chore, lastDone: before }, wren, now, a)
+      const changes = r.ok ? (r.value.events[0] as { changes: unknown }).changes : undefined
+      // As stored: jsonb hands back plain objects.
+      expect(choreDoneChange(JSON.parse(JSON.stringify(changes)))).toEqual({
+        previous: before,
+        next: mine,
+      })
+      expect(choreDoneChange({ lastDone: [null, mine] })).toEqual({ previous: null, next: mine })
+      expect(choreDoneChange(undefined)).toBeUndefined()
+      expect(choreDoneChange({ lastDone: [null, null] })).toBeUndefined()
+      expect(choreDoneChange({ lastDone: ['x', mine] })).toBeUndefined()
+      expect(choreDoneChange({ lastDone: [null] })).toBeUndefined()
     })
   })
 

@@ -10,10 +10,18 @@ import {
   makeReopenItem,
   makeRestoreItem,
   makeSetFeeling,
+  makeUndoChore,
 } from '@/lib/app/items'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
 import type { ItemPatch, NewItem } from '@/lib/domain/items'
-import { itemIdSchema, itemPatchSchema, newItemSchema, setFeelingSchema } from '@/lib/schemas/items'
+import { instant } from '@/lib/domain/time'
+import {
+  itemIdSchema,
+  itemPatchSchema,
+  newItemSchema,
+  setFeelingSchema,
+  undoChoreSchema,
+} from '@/lib/schemas/items'
 import { makeAction } from '@/lib/server/action'
 
 // Zod has checked the shapes; the branded ids and local dates are just those strings.
@@ -54,6 +62,14 @@ export async function doChoreAction(houseId: HouseId, id: unknown) {
     (deps, actor, i) => makeDoChore(deps)(actor, i as ItemId),
     houseEnv(houseId),
   )(id)
+}
+export async function undoChoreAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    undoChoreSchema,
+    (deps, actor, i) =>
+      makeUndoChore(deps)(actor, { id: i.id as ItemId, doneAt: instant(i.doneAt) }),
+    houseEnv(houseId),
+  )(input)
 }
 export async function archiveItemAction(houseId: HouseId, id: unknown) {
   return makeAction(

@@ -24,7 +24,6 @@ import {
   useArchiveItem,
   useContacts,
   useCreateItem,
-  useDoChore,
   useEditItem,
   useHouse,
   useItem,
@@ -46,6 +45,7 @@ import { RunSheet } from '@/components/runs/RunSheet'
 import { StartRunSheet } from '@/components/runs/StartRunSheet'
 import { ItemRunPath } from '@/components/runs/ItemRunPath'
 import { useCardContext } from './useCardContext'
+import { useDidIt } from './useDidIt'
 import { isOpen, type Category, type Item, type ItemPatch } from '@/lib/domain/items'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
 import { HouseFeels } from './Feelings'
@@ -320,7 +320,7 @@ function ItemDetailSheet({
   const edit = useEditItem(houseId)
   const done = useMarkDone(houseId)
   const reopen = useReopenItem(houseId)
-  const did = useDoChore(houseId)
+  const did = useDidIt(houseId)
   const archive = useArchiveItem(houseId)
   const restore = useRestoreItem(houseId)
   const cardCtx = useCardContext(houseId)
@@ -502,11 +502,7 @@ function ItemDetailSheet({
     : item.category === 'chore'
       ? {
           label: 'Did it',
-          run: async () => {
-            const r = await did.mutateAsync(item.id)
-            if (r.ok) celebrate()
-            say(r, 'Nice. Marked as done today.')
-          },
+          run: () => did.didIt(item.id, 'Nice. Marked as done today.'),
         }
       : isDone
         ? {

@@ -92,6 +92,11 @@ export type AppCommands = {
     id: ItemId,
   ): Promise<CommandResult<Item, 'not_done' | 'duplicate_need' | 'not_for_chores' | 'not_found'>>
   doChore(id: ItemId): Promise<CommandResult<Item, 'archived' | 'not_a_chore' | 'not_found'>>
+  /** `doneAt`: the last done (ms since epoch) that Did it returned. */
+  undoChore(input: {
+    id: ItemId
+    doneAt: number
+  }): Promise<CommandResult<Item, 'nothing_to_undo' | 'done_again' | 'not_a_chore' | 'not_found'>>
   archiveItem(id: ItemId): Promise<CommandResult<Item, 'already_archived' | 'not_found'>>
   restoreItem(
     id: ItemId,

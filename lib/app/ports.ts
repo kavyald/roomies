@@ -185,6 +185,12 @@ export interface EventSink {
   record(houseId: HouseId, events: readonly DomainEvent[], at: Instant): Promise<void>
   /** A run's story so far (rows on it or moved into it), oldest first. */
   forRun(houseId: HouseId, runId: RunId): Promise<StoredActivityRow[]>
+  /** An item's newest row of this kind (e.g. the "Did it" an Undo takes back), if any. */
+  lastForItem(
+    houseId: HouseId,
+    itemId: ItemId,
+    kind: EventKind,
+  ): Promise<StoredActivityRow | undefined>
 }
 
 export interface Repos {

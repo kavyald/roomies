@@ -33,6 +33,9 @@ export const itemPatchSchema = z.object({
 
 export const itemIdSchema = z.uuid()
 
+/** Undo for Did it: the chore, and the last done (ms since epoch) that Did it set. */
+export const undoChoreSchema = z.object({ id: z.uuid(), doneAt: z.number().int() })
+
 export const setFeelingSchema = z.object({
   itemId: z.uuid(),
   kind: z.enum(['anxious', 'frustrated', 'confused', 'fine', 'meh', 'thanks']).nullable(),

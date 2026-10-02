@@ -644,6 +644,18 @@ const reposFor = (trx: Trx): Repos => {
             .orderBy('id')
             .execute()
         ).map(activityToDomain),
+      lastForItem: async (houseId, itemId, kind) => {
+        const row = await trx
+          .selectFrom('activity_events')
+          .selectAll()
+          .where('house_id', '=', houseId)
+          .where('item_id', '=', itemId)
+          .where('kind', '=', kind)
+          .orderBy('id', 'desc')
+          .limit(1)
+          .executeTakeFirst()
+        return row && activityToDomain(row)
+      },
       record: async (houseId, events, at) => {
         if (events.length === 0) return
         await trx

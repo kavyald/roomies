@@ -22,6 +22,7 @@ import {
   reopenItemAction,
   restoreItemAction,
   setFeelingAction,
+  undoChoreAction,
 } from '@/app/actions/items'
 import { addCostAction, copiedToSplitwiseAction } from '@/app/actions/costs'
 import { setNotificationEnabledAction, updateMySettingsAction } from '@/app/actions/me'
@@ -89,6 +90,7 @@ export function HouseProviders({
       markDone: (id) => markDoneAction(houseId, id),
       reopenItem: (id) => reopenItemAction(houseId, id),
       doChore: (id) => doChoreAction(houseId, id),
+      undoChore: (input) => undoChoreAction(houseId, input),
       archiveItem: (id) => archiveItemAction(houseId, id),
       restoreItem: (id) => restoreItemAction(houseId, id),
       setFeeling: (input) => setFeelingAction(houseId, input),

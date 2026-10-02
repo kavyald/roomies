@@ -227,6 +227,8 @@ export const useReopenItem = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, id: ItemId) => c.reopenItem(id), ['items'])
 export const useDoChore = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, id: ItemId) => c.doChore(id), ['items'])
+export const useUndoChore = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'undoChore'>) => c.undoChore(i), ['items'])
 export const useArchiveItem = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, id: ItemId) => c.archiveItem(id), ['items'])
 export const useRestoreItem = (houseId: HouseId) =>

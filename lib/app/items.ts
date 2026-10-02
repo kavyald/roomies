@@ -7,12 +7,14 @@ import { setFeeling, type Feeling, type FeelingKind } from '../domain/feelings'
 import type { ActionId, ItemId, UserId } from '../domain/ids'
 import {
   archiveItem,
+  choreDoneChange,
   createItem,
   doChore,
   editItem,
   markDone,
   reopenItem,
   restoreItem,
+  undoChore,
   type Item,
   type ItemError,
   type ItemPatch,
@@ -141,6 +143,23 @@ export const makeDoChore = (deps: Deps) =>
     const r = doChore(item, by, now, actionId)
     return r.ok ? ok({ item: r.value.chore, events: r.value.events }) : r
   })
+
+/**
+ * Undo for Did it: back to the last done the chore had before. `doneAt` is the last done that
+ * Did it returned, so an Undo never takes back a later Did it (anyone's).
+ */
+export const makeUndoChore = (deps: Deps) => {
+  return (actor: HouseActor, input: { id: ItemId; doneAt: Instant }) =>
+    change<'nothing_to_undo' | 'done_again' | 'not_a_chore'>(
+      deps,
+      async (item, { by, actionId, repos }) => {
+        if (item.category !== 'chore') return err('not_a_chore')
+        const row = await repos.events.lastForItem(item.houseId, item.id, 'chore.done')
+        const r = undoChore(item, input.doneAt, choreDoneChange(row?.changes), by, actionId)
+        return r.ok ? ok({ item: r.value.chore, events: r.value.events }) : r
+      },
+    )(actor, input.id)
+}
 
 export const makeArchiveItem = (deps: Deps) =>
   change<'already_archived'>(deps, async (item, { by, now, actionId }) =>

@@ -472,7 +472,7 @@ const LAYERS = [
   { name:'ports.ts', desc:'the interfaces', fns:[
     ['UnitOfWork.run(actor, fn)','One transaction. Rolls back on a throw or a failed Result (A21).'],
     ['Repos','houses, profiles, members, rooms, contacts, invites, items, feelings, polls, runs, costs, notifications, pushSubscriptions, events'],
-    ['EventSink.record(houseId, events, at)','Writes activity_events with the injected clock\'s time. forRun reads a run\'s story inside the transaction.'],
+    ['EventSink.record(houseId, events, at)','Writes activity_events with the injected clock\'s time. forRun reads a run\'s story inside the transaction; lastForItem reads an item\'s newest row of a kind (the Did it an Undo takes back).'],
     ['HouseQueries · ChangeFeed','The read side and live updates, used by the browser.'],
     ['Clock · IdGenerator · Tokens · RateLimiter · AuthGateway · PushSender · Config','Everything impure is injected.'] ]},
   { name:'items.ts', desc:'8 use cases', fns:[
@@ -797,7 +797,7 @@ const PR = [
  ['The database guards privacy, not logic','RLS on every table (a test fails if one lacks it), a cross-house isolation test driven by the table catalog, and no logic in SQL.'],
  ['Results, not exceptions','Business failures are typed Result errors (duplicate_need, already_on_a_run, target_closed). A failed Result also rolls back the transaction.'],
  ['Side effects are events','Every change returns DomainEvents that are recorded, and can notify, in the same transaction. No triggers.'],
- ['History is append-only','activity_events has no UPDATE or DELETE grant for anyone. Undo writes a new event (item.reopened) instead of erasing one.'],
+ ['History is append-only','activity_events has no UPDATE or DELETE grant for anyone. Undo writes a new event (item.reopened, chore.undone) instead of erasing one.'],
  ['Every port has a fake, and the fakes are tested','Contract suites run the same tests against memory and real adapters; the memory UnitOfWork even mirrors RLS.'],
  ['Invalid states can\'t be written','Discriminated unions in TypeScript and matching CHECK constraints in SQL: a chore can\'t be “done”, a request can\'t have a date.'],
  ['Kind by default','No string calls a person late or failed; a lint enforces it. Feelings are about items, never people.'],
@@ -810,7 +810,6 @@ const GAPS = [
  ['Not started','M5: hosting and launch','E1–E5 and Q5 are untouched by design: hosted Supabase (staging + prod), the Gmail sender, Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is also not installed yet. E5 now also waits on Q6, since M6 is built first.','Weyve cards E1–E5 and Q5 (M5)'],
  ['Carded','Swipe actions on cards','FRONTEND principle 6 and §5 call for swipe right = done, left = feeling. The check button covers “done” until then.','Weyve card T43 (M6)'],
  ['Carded','“Delete” instead of the 30-day restore','The archive confirm promises 30 days, but nothing enforces it. The owner chose “Delete” with Undo and no window (D30).','Weyve card T62 (M6)'],
- ['Carded','Undo for “Did it”','chore.undone is in the event catalog but has no use case (T21 note).','Weyve card T54 (M6)'],
  ['Carded','Polls: withdraw a vote, reopen, deadline','poll.vote_withdrawn and the other poll actions are in the catalog but nothing writes them (T27 note).','Weyve card T55 (M6)'],
  ['Carded','Conflict detection on edits','§7.5 describes optimistic concurrency (where updated_at = :loaded → conflict). Saves are last-write-wins for now (T18).','Weyve card T50 (M6)'],
  ['Carded','Poll and run notifications don\'t deep-link','Item notifications open the item; poll, run and people notifications open Home or House, because there are no /p/[pollId] or /r/[runId] routes.','Weyve card T58 (M6)'],

@@ -303,7 +303,10 @@ export const reopenItem = (
   return ok({ item: rest, events: [{ kind: 'item.reopened', itemId: item.id, actionId, by }] })
 }
 
-/** "Did it": a chore is never done, it's last done (PRD §6.2). */
+/**
+ * "Did it": a chore is never done, it's last done (PRD §6.2). The event keeps the last done it
+ * replaced (`changes.lastDone: [previous | null, next]`) so Undo can put it back.
+ */
 export const doChore = (
   chore: Chore,
   by: UserId,
@@ -312,9 +315,73 @@ export const doChore = (
 ): Result<{ chore: Chore; events: DomainEvent[] }, 'archived'> => {
   if (chore.archivedAt) return err('archived')
   const { run, ...rest } = chore
+  const next: Done = { at: now, by }
   return ok({
-    chore: { ...rest, lastDone: { at: now, by } },
-    events: [{ kind: 'chore.done', itemId: chore.id, ...(run && { runId: run.id }), actionId, by }],
+    chore: { ...rest, lastDone: next },
+    events: [
+      {
+        kind: 'chore.done',
+        itemId: chore.id,
+        ...(run && { runId: run.id }),
+        changes: { lastDone: [chore.lastDone ?? null, next] },
+        actionId,
+        by,
+      },
+    ],
+  })
+}
+
+/** What a "Did it" changed, read back from its `chore.done` row. */
+export type ChoreDoneChange = { readonly previous: Done | null; readonly next: Done }
+
+const asDone = (v: unknown): Done | null | undefined => {
+  if (v === null) return null
+  const d = v as { at?: { epochMs?: unknown }; by?: unknown } | undefined
+  return typeof d?.at?.epochMs === 'number' && typeof d.by === 'string'
+    ? { at: { epochMs: d.at.epochMs }, by: d.by as UserId }
+    : undefined
+}
+
+/** Reads a `chore.done` row's `changes`; absent when the row doesn't say (rows before T54). */
+export const choreDoneChange = (changes: unknown): ChoreDoneChange | undefined => {
+  const pair = (changes as { lastDone?: unknown } | null | undefined)?.lastDone
+  if (!Array.isArray(pair) || pair.length !== 2) return undefined
+  const previous = asDone(pair[0])
+  const next = asDone(pair[1])
+  return previous === undefined || !next ? undefined : { previous, next }
+}
+
+const sameDone = (a: Done, b: Done): boolean => a.at.epochMs === b.at.epochMs && a.by === b.by
+
+/**
+ * Undo for "Did it" (PRD §9: undo adds an event): the chore goes back to the last done it had
+ * before. `doneAt` is when the Did it being undone happened (it must be `by`'s); `didIt` is what
+ * the chore's newest `chore.done` changed. Refused once the chore has been done again since (by
+ * anyone, or on a run). Like reopening a need, it doesn't put the chore back on a run it left.
+ */
+export const undoChore = (
+  chore: Chore,
+  doneAt: Instant,
+  didIt: ChoreDoneChange | undefined,
+  by: UserId,
+  actionId: ActionId,
+): Result<{ chore: Chore; events: DomainEvent[] }, 'nothing_to_undo' | 'done_again'> => {
+  const last = chore.lastDone
+  if (!last) return err('nothing_to_undo')
+  if (!sameDone(last, { at: doneAt, by })) return err('done_again')
+  if (!didIt || !sameDone(didIt.next, last)) return err('nothing_to_undo')
+  const { lastDone: _lastDone, ...rest } = chore
+  return ok({
+    chore: didIt.previous ? { ...rest, lastDone: didIt.previous } : rest,
+    events: [
+      {
+        kind: 'chore.undone',
+        itemId: chore.id,
+        changes: { lastDone: [last, didIt.previous] },
+        actionId,
+        by,
+      },
+    ],
   })
 }
 

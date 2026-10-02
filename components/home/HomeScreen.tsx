@@ -6,11 +6,11 @@ import { useItemSheets } from '@/components/items/ItemSheets'
 import { ItemCard } from '@/components/items/ItemCard'
 import { itemMeta } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
+import { useDidIt } from '@/components/items/useDidIt'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { useCelebrate, useToast } from '@/components/ui/Toast'
 import {
-  useDoChore,
   useFeelingsByItem,
   useHouse,
   useItems,
@@ -50,7 +50,7 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   const { openItem } = useItemSheets()
   const done = useMarkDone(houseId)
   const reopen = useReopenItem(houseId)
-  const did = useDoChore(houseId)
+  const { didIt } = useDidIt(houseId)
   const toast = useToast()
   const celebrate = useCelebrate()
   const now = useNow()
@@ -77,11 +77,7 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   })
 
   const check = async (item: Item) => {
-    if (item.category === 'chore') {
-      const r = await did.mutateAsync(item.id)
-      if (r.ok) celebrate()
-      return toast(r.ok ? 'Did it. Thanks! 💛' : "Couldn't record that. Try again.")
-    }
+    if (item.category === 'chore') return didIt(item.id)
     const r = await done.mutateAsync(item.id)
     if (r.ok) celebrate()
     toast(

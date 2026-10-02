@@ -163,6 +163,51 @@ export const itemsContract = (name: string, makeHarness: () => Promise<UnitOfWor
       expect(await h.uow.run(me, (r) => r.feelings.get(n.id, member))).toBeUndefined()
     })
 
+    it("reads an item's newest event of a kind, with its changes, in its own house only", async () => {
+      const mine = await setup()
+      const theirs = await setup()
+      const chore = (title: string) =>
+        ({ ...mine.need(title), category: 'chore', repeatDays: 7 }) as unknown as Item
+      const trash = chore('Trash')
+      const mop = chore('Mop')
+      await mine.put(trash)
+      await mine.put(mop)
+      const me = asMember(mine.house.id, mine.member)
+      const done = (itemId: Item['id'], previous: unknown, next: unknown) => ({
+        kind: 'chore.done' as const,
+        itemId,
+        changes: { lastDone: [previous, next] as const },
+        actionId: h.ids.newId<'action'>(),
+        by: mine.member,
+      })
+      const first = { at: T, by: mine.member }
+      const second = { at: instant(T.epochMs + 60_000), by: mine.member }
+      await h.uow.run(me, (r) =>
+        r.events.record(
+          mine.house.id,
+          [done(trash.id, null, first), done(trash.id, first, second), done(mop.id, null, first)],
+          T,
+        ),
+      )
+      const last = await h.uow.run(me, (r) =>
+        r.events.lastForItem(mine.house.id, trash.id, 'chore.done'),
+      )
+      expect(last).toMatchObject({
+        kind: 'chore.done',
+        itemId: trash.id,
+        changes: { lastDone: [first, second] },
+      })
+      expect(
+        await h.uow.run(me, (r) => r.events.lastForItem(mine.house.id, trash.id, 'chore.undone')),
+      ).toBeUndefined()
+      // Another house's member reads nothing of it.
+      expect(
+        await h.uow.run(asMember(theirs.house.id, theirs.member), (r) =>
+          r.events.lastForItem(mine.house.id, trash.id, 'chore.done'),
+        ),
+      ).toBeUndefined()
+    })
+
     it("members read and write their house's items only, in their own name", async () => {
       const mine = await setup()
       const theirs = await setup()

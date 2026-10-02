@@ -161,7 +161,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 |---|---|---|---|
 | `UnitOfWork` | `run<T>(actor, fn: (repos: Repos) => Promise<T>): Promise<T>`, one transaction per call. It rolls back when `fn` throws **or resolves to a failed `Result`** (A21). A broken CHECK/unique rule throws `ConstraintViolation`, a broken RLS rule `AccessDenied`. | Postgres (`PostgresUnitOfWork`): `begin` → a member or user gets `set local role authenticated` + `set_config('request.jwt.claims', …)` so **RLS still applies**; the system actor gets `set local role service_role` → `commit` | `MemoryUnitOfWork` (`lib/adapters/memory/db.ts`, which mirrors each RLS rule) |
 | `Repos` (inside a UoW) | `houses`, `profiles`, `members`, `rooms`, `contacts`, `invites`, `items`, `feelings`, `runs`, `polls`, `costs`, `notifications`, `pushSubscriptions`, `events`. Most have `get` / `listByHouse` / `save`. Exceptions: `costs` is `listByHouse` / `add` only (costs are insert-only in v1); `polls` saves piece by piece (`create` / `addOption` / `setVote` / `saveState`, one RLS rule each); `feelings` also has `remove`; `notifications` is `offFor` / `setEnabled` / `enqueue` / `pending` / `markSent`; `pushSubscriptions` is `save` / `forUsers` / `markOk` / `markGone`. Saves are update-then-insert, not upsert (RLS on upserts). | Kysely queries | in-memory tables |
-| `EventSink` (`repos.events`) | `record(houseId, events: DomainEvent[], at: Instant)`: stamps rows with the injected clock's `at` (A21) and writes `activity_events`; `withNotifications(uow)` (A23) makes the same call also write `notifications_outbox` in the **same transaction** (transactional outbox). `forRun(houseId, runId)` reads a run's story (rows on it or moved into it) inside the transaction. | Postgres | in-memory |
+| `EventSink` (`repos.events`) | `record(houseId, events: DomainEvent[], at: Instant)`: stamps rows with the injected clock's `at` (A21) and writes `activity_events`; `withNotifications(uow)` (A23) makes the same call also write `notifications_outbox` in the **same transaction** (transactional outbox). `forRun(houseId, runId)` reads a run's story (rows on it or moved into it) inside the transaction; `lastForItem(houseId, itemId, kind)` reads an item's newest row of a kind (the `chore.done` an Undo takes back, T54). | Postgres | in-memory |
 | `Clock` | `now(): Instant` | `systemClock` | `fixedClock(t)` |
 | `IdGenerator` | `newId<K>(): Id<K>` | `cryptoIds` (`crypto.randomUUID`) | `seqIds()` |
 | `Tokens` | `newToken()` (128 bits, URL-safe), `hash(token)` (SHA-256): invite tokens are stored only as hashes | `cryptoTokens` | `seqTokens()` |
@@ -476,7 +476,8 @@ type HouseSettings = { timezone: string; feelingWeights: FeelingWeights; inviteT
 // ---- events (returned by domain functions, recorded by EventSink) ----
 type DomainEvent = { actionId: ActionId; by: UserId | null } & (      // by: null = Roomies (jobs)
   // items
-  | { kind: 'item.created' | 'item.done' | 'item.reopened' | 'item.archived' | 'item.restored' | 'chore.done' | 'chore.undone'; itemId: ItemId; runId?: RunId }
+  | { kind: 'item.created' | 'item.done' | 'item.reopened' | 'item.archived' | 'item.restored'; itemId: ItemId; runId?: RunId }
+  | { kind: 'chore.done' | 'chore.undone'; itemId: ItemId; runId?: RunId; changes: FieldChanges } // { lastDone: [before, after] }
   | { kind: 'item.edited'; itemId: ItemId; changes: FieldChanges }
   | { kind: 'item.assigned'; itemId: ItemId; memberId: UserId | null; changes: FieldChanges }
   | { kind: 'item.handled_by_changed'; itemId: ItemId; contactId: ContactId | null; changes: FieldChanges }
@@ -594,7 +595,7 @@ select changes, actor_id, at from activity_events
 | Items | `item.created` · `item.edited` · `item.done` · `item.reopened` · `item.archived` · `item.restored` | item (+ run if done on one), `changes` | ✓ | — |
 | | `item.assigned` | item, member, `changes` | ✓ | new assignee |
 | | `item.handled_by_changed` | item, contact, `changes` | ✓ | — |
-| | `chore.done` · `chore.undone` | item | ◐ · — | — |
+| | `chore.done` · `chore.undone` | item (+ run if done on one), `changes {lastDone: [before, after]}` | ◐ · — | — |
 | Feelings | `feeling.set` · `feeling.removed` | item, `changes {previous, next}` | ✓ · — | assignee on 😰/😤 |
 | Polls | `poll.created` · `poll.closed` · `poll.reopened` · `poll.deadline_changed` | poll (+ item, winning option) | ✓ | everyone on created/closed |
 | | `poll.option_added` | poll, option, note | ✓ | people who already voted |
@@ -629,7 +630,7 @@ select changes, actor_id, at from activity_events
 | `createItem` | `(input: NewItem, ctx: { by, now, id, houseId, actionId, openNeeds }) → Result<{ item; events }, ItemError \| 'duplicate_need'>` | `ItemError` = `empty_title` · `title_too_long` · `invalid_for_category` · `bad_repeat`. A duplicate open need returns the existing one's id in `detail.existingId`. |
 | `editItem` | `(i: Item, patch: ItemPatch, ctx: { by, actionId, openNeeds }) → Result<{ item; events }, ItemError \| 'duplicate_need' \| 'no_change' \| 'on_a_run'>` | Category can't change. "Handled by" (tasks only) is a patch field (`contactId`), recorded as `item.handled_by_changed`; a task on a request or visit keeps that run's contact (`on_a_run`, with the run's id in `detail`): moving it is how "Handled by" changes there; assignee changes as `item.assigned`; the rest as one `item.edited` with the diff. |
 | `markDone` / `reopenItem` | `(i: Need \| Task, by, now, actionId) → Result<…, 'already_done' \| 'archived'>` / `(i, by, actionId, openNeeds) → Result<…, 'not_done' \| 'duplicate_need'>` | Got it / Done, and its undo |
-| `doChore` | `(c: Chore, by, now, actionId) → Result<{ chore; events }, 'archived'>` | Updates last done |
+| `doChore` / `undoChore` | `(c: Chore, by, now, actionId) → Result<{ chore; events }, 'archived'>` / `(c: Chore, doneAt, didIt: ChoreDoneChange \| undefined, by, actionId) → Result<…, 'nothing_to_undo' \| 'done_again'>` | Did it updates last done; `chore.done` carries `changes.lastDone: [previous \| null, next]`. Its undo (T54) restores `previous` (read back with `choreDoneChange`) only while the chore's last done is still `by`'s Did it at `doneAt`; once anyone has done it again it's `done_again`. Like `reopenItem`, it doesn't put the chore back on a run it left. |
 | `archiveItem` / `restoreItem` | `(i, by, now, actionId) → Result<…, 'already_archived'>` / `(i, by, actionId, openNeeds) → Result<…, 'not_archived' \| 'duplicate_need'>` | |
 | **Lists and the feed** (`lists.ts`, `priority.ts`) | | |
 | `needList` / `choreList` / `taskList` | `(items, feelingScore?)` / `(items, now, tz)` / `(items, filter: 'mine' \| 'all' \| 'outside', me)` | The Needs, Chores and Tasks screens' order and filters; `isChoreDue`, `choreLateness`, `daysSinceDone` back them |
@@ -686,7 +687,7 @@ select changes, actor_id, at from activity_events
 
 | File | Use cases (input) | Output | Errors (besides `not_found`) | Deps beyond uow, clock, ids |
 |---|---|---|---|---|
-| `items.ts` | `createItem` (`NewItem`) · `editItem` (`{ id, patch }`, which also sets "Handled by") · `markDone` · `reopenItem` · `doChore` · `archiveItem` · `restoreItem` (an item id) | `Item` | `ItemError`, `unknown_member` / `unknown_room` / `unknown_contact`, `duplicate_need`, `no_change`, `on_a_run` (edit), `already_done`, `not_done`, `archived`, `not_for_chores`, `not_a_chore`, `already_archived`, `not_archived` | |
+| `items.ts` | `createItem` (`NewItem`) · `editItem` (`{ id, patch }`, which also sets "Handled by") · `markDone` · `reopenItem` · `doChore` · `archiveItem` · `restoreItem` (an item id) · `undoChore` (`{ id, doneAt }`: the last done Did it returned) | `Item` | `ItemError`, `unknown_member` / `unknown_room` / `unknown_contact`, `duplicate_need`, `no_change`, `on_a_run` (edit), `already_done`, `not_done`, `archived`, `not_for_chores`, `not_a_chore`, `already_archived`, `not_archived`, `nothing_to_undo` / `done_again` (undo) | |
 | | `setFeeling` (`{ itemId, kind \| null, note? }`) | `Feeling \| null` | `no_change`, `note_too_long` | |
 | `runs.ts` | `startRun` (`NewRun & { itemIds }`) · `addToRun` (`{ runId, itemIds }`) · `startRequest` (`{ contactId, itemIds }`) · `planVisit` (`{ contactId, itemIds, when? }`) · `addToRequest` (`{ taskId }`) | `Run` | the domain errors above, `unknown_member` | |
 | | `markRunItemsDone` · `returnToPool` (`{ runId, itemIds, note?, clearContact }`) · `moveRunItems` (`{ fromRunId, toRunId, itemIds, note? }`) · `handToContact` (`{ runId, itemIds, contactId, note? }`) · `moveToNewVisit` (`{ fromRunId, itemIds, when?, contactId?, note? }`) | `Run` / `Run[]` (from, to) | the domain errors above, `no_contact` | |

@@ -345,7 +345,14 @@ describe('reading history back', () => {
       { kind: 'run.item_added', runId: g.id, itemId: 'Milk' as ItemId, actionId: act, by: kavya },
       { kind: 'item.done', itemId: 'Milk' as ItemId, runId: g.id, actionId: act, by: kavya },
       { kind: 'run.item_added', runId: g.id, itemId: 'Mop' as ItemId, actionId: act, by: kavya },
-      { kind: 'chore.done', itemId: 'Mop' as ItemId, runId: g.id, actionId: act, by: kavya },
+      {
+        kind: 'chore.done',
+        itemId: 'Mop' as ItemId,
+        runId: g.id,
+        changes: { lastDone: [null, { at: instant(0), by: kavya }] },
+        actionId: act,
+        by: kavya,
+      },
     ])
     expect(runProgress(runLedger(g.id, runSteps(history), []))).toEqual({ done: 2, total: 2 })
   })

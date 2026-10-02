@@ -5,10 +5,10 @@ import { useItemSheets } from '@/components/items/ItemSheets'
 import { choreMeta } from '@/components/items/meta'
 import { ItemCard } from '@/components/items/ItemCard'
 import { useCardContext } from '@/components/items/useCardContext'
+import { useDidIt } from '@/components/items/useDidIt'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { useCelebrate, useToast } from '@/components/ui/Toast'
-import { useDoChore, useHouse, useItems, useFeelingsByItem } from '@/lib/client/hooks'
+import { useHouse, useItems, useFeelingsByItem } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
 import { choreList } from '@/lib/domain/lists'
@@ -20,9 +20,7 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   const ctx = useCardContext(houseId)
   const feelingsBy = useFeelingsByItem(houseId)
   const { openItem, openAdd } = useItemSheets()
-  const did = useDoChore(houseId)
-  const toast = useToast()
-  const celebrate = useCelebrate()
+  const { didIt } = useDidIt(houseId)
   const now = useNow()
 
   if (items.isError) {
@@ -62,11 +60,7 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
             meta={choreMeta(c, now, tz, (u) => ctx.person(u)?.name)}
             onOpen={() => openItem(c.id)}
             checkLabel={`Did it: ${c.title}`}
-            onCheck={async () => {
-              const r = await did.mutateAsync(c.id)
-              if (r.ok) celebrate()
-              toast(r.ok ? 'Did it. Thanks! 💛' : "Couldn't record that. Try again.")
-            }}
+            onCheck={() => didIt(c.id)}
           />
         </li>
       ))}

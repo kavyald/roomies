@@ -25,15 +25,16 @@ export type DomainEvent = EventBase &
   (
     | {
         readonly kind:
-          | 'item.created'
-          | 'item.done'
-          | 'item.reopened'
-          | 'item.archived'
-          | 'item.restored'
-          | 'chore.done'
-          | 'chore.undone'
+          'item.created' | 'item.done' | 'item.reopened' | 'item.archived' | 'item.restored'
         readonly itemId: ItemId
         readonly runId?: RunId
+      }
+    | {
+        /** `changes.lastDone`: [before, after], so Undo can put back the one before. */
+        readonly kind: 'chore.done' | 'chore.undone'
+        readonly itemId: ItemId
+        readonly runId?: RunId
+        readonly changes: FieldChanges
       }
     | { readonly kind: 'item.edited'; readonly itemId: ItemId; readonly changes: FieldChanges }
     | {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { asMember } from '../adapters/contracts/unit-of-work.contract'
-import { depsForTest } from '../compose'
+import { depsForTest, TEST_NOW } from '../compose'
 import type { UserId } from '../domain/ids'
+import { plusMs } from '../domain/time'
 import { sampleHouse } from '../testing/sample-house'
 import {
   makeArchiveItem,
@@ -12,6 +13,7 @@ import {
   makeReopenItem,
   makeRestoreItem,
   makeSetFeeling,
+  makeUndoChore,
 } from './items'
 import { makeAddToRequest } from './runs'
 
@@ -76,6 +78,92 @@ describe('items, end to end on the memory adapters', () => {
     const r = await did(as('Wren'), trash.value.id)
     expect(r.ok && r.value).toMatchObject({ lastDone: { by: s.people.Wren } })
     expect(await done(as('Wren'), trash.value.id)).toEqual({ ok: false, error: 'not_for_chores' })
+  })
+
+  it('undoes Did it back to the last done before, unless it was done again since', async () => {
+    let now = TEST_NOW
+    const deps = depsForTest({ clock: { now: () => now } })
+    const s = await sampleHouse(deps.uow, deps.ids, async () => deps.ids.newId<'user'>() as UserId)
+    const as = (who: keyof typeof s.people) => asMember(s.house.id, s.people[who])
+    const [create, did, undo] = [makeCreateItem(deps), makeDoChore(deps), makeUndoChore(deps)]
+    const later = (h: number) => (now = plusMs(TEST_NOW, h * 3_600_000))
+
+    const trash = await create(as('Jo'), { category: 'chore', title: 'Trash', repeatDays: 7 })
+    if (!trash.ok) throw new Error(trash.error)
+    const id = trash.value.id
+
+    // Never done → Did it → Undo: never done again.
+    const first = await did(as('Wren'), id)
+    expect(await undo(as('Wren'), { id, doneAt: TEST_NOW })).toMatchObject({ ok: true })
+    expect(deps.uow.state.items.get(id)).not.toHaveProperty('lastDone')
+    expect(first.ok).toBe(true)
+
+    // Jo did it; later Wren did it and undoes: back to Jo's.
+    await did(as('Jo'), id)
+    later(1)
+    const wrens = await did(as('Wren'), id)
+    const undone = await undo(as('Wren'), { id, doneAt: now })
+    expect(wrens.ok && undone.ok && undone.value).toMatchObject({
+      lastDone: { at: TEST_NOW, by: s.people.Jo },
+    })
+    // A second Undo: the last done is Jo's now, not Wren's.
+    expect(await undo(as('Wren'), { id, doneAt: now })).toEqual({
+      ok: false,
+      error: 'done_again',
+    })
+
+    // Wren did it, then Sam did it again before Wren's Undo: Sam's stays.
+    later(2)
+    const wrenAt = now
+    await did(as('Wren'), id)
+    later(3)
+    await did(as('Sam'), id)
+    expect(await undo(as('Wren'), { id, doneAt: wrenAt })).toEqual({
+      ok: false,
+      error: 'done_again',
+    })
+    expect(deps.uow.state.items.get(id)).toMatchObject({ lastDone: { by: s.people.Sam } })
+
+    // Activity keeps every row (append-only); the undo only adds.
+    expect(
+      deps.uow.state.activity.filter((r) => r.itemId === id).map((r) => [r.kind, r.changes]),
+    ).toEqual([
+      ['item.created', undefined],
+      ['chore.done', { lastDone: [null, { at: TEST_NOW, by: s.people.Wren }] }],
+      ['chore.undone', { lastDone: [{ at: TEST_NOW, by: s.people.Wren }, null] }],
+      ['chore.done', { lastDone: [null, { at: TEST_NOW, by: s.people.Jo }] }],
+      ['chore.done', expect.anything()],
+      ['chore.undone', expect.anything()],
+      ['chore.done', expect.anything()],
+      ['chore.done', expect.anything()],
+    ])
+  })
+
+  it('Undo is for chores only, in this house', async () => {
+    const { deps, as, create } = await setup()
+    const milk = await create(as('Sam'), { category: 'need', title: 'Milk' })
+    if (!milk.ok) throw new Error(milk.error)
+    const undo = makeUndoChore(deps)
+    expect(await undo(as('Sam'), { id: milk.value.id, doneAt: TEST_NOW })).toEqual({
+      ok: false,
+      error: 'not_a_chore',
+    })
+    const other = await sampleHouse(
+      deps.uow,
+      deps.ids,
+      async () => deps.ids.newId<'user'>() as UserId,
+    )
+    const theirs = await create(asMember(other.house.id, other.people.Sam), {
+      category: 'chore',
+      title: 'Mop',
+      repeatDays: null,
+    })
+    if (!theirs.ok) throw new Error(theirs.error)
+    await makeDoChore(deps)(asMember(other.house.id, other.people.Sam), theirs.value.id)
+    expect(await undo(as('Sam'), { id: theirs.value.id, doneAt: TEST_NOW })).toEqual({
+      ok: false,
+      error: 'not_found',
+    })
   })
 
   it('edits a task, handing it to the super, and archives and restores it', async () => {

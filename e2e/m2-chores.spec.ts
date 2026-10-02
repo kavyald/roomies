@@ -29,8 +29,14 @@ test('an every-7-days chore last done 9 days ago sorts to the top, and Did it re
   await expect(cards.nth(2)).toContainText('As needed')
 
   await page.getByRole('button', { name: 'Did it: Take out the trash' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Did it. Thanks!' })).toBeVisible()
+  const toast = page.getByRole('status').filter({ hasText: 'Did it. Thanks!' })
+  await expect(toast).toBeVisible()
   const trash = cards.filter({ hasText: 'Take out the trash' })
   await expect(trash).toContainText('Last done today · Kavya')
   await expect(cards.nth(0)).toContainText('Clean the fridge')
+
+  // Undo puts it back to the last done before, and back on top (T54).
+  await toast.getByRole('button', { name: 'Undo' }).click()
+  await expect(cards.nth(0)).toContainText('Take out the trash')
+  await expect(cards.nth(0)).toContainText('Last done 9 days ago · Kavya')
 })
