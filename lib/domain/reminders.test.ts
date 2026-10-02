@@ -117,6 +117,7 @@ describe('reminders for polls and runs', () => {
       [wren, 'Closing tomorrow: Which vacuum?', "Your vote isn't in yet."],
       [sam, 'Closing tomorrow: Which vacuum?', "Your vote isn't in yet."],
     ])
+    expect(remindersFor(input({ polls: [poll('2026-09-30')] }))[0]!.url).toBe('/h/h/p/p-2026-09-30')
     const closed = { ...poll('2026-09-30'), state: { open: false as const, closedAt: NOW } }
     expect(remindersFor(input({ polls: [closed] }))).toEqual([])
   })
@@ -161,6 +162,10 @@ describe('reminders for polls and runs', () => {
     expect(r).toEqual([
       [kavya, 'Tomorrow: Groceries', 'Add anything before it goes?'],
       [kavya, 'Tomorrow: Super visit', 'Super visit is tomorrow at 10:00.'],
+    ])
+    expect(remindersFor(input({ runs, people: [person(kavya)] })).map((d) => d.url)).toEqual([
+      '/h/h/r/g',
+      '/h/h/r/v',
     ])
   })
 })

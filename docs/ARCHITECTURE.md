@@ -767,7 +767,7 @@ Immediate notifications (assigned, 😰/😤, new poll, run started) come from t
 - Flow: the user taps "Turn on notifications" (House tab or `/me`) → `Notification.requestPermission()` → `pushManager.subscribe({ applicationServerKey })` (`lib/client/push.ts`) → the `savePushSubscriptionAction` server action → the `savePushSubscription` use case → stored in `push_subscriptions` (same endpoint: refreshed, not duplicated).
 - The send-notifications job sends with `web-push` (`PushSender`). A 404/410 response sets `gone_at` on the subscription (`markGone`); nothing is deleted, and gone subscriptions aren't sent to again.
 - The service worker registers only in production builds (`pnpm build && pnpm start`), never on `pnpm dev`.
-- The service worker handles `push` (show) and `notificationclick` (open the deep link).
+- The service worker handles `push` (show) and `notificationclick` (open the deep link). Each message's `url` is the thing it's about: an item (`/h/[houseId]/i/[itemId]`), a poll (`/p/[pollId]`) or a run (`/r/[runId]`), each opening its sheet over Home; people messages (joined, moved out, role) open House. The push `tag` is `category:url`, so a newer message about the same poll or run replaces the older one on the device.
 - The email digest fallback is **later** (PRD §13).
 
 ### 7.5 Realtime
@@ -802,6 +802,7 @@ app/
     page.tsx                 -- Home
     needs/  chores/  tasks/  house/  calendar/  activity/
     i/[itemId]/              -- a link to an item (notifications): opens its sheet over Home
+    p/[pollId]/  r/[runId]/  -- links to a poll or a run (notifications): open its sheet over Home, or say it isn't there
     me/                      -- your settings: theme, quiet hours, notification categories, this device's push
   dev/kit/                   -- the UI kit in light + dark (not in production builds)
   offline/                   -- the service worker's fallback page
@@ -812,7 +813,7 @@ proxy.ts                     -- Next 16's proxy (was middleware): refreshes the 
 components/
   ui/                        -- Avatar (initials + element), Button, Card, Chip, Disclosure, EmptyState, ListRow,
                                 OverflowMenu, SegmentedControl, Sheet (vaul), TabBar, Toast
-  shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, InstallGuide, ServiceWorker, ThemeSync
+  shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, InstallGuide, ServiceWorker, ThemeSync, DeepLinks (OpenPoll, OpenRun)
   auth/  setup/  join/       -- sign-in, setup and join flows
   home/  needs/  chores/  tasks/  calendar/  activity/  house/  me/   -- one folder per screen
   items/                     -- ItemCard, ItemForm, ItemSheets, Feelings, HandledByPicker, RoomSelect, WhyHere

@@ -214,6 +214,19 @@ describe('notificationsFor', () => {
     ])
   })
 
+  it.each([
+    ['item.assigned', '/h/h/i/leak', { kind: 'item.assigned', itemId: leak, memberId: wren }],
+    ['poll.created', '/h/h/p/p', { kind: 'poll.created', pollId: 'p' }],
+    ['poll.closed', '/h/h/p/p', { kind: 'poll.closed', pollId: 'p', payload: {} }],
+    ['run.created', '/h/h/r/g', { kind: 'run.created', runId: 'g' }],
+    ['run.date_set', '/h/h/r/v', { kind: 'run.date_set', runId: 'v', changes: {} }],
+    ['member.joined', '/h/h/house', { kind: 'member.joined', memberId: sam }],
+  ])('a %s message opens %s', (_, url, event) => {
+    const msgs = notificationsFor([{ ...event, actionId: act, by: kavya } as DomainEvent], ctx())
+    expect(msgs.length).toBeGreaterThan(0)
+    expect(new Set(msgs.map((m) => m.url))).toEqual(new Set([url]))
+  })
+
   it('skips categories someone turned off, and holds messages through their quiet hours', () => {
     const late = at('2026-09-29', '23:15')
     const c = ctx({

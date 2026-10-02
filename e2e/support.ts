@@ -113,6 +113,41 @@ export const anItem = async (
   return id
 }
 
+/** Puts an open poll with its options straight into the database (for deep links). */
+export const aPoll = async (
+  owner: { houseId: string; userId: string },
+  question: string,
+  options: readonly string[] = ['Yes', 'No'],
+) => {
+  const id = randomUUID()
+  await asOwner(async (db) => {
+    await db.query(
+      'insert into polls (id, house_id, question, created_by) values ($1, $2, $3, $4)',
+      [id, owner.houseId, question, owner.userId],
+    )
+    for (const [i, label] of options.entries()) {
+      await db.query(
+        'insert into poll_options (id, poll_id, house_id, label, added_by, sort_order) values ($1, $2, $3, $4, $5, $6)',
+        [randomUUID(), id, owner.houseId, label, owner.userId, i],
+      )
+    }
+  })
+  return id
+}
+
+/** Puts an open batch run straight into the database (for deep links). */
+export const aRun = async (owner: { houseId: string; userId: string }, title: string) => {
+  const id = randomUUID()
+  await asOwner((db) =>
+    db.query(
+      `insert into runs (id, house_id, kind, title, runner_id, status, created_by)
+       values ($1, $2, 'batch', $3, $4, 'open', $4)`,
+      [id, owner.houseId, title, owner.userId],
+    ),
+  )
+  return id
+}
+
 /** A real account that's already a (non-admin) member of the owner's house. */
 export const aRoommate = async (owner: { houseId: string }, name = 'Sam') => {
   const email = freshEmail(name.toLowerCase())

@@ -347,6 +347,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
             <tr><td class="mono">/h/[id]/house</td><td>Feeling weights, rooms, contacts, roommates, invites, spent this month</td></tr>
             <tr><td class="mono">/h/[id]/activity · calendar · me</td><td>History log, month calendar, personal settings</td></tr>
             <tr><td class="mono">/h/[id]/i/[itemId]</td><td>Deep link that opens an item's sheet over Home</td></tr>
+            <tr><td class="mono">/h/[id]/p/[pollId] · r/[runId]</td><td>Deep links (poll and run notifications) that open a poll's or run's sheet over Home, or say it isn't there</td></tr>
             <tr><td class="mono">/offline · /dev/kit</td><td>Offline fallback; UI kit in light + dark (dev only)</td></tr>
           </tbody>
         </table>
@@ -565,7 +566,7 @@ const LAYERS = [
     ['ui/','Button, Card, Chip, Avatar, Sheet (vaul), OverflowMenu, Disclosure, TabBar, ListRow, SegmentedControl, Toast, EmptyState. Contrast and copy are unit-tested.'],
     ['items/ · runs/ · polls/ · costs/','ItemSheets (600 lines) and RunSheet (560) are the two heaviest screens.'],
     ['home/ · needs/ · chores/ · tasks/ · house/ · me/ · calendar/ · activity/','One folder per tab or screen.'],
-    ['shell/','AppShell, HouseProviders, InstallGuide, ServiceWorker (production only), ThemeSync.'] ]}
+    ['shell/','AppShell, HouseProviders, InstallGuide, ServiceWorker (production only), ThemeSync, DeepLinks (OpenPoll, OpenRun).'] ]}
  ]}
 ];
 
@@ -813,7 +814,6 @@ const GAPS = [
  ['Carded','“Delete” instead of the 30-day restore','The archive confirm promises 30 days, but nothing enforces it. The owner chose “Delete” with Undo and no window (D30).','Weyve card T62 (M6)'],
  ['Carded','Polls: withdraw a vote, reopen, deadline','poll.vote_withdrawn and the other poll actions are in the catalog but nothing writes them (T27 note).','Weyve card T55 (M6)'],
  ['Carded','Conflict detection on edits','§7.5 describes optimistic concurrency (where updated_at = :loaded → conflict). Saves are last-write-wins for now (T18).','Weyve card T50 (M6)'],
- ['Carded','Poll and run notifications don\'t deep-link','Item notifications open the item; poll, run and people notifications open Home or House, because there are no /p/[pollId] or /r/[runId] routes.','Weyve card T58 (M6)'],
  ['Misplaced','Nil-UUID system actor, four copies','The same “Roomies itself” actor is built separately in setup.ts, push.ts, jobs.ts and invites.ts.','lib/app/{setup,push,jobs,invites}.ts'],
  ['Misplaced','Behavior in the composition root','sendNotificationsNow (running a use case, logging) lives in compose.ts, which should only wire adapters.','lib/compose.ts'],
  ['Misplaced','Stale comment in change-for-kind','Says polls, runs and costs “refresh everything”; they now map to their own tables.','lib/adapters/change-for-kind.ts:20']
@@ -837,7 +837,6 @@ const ADV = [
  ['top','Backend','Send pushes outside the database transaction','makeSendNotifications calls the push services inside uow.run, holding a pooled connection for up to 100 messages × browsers of network calls. On Vercel with Supabase\'s transaction pooler, that invites timeouts; a crash after sending but before commit re-sends everything.','Claim in one short transaction, send with no transaction open, then mark sent in a second short one.','lib/app/push.ts'],
  ['top','Backend','Revisit sign-in enumeration before launch','The app\'s own form always answers the same, but GoTrue\'s /auth/v1/otp answers unknown emails with a 422 and known ones with 200, and the anon key is public. Anyone can check whether an email has an account.','In E1, confirm the hosted behavior; if it still differs, put the auth endpoint behind the server route only or accept and document the risk.','Weyve card T03 (notes)'],
  ['high','Backend','Bound what the browser loads','items(houseId) and costs(houseId) return every row ever, including done and archived ones, and every activity event refetches items. Fine today; after a year of groceries it\'s thousands of rows on every tap.','Load open items plus a recent-done window (e.g. 30 days), and fetch costs by month.','lib/adapters/supabase/house-queries.ts:85,95'],
- ['high','Frontend','Deep links for polls and runs','Push taps for polls and runs land on Home, where you then hunt for the thing.','Add /h/[id]/p/[pollId] and /r/[runId] that open the existing sheets, the same way /i/[itemId] does, and point notifications at them.','Weyve card T58 (M6)'],
  ['high','Backend','Add conflict detection to edits','Two roommates editing the same task (title, date, assignee) silently overwrite each other.','Carry updatedAt in the domain item and save with WHERE updated_at = :loaded; map zero rows to a conflict error and a “Someone just changed this” toast.','Weyve card T50 (M6)'],
  ['normal','Backend','Guard the RLS mirror against drift','memory/db.ts re-implements each policy by hand. Contract tests catch behavior drift, but a new policy with no mirror goes unnoticed until someone writes a test for it.','Add a db test that lists pg_policies and compares it with a named list exported from memory/db.ts.','lib/adapters/memory/db.ts, supabase/tests/rls.test.ts'],
  ['normal','Backend','Split the Postgres unit of work','One 720-line file holds every repo, so each new table grows it.','One file per repo (items.ts, runs.ts, polls.ts…) with unit-of-work.ts assembling them.','lib/adapters/postgres/unit-of-work.ts'],

@@ -104,6 +104,8 @@ const draftsFor = (e: DomainEvent, ctx: NotificationContext): Draft[] => {
   const actor = nameOf(e.by)
   const home = `/h/${ctx.houseId}`
   const itemUrl = (id: ItemId) => `${home}/i/${id}`
+  const pollUrl = (id: PollId) => `${home}/p/${id}`
+  const runUrl = (id: RunId) => `${home}/r/${id}`
   const everyoneBut = (skip: UserId | null) =>
     ctx.people.filter((p) => p.userId !== skip).map((p) => p.userId)
   const to = (users: readonly UserId[], d: Omit<Draft, 'userId'>): Draft[] =>
@@ -139,7 +141,7 @@ const draftsFor = (e: DomainEvent, ctx: NotificationContext): Draft[] => {
         category: 'polls',
         title: `New poll: ${q}`,
         body: `${actor} wants to know. Tap to vote.`,
-        url: home,
+        url: pollUrl(e.pollId as PollId),
       })
     }
     case 'poll.closed': {
@@ -148,7 +150,7 @@ const draftsFor = (e: DomainEvent, ctx: NotificationContext): Draft[] => {
         category: 'polls',
         title: `Poll closed: ${p?.question ?? 'a poll'}`,
         body: p?.result ?? 'See how it came out.',
-        url: home,
+        url: pollUrl(e.pollId as PollId),
       })
     }
     case 'run.created': {
@@ -158,7 +160,7 @@ const draftsFor = (e: DomainEvent, ctx: NotificationContext): Draft[] => {
         category: 'runs',
         title: `${actor} is starting ${r.label}`,
         body: 'Add anything?',
-        url: home,
+        url: runUrl(e.runId as RunId),
       })
     }
     case 'run.date_set': {
@@ -168,7 +170,7 @@ const draftsFor = (e: DomainEvent, ctx: NotificationContext): Draft[] => {
         category: 'runs',
         title: `${r.label} is set for ${r.date}`,
         body: `${actor} picked the date.`,
-        url: home,
+        url: runUrl(e.runId as RunId),
       })
     }
     case 'member.joined':

@@ -1,7 +1,7 @@
 // Axe on every screen, light and dark (TESTING.md Q4): no critical or serious issues.
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { anItem, anOwner, dismissInstallGuide, signIn } from './support'
+import { aPoll, aRun, anItem, anOwner, dismissInstallGuide, signIn } from './support'
 
 const check = async (page: Page, screen: string) => {
   const { violations } = await new AxeBuilder({ page }).analyze()
@@ -27,6 +27,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
     const task = await anItem(owner, { category: 'task', title: 'Fix the latch' })
     await anItem(owner, { category: 'need', title: 'Olive oil' })
     await anItem(owner, { category: 'chore', title: 'Trash', repeatDays: 7, lastDoneDaysAgo: 9 })
+    const seededPoll = await aPoll(owner, 'Movie night?')
+    const seededRun = await aRun(owner, 'Groceries')
     await signIn(page, owner.email)
     await expect(page).toHaveURL(new RegExp(`/h/${owner.houseId}$`))
     await dismissInstallGuide(page)
@@ -54,6 +56,24 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expect(page).toHaveURL(new RegExp(`${h}$`))
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog', { name: 'Fix the latch' })).toBeHidden()
+
+    // Poll and run links (notifications) open their sheets the same way (T58).
+    for (const [path, name, what] of [
+      [`/p/${seededPoll}`, 'Movie night?', 'poll'],
+      [`/r/${seededRun}`, 'Groceries', 'run'],
+    ] as const) {
+      await page.goto(h + path)
+      await expect(page.getByRole('dialog', { name })).toBeVisible()
+      await check(page, what)
+      await expect(page).toHaveURL(new RegExp(`${h}$`))
+      await page.keyboard.press('Escape')
+      await expect(page.getByRole('dialog', { name })).toBeHidden()
+      await page.goto(`${h}${path.slice(0, 3)}not-a-real-id`)
+      await expect(page.getByText(`We couldn't find that ${what}.`, { exact: false })).toBeVisible()
+      await check(page, `${what} (unknown id)`)
+    }
+
+    await page.goto(h)
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(page.getByRole('dialog', { name: 'Add something' })).toBeVisible()
     await check(page, 'add sheet')

@@ -70,7 +70,7 @@ export const remindersFor = (input: ReminderInput): Draft[] => {
         category: 'polls',
         title: `Closing tomorrow: ${poll.question}`,
         body: "Your vote isn't in yet.",
-        url: home,
+        url: `${home}/p/${poll.id}`,
         dedupeKey: `poll-closing:${poll.id}:${p.userId}`,
       })
     }
@@ -89,7 +89,7 @@ export const remindersFor = (input: ReminderInput): Draft[] => {
           run.kind === 'batch'
             ? 'Add anything before it goes?'
             : `${label} is tomorrow${run.when.time ? ` at ${run.when.time}` : ''}.`,
-        url: home,
+        url: `${home}/r/${run.id}`,
         dedupeKey: `run-tomorrow:${run.id}:${run.when.date}:${p.userId}`,
       })
     }

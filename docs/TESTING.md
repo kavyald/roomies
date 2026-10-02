@@ -32,7 +32,7 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 | **Component** | Screens and components with a fake `AppClient` (pre-membership screens like join call server actions directly; their tests `vi.mock` those modules) | Vitest + Testing Library (jsdom) | `app/**/*.test.tsx`, `components/**/*.test.tsx` | No |
 | **Contract** | One shared suite per port, run against both the memory and the Postgres adapter | Vitest | `lib/adapters/contracts/*.contract.ts` | Yes, for the Postgres run |
 | **Database** | RLS on each table, isolation between houses, CHECK constraints, append-only `activity_events`, and that every table has RLS | Vitest + `pg`, via `asUser()` | `supabase/tests/*.test.ts` | Yes |
-| **End to end** | Real journeys on the iPhone profile, plus axe accessibility checks | Playwright; sign-in codes read from Mailpit | `e2e/m0-*.spec.ts` … `e2e/m4-*.spec.ts` | Yes |
+| **End to end** | Real journeys on the iPhone profile, plus axe accessibility checks | Playwright; sign-in codes read from Mailpit | `e2e/m0-*.spec.ts` … `e2e/m6-*.spec.ts` | Yes |
 | **Smoke** (M5) | A short journey against staging and prod | Playwright with `BASE_URL` | `e2e/smoke.spec.ts` | No (remote) |
 | **Manual** (M5) | Real-iPhone install, iOS push, VoiceOver | The checklist in §7 | this doc | — |
 
