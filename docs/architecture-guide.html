@@ -245,13 +245,13 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
       <div class="ms done" role="listitem"><b>M3</b><span>Polls, runs, calendar</span></div>
       <div class="ms done" role="listitem"><b>M4</b><span>Notifications</span></div>
       <div class="ms todo" role="listitem"><b>M5</b><span>Hosting &amp; launch</span></div>
-      <div class="ms todo" role="listitem"><b>M6</b><span>Usability &amp; personal needs</span></div>
+      <div class="ms done" role="listitem"><b>M6</b><span>Usability &amp; personal needs</span></div>
     </div>
-    <p class="small soft">M0–M4 are done and passed <code>pnpm test:all</code> at Q4; T40 (the Activity tab's first pass) and T41 (the join name field) have landed since. That's 44 of the 72 tasks on the Weyve board. M6 (T42–T62 + Q6) is in progress and is built locally before launch, so E5 waits on Q6. M5 (E1–E5 + Q5) needs your Supabase, Gmail and Vercel accounts, so the app so far has only run on your Mac against local Supabase in Docker.</p>
+    <p class="small soft">M0–M4 are done and passed <code>pnpm test:all</code> at Q4; T40 (the Activity tab's first pass) and T41 (the join name field) landed after. M6 (T42–T63 + Q6) is complete with Q6's tests, pending the milestone's <code>pnpm test:all</code> and push; it was built locally before launch, so E5 waits on Q6. That leaves only M5's six cards on the Weyve board. M5 (E1–E5 + Q5) needs your Supabase, Gmail and Vercel accounts, so the app so far has only run on your Mac against local Supabase in Docker.</p>
     <div class="stats">
       <div class="stat"><b>~20k</b><span>lines of app code (tests excluded)</span></div>
-      <div class="stat"><b>74</b><span>test files, plus 21 Playwright journeys</span></div>
-      <div class="stat"><b>16</b><span>SQL migrations, RLS on every table</span></div>
+      <div class="stat"><b>87</b><span>test files, plus 29 Playwright journeys</span></div>
+      <div class="stat"><b>21</b><span>SQL migrations, RLS on every table</span></div>
       <div class="stat"><b>47</b><span>use cases, each <code>makeX(deps)</code></span></div>
       <div class="stat"><b>$0</b><span>per month planned (free tiers)</span></div>
     </div>
@@ -421,7 +421,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
   <!-- GAPS -->
   <section id="gaps" aria-labelledby="h-gaps">
     <h2 id="h-gaps">Unfinished or misplaced</h2>
-    <p class="lede">Things I found that are planned but not built, built differently from the docs, or sitting in an odd place. “Carded” ones are on an M6 card. Two earlier gaps were settled by the owner instead: offline shows the offline page only (D33), and rooms can't be added or archived (D34). Filter by kind.</p>
+    <p class="lede">Things I found that are planned but not built, built differently from the docs, or sitting in an odd place. M6 closed the carded ones (T42–T63). Two earlier gaps were settled by the owner instead: offline shows the offline page only (D33), and rooms can't be added or archived (D34). Filter by kind.</p>
     <div class="filter seg" id="gapfilter" role="group" aria-label="Filter"></div>
     <div class="list" id="gaplist"></div>
   </section>
@@ -434,7 +434,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
     <div class="list" id="advlist"></div>
   </section>
 
-  <footer>Built from <code>docs/</code> (PRD, ARCHITECTURE, FRONTEND, TESTING) and a read of the source on <code>v1</code> at <code>21ecdb5</code> (Q4); file references point at that commit. Updated 1 Oct 2026 for T40 (A24), and 2 Oct 2026 for M6 and the owner's decisions D30–D35. The implementation plan and build log it first drew on were retired on 1 Oct; tasks and their decisions now live on the Weyve cards.</footer>
+  <footer>Built from <code>docs/</code> (PRD, ARCHITECTURE, FRONTEND, TESTING) and a read of the source on <code>v1</code> at <code>21ecdb5</code> (Q4); file references point at that commit. Updated 1 Oct 2026 for T40 (A24), 2 Oct 2026 for M6 and the owner's decisions D30–D35, and 3 Oct 2026 for Q6 (M6 complete). The implementation plan and build log it first drew on were retired on 1 Oct; tasks and their decisions now live on the Weyve cards.</footer>
 </div>
 
 <dialog class="sheet" id="sheet" aria-labelledby="sheet-title">
@@ -631,7 +631,7 @@ const NODE_INFO = {
  app:{eyebrow:'Layer 2', title:'Use cases', layer:'app', what:'makeX(deps) factories. Load via repos, call the domain, save, record events, all in one transaction.', files:'lib/app/*.ts, lib/app/ports.ts', why:'Dependency injection without a container: time, ids, push and auth are all passed in, so every use case runs against in-memory fakes in milliseconds.'},
  domain:{eyebrow:'Layer 3', title:'Domain', layer:'domain', what:'Pure types (discriminated unions) and functions for items, priority, runs, polls, money, time and notifications.', files:'lib/domain/*.ts', why:'Invalid states can\'t be represented (a chore can\'t be “done”). Coverage is enforced at ≥95%; currently 100%.'},
  adapters:{eyebrow:'Layer 4', title:'Adapters', layer:'adapters', what:'Postgres (Kysely UnitOfWork), Supabase (reads, realtime, auth), web-push, clock, ids, tokens, and in-memory fakes for all of them.', files:'lib/adapters/**, lib/compose.ts', why:'The only code allowed to import Supabase, Kysely, pg or web-push, enforced by lint.'},
- pg:{eyebrow:'Supabase', title:'Postgres + RLS', layer:null, what:'All tables, RLS on every one, CHECK constraints per category, and append-only activity_events as the only history store.', files:'supabase/migrations/*.sql (16), supabase/tests/', why:'The database enforces integrity and privacy only: no business logic, no logic RPCs, no triggers except updated_at (A11).'},
+ pg:{eyebrow:'Supabase', title:'Postgres + RLS', layer:null, what:'All tables, RLS on every one, CHECK constraints per category, and append-only activity_events as the only history store.', files:'supabase/migrations/*.sql (21), supabase/tests/', why:'The database enforces integrity and privacy only: no business logic, no logic RPCs, no triggers except updated_at (A11).'},
  auth:{eyebrow:'Supabase', title:'Auth', layer:null, what:'Email one-time codes, long-lived sessions. Public sign-up is off: accounts are created only through a valid invite or the setup link.', files:'supabase/config.toml, lib/adapters/supabase/auth-gateway.ts', why:'Codes, not magic links: a link would open Safari instead of the installed PWA (A3).'},
  rt:{eyebrow:'Supabase', title:'Realtime', layer:null, what:'Broadcasts inserts on activity_events, the only published table. The browser maps each kind to the queries to refresh.', files:'supabase/migrations/…_realtime.sql, lib/adapters/change-for-kind.ts', why:'One subscription instead of one per table, and it covers deletes, which Realtime can\'t filter by house.'},
  pgcron:{eyebrow:'Supabase', title:'pg_cron · pg_net', layer:null, what:'The schedule: tick and reminders every 15 min, send-notifications every 5, close-polls hourly. It POSTs to the app with a secret from Vault.', files:'supabase/migrations/…_jobs.sql, scripts/cron-local.mjs', why:'Free, and it keeps the free-tier project from pausing. Nothing secret lives in a migration in this public repo.'}
@@ -814,12 +814,10 @@ $('#prlist').innerHTML = PR.map((p,i)=>'<div class="pr"><span class="k">'+String
 /* ---------------- Gaps ---------------- */
 const GAPS = [
  ['Not started','M5: hosting and launch','E1–E5 and Q5 are untouched by design: hosted Supabase (staging + prod), the Gmail sender, Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is also not installed yet. E5 now also waits on Q6, since M6 is built first.','Weyve cards E1–E5 and Q5 (M5)'],
- ['Carded','Polls: withdraw a vote, reopen, deadline','poll.vote_withdrawn and the other poll actions are in the catalog but nothing writes them (T27 note).','Weyve card T55 (M6)'],
  ['Misplaced','Nil-UUID system actor, four copies','The same “Roomies itself” actor is built separately in setup.ts, push.ts, jobs.ts and invites.ts.','lib/app/{setup,push,jobs,invites}.ts'],
- ['Misplaced','Behavior in the composition root','sendNotificationsNow (running a use case, logging) lives in compose.ts, which should only wire adapters.','lib/compose.ts'],
- ['Misplaced','Stale comment in change-for-kind','Says polls, runs and costs “refresh everything”; they now map to their own tables.','lib/adapters/change-for-kind.ts:20']
+ ['Misplaced','Behavior in the composition root','sendNotificationsNow (running a use case, logging) lives in compose.ts, which should only wire adapters.','lib/compose.ts']
 ];
-const GAP_KINDS = ['All','Not started','Carded','Misplaced'];
+const GAP_KINDS = ['All','Not started','Misplaced'];
 let gapKind = 'All';
 function renderGaps(){
   $('#gaplist').innerHTML = GAPS.filter(g=>gapKind==='All'||g[0]===gapKind).map(g=>

@@ -1,6 +1,6 @@
 # Roomies — Test Suite
 
-**Status:** In use. The M0–M4 suites are built and green; M6's (Q6) is planned; M5's smoke suite and the manual checklist (§7) come with E1–E5.  
+**Status:** In use. The M0–M4 and M6 (Q6) suites are built; M5's smoke suite and the manual checklist (§7) come with E1–E5.  
 **Built from:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [PRD.md](./PRD.md)  
 **Last updated:** 2026-10-02
 
@@ -97,7 +97,7 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 | **Q3** M3 tests | One run per item (domain and database); move, back to the pool, hand to contact, done; a request closes itself when empty; the visit feed rule; `itemPath` / `runHistory`; equal cost splits; calendar ranges across DST; a 2–2 poll is a tie; options can be added until close. | `m3-runs`: a grocery run finished with a cost; a poll with a tie; landlord request → sent → reply recorded by moving 2 tasks to a visit and 1 back with a note. |
 | **Q4** M4 tests + full suite | `notificationsFor` quiet hours and prefs; the outbox is written in the same transaction; reminders are idempotent under a fixed clock; the push sender drops 404/410 subscriptions (fake); copy lint (no "overdue," "failed," or "missed" about a person); axe on every screen. Coverage targets on. | `m4-notifications`, plus every earlier journey in one run. **`pnpm test:all` is green on a fresh clone and in CI.** |
 | **Q5** Remote smoke suite | — | `smoke`: against staging after each deploy, with a dedicated smoke house; read-only against prod after launch. |
-| **Q6** M6 tests | RLS and the CHECK on `items.for_member`; the duplicate-need rule with owners; the tests from M6's audit cards; axe on every changed screen in light and dark. | Journeys that count taps: finishing an item takes 1, sharing a feeling 2, a repeating chore 3 plus typing, a grocery run about 6, a personal need its title plus 1. Every swipe has a button that does the same thing. |
+| **Q6** M6 tests | RLS and the CHECK on `items.for_member`; the duplicate-need rule with owners; the tests from M6's audit cards; axe on every changed screen in light and dark. | Journeys that count taps: finishing an item takes 1, sharing a feeling 2, a repeating chore 3 plus typing, a grocery run about 6, a personal need its title plus 1 (`m6-tap-targets`, `m6-fewer-taps`, `m6-personal-needs`). Every swipe has a button that does the same thing. At 375pt, light and dark, an item's title, primary action and meta rows fit without scrolling, and the rooms grid and notification settings fit and pass axe (`m6-tap-targets`). |
 
 ---
 

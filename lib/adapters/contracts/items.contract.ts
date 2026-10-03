@@ -136,6 +136,30 @@ export const itemsContract = (name: string, makeHarness: () => Promise<UnitOfWor
       )
     })
 
+    it("Q6: one person's need is still the house's to see and get, and no one else's", async () => {
+      const mine = await setup()
+      const theirs = await setup()
+      const oatMilk = mine.need('Oat milk', { forMember: mine.member })
+      await mine.put(oatMilk)
+      // A housemate reads it and gets it, in their own name.
+      const housemate = asMember(mine.house.id, mine.admin)
+      const seen = await h.uow.run(housemate, (r) => r.items.get(oatMilk.id))
+      expect(seen?.category === 'need' && seen.forMember).toBe(mine.member)
+      await h.uow.run(housemate, (r) =>
+        r.items.save({ ...seen!, done: { at: T, by: mine.admin } } as Item),
+      )
+      expect(await mine.get(oatMilk.id)).toEqual({ ...oatMilk, done: { at: T, by: mine.admin } })
+      // Another house sees none of it, and can't give it to one of theirs.
+      const stranger = asMember(theirs.house.id, theirs.member)
+      expect(await h.uow.run(stranger, (r) => r.items.get(oatMilk.id))).toBeUndefined()
+      expect(await h.uow.run(stranger, (r) => r.items.openNeeds(mine.house.id))).toEqual([])
+      await expect(
+        h.uow.run(stranger, (r) =>
+          r.items.save({ ...seen!, forMember: theirs.member, createdBy: theirs.member } as Item),
+        ),
+      ).rejects.toBeInstanceOf(AccessDenied)
+    })
+
     it("a chore can't be done, and only tasks have a contact", async () => {
       const { house, member, need, put } = await setup()
       const chore = {
