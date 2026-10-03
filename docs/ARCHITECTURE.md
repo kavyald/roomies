@@ -770,7 +770,7 @@ Immediate notifications (assigned, 😰/😤, new poll or option, run started, n
 ### 7.4 Web Push on iOS
 
 - Requires the PWA to be **installed to the Home Screen** (iOS 16.4+), a user gesture to request permission, and a VAPID key pair.
-- Flow: the user taps "Turn on notifications" (House tab or `/me`) → `Notification.requestPermission()` → `pushManager.subscribe({ applicationServerKey })` (`lib/client/push.ts`) → the `savePushSubscriptionAction` server action → the `savePushSubscription` use case → stored in `push_subscriptions` (same endpoint: refreshed, not duplicated).
+- Flow: the user taps "Turn on notifications" (the Notifications section of `/me`; House → Settings links there) → `Notification.requestPermission()` → `pushManager.subscribe({ applicationServerKey })` (`lib/client/push.ts`) → the `savePushSubscriptionAction` server action → the `savePushSubscription` use case → stored in `push_subscriptions` (same endpoint: refreshed, not duplicated).
 - The send-notifications job sends with `web-push` (`PushSender`). A 404/410 response sets `gone_at` on the subscription (`markGone`); nothing is deleted, and gone subscriptions aren't sent to again.
 - The service worker registers only in production builds (`pnpm build && pnpm start`), never on `pnpm dev`.
 - The service worker handles `push` (show) and `notificationclick` (open the deep link). Each message's `url` is the thing it's about: an item (`/h/[houseId]/i/[itemId]`), a poll (`/p/[pollId]`) or a run (`/r/[runId]`), each opening its sheet over Home; people messages (joined, moved out, role) open House, and new feeling weights open Home (its weights card). The push `tag` is `category:url`, so a newer message about the same poll or run replaces the older one on the device.

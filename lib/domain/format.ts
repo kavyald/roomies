@@ -9,6 +9,7 @@ import {
   MS_PER_MINUTE,
   type Instant,
   type LocalDate,
+  type LocalTime,
   type When,
 } from './time'
 
@@ -72,3 +73,10 @@ export const dayHeading = (date: LocalDate, now: Instant, tz: string): string =>
 /** A line's time under its day heading: "Just now", "5m ago", "3h ago" today; "18:40" before. */
 export const feedTime = (at: Instant, now: Instant, tz: string): string =>
   calendarDaysBetween(at, now, tz) === 0 ? relativeTime(at, now, tz) : localTimeOf(at, tz)
+
+/** A clock time the short way: "10pm", "8:30am", "12am" (midnight), "12pm" (noon). */
+export const clockTime = (t: LocalTime): string => {
+  const [h, m] = t.split(':').map(Number) as [number, number]
+  const hour = h % 12 === 0 ? 12 : h % 12
+  return `${hour}${m === 0 ? '' : `:${String(m).padStart(2, '0')}`}${h < 12 ? 'am' : 'pm'}`
+}

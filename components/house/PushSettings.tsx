@@ -7,14 +7,18 @@ import { useToast } from '@/components/ui/Toast'
 import { useAppClient } from '@/lib/client/provider'
 import { pushState, subscribeThisBrowser, type PushState } from '@/lib/client/push'
 
-const LINES: Record<Exclude<PushState, 'off'>, string> = {
-  on: 'Notifications are on for this device.',
-  blocked: 'Notifications are blocked for Roomies in this browser’s settings.',
-  install_first: 'Add Roomies to your Home Screen first, then turn notifications on from there.',
+const LINES: Record<PushState, string> = {
+  on: 'On for this device.',
+  off: 'Off on this device.',
+  blocked: 'Blocked for Roomies in this browser’s settings.',
+  install_first: 'Add Roomies to your Home Screen first, then turn them on from there.',
   unsupported: 'This browser can’t show notifications.',
 }
 
-/** "Turn on notifications" for this device (T34). Which ones you get is in your settings (T36). */
+/**
+ * This device's push status, with its one button (T34, T61). A flush row inside the Notifications
+ * section of your settings; which ones you get is the rest of that section.
+ */
 export function PushSettings() {
   const { commands, vapidPublicKey } = useAppClient()
   const toast = useToast()
@@ -53,16 +57,14 @@ export function PushSettings() {
   const Icon = state === 'on' ? Bell : BellOff
   return (
     <div
-      aria-label="Notifications on this device"
+      aria-label="This device"
       role="group"
-      className="sticker grid gap-2.5 rounded-[20px] border-[1.5px] border-outline bg-card px-3.5 py-3"
+      className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5"
     >
-      <p className="m-0 flex items-start gap-3 font-bold">
-        <Icon aria-hidden className="mt-0.5 size-5 flex-none text-ink-soft" />
-        <span>{state === 'off' ? 'Get a nudge when something needs you.' : LINES[state]}</span>
-      </p>
+      <Icon aria-hidden className="size-5 flex-none text-ink-soft" />
+      <p className="m-0 min-w-0 flex-1 font-semibold">{LINES[state]}</p>
       {state === 'off' && (
-        <Button size="small" className="justify-self-start" disabled={busy} onClick={turnOn}>
+        <Button size="small" disabled={busy} onClick={turnOn}>
           Turn on notifications
         </Button>
       )}

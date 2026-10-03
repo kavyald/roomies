@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeWhen, relativeTime } from './format'
+import { clockTime, describeWhen, relativeTime } from './format'
 import { instantAt, plusMs, type LocalDate, type LocalTime } from './time'
 
 const NY = 'America/New_York'
@@ -42,5 +42,18 @@ describe('describeWhen', () => {
     [on('2027-01-05'), 'Jan 5, 2027'],
   ])('%j → %s', (when, expected) => {
     expect(describeWhen(when, now, NY)).toBe(expected)
+  })
+})
+
+describe('clockTime', () => {
+  it.each([
+    ['22:00', '10pm'],
+    ['08:00', '8am'],
+    ['08:30', '8:30am'],
+    ['00:00', '12am'],
+    ['12:05', '12:05pm'],
+    ['23:59', '11:59pm'],
+  ])('%s is %s', (t, label) => {
+    expect(clockTime(t as LocalTime)).toBe(label)
   })
 })

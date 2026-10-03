@@ -1,13 +1,12 @@
 'use client'
 
-import { ChevronRight, History } from 'lucide-react'
+import { Bell, ChevronRight, History } from 'lucide-react'
 import Link from 'next/link'
 import { useContacts, useIsAdmin, useMembers, useProfiles } from '@/lib/client/hooks'
 import type { HouseId } from '@/lib/domain/ids'
 import { ContactsSection } from './ContactsSection'
 import { FeelingWeightsSection } from './FeelingWeightsSection'
 import { InvitesSection } from './InvitesSection'
-import { PushSettings } from './PushSettings'
 import { RoommatesSection } from './RoommatesSection'
 import { RoomsSection } from './RoomsSection'
 import { SpentThisMonth } from './SpentThisMonth'
@@ -57,7 +56,14 @@ export function HouseScreen({ houseId }: { houseId: HouseId }) {
 
       <SectionTitle>Settings</SectionTitle>
       <div className="grid gap-3">
-        <PushSettings />
+        <Link
+          href={`/h/${houseId}/me`}
+          className="sticker flex min-h-11 items-center gap-3 rounded-[20px] border-[1.5px] border-outline bg-card px-3.5 py-3 font-bold"
+        >
+          <Bell aria-hidden className="size-5 text-ink-soft" />
+          <span className="flex-1">Notifications</span>
+          <ChevronRight aria-hidden className="size-5 text-ink-soft" />
+        </Link>
         <FeelingWeightsSection houseId={houseId} />
       </div>
 
