@@ -24,6 +24,8 @@ const watchCsp = async (page: Page) => {
 let cspViolations: string[] = []
 
 const check = async (page: Page, screen: string) => {
+  // Pages render per request (T52), so Next streams <title> in after the body; wait for it.
+  await expect(page).toHaveTitle(/Roomies/)
   expect(cspViolations, `${screen}: CSP violations`).toEqual([])
   const { violations } = await new AxeBuilder({ page }).analyze()
   const bad = violations
