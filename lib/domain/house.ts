@@ -1,4 +1,4 @@
-// The house, its people, and its places (ARCHITECTURE §6.2).
+// The house, its people, and its places (ARCHITECTURE §6.3).
 
 import { DEFAULT_FEELING_WEIGHTS, type FeelingWeights } from './feelings'
 import type { ContactId, HouseId, InviteId, RoomId, UserId } from './ids'

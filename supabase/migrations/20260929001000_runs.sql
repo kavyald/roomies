@@ -1,4 +1,4 @@
--- Runs (T28, ARCHITECTURE §6.1, PRD §6.5): a batch of items handled together. Items point at the
+-- Runs (T28, ARCHITECTURE §6.2, PRD §6.5): a batch of items handled together. Items point at the
 -- run they're on right now (items.run_id / run_kind); what used to be on a run is read back from
 -- activity_events (run.item_* rows). Requests and visits (T30) share this table.
 

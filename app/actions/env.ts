@@ -1,5 +1,5 @@
 // What every house action shares: who's acting, the request's deps, and sending any notifications
-// the change enqueued once the response is on its way (ARCHITECTURE §7.1: "right after commit").
+// the change enqueued once the response is on its way (ARCHITECTURE §4.1 `sendNotificationsNow`, §7.3).
 import { after } from 'next/server'
 import { depsForRequest, sendNotificationsNow } from '@/lib/compose'
 import type { HouseId } from '@/lib/domain/ids'

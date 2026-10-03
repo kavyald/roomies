@@ -1,4 +1,4 @@
-// Reminders (PRD §11, ARCHITECTURE §8 `runReminders`): what's coming up for whom, as notification
+// Reminders (PRD §11, ARCHITECTURE §7.3 `runReminders`): what's coming up for whom, as notification
 // drafts with a dedupe key so running the job again sends nothing new. Pure: `today` and
 // `tomorrow` are the house's calendar days, passed in.
 

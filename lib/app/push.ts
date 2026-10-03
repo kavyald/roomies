@@ -1,4 +1,4 @@
-// Web Push use cases (ARCHITECTURE §7.1): a browser turning notifications on, and the job that
+// Web Push use cases (ARCHITECTURE §7.4): a browser turning notifications on, and the job that
 // drains the outbox (every 5 minutes, and right after a change that enqueued something).
 
 import type { AppDeps } from './ports'

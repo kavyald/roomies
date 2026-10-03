@@ -17,7 +17,7 @@ const TABLE_BY_PREFIX: Record<string, string> = {
   request: 'runs',
 }
 
-/** "item.created" → items. Kinds from later milestones (polls, runs, costs) refresh everything. */
+/** "item.created" → items. A kind with no prefix here is "unknown", which refreshes everything. */
 export const changeForKind = (kind: string): Change => ({
   table: TABLE_BY_PREFIX[kind.split('.')[0]!] ?? 'unknown',
 })

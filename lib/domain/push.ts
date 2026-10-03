@@ -1,4 +1,4 @@
-// Web Push (PRD §11, ARCHITECTURE §7.1): a browser's subscription, and what a push carries. Pure.
+// Web Push (PRD §11, ARCHITECTURE §7.4): a browser's subscription, and what a push carries. Pure.
 
 import type { OutboxMessage } from './notifications'
 import type { UserId } from './ids'

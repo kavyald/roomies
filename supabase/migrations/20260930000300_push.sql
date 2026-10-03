@@ -1,4 +1,4 @@
--- Web Push (T34, ARCHITECTURE §6.1): one row per browser that turned notifications on. A push
+-- Web Push (T34, ARCHITECTURE §6.2): one row per browser that turned notifications on. A push
 -- service saying a subscription is gone (404/410) marks it gone; nothing is deleted. Sending is a
 -- job (service role), every 5 minutes and right after a change that enqueued something.
 

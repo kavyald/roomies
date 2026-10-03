@@ -1,4 +1,4 @@
--- Costs (T29, PRD §6.6, ARCHITECTURE §6.1): an amount, who paid, an optional note, and what it
+-- Costs (T29, PRD §6.6, ARCHITECTURE §6.2): an amount, who paid, an optional note, and what it
 -- was for (an item or a run, at most one). Split equally among members; Splitwise is a copy.
 
 create table public.costs (

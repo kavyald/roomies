@@ -1,4 +1,4 @@
-// Scheduled jobs (ARCHITECTURE §8), run by pg_cron through /api/cron as Roomies (the system
+// Scheduled jobs (ARCHITECTURE §7.3), run by pg_cron through /api/cron as Roomies (the system
 // actor). Each walks every house in its own transaction, with an injected clock, and is safe to run
 // twice: reminders carry dedupe keys; closing a closed poll is a no-op.
 

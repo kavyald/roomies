@@ -1,4 +1,4 @@
-// Notifications (PRD §11, ARCHITECTURE §7.1): which events tell whom, in what words, and when
+// Notifications (PRD §11, ARCHITECTURE §6.4 Notify column, A23): which events tell whom, in what words, and when
 // (quiet hours hold a message until they end). Pure: the people, their settings, the things the
 // events are about, and `now` are all passed in. Copy follows FRONTEND §7: about items, never
 // blaming a person.

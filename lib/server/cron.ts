@@ -1,4 +1,4 @@
-// The /api/cron/<job> entry point (ARCHITECTURE §8): pg_cron calls it with the shared secret in
+// The /api/cron/<job> entry point (ARCHITECTURE §7.3): pg_cron calls it with the shared secret in
 // `x-cron-secret`; the named job runs as the system actor and reports what it did.
 
 import { timingSafeEqual } from 'node:crypto'

@@ -1,4 +1,4 @@
-// The transactional outbox (ARCHITECTURE §7.1, A14): whenever a use case records events, the
+// The transactional outbox (ARCHITECTURE §4.1, A14, A23): whenever a use case records events, the
 // messages they cause are written in the same transaction. It wraps the UnitOfWork, so use cases
 // stay unaware of it; compose applies it to every unit of work.
 

@@ -1,4 +1,4 @@
--- Scheduled jobs (T32, ARCHITECTURE §8): pg_cron calls the app's /api/cron/<job> routes through
+-- Scheduled jobs (T32, ARCHITECTURE §7.3): pg_cron calls the app's /api/cron/<job> routes through
 -- pg_net, with a shared secret header. The app URL and the secret live in Supabase Vault (never in
 -- this repo): locally `pnpm cron:local` writes them; hosted, they're set once in the dashboard (E3).
 -- Until both are set, the schedule runs and does nothing.

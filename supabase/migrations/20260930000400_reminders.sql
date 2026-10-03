@@ -1,4 +1,4 @@
--- Reminder jobs (T35, ARCHITECTURE §8): reminders carry a dedupe key (person + thing + day), so a
+-- Reminder jobs (T35, ARCHITECTURE §7.3): reminders carry a dedupe key (person + thing + day), so a
 -- job that runs twice enqueues nothing new; polls past their deadline are closed hourly.
 
 alter table public.notifications_outbox add column dedupe_key text null;

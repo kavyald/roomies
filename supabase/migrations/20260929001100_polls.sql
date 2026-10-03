@@ -1,4 +1,4 @@
--- Polls (T27, PRD §6.4, ARCHITECTURE §6.1): a question and two or more options, about an item or
+-- Polls (T27, PRD §6.4, ARCHITECTURE §6.2): a question and two or more options, about an item or
 -- standalone. Anyone adds options and votes (one vote each, changeable) while it's open; closing
 -- locks both. The result is read from the votes (they can't change once closed).
 
