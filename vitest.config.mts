@@ -30,7 +30,7 @@ export default defineConfig({
         test: {
           name: 'unit',
           include: ['**/*.test.{ts,tsx}'],
-          exclude: ['node_modules/**', '.next/**', 'e2e/**', ...DB_TESTS],
+          exclude: ['node_modules/**', '.claude/**', '.next/**', 'e2e/**', ...DB_TESTS],
         },
       },
       {

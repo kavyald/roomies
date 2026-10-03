@@ -186,5 +186,13 @@ export default defineConfig([
       ],
     },
   },
-  globalIgnores(['.next/**', 'out/**', 'build/**', 'coverage/**', 'next-env.d.ts', 'docs/**']),
+  globalIgnores([
+    '.claude/**',
+    '.next/**',
+    'out/**',
+    'build/**',
+    'coverage/**',
+    'next-env.d.ts',
+    'docs/**',
+  ]),
 ])
