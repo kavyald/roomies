@@ -1,16 +1,15 @@
 'use client'
 
-import type { Floor, Room } from '@/lib/domain/house'
+import type { Room } from '@/lib/domain/house'
 import type { RoomId } from '@/lib/domain/ids'
+import { ROOM_GROUPS, roomsInGroup } from '@/lib/domain/rooms'
 import { inputClass } from '@/components/auth/fields'
+import { ROOM_GROUP_LABEL } from '@/components/house/room-labels'
 
-const FLOORS: [Floor, string][] = [
-  ['first', 'First floor'],
-  ['basement', 'Basement'],
-  ['outside', 'Outside'],
-]
-
-/** Picks a room, grouped by floor (FRONTEND §9 RoomPicker). A native select: great on iPhone. */
+/**
+ * Picks a room, in the same three groups as House → Rooms: Bedrooms, Bathrooms, Spaces
+ * (FRONTEND §9 RoomPicker). A native select: great on iPhone.
+ */
 export function RoomSelect({
   id,
   rooms,
@@ -22,7 +21,6 @@ export function RoomSelect({
   value: RoomId | ''
   onChange: (v: RoomId | '') => void
 }) {
-  const live = rooms.filter((r) => !r.archivedAt)
   return (
     <select
       id={id}
@@ -31,10 +29,10 @@ export function RoomSelect({
       onChange={(e) => onChange(e.target.value as RoomId | '')}
     >
       <option value="">No room</option>
-      {FLOORS.map(([floor, label]) => {
-        const here = live.filter((r) => r.floor === floor)
+      {ROOM_GROUPS.map((group) => {
+        const here = roomsInGroup(rooms, group)
         return here.length ? (
-          <optgroup key={floor} label={label}>
+          <optgroup key={group} label={ROOM_GROUP_LABEL[group]}>
             {here.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name}

@@ -179,7 +179,7 @@ export type DomainEvent = EventBase &
         readonly changes?: FieldChanges
       }
     | {
-        readonly kind: 'room.added' | 'room.renamed' | 'room.archived'
+        readonly kind: 'room.renamed'
         readonly roomId: RoomId
         readonly changes?: FieldChanges
       }

@@ -220,14 +220,12 @@ describe('activityLine: every kind', () => {
     ['contact.created', { contactId: id('super') }, 'Kavya added Super to contacts'],
     ['contact.edited', { contactId: id('super') }, 'Kavya updated Super'],
     ['contact.removed', { contactId: id('super') }, 'Kavya removed Super from contacts'],
-    ['room.added', { roomId: id('kitchen') }, 'Kavya added Kitchen'],
     [
       'room.renamed',
       { roomId: id('kitchen'), changes: { name: ['Galley', 'Kitchen'] } },
       'Kavya renamed Galley to Kitchen',
     ],
     ['room.renamed', { roomId: id('kitchen') }, 'Kavya renamed Kitchen'],
-    ['room.archived', { roomId: id('kitchen') }, 'Kavya archived Kitchen'],
   ]
 
   it.each(cases)('%s → %s', (kind, extra, expected) => {

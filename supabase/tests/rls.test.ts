@@ -401,6 +401,9 @@ describe('constraints', () => {
       expect(await add('item.created')).toBe(CHECK) // no item_id
       expect(await add('member.joined')).toBe(CHECK) // no member_id
       expect(await add('not.a.kind')).toBe(CHECK)
+      // Rooms are only renamed and reordered (T60): no added / archived kinds.
+      expect(await add('room.added', 'room_id', mine.roomId)).toBe(CHECK)
+      expect(await add('room.archived', 'room_id', mine.roomId)).toBe(CHECK)
       expect(await add('run.item_moved', 'item_id', newId())).toBe(CHECK) // no run_id / to_run_id
     })
   })

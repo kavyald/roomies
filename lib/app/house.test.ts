@@ -99,7 +99,7 @@ describe('rooms and contacts', () => {
       roomId: s.rooms.Kitchen!.id,
       direction: 'up',
     })
-    expect(moved.ok && moved.value.map((r) => r.name)).toEqual(['Kitchen', 'Bathroom 2'])
+    expect(moved.ok && moved.value.map((r) => r.name)).toEqual(['Kitchen', 'Hallway'])
     expect(deps.uow.state.activity.filter((a) => a.kind === 'room.renamed')).toHaveLength(1)
   })
 

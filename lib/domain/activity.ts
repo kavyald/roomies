@@ -364,16 +364,12 @@ export const activityLine = (
         return `${actor} updated ${contact(r)}`
       case 'contact.removed':
         return `${actor} removed ${contact(r)} from contacts`
-      case 'room.added':
-        return `${actor} added ${room(r)}`
       case 'room.renamed': {
         const before = change(r, 'name')?.[0]
         return typeof before === 'string'
           ? `${actor} renamed ${before} to ${room(r)}`
           : `${actor} renamed ${room(r)}`
       }
-      case 'room.archived':
-        return `${actor} archived ${room(r)}`
       default:
         return `${actor} made a change`
     }

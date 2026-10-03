@@ -192,7 +192,7 @@ FIRST FLOOR                                         BASEMENT
 | B | Fitness space | common (door to the garden) | neutral |
 | — | Garden | outdoor | neutral |
 
-- Rooms can be renamed and reordered in House → Rooms.
+- Rooms can be renamed and reordered in House → Rooms, where they show as a compact grid grouped by type, not floor: **Bedrooms** (bedroom), **Bathrooms** (bath), **Spaces** (common, entry, utility, outdoor). The item room picker uses the same three groups. Rooms aren't added or archived from the app; the seeded 17 are the house.
 
 **[DECIDED] (owner)** Air, Fire, Water, and Earth are the four bedrooms, one per roommate. The craft room is shared. The baths are Bathroom 1 and 2 (upstairs, full) and Bathroom 3 (downstairs, half). The space with the garden door is the Fitness space.
 
@@ -327,7 +327,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 - **Settings → Notifications**: one row that opens your settings (`/me`). The device control lives there, not here.
 - **Settings → Feeling weights**: six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, **Save for the house**. "One setting for the whole house. Anyone can change it."
 - **Spent this month**: total and your share.
-- **Rooms** grouped by floor. Tap one to rename it or move it up or down.
+- **Rooms** as small squares, four to a row at 375pt so all 17 fit in about one screen, under three headings: **Bedrooms** (each square in its element's fill with its element icon), **Bathrooms** and **Spaces** (neutral, with an icon for the kind: bath, sofa, door, washing machine, trees). Each square shows an icon and the name; VoiceOver reads the name and kind ("Fire, bedroom"). Tap one for a small sheet: rename it, or **Move earlier** / **Move later** within its group (the order is `sort_order`).
 - **Contacts** with Copy number. **Roommates**. **Invite link** (admins).
 - **Your settings** (`/me`, from your avatar): one **Notifications** section that fits on a 375pt screen, as a single card. First this device's status line with its one button ("Turn on notifications" when it's off; otherwise a line saying it's on, blocked in the browser, or that Roomies needs adding to the Home Screen first). Then the six categories as compact switch rows, each a short name (Handed to me, Coming due, Feelings on my things, Polls, Runs, People) with a one-line "you get this when…" under it; VoiceOver reads the name and the line as its description. Last, quiet hours as one row, "Quiet 10pm–8am": tap it to edit From / Until inline, with an on/off switch beside it (never inside it). Then **Appearance** (Auto · Light · Dark).
 - **Activity**: everything that happened in the house, newest first, one line per action (a bulk move is one line), under day headings ("Today", "Yesterday", "Mon, Sep 28"). Each line has the person's avatar, the sentence ("Kavya felt 😰 about Lemons"), and a topic icon and word with the time. A filter row (All · Items · Polls & runs · Money · House) narrows it, and **Show earlier** loads older history. A line about an item, run or poll opens its sheet in place.

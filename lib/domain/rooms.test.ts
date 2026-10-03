@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Room } from './house'
 import { asId, type ActionId, type HouseId, type RoomId, type UserId } from './ids'
-import { moveRoom, renameRoom } from './rooms'
+import { moveRoom, renameRoom, roomGroup, roomsInGroup } from './rooms'
 
 const h = asId<'house'>('h') as HouseId
 const r = (name: string, floor: Room['floor'], sortOrder: number, o: Partial<Room> = {}): Room => ({
@@ -35,27 +35,68 @@ describe('renameRoom', () => {
   })
 })
 
+describe('room groups', () => {
+  it('puts bedrooms, bathrooms and everything else in their own group', () => {
+    expect(roomGroup('bedroom')).toBe('bedrooms')
+    expect(roomGroup('bath')).toBe('bathrooms')
+    for (const k of ['common', 'entry', 'utility', 'outdoor'] as const)
+      expect(roomGroup(k)).toBe('spaces')
+  })
+
+  it('lists a group in saved order, ties by name, without archived rooms', () => {
+    const rooms = [
+      r('Kitchen', 'first', 2),
+      r('Air', 'first', 1, { kind: 'bedroom' }),
+      r('Hallway', 'first', 0),
+      r('Garden', 'outside', 2, { kind: 'outdoor' }),
+      r('Old', 'first', 3, { archivedAt: { epochMs: 1 } }),
+    ]
+    expect(roomsInGroup(rooms, 'spaces').map((x) => x.name)).toEqual([
+      'Hallway',
+      'Garden',
+      'Kitchen',
+    ])
+    expect(roomsInGroup(rooms, 'bathrooms')).toEqual([])
+  })
+})
+
 describe('moveRoom', () => {
+  const bed = { kind: 'bedroom' } as const
   const rooms = [
     r('Hallway', 'first', 0),
-    r('Air', 'first', 1),
-    r('Fire', 'first', 2),
-    r('Earth', 'basement', 3),
-    r('Old', 'first', 4, { archivedAt: { epochMs: 1 } }),
+    r('Air', 'first', 1, bed),
+    r('Bathroom 1', 'first', 2, { kind: 'bath' }),
+    r('Fire', 'first', 3, bed),
+    r('Earth', 'basement', 4, bed),
+    r('Laundry', 'basement', 5, { kind: 'utility' }),
+    r('Old', 'first', 6, { archivedAt: { epochMs: 1 } }),
   ]
 
-  it('swaps a room with its neighbor on the same floor', () => {
-    const res = moveRoom(rooms, asId('Fire'), 'up')
+  it('swaps a room with its neighbor in its group, across floors, keeping the slots', () => {
+    const res = moveRoom(rooms, asId('Earth'), 'up')
     expect(res.ok && res.value.map((x) => [x.name, x.sortOrder])).toEqual([
-      ['Fire', 1],
-      ['Air', 2],
+      ['Earth', 3],
+      ['Fire', 4],
+    ])
+    const spaces = moveRoom(rooms, asId('Laundry'), 'up')
+    expect(spaces.ok && spaces.value.map((x) => [x.name, x.sortOrder])).toEqual([
+      ['Laundry', 0],
+      ['Hallway', 5],
     ])
   })
 
-  it('stops at the ends of a floor, skipping archived rooms', () => {
-    expect(moveRoom(rooms, asId('Hallway'), 'up')).toEqual({ ok: false, error: 'at_edge' })
-    expect(moveRoom(rooms, asId('Fire'), 'down')).toEqual({ ok: false, error: 'at_edge' })
-    expect(moveRoom(rooms, asId('Earth'), 'up')).toEqual({ ok: false, error: 'at_edge' })
+  it('renumbers a group whose rooms share a slot', () => {
+    const tied = [r('A', 'first', 3, bed), r('B', 'first', 3, bed)]
+    const res = moveRoom(tied, asId('B'), 'up')
+    expect(res.ok && res.value.map((x) => [x.name, x.sortOrder])).toEqual([['A', 4]])
+  })
+
+  it('stops at the ends of a group, skipping archived rooms', () => {
+    expect(moveRoom(rooms, asId('Air'), 'up')).toEqual({ ok: false, error: 'at_edge' })
+    expect(moveRoom(rooms, asId('Earth'), 'down')).toEqual({ ok: false, error: 'at_edge' })
+    expect(moveRoom(rooms, asId('Bathroom 1'), 'down')).toEqual({ ok: false, error: 'at_edge' })
+    expect(moveRoom(rooms, asId('Laundry'), 'down')).toEqual({ ok: false, error: 'at_edge' })
+    expect(moveRoom(rooms, asId('Old'), 'up')).toEqual({ ok: false, error: 'not_found' })
     expect(moveRoom(rooms, asId('Nope'), 'up')).toEqual({ ok: false, error: 'not_found' })
   })
 })

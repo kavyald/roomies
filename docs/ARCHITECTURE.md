@@ -517,7 +517,7 @@ type DomainEvent = { actionId: ActionId; by: UserId | null } & (      // by: nul
   | { kind: 'member.role_changed' | 'member.moved_out' | 'member.removed'; memberId: UserId; note?: string; changes?: FieldChanges }
   | { kind: 'invite.created' | 'invite.revoked'; payload: { expiresAt?: string; maxUses?: number } }
   | { kind: 'contact.created' | 'contact.edited' | 'contact.removed'; contactId: ContactId; changes?: FieldChanges }
-  | { kind: 'room.added' | 'room.renamed' | 'room.archived'; roomId: RoomId; changes?: FieldChanges }
+  | { kind: 'room.renamed'; roomId: RoomId; changes?: FieldChanges }   // rooms are seeded; never added or archived in the app (T60)
 )
 type FieldChanges = Record<string, [before: unknown, after: unknown]>
 ```
@@ -614,7 +614,7 @@ select changes, actor_id, at from activity_events
 | Money | `cost.added` · `cost.edited` · `cost.removed` · `cost.splitwise_copied` | cost (+ item or run, member who paid) | ✓ · ✓ · ✓ · — | — |
 | House | `house.created` · `settings.feeling_weights_changed` · `invite.created` · `invite.revoked` | `changes` / `payload` | ✓ (invites: admins) | everyone but the changer, on weights (D32; the Home card stays) |
 | People | `member.joined` · `member.room_changed` · `member.role_changed` · `member.moved_out` · `member.removed` | member (+ room), note | ✓ | everyone else on joined/left (not whoever removed them) · that member on role (not their own change) |
-| Places | `contact.created` · `contact.edited` · `contact.removed` · `room.added` · `room.renamed` · `room.archived` | contact / room, `changes` | ✓ | — |
+| Places | `contact.created` · `contact.edited` · `contact.removed` · `room.renamed` | contact / room, `changes` | ✓ | — |
 
 **Not in this table:** refused invite and setup tokens (`security_events`, §5.4), sign-in attempts (Supabase Auth), notification delivery (`notifications_outbox`), views, and computed priority.
 
@@ -683,7 +683,8 @@ select changes, actor_id, at from activity_events
 | `createInvite` / `revokeInvite` / `acceptInvite` | `(input, ctx: { …, openSpots, tokenHash }) → Result<…, 'bad_limits'>` / `(inv, by, now, actionId) → Result<…, 'already_revoked'>` / `(inv, joining, ctx) → Result<{ invite; member; profile; events }, InviteProblem \| 'already_member' \| 'room_taken' \| 'empty_name'>` | `max_uses` defaults to the open bedrooms (`openBedrooms`, at least 1); 1–20 uses, 1–30 days |
 | `moveOut` / `setRole` | `(target, members, by, now, actionId, note?) → Result<…, 'not_allowed' \| 'already_moved_out' \| 'last_admin'>` / `(target, role, members, by, actionId) → Result<…, 'not_allowed' \| 'no_change' \| 'last_admin' \| 'not_active'>` | The house always keeps an admin |
 | `anonymizeProfile` | `(p: Profile) → Profile` | "Former roommate" |
-| `renameRoom` / `moveRoom` | `(room, name, by, actionId) → Result<…, 'empty_name' \| 'no_change'>` / `(rooms, roomId, 'up' \| 'down') → Result<Room[], 'not_found' \| 'at_edge'>` | Reordering isn't recorded |
+| `renameRoom` / `moveRoom` | `(room, name, by, actionId) → Result<…, 'empty_name' \| 'no_change'>` / `(rooms, roomId, 'up' \| 'down') → Result<Room[], 'not_found' \| 'at_edge'>` | Moves within the room's group, keeping the group's `sort_order` slots. Reordering isn't recorded |
+| `roomGroup` / `roomsInGroup` | `(kind) → 'bedrooms' \| 'bathrooms' \| 'spaces'` / `(rooms, group) → Room[]` | The three groups House → Rooms and the room picker show (FRONTEND §5.11); live rooms in `sort_order` |
 | `createContact` / `editContact` / `removeContact` | `(input, houseId, by, id, actionId)` / `(c, patch, by, actionId)` / `(c, by, now, actionId)` | Removing archives (activity rows point at contacts) |
 | `updateSettings` | `(p: Profile, patch: SettingsPatch) → Result<Profile, 'bad_time' \| 'no_change'>` | Theme and quiet hours |
 | **Calendar** (`calendar.ts`) | | |

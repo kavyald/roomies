@@ -1,59 +1,60 @@
 'use client'
 
-import { ArrowDown, ArrowUp } from 'lucide-react'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { Field } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
-import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
 import { elementClasses } from '@/components/ui/elements'
 import { useMoveRoom, useRenameRoom, useRooms } from '@/lib/client/hooks'
-import type { Floor, Room } from '@/lib/domain/house'
+import type { Room } from '@/lib/domain/house'
 import type { HouseId } from '@/lib/domain/ids'
+import { ROOM_GROUPS, roomGroup, roomsInGroup } from '@/lib/domain/rooms'
+import { ROOM_GROUP_LABEL, RoomIcon, roomKindLabel } from './room-labels'
 
-const FLOORS: { floor: Floor; label: string }[] = [
-  { floor: 'first', label: 'First floor' },
-  { floor: 'basement', label: 'Basement' },
-  { floor: 'outside', label: 'Outside' },
-]
-
-/** Rooms grouped by floor (FRONTEND §5.11). Tap one to rename it or move it. */
+/**
+ * Rooms as small squares, grouped by what they are (FRONTEND §5.11): Bedrooms in their element's
+ * colors, then Bathrooms, then Spaces. Tap one to rename it or move it within its group.
+ */
 export function RoomsSection({ houseId }: { houseId: HouseId }) {
   const rooms = useRooms(houseId)
   const [open, setOpen] = useState<Room | null>(null)
-  const live = (rooms.data ?? []).filter((r) => !r.archivedAt)
+  const all = rooms.data ?? []
 
   return (
-    <div className="grid gap-4">
-      {FLOORS.map(({ floor, label }) => {
-        const here = live.filter((r) => r.floor === floor)
+    <div className="grid gap-3">
+      {ROOM_GROUPS.map((group) => {
+        const here = roomsInGroup(all, group)
         if (here.length === 0) return null
+        const label = ROOM_GROUP_LABEL[group]
         return (
-          <div key={floor} className="grid gap-2">
+          <section key={group} className="grid gap-1.5">
             <h3 className="m-0 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
               {label}
             </h3>
-            <ListGroup label={label}>
+            <ul aria-label={label} className="m-0 grid list-none grid-cols-4 gap-2 p-0">
               {here.map((r) => (
-                <ListRow
-                  key={r.id}
-                  leading={
-                    <span
-                      aria-hidden
-                      className={cn(
-                        'size-3 flex-none rounded-full shadow-[inset_0_0_0_1.5px_color-mix(in_srgb,currentColor_50%,transparent)]',
-                        elementClasses(r.element),
-                      )}
-                    />
-                  }
-                  title={r.name}
-                  onClick={() => setOpen(r)}
-                />
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    aria-label={`${r.name}, ${roomKindLabel(r.kind)}`}
+                    onClick={() => setOpen(r)}
+                    className={cn(
+                      'sticker flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-2xl border-[1.5px] border-outline p-1 text-center',
+                      r.element ? elementClasses(r.element) : 'bg-card text-ink',
+                    )}
+                  >
+                    <RoomIcon room={r} className="size-5 flex-none" />
+                    <span className="line-clamp-2 text-[0.75rem] leading-tight font-bold break-words hyphens-auto">
+                      {r.name}
+                    </span>
+                  </button>
+                </li>
               ))}
-            </ListGroup>
-          </div>
+            </ul>
+          </section>
         )
       })}
       {open && <RoomSheet houseId={houseId} room={open} onClose={() => setOpen(null)} />}
@@ -74,6 +75,7 @@ function RoomSheet({
   const move = useMoveRoom(houseId)
   const toast = useToast()
   const [name, setName] = useState(room.name)
+  const group = ROOM_GROUP_LABEL[roomGroup(room.kind)].toLowerCase()
 
   const save = async () => {
     if (name.trim() === room.name) return onClose()
@@ -89,7 +91,7 @@ function RoomSheet({
     const r = await move.mutateAsync({ roomId: room.id, direction })
     if (!r.ok && r.error === 'at_edge')
       toast(
-        direction === 'up' ? "It's already first on its floor." : "It's already last on its floor.",
+        direction === 'up' ? `It's already first in ${group}.` : `It's already last in ${group}.`,
       )
   }
 
@@ -101,10 +103,10 @@ function RoomSheet({
       </Button>
       <div className="grid grid-cols-2 gap-2">
         <Button variant="secondary" disabled={move.isPending} onClick={() => nudge('up')}>
-          <ArrowUp aria-hidden className="size-4" /> Move up
+          <ArrowLeft aria-hidden className="size-4" /> Move earlier
         </Button>
         <Button variant="secondary" disabled={move.isPending} onClick={() => nudge('down')}>
-          <ArrowDown aria-hidden className="size-4" /> Move down
+          Move later <ArrowRight aria-hidden className="size-4" />
         </Button>
       </div>
     </Sheet>

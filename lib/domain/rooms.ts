@@ -31,6 +31,22 @@ export const APARTMENT_ROOMS: readonly RoomSeed[] = [
   { name: 'Garden', floor: 'outside', kind: 'outdoor' },
 ]
 
+// ---- grouping (House → Rooms, the item room picker) ----------------------------------------
+
+/** The three groups rooms are shown in (FRONTEND §5.11): by what a room is, not where it is. */
+export type RoomGroup = 'bedrooms' | 'bathrooms' | 'spaces'
+
+export const ROOM_GROUPS: readonly RoomGroup[] = ['bedrooms', 'bathrooms', 'spaces']
+
+export const roomGroup = (kind: RoomKind): RoomGroup =>
+  kind === 'bedroom' ? 'bedrooms' : kind === 'bath' ? 'bathrooms' : 'spaces'
+
+/** A group's live rooms in their saved order (sort_order, then name). */
+export const roomsInGroup = (rooms: readonly Room[], group: RoomGroup): Room[] =>
+  rooms
+    .filter((r) => !r.archivedAt && roomGroup(r.kind) === group)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+
 // ---- editing rooms (House → Rooms) ---------------------------------------------------------
 
 export const renameRoom = (
@@ -51,8 +67,10 @@ export const renameRoom = (
 }
 
 /**
- * Moves a room one place up or down among the rooms on its floor, renumbering that floor so the
- * order is stable. Returns only the rooms whose position changed.
+ * Moves a room one place earlier or later within its group (bedrooms, bathrooms or spaces). The
+ * group keeps the sort_order slots it already had, so other groups never move; if two of its
+ * rooms share a slot, the group is renumbered from its lowest. Returns only the rooms whose
+ * position changed.
  */
 export const moveRoom = (
   rooms: readonly Room[],
@@ -61,18 +79,19 @@ export const moveRoom = (
 ): Result<Room[], 'not_found' | 'at_edge'> => {
   const room = rooms.find((r) => r.id === roomId)
   if (!room) return err('not_found')
-  const floor = rooms
-    .filter((r) => r.floor === room.floor && !r.archivedAt)
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
-  const i = floor.findIndex((r) => r.id === roomId)
+  const group = roomsInGroup(rooms, roomGroup(room.kind))
+  const i = group.findIndex((r) => r.id === roomId)
+  if (i < 0) return err('not_found') // archived
   const j = direction === 'up' ? i - 1 : i + 1
-  if (j < 0 || j >= floor.length) return err('at_edge')
-  const order = [...floor]
+  if (j < 0 || j >= group.length) return err('at_edge')
+  const order = [...group]
   ;[order[i], order[j]] = [order[j]!, order[i]!]
-  const base = Math.min(...floor.map((r) => r.sortOrder))
+  const slots = group.map((r) => r.sortOrder)
+  const distinct = new Set(slots).size === slots.length
+  const slot = (k: number) => (distinct ? slots[k]! : slots[0]! + k)
   return ok(
     order
-      .map((r, k) => ({ ...r, sortOrder: base + k }))
-      .filter((r) => r.sortOrder !== floor.find((f) => f.id === r.id)!.sortOrder),
+      .map((r, k) => ({ ...r, sortOrder: slot(k) }))
+      .filter((r) => r.sortOrder !== group.find((g) => g.id === r.id)!.sortOrder),
   )
 }
