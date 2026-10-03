@@ -107,6 +107,21 @@ A task is finished when its card's "Done when" holds **and** all of these do:
 5. **Push `origin v1` once per milestone**, after its Q task passes and `pnpm test:all` is green.
 6. Log judgment calls, deviations and blockers on the task's Weyve card with `append_note` ("Decision YYYY-MM-DD: what. Why: why."). If you deviate from ARCHITECTURE.md, update the doc and its decision log in the same commit.
 
+### Long and parallel runs (usage limits)
+
+The owner is on Pro with no extra usage, so hitting the 5-hour limit stops work mid-step, and resuming a big context re-caches all of it. Plan for the stop.
+
+- **Handoff file:** keep `.claude/handoff.md` in the main checkout (untracked, listed in `.git/info/exclude`) current during any multi-task or parallel run: the plan, each agent → card → worktree/branch, what's merged into `v1`, and what's next. Rewrite it at each milestone (an agent reports, a merge lands). Keep it short; it's a pointer to git and Weyve, not a log.
+- **Check usage:** call `get_usage` (desktop app) after each commit, each agent report, and before launching an agent. Note how much the 5-hour window rose since the last check.
+- **Wind down** when the 5-hour budget left is under about twice the last interval's rise (working alone: at about 85%):
+  1. Launch nothing new.
+  2. Message running agents to commit their work in progress (`WIP T##` on their branch) or stop and leave the worktree as is.
+  3. `append_note` on each in-flight card with where it stopped.
+  4. Update the handoff file, then stop and tell the owner.
+- **Agents can't check usage;** the orchestrating session does it for them.
+- **Run at most 4 builder agents at a time,** one per dependency chain, and don't run two agents that edit the same files at once. Create their worktrees from `v1`.
+- **After a pause,** start a fresh session with `/resume-build` instead of resuming the old one.
+
 ### Architecture rules (see ARCHITECTURE §4.1)
 
 - **Layers:** `lib/domain` (pure) ← `lib/app` (use cases, `ports.ts`) ← `lib/adapters` ← `lib/compose.ts`. Only adapters and compose may import Supabase, Kysely, `pg` or `web-push`.
