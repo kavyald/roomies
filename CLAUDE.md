@@ -119,8 +119,23 @@ The owner is on Pro with no extra usage, so hitting the 5-hour limit stops work 
   3. `append_note` on each in-flight card with where it stopped.
   4. Update the handoff file, then stop and tell the owner.
 - **Agents can't check usage;** the orchestrating session does it for them.
-- **Run at most 4 builder agents at a time,** one per dependency chain, and don't run two agents that edit the same files at once. Use the `builder` agent (`.claude/agents/builder.md`) with `isolation: "worktree"`: it carries the shared brief and a slim tool set (no browser, simulator or docs connectors), so each turn re-reads far less. Its prompt only needs the card id(s), the `v1` commit to start from, and any reserved migration filename.
+- **Run at most 4 builder agents at a time,** one per dependency chain, and don't run two agents that edit the same files at once.
 - **After a pause,** start a fresh session with `/resume-build` instead of resuming the old one.
+
+### Builder agent (template)
+
+`.claude/agents/builder.md` is a reusable brief for parallel builds: one card (or one short chain) per agent, in its own worktree, with a slim tool set (no browser, simulator or docs connectors) so each turn re-reads far less. It names no branch or milestone; the launch prompt fills those in.
+
+- **Launch** with `subagent_type: "builder"`, `isolation: "worktree"`, and a prompt in this shape:
+  ```
+  Cards: T45, then T46
+  Base: v1 @ <commit>
+  Migration: supabase/migrations/<timestamp>_<name>.sql (or "none")
+  Notes: <anything specific to this run, e.g. files another agent owns>
+  ```
+- **Keep it current:** when the build process changes (test commands, branch rules, commit format), edit the template, not each launch prompt. Run-specific details go only in the prompt.
+- The orchestrator still starts and completes cards on Weyve, runs the slow tests, takes the screenshots at 375pt and merges.
+- A new or edited agent file is picked up by sessions started after the change.
 
 ### Architecture rules (see ARCHITECTURE §4.1)
 
