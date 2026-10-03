@@ -133,7 +133,11 @@ test('the detail sheet keeps Edit and Delete in its "…" menu, and the extras c
   await expect(page.getByRole('status').filter({ hasText: 'Deleted.' })).toBeVisible()
   await expect(card).toHaveCount(0)
   await page.goto(`/h/${owner.houseId}/activity`)
-  await page.getByRole('button', { name: /Kavya deleted Descale the kettle/ }).click()
+  // Deleted twice (the first was undone), so two lines; the newest is first.
+  await page
+    .getByRole('button', { name: /Kavya deleted Descale the kettle/ })
+    .first()
+    .click()
   detail = page.getByRole('dialog', { name: 'Descale the kettle' })
   await expect(detail).toContainText('Task · Deleted')
   await detail.getByRole('button', { name: 'Bring it back' }).click()
