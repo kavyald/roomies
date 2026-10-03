@@ -17,6 +17,7 @@ import {
   activityToDomain,
   contactToDomain,
   contactToRow,
+  costChangesToRow,
   costToDomain,
   costToRow,
   houseToDomain,
@@ -497,6 +498,10 @@ const reposFor = (trx: Trx): Repos => {
       },
     },
     costs: {
+      get: async (id) => {
+        const r = await trx.selectFrom('costs').selectAll().where('id', '=', id).executeTakeFirst()
+        return r && costToDomain(r)
+      },
       listByHouse: async (houseId) =>
         (
           await trx
@@ -511,6 +516,14 @@ const reposFor = (trx: Trx): Repos => {
           async () => ({ numUpdatedRows: BigInt(0) }),
           () => trx.insertInto('costs').values(costToRow(cost)).execute(),
         )
+      },
+      // Only the editable columns: created_at has microseconds a JS Date drops (CLAUDE.md).
+      update: async (cost) => {
+        await trx
+          .updateTable('costs')
+          .set(costChangesToRow(cost))
+          .where('id', '=', cost.id)
+          .execute()
       },
     },
     polls: {

@@ -179,6 +179,26 @@ export type AppCommands = {
       'unknown_member' | 'not_found' | 'not_positive' | 'too_large' | 'note_too_long'
     >
   >
+  editCost(input: {
+    costId: CostId
+    amount?: Cents
+    paidBy?: UserId
+    note?: string | null
+  }): Promise<
+    CommandResult<
+      Cost,
+      | 'not_found'
+      | 'unknown_member'
+      | 'not_positive'
+      | 'too_large'
+      | 'note_too_long'
+      | 'no_change'
+      | 'removed'
+    >
+  >
+  removeCost(input: {
+    costId: CostId
+  }): Promise<CommandResult<Cost, 'not_found' | 'already_removed'>>
   copiedToSplitwise(input: { costId: CostId }): Promise<CommandResult<Cost, 'not_found'>>
   startRequest(input: {
     contactId: ContactId

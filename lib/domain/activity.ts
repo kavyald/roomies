@@ -156,6 +156,19 @@ const describeEdit = (changes: FieldChanges | undefined): string | undefined => 
   return parts.join(' · ') || undefined
 }
 
+/** "Was $40.00 · Changed who paid and the note". */
+const describeCostEdit = (changes: FieldChanges | undefined): string | undefined => {
+  if (!changes) return undefined
+  const parts: string[] = []
+  const before = (changes as Record<string, readonly unknown[]>).amount?.[0]
+  if (typeof before === 'number') parts.push(`Was ${formatCents(before as Cents)}`)
+  const rest = [changes.paid_by && 'who paid', changes.note && 'the note'].filter(
+    (w): w is string => !!w,
+  )
+  if (rest.length) parts.push(`Changed ${listOf(rest)}`)
+  return parts.join(' · ') || undefined
+}
+
 const count = (n: number, one: string, many = `${one}s`) => (n === 1 ? `1 ${one}` : `${n} ${many}`)
 
 /**
@@ -318,9 +331,13 @@ export const activityLine = (
         return `${actor} added ${amount}${forWhat}`
       }
       case 'cost.edited':
-        return `${actor} edited a cost`
-      case 'cost.removed':
-        return `${actor} removed a cost`
+      case 'cost.removed': {
+        // "Kavya removed the $42.50 cost for Groceries"; the amount is the cost's current one.
+        const amount = r.costId && names.cost?.(r.costId)
+        const what = amount ? `the ${amount} cost` : 'a cost'
+        const forWhat = r.runId ? ` for ${run(r.runId)}` : r.itemId ? ` for ${item(r)}` : ''
+        return `${actor} ${r.kind === 'cost.edited' ? 'edited' : 'removed'} ${what}${forWhat}`
+      }
       case 'house.created':
         return `${actor} set up the house`
       case 'settings.feeling_weights_changed':
@@ -396,6 +413,8 @@ export const activityLine = (
   const quoted = (note: string | undefined) => (note ? `“${note}”` : undefined)
   const detail = (() => {
     if (first.kind === 'item.edited') return describeEdit(first.changes as FieldChanges | undefined)
+    if (first.kind === 'cost.edited')
+      return describeCostEdit(first.changes as FieldChanges | undefined)
     if (first.kind === 'feeling.set')
       return quoted((first.changes as { next?: { note?: string } } | undefined)?.next?.note)
     if (first.kind === 'run.finished') {

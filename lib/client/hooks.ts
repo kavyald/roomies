@@ -184,6 +184,10 @@ export const useCosts = (houseId: HouseId) => {
 }
 export const useAddCost = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'addCost'>) => c.addCost(i), ['costs'])
+export const useEditCost = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'editCost'>) => c.editCost(i), ['costs'])
+export const useRemoveCost = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'removeCost'>) => c.removeCost(i), ['costs'])
 export const useCopiedToSplitwise = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'copiedToSplitwise'>) => c.copiedToSplitwise(i), [])
 

@@ -346,7 +346,29 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
       },
     },
     costs: {
+      get: async (id) => {
+        const c = s.costs.find((x) => x.id === id)
+        return c && isMember(s, a, c.houseId) ? c : undefined
+      },
       listByHouse: async (houseId) => visible(s.costs, houseId),
+      // "costs update" (T57): any member edits the amount, who paid, the note and removed_at; only
+      // those are written (column grants in Postgres), and a stranger's update changes nothing.
+      update: async (cost) => {
+        const i = s.costs.findIndex((x) => x.id === cost.id)
+        const old = s.costs[i]
+        if (!old || !isMember(s, a, old.houseId)) return
+        if (!(cost.amount > 0 && cost.amount <= 10_000_000))
+          throw new ConstraintViolation('costs: amount')
+        const { amount, paidBy, note, removedAt } = cost
+        const { note: _note, removedAt: _removed, ...kept } = old
+        s.costs[i] = {
+          ...kept,
+          amount,
+          paidBy,
+          ...(note !== undefined && { note }),
+          ...(removedAt !== undefined && { removedAt }),
+        }
+      },
       add: async (cost) => {
         if (!isMember(s, a, cost.houseId)) deny('costs')
         if (a.kind !== 'system' && cost.createdBy !== uid(a)) deny('costs')

@@ -138,8 +138,22 @@ export type DomainEvent = EventBase &
         readonly runId?: RunId
         readonly memberId?: UserId
       }
-    | { readonly kind: 'cost.edited'; readonly costId: CostId; readonly changes: FieldChanges }
-    | { readonly kind: 'cost.removed'; readonly costId: CostId; readonly note?: string }
+    | {
+        readonly kind: 'cost.edited'
+        readonly costId: CostId
+        readonly itemId?: ItemId
+        readonly runId?: RunId
+        readonly memberId?: UserId
+        readonly changes: FieldChanges
+      }
+    | {
+        readonly kind: 'cost.removed'
+        readonly costId: CostId
+        readonly itemId?: ItemId
+        readonly runId?: RunId
+        readonly memberId?: UserId
+        readonly note?: string
+      }
     // house, people, places
     | { readonly kind: 'house.created' }
     | { readonly kind: 'settings.feeling_weights_changed'; readonly changes: FieldChanges }

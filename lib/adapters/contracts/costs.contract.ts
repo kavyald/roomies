@@ -1,5 +1,6 @@
-// The costs repository contract (T29): costs round-trip with what they were for; they're
-// recorded in your own name, in your own house, with a positive amount.
+// The costs repository contract (T29, T57): costs round-trip with what they were for; they're
+// recorded in your own name, in your own house, with a positive amount. Any member edits the
+// amount, who paid and the note, or removes one; what it was for and who added it never change.
 
 import { beforeAll, describe, expect, it } from 'vitest'
 import { AccessDenied, ConstraintViolation } from '../../app/ports'
@@ -79,5 +80,35 @@ export const costsContract = (name: string, makeHarness: () => Promise<UnitOfWor
           r.costs.listByHouse(s.house.id),
         ),
       ).toEqual([])
+    })
+
+    it('a member edits the amount, who paid and the note, and removes it; the rest stays', async () => {
+      const s = await setup()
+      const c = s.cost({ for: { run: s.run.id }, note: 'Groceries' })
+      await h.uow.run(s.me, (r) => r.costs.add(c))
+      const asAdmin = asMember(s.house.id, s.admin)
+      const edited: Cost = { ...c, amount: 5000 as Cents, paidBy: s.member, note: undefined }
+      await h.uow.run(asAdmin, (r) =>
+        r.costs.update({ ...edited, createdBy: s.admin, createdAt: instant(0), for: undefined }),
+      )
+      const { note: _n, ...expected } = edited
+      expect(await h.uow.run(s.me, (r) => r.costs.get(c.id))).toEqual(expected)
+      await h.uow.run(asAdmin, (r) => r.costs.update({ ...edited, removedAt: T }))
+      expect(await h.uow.run(s.me, (r) => r.costs.get(c.id))).toEqual({ ...expected, removedAt: T })
+      expect(await h.uow.run(s.me, (r) => r.costs.listByHouse(s.house.id))).toHaveLength(1)
+      await expect(
+        h.uow.run(asAdmin, (r) => r.costs.update({ ...edited, amount: 0 as Cents })),
+      ).rejects.toBeInstanceOf(ConstraintViolation)
+    })
+
+    it("another house can't read or change a cost", async () => {
+      const s = await setup()
+      const c = s.cost()
+      await h.uow.run(s.me, (r) => r.costs.add(c))
+      const other = await setup()
+      const stranger = asMember(other.house.id, other.member)
+      expect(await h.uow.run(stranger, (r) => r.costs.get(c.id))).toBeUndefined()
+      await h.uow.run(stranger, (r) => r.costs.update({ ...c, amount: 1 as Cents, removedAt: T }))
+      expect(await h.uow.run(s.me, (r) => r.costs.get(c.id))).toEqual(c)
     })
   })

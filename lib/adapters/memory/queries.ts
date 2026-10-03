@@ -2,6 +2,7 @@ import type { ChangeFeed, HouseQueries } from '../../app/ports'
 import type { Actor } from '../../domain/actor'
 import { noSubjects, pageAtActionBoundary, type ActivitySubjects } from '../../domain/activity'
 import type { Profile } from '../../domain/house'
+import { activeCosts } from '../../domain/costs'
 import type { StoredActivityRow } from '../../domain/events'
 import type { HouseId } from '../../domain/ids'
 import type { Cents } from '../../domain/money'
@@ -39,7 +40,7 @@ export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQu
   },
   runs: (houseId) => uow.run(actor, (r) => r.runs.listByHouse(houseId)),
   polls: (houseId) => uow.run(actor, (r) => r.polls.listByHouse(houseId)),
-  costs: (houseId) => uow.run(actor, (r) => r.costs.listByHouse(houseId)),
+  costs: (houseId) => uow.run(actor, async (r) => activeCosts(await r.costs.listByHouse(houseId))),
   notificationsOff: (userId) =>
     uow.run(actor, async (r) => [...((await r.notifications.offFor([userId])).get(userId) ?? [])]),
   runActivity: async (houseId, runId) => {

@@ -160,14 +160,14 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | Port | Methods (abridged) | Production adapter | Test adapter |
 |---|---|---|---|
 | `UnitOfWork` | `run<T>(actor, fn: (repos: Repos) => Promise<T>): Promise<T>`, one transaction per call. It rolls back when `fn` throws **or resolves to a failed `Result`** (A21). A broken CHECK/unique rule throws `ConstraintViolation`, a broken RLS rule `AccessDenied`. | Postgres (`PostgresUnitOfWork`): `begin` → a member or user gets `set local role authenticated` + `set_config('request.jwt.claims', …)` so **RLS still applies**; the system actor gets `set local role service_role` → `commit` | `MemoryUnitOfWork` (`lib/adapters/memory/db.ts`, which mirrors each RLS rule) |
-| `Repos` (inside a UoW) | `houses`, `profiles`, `members`, `rooms`, `contacts`, `invites`, `items`, `feelings`, `runs`, `polls`, `costs`, `notifications`, `pushSubscriptions`, `events`. Most have `get` / `listByHouse` / `save`. Exceptions: `costs` is `listByHouse` / `add` only (costs are insert-only in v1); `polls` saves piece by piece (`create` / `addOption` / `setVote` / `removeVote` / `saveState`, one RLS rule each; `saveState` writes the deadline and closing or reopening); `feelings` also has `remove`; `notifications` is `offFor` / `setEnabled` / `enqueue` / `pending` / `markSent`; `pushSubscriptions` is `save` / `forUsers` / `markOk` / `markGone`. Saves are update-then-insert, not upsert (RLS on upserts). | Kysely queries | in-memory tables |
+| `Repos` (inside a UoW) | `houses`, `profiles`, `members`, `rooms`, `contacts`, `invites`, `items`, `feelings`, `runs`, `polls`, `costs`, `notifications`, `pushSubscriptions`, `events`. Most have `get` / `listByHouse` / `save`. Exceptions: `costs` is `get` / `listByHouse` / `add` / `update` (`update` writes only the amount, who paid, the note and `removed_at`, T57); `polls` saves piece by piece (`create` / `addOption` / `setVote` / `removeVote` / `saveState`, one RLS rule each; `saveState` writes the deadline and closing or reopening); `feelings` also has `remove`; `notifications` is `offFor` / `setEnabled` / `enqueue` / `pending` / `markSent`; `pushSubscriptions` is `save` / `forUsers` / `markOk` / `markGone`. Saves are update-then-insert, not upsert (RLS on upserts). | Kysely queries | in-memory tables |
 | `EventSink` (`repos.events`) | `record(houseId, events: DomainEvent[], at: Instant)`: stamps rows with the injected clock's `at` (A21) and writes `activity_events`; `withNotifications(uow)` (A23) makes the same call also write `notifications_outbox` in the **same transaction** (transactional outbox). `forRun(houseId, runId)` reads a run's story (rows on it or moved into it) inside the transaction; `lastForItem(houseId, itemId, kind)` reads an item's newest row of a kind (the `chore.done` an Undo takes back, T54). | Postgres | in-memory |
 | `Clock` | `now(): Instant` | `systemClock` | `fixedClock(t)` |
 | `IdGenerator` | `newId<K>(): Id<K>` | `cryptoIds` (`crypto.randomUUID`) | `seqIds()` |
 | `Tokens` | `newToken()` (128 bits, URL-safe), `hash(token)` (SHA-256): invite tokens are stored only as hashes | `cryptoTokens` | `seqTokens()` |
 | `RateLimiter` | `hit(key, { limit, windowMs }, now): Promise<boolean>`: counts attempts per key in fixed windows, outside the use case's transaction (§5.4) | Postgres (`rate_limits`, service role) | in-memory |
 | `SecurityLog` | `record(event: SecurityEvent): Promise<void>`: appends a refused join or setup attempt (`invite_refused` with its reason, `setup_token_refused`, `rate_limited`; each with its step, IP and time), outside the use case's transaction (§5.4) | Postgres (`security_events`, service role) | `memorySecurityLog()` (keeps `events`) |
-| `HouseQueries` (read side) | Raw reads, each one RLS-filtered: `house`, `members`, `profiles`, `rooms`, `contacts`, `feelings`, `items`, `polls`, `runs`, `costs`, `invites` (admins only), `notificationsOff(userId)`, `itemActivity(houseId, itemId)`, `runActivity(houseId, runId)`, `latestActivity(houseId, kind)`, and `activity(houseId, { before?, limit })`, a page of rows with the `subjects` they name (A24). Screens shape these in the browser with pure functions (`homeFeed`, `needList`, `choreList`, `taskList`, `calendarEntries`, `activityFeed`, …). | Supabase browser client (RLS) | `memoryHouseQueries` |
+| `HouseQueries` (read side) | Raw reads, each one RLS-filtered: `house`, `members`, `profiles`, `rooms`, `contacts`, `feelings`, `items`, `polls`, `runs`, `costs` (removed ones left out; activity still names them through `subjects`), `invites` (admins only), `notificationsOff(userId)`, `itemActivity(houseId, itemId)`, `runActivity(houseId, runId)`, `latestActivity(houseId, kind)`, and `activity(houseId, { before?, limit })`, a page of rows with the `subjects` they name (A24). Screens shape these in the browser with pure functions (`homeFeed`, `needList`, `choreList`, `taskList`, `calendarEntries`, `activityFeed`, …). | Supabase browser client (RLS) | `memoryHouseQueries` |
 | `ChangeFeed` | `subscribe(houseId, onChange: (change: { table }) => void): Unsubscribe` | Supabase Realtime (§7.5) | `memoryChangeFeed` |
 | `AuthGateway` | `createUser(email): Result<UserId, 'already_exists'>`, `sendCode(email)` (only to an existing account, silent either way), `deleteUser(id)`. Checking the code is `verifyOtp` in the sign-in server action, which sets the session cookie. | Supabase Auth (admin client for create/delete, anon client for codes) | `memoryAuth` |
 | `PushSender` | `send(sub: PushSubscription, payload: string): Promise<PushOutcome>`, where `PushOutcome` is `'sent' \| 'gone' \| 'failed'` (404/410 → `gone`) | `webPushSender` (`web-push`, VAPID) | `fakePush()` (records sends) |
@@ -244,6 +244,7 @@ Admin-only actions (invites, adding and removing members, roles, house details) 
 | "houses members set feeling weights" (+ `only_feeling_weights_changed`) | `houses` update | Any member saves the row when nothing but `settings.feeling_weights` differs from the stored one (A22, PRD §8.2) |
 | "feelings delete own" | `feelings` delete | One of two DELETE policies (with "poll votes withdraw own while open"): removing your own current feeling (its history stays in `activity_events`) |
 | "notification prefs read" (+ `shares_house`) | `notification_prefs` select | Housemates read each other's toggles, so whoever records an event enqueues only what the others want (A23); you change only your own |
+| "costs update" (+ column grant) | `costs` update | Any member edits a cost's amount, who paid and note, or sets `removed_at` (T57); the grant covers only those four columns, so what it was for, who added it and when never change |
 | `poll_is_open(p)` | `poll_options`, `poll_votes` insert/update | Options and your own vote only while the poll is open |
 | "poll votes withdraw own while open" (+ `poll_is_open`) | `poll_votes` delete | Taking back your own vote while the poll is open (T55). Reopening and changing the deadline go through "polls update" (any member; `closed_at` and `closes_at` can be cleared) |
 | RLS on, no policies | `rate_limits`, `security_events` | Service role only (the server's system actor); `security_events` is append-only (select, insert, delete for pruning; no update) |
@@ -390,7 +391,8 @@ runs            (id, house_id, kind: batch|request|visit,   -- kind never change
 -- money --------------------------------------------------------------------------
 costs           (id, house_id, amount_cents, paid_by, note null,   -- 0 < amount_cents ≤ 10,000,000 ($100,000)
                  item_id null, run_id null,                 -- what it was for (at most one)
-                 created_by, created_at)                    -- insert-only in v1; a Splitwise copy is a cost.splitwise_copied activity row
+                 created_by, created_at,                    -- immutable (column grants: only the next four are updatable)
+                 removed_at null)                           -- any member edits amount / paid_by / note or removes it (T57); a Splitwise copy is a cost.splitwise_copied activity row
                  check (num_nonnulls(item_id, run_id) <= 1)
 
 -- infrastructure -----------------------------------------------------------------
@@ -471,7 +473,7 @@ type Run = { id: RunId; houseId: HouseId; title?: string; runner: UserId; create
 
 // ---- money ----
 type Cost = { id: CostId; houseId: HouseId; amount: Cents; paidBy: UserId; note?: string
-  for?: { item: ItemId } | { run: RunId }; createdBy: UserId; createdAt: Instant }
+  for?: { item: ItemId } | { run: RunId }; createdBy: UserId; createdAt: Instant; removedAt?: Instant }
 
 // history of items on runs, read back from activity_events
 type RunStep = { id: number; at: Instant; by: UserId | null; itemId: ItemId; runId: RunId; note?: string
@@ -506,8 +508,8 @@ type DomainEvent = { actionId: ActionId; by: UserId | null } & (      // by: nul
   | { kind: 'run.finished'; runId: RunId; payload: { done: number; returned: number } }
   // money
   | { kind: 'cost.added' | 'cost.splitwise_copied'; costId: CostId; itemId?: ItemId; runId?: RunId; memberId?: UserId }
-  | { kind: 'cost.edited'; costId: CostId; changes: FieldChanges }
-  | { kind: 'cost.removed'; costId: CostId; note?: string }
+  | { kind: 'cost.edited'; costId: CostId; itemId?: ItemId; runId?: RunId; memberId?: UserId; changes: FieldChanges }
+  | { kind: 'cost.removed'; costId: CostId; itemId?: ItemId; runId?: RunId; memberId?: UserId; note?: string }
   // house, people, places
   | { kind: 'house.created' }
   | { kind: 'settings.feeling_weights_changed'; changes: FieldChanges }
@@ -671,7 +673,9 @@ select changes, actor_id, at from activity_events
 | `runSteps` / `itemPath` / `runLedger` | `(rows) → RunStep[]` / `(rows, itemId) → RunStep[]` / `(runId, steps, onRunNow) → LedgerEntry[]` | Pure readers over the activity rows in §6.4; `runProgress`, `inArrivalOrder`, `runLabel`, `visitDateOf` build on them |
 | **Money** (`costs.ts`, `money.ts`) | | |
 | `addCost` | `(input: NewCost, ctx: { by, now, id, houseId, actionId }) → Result<{ cost; events }, 'not_positive' \| 'too_large' \| 'note_too_long'>` | Who paid defaults to whoever adds it |
-| `monthlySpend` | `(costs, members: number, month, tz) → { total: Cents; share: Cents }` | Equal split (`splitEqually`); `monthOf(at, tz)` |
+| `editCost` | `(cost, patch: { amount?, paidBy?, note? (null clears) }, { by, actionId }) → Result<{ cost; events }, 'not_positive' \| 'too_large' \| 'note_too_long' \| 'no_change' \| 'removed'>` | `cost.edited` with `changes` (`amount`, `paid_by`, `note`) |
+| `removeCost` | `(cost, { by, now, actionId }) → Result<{ cost; events }, 'already_removed'>` | Sets `removedAt`; `cost.removed`. No restore (no Undo) |
+| `monthlySpend` | `(costs, members: number, month, tz) → { total: Cents; share: Cents }` | Equal split (`splitEqually`); `monthOf(at, tz)`; removed costs don't count (`activeCosts`) |
 | `splitwiseText` / `copiedToSplitwise` | `(title, amount) → string` / `(cost, { by, actionId }) → DomainEvent` | The copy text, and its `cost.splitwise_copied` event |
 | **House, people and places** (`setup.ts`, `invites.ts`, `members.ts`, `rooms.ts`, `contacts.ts`, `profile.ts`) | | |
 | `setupHouse` | `(input: NewHouse, owner, now, newId, existingProfile?) → Result<{ house; profile; member; rooms; events }, SetupError>` | Default weights, the owner as admin, and the apartment's rooms (`APARTMENT_ROOMS`). `safeEqual` compares the setup token. |
@@ -704,7 +708,7 @@ select changes, actor_id, at from activity_events
 | | `renameRun` (`{ runId, title \| null }`) · `setRunner` (`{ runId, runner }`, any current member) | `Run` | `finished`, `title_too_long`, `no_change`, `unknown_member` | |
 | | `finishRun` (`{ runId, spent?, paidBy?, note? }`) | `{ run, cost? }` | `finished`, `not_finishable`, `unknown_member`, cost errors | |
 | `polls.ts` | `createPoll` (`NewPoll`) · `vote` (`{ pollId, optionId }`) · `addPollOption` (`{ pollId, label, note? }`) · `closePoll` (`{ pollId }`) · `withdrawVote` (`{ pollId }`) · `reopenPoll` (`{ pollId }`) · `setPollDeadline` (`{ pollId, closesAt \| null }`) | `Poll` / `{ poll, result }` | the domain errors above | |
-| `costs.ts` | `addCost` (`NewCost`) · `copiedToSplitwise` (`{ costId }`) | `Cost` | `not_positive`, `too_large`, `note_too_long`, `unknown_member` | |
+| `costs.ts` | `addCost` (`NewCost`) · `editCost` (`{ costId, amount?, paidBy?, note? }`) · `removeCost` (`{ costId }`) · `copiedToSplitwise` (`{ costId }`) | `Cost` | `not_positive`, `too_large`, `note_too_long`, `unknown_member`, `not_found`; edit: `no_change`, `removed`; remove: `already_removed` | |
 | `contacts.ts` | `createContact` (`NewContact`) · `editContact` (`{ id, patch }`) · `removeContact` (an id) | `Contact` | `empty_name`, `no_change`, `already_removed` | |
 | `house.ts` | `moveOut` (`{ userId, note? }`: "I moved out", or an admin removing someone) · `setRole` (`{ userId, role }`) · `renameRoom` (`{ roomId, name }`) · `moveRoom` (`{ roomId, direction }`) · `setFeelingWeights` (`FeelingWeights`, any member) | `Member` / `Room` / `Room[]` / `House` | `not_allowed`, `already_moved_out`, `last_admin`, `not_active`, `no_change`, `empty_name`, `at_edge`, `out_of_range` | |
 | | `deleteAccount` (none): moves you out, anonymizes your profile, then deletes the auth user | `void` | `last_admin` | `auth` |

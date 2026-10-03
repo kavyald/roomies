@@ -1,7 +1,7 @@
 // Money (PRD §6.6): a cost is an amount, who paid, an optional note, and what it was for. It's
 // split equally among the house; Splitwise is a copy-and-open, not an API. Pure.
 
-import type { DomainEvent } from './events'
+import type { DomainEvent, FieldChanges } from './events'
 import type { ActionId, CostId, HouseId, ItemId, RunId, UserId } from './ids'
 import { formatCents, splitEqually, sumCents, type Cents } from './money'
 import { err, ok, type Result } from './result'
@@ -18,6 +18,8 @@ export type Cost = {
   readonly for?: CostFor
   readonly createdBy: UserId
   readonly createdAt: Instant
+  /** Taken back out: it stays for the history, but no longer counts (T57). */
+  readonly removedAt?: Instant
 }
 
 export const MAX_COST = 10_000_000 as Cents // $100,000
@@ -74,6 +76,84 @@ export const addCost = (
   })
 }
 
+/** The subject columns a cost's events carry: what it was for. */
+const forOf = (cost: Cost) => ({
+  ...(cost.for && 'item' in cost.for && { itemId: cost.for.item }),
+  ...(cost.for && 'run' in cost.for && { runId: cost.for.run }),
+})
+
+export type CostPatch = {
+  readonly amount?: Cents
+  readonly paidBy?: UserId
+  /** `null` (or blank) clears it. */
+  readonly note?: string | null
+}
+
+/** Edit: the amount, who paid, or the note. What it was for and who added it never change. */
+export const editCost = (
+  cost: Cost,
+  patch: CostPatch,
+  ctx: { readonly by: UserId; readonly actionId: ActionId },
+): Result<
+  { cost: Cost; events: DomainEvent[] },
+  'not_positive' | 'too_large' | 'note_too_long' | 'no_change' | 'removed'
+> => {
+  if (cost.removedAt) return err('removed')
+  const amount = patch.amount ?? cost.amount
+  if (!Number.isSafeInteger(amount) || amount <= 0) return err('not_positive')
+  if (amount > MAX_COST) return err('too_large')
+  const note = patch.note === undefined ? cost.note : patch.note?.trim() || undefined
+  if (note && note.length > MAX_COST_NOTE) return err('note_too_long')
+  const paidBy = patch.paidBy ?? cost.paidBy
+
+  const changes: Record<string, readonly [unknown, unknown]> = {}
+  if (amount !== cost.amount) changes.amount = [cost.amount, amount]
+  if (paidBy !== cost.paidBy) changes.paid_by = [cost.paidBy, paidBy]
+  if (note !== cost.note) changes.note = [cost.note ?? null, note ?? null]
+  if (Object.keys(changes).length === 0) return err('no_change')
+
+  const { note: _old, ...rest } = cost
+  const next: Cost = { ...rest, amount, paidBy, ...(note && { note }) }
+  return ok({
+    cost: next,
+    events: [
+      {
+        kind: 'cost.edited',
+        costId: cost.id,
+        ...forOf(cost),
+        memberId: paidBy,
+        changes: changes as FieldChanges,
+        actionId: ctx.actionId,
+        by: ctx.by,
+      },
+    ],
+  })
+}
+
+/** Remove: it stays in the history (activity points at it), but stops counting. */
+export const removeCost = (
+  cost: Cost,
+  ctx: { readonly by: UserId; readonly now: Instant; readonly actionId: ActionId },
+): Result<{ cost: Cost; events: DomainEvent[] }, 'already_removed'> => {
+  if (cost.removedAt) return err('already_removed')
+  return ok({
+    cost: { ...cost, removedAt: ctx.now },
+    events: [
+      {
+        kind: 'cost.removed',
+        costId: cost.id,
+        ...forOf(cost),
+        memberId: cost.paidBy,
+        actionId: ctx.actionId,
+        by: ctx.by,
+      },
+    ],
+  })
+}
+
+/** The costs that still count: removed ones are history only. */
+export const activeCosts = (costs: readonly Cost[]): Cost[] => costs.filter((c) => !c.removedAt)
+
 /** "2026-09": the month a cost falls in, on the house's calendar. */
 export const monthOf = (at: Instant, tz: string): string => localDateOf(at, tz).slice(0, 7)
 
@@ -88,7 +168,7 @@ export const monthlySpend = (
   tz: string,
 ): { total: Cents; share: Cents } => {
   const total = sumCents(
-    costs.filter((c) => monthOf(c.createdAt, tz) === month).map((c) => c.amount),
+    costs.filter((c) => !c.removedAt && monthOf(c.createdAt, tz) === month).map((c) => c.amount),
   )
   return { total, share: splitEqually(total, Math.max(1, members))[0] ?? (0 as Cents) }
 }
@@ -104,8 +184,7 @@ export const copiedToSplitwise = (
 ): DomainEvent => ({
   kind: 'cost.splitwise_copied',
   costId: cost.id,
-  ...(cost.for && 'item' in cost.for && { itemId: cost.for.item }),
-  ...(cost.for && 'run' in cost.for && { runId: cost.for.run }),
+  ...forOf(cost),
   actionId: ctx.actionId,
   by: ctx.by,
 })

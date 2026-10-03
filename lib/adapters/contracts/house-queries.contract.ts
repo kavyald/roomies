@@ -264,6 +264,35 @@ export const houseQueriesContract = (
       ).toEqual({ rows: [], before: null, subjects: noSubjects })
     })
 
+    it('lists the costs that still count, while a removed one keeps its name in activity', async () => {
+      const { house, member } = await seedHouse(h)
+      const cost = (amount: number) => ({
+        id: h.ids.newId<'cost'>(),
+        houseId: house.id,
+        amount,
+        paidBy: member,
+        createdBy: member,
+        createdAt: T,
+      })
+      const kept = cost(4250)
+      const gone = cost(999)
+      await h.uow.run(system(house.id), async (r) => {
+        await r.costs.add(kept as never)
+        await r.costs.add(gone as never)
+        await r.costs.update({ ...gone, removedAt: T } as never)
+        await r.events.record(
+          house.id,
+          [{ kind: 'cost.removed', costId: gone.id, actionId: h.ids.newId(), by: member }],
+          T,
+        )
+      })
+      const q = h.queriesFor(member, house.id)
+      expect(await q.costs(house.id)).toEqual([kept])
+      expect((await q.activity(house.id, { limit: 10 })).subjects.costs).toEqual({
+        [gone.id]: 999,
+      })
+    })
+
     it("reads the house's polls with their options and votes", async () => {
       const { house, admin, member } = await withPlaces()
       const poll = {

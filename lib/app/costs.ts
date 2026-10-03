@@ -1,8 +1,17 @@
-// Cost use cases (PRD §6.6): record a cost for an item, a run, or nothing; note a Splitwise copy.
+// Cost use cases (PRD §6.6): record a cost for an item, a run, or nothing; edit or remove one
+// (T57); note a Splitwise copy.
 
 import type { AppDeps, Repos } from './ports'
 import { actorUser, type HouseActor } from '../domain/actor'
-import { addCost, copiedToSplitwise, type CostFor, type NewCost } from '../domain/costs'
+import {
+  addCost,
+  copiedToSplitwise,
+  editCost,
+  removeCost,
+  type CostFor,
+  type CostPatch,
+  type NewCost,
+} from '../domain/costs'
 import type { CostId, UserId } from '../domain/ids'
 import { err, ok } from '../domain/result'
 
@@ -49,14 +58,50 @@ export const makeAddCost =
       return ok(r.value.cost)
     })
 
+/** Edit a cost: the amount, who paid (an active member), or the note. Any member can. */
+export const makeEditCost =
+  ({ uow, clock, ids }: Deps) =>
+  (actor: HouseActor, input: { costId: CostId } & CostPatch) =>
+    uow.run(actor, async (repos) => {
+      const by = actorUser(actor)
+      const cost = await repos.costs.get(input.costId)
+      if (!cost || cost.houseId !== actor.houseId || !by) return err('not_found')
+      const { costId: _id, ...patch } = input
+      if (patch.paidBy && patch.paidBy !== cost.paidBy) {
+        const bad = await checkCostRefs(repos, actor, { paidBy: patch.paidBy })
+        if (bad) return err(bad)
+      }
+      const r = editCost(cost, patch, { by, actionId: ids.newId() })
+      if (!r.ok) return r
+      await repos.costs.update(r.value.cost)
+      await repos.events.record(actor.houseId, r.value.events, clock.now())
+      return ok(r.value.cost)
+    })
+
+/** Remove a cost: it stops counting, and its history stays. */
+export const makeRemoveCost =
+  ({ uow, clock, ids }: Deps) =>
+  (actor: HouseActor, input: { costId: CostId }) =>
+    uow.run(actor, async (repos) => {
+      const by = actorUser(actor)
+      const cost = await repos.costs.get(input.costId)
+      if (!cost || cost.houseId !== actor.houseId || !by) return err('not_found')
+      const now = clock.now()
+      const r = removeCost(cost, { by, now, actionId: ids.newId() })
+      if (!r.ok) return r
+      await repos.costs.update(r.value.cost)
+      await repos.events.record(actor.houseId, r.value.events, now)
+      return ok(r.value.cost)
+    })
+
 /** "Open Splitwise" copied it: noted in the history. */
 export const makeCopiedToSplitwise =
   ({ uow, clock, ids }: Deps) =>
   (actor: HouseActor, input: { costId: CostId }) =>
     uow.run(actor, async (repos) => {
       const by = actorUser(actor)
-      const cost = (await repos.costs.listByHouse(actor.houseId)).find((c) => c.id === input.costId)
-      if (!cost || !by) return err('not_found')
+      const cost = await repos.costs.get(input.costId)
+      if (!cost || cost.houseId !== actor.houseId || !by) return err('not_found')
       await repos.events.record(
         actor.houseId,
         [copiedToSplitwise(cost, { by, actionId: ids.newId() })],

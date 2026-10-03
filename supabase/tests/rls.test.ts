@@ -480,3 +480,69 @@ describe('server-only tables (rate_limits, security_events)', () => {
     }
   })
 })
+
+describe('costs: edit and remove (T57)', () => {
+  const addCost = (db: import('../../lib/testing/db').Db, id: string, by: string) =>
+    db.query(
+      `insert into costs (id, house_id, amount_cents, paid_by, note, created_by) values ($1, $2, 4250, $3, 'Groceries', $3)`,
+      [id, mine.houseId, by],
+    )
+
+  it('a member edits the amount, who paid and the note, and sets removed_at', async () => {
+    const id = newId()
+    await asUser(mine.member, async (db) => {
+      await addCost(db, id, mine.member)
+      const r = await db.query(
+        `update costs set amount_cents = 5000, paid_by = $2, note = null, removed_at = now() where id = $1`,
+        [id, mine.admin],
+      )
+      expect(r.rowCount).toBe(1)
+      const { rows } = await db.query(
+        `select amount_cents, paid_by, note, removed_at is not null as removed from costs where id = $1`,
+        [id],
+      )
+      expect(rows).toEqual([{ amount_cents: 5000, paid_by: mine.admin, note: null, removed: true }])
+    })
+  })
+
+  it('what it was for, who added it and when never change; amounts stay in range', async () => {
+    const id = newId()
+    await asUser(mine.member, async (db) => {
+      await addCost(db, id, mine.member)
+      for (const set of [
+        `created_by = '${mine.admin}'`,
+        `created_at = now()`,
+        `house_id = '${theirs.houseId}'`,
+        `run_id = null`,
+      ]) {
+        expect({
+          set,
+          code: await refused(db, `update costs set ${set} where id = $1`, [id]),
+        }).toEqual({ set, code: INSUFFICIENT_PRIVILEGE })
+      }
+      expect(await refused(db, `update costs set amount_cents = 0 where id = $1`, [id])).toBe(
+        '23514',
+      )
+    })
+  })
+
+  it("someone outside the house can't edit or remove a cost", async () => {
+    const id = newId()
+    await asOwner((db) => addCost(db, id, mine.member))
+    try {
+      await asUser(theirs.member, async (db) => {
+        const r = await db.query(
+          `update costs set amount_cents = 1, removed_at = now() where id = $1`,
+          [id],
+        )
+        expect(r.rowCount).toBe(0)
+      })
+      const { rows } = await asOwner((db) =>
+        db.query(`select amount_cents, removed_at from costs where id = $1`, [id]),
+      )
+      expect(rows).toEqual([{ amount_cents: 4250, removed_at: null }])
+    } finally {
+      await asOwner((db) => db.query(`delete from costs where id = $1`, [id]))
+    }
+  })
+})

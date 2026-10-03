@@ -271,7 +271,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 - **Meta rows:** Room · Last done (chores) · When / Needed by · Who's on it · Handled by (tasks) · Ask them · On a run · Done/Got it. Then the note.
 - **Tasks: "Handled by"** is always shown. It reads *One of us · Needs outside help?* or *Super · (555) 010-2231 · Copy · Change*, and either link opens **Who's handling it?**: One of us, the contacts, or **+ Someone new** (name + optional phone). On a request or visit it reads *It's on the Landlord request. Move it to change who's handling it.* with **Open the Landlord request** instead, because "Handled by" follows the run (PRD §6.3).
 - **How the house feels** stays open (current feelings + notes, **Earlier**, **🙂+ Share a feeling**): it's the core interaction.
-- **Tap-to-open sections**, closed by default, each a row with a short summary: **Why is this here?** (the tier; open, the score breakdown) · **Polls** (how many; open, the polls and **+ Poll about this**) · **Costs** (the total, "$42.00"; open, each cost with Open Splitwise and **Add cost**: amount, who paid) · **History** (how many steps; open, the item's path through runs). Each section is a named region, and its row says whether it's open, so they work with VoiceOver.
+- **Tap-to-open sections**, closed by default, each a row with a short summary: **Why is this here?** (the tier; open, the score breakdown) · **Polls** (how many; open, the polls and **+ Poll about this**) · **Costs** (the total, "$42.00"; open, each cost with Open Splitwise and a **…** menu to **Edit** (amount, who paid, note) or **Remove** ("Remove this cost?"), and **Add cost**: amount, who paid) · **History** (how many steps; open, the item's path through runs). Each section is a named region, and its row says whether it's open, so they work with VoiceOver.
 
 ### 5.5 Needs tab
 
@@ -315,6 +315,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
   - **Done** / **Fixed**
 - **Request buttons:** *Add more* and **Send request** while gathering. Send opens the composed message with **Copy message**, a "Sent by" picker, and **Mark as sent**.
 - **Batch and visit button:** **Finish** (anything left goes back to the pool). A batch has an optional **Spent** amount beside it: empty finishes with no cost; an amount records one cost on the run, paid by you (*Who paid* appears once there's an amount, to change it). The toast says "Finished. $40.00 noted." with **Open Splitwise**.
+- **Spent · $42.50:** the run's costs, once it has any, each with Open Splitwise and the same **…** menu (Edit / Remove) as an item's Costs.
 - A footnote on requests: "Recording their reply is just moving tasks." 
 
 ### 5.10 Calendar

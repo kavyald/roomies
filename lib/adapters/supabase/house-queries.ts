@@ -160,7 +160,15 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => {
         (r: { category: NotificationCategory }) => r.category,
       ),
     costs: (houseId) =>
-      rows(sb.from('costs').select('*').eq('house_id', houseId).order('created_at'), costToDomain),
+      rows(
+        sb
+          .from('costs')
+          .select('*')
+          .eq('house_id', houseId)
+          .is('removed_at', null)
+          .order('created_at'),
+        costToDomain,
+      ),
     polls: async (houseId) => {
       const byHouse = (table: string) =>
         sb.from(table).select('*').eq('house_id', houseId) as unknown as PromiseLike<{

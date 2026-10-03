@@ -7,6 +7,7 @@ import type { DomainEvent, EventKind, StoredActivityRow } from '../domain/events
 import type { Contact, House, Invite, Member, Profile, Room } from '../domain/house'
 import type {
   ContactId,
+  CostId,
   HouseId,
   Id,
   InviteId,
@@ -173,10 +174,16 @@ export interface PushSender {
   send(sub: PushSubscription, payload: string): Promise<PushOutcome>
 }
 
-/** Costs are recorded, never edited or deleted in v1. */
+/**
+ * Costs are recorded, then edited or removed (T57). Removing sets `removedAt`; nothing is deleted
+ * (activity points at costs). `listByHouse` includes removed ones.
+ */
 export interface CostRepo {
+  get(id: CostId): Promise<Cost | undefined>
   listByHouse(houseId: HouseId): Promise<Cost[]>
   add(cost: Cost): Promise<void>
+  /** Writes the amount, who paid, the note and `removedAt`; nothing else ever changes. */
+  update(cost: Cost): Promise<void>
 }
 
 export interface RunRepo {
@@ -274,7 +281,7 @@ export interface HouseQueries {
   polls(houseId: HouseId): Promise<Poll[]>
   /** The notification categories this person turned off. */
   notificationsOff(userId: UserId): Promise<NotificationCategory[]>
-  /** The house's costs, oldest first. */
+  /** The house's costs that still count (removed ones left out), oldest first. */
   costs(houseId: HouseId): Promise<Cost[]>
   /** The house's runs, open ones and finished ones. */
   runs(houseId: HouseId): Promise<Run[]>

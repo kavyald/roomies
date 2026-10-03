@@ -185,8 +185,17 @@ describe('activityLine: every kind', () => {
       'Kavya added $42.50 for Leak under the sink',
     ],
     ['cost.added', { costId: id('c') }, 'Kavya added $42.50'],
-    ['cost.edited', { costId: id('c') }, 'Kavya edited a cost'],
-    ['cost.removed', { costId: id('c') }, 'Kavya removed a cost'],
+    [
+      'cost.edited',
+      { costId: id('c'), itemId: id('i1') },
+      'Kavya edited the $42.50 cost for Leak under the sink',
+    ],
+    [
+      'cost.removed',
+      { costId: id('c'), runId: id('groc') },
+      "Kavya removed the $42.50 cost for Wren's grocery run",
+    ],
+    ['cost.removed', { costId: id('c') }, 'Kavya removed the $42.50 cost'],
     ['house.created', {}, 'Kavya set up the house'],
     ['settings.feeling_weights_changed', {}, 'Kavya changed the feeling weights'],
     [
@@ -374,6 +383,16 @@ describe('T40: what a line is about, what it opens, and what else it says', () =
       'Changed the note',
     )
     expect(line('item.edited', { itemId: id('n1') }).detail).toBeUndefined()
+    expect(
+      line('cost.edited', {
+        costId: id('c'),
+        changes: { amount: [4000, 4250], paid_by: ['a', 'b'], note: [null, 'Milk'] },
+      }).detail,
+    ).toBe('Was $40.00 · Changed who paid and the note')
+    expect(line('cost.edited', { costId: id('c'), changes: { note: ['Milk', null] } }).detail).toBe(
+      'Changed the note',
+    )
+    expect(line('cost.edited', { costId: id('c') }).detail).toBeUndefined()
     const actionId = id<'action'>('fin') as ActionId
     const finished = activityLine(
       [

@@ -40,6 +40,7 @@ import {
   type Run,
 } from '@/lib/domain/runs'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
+import { RunCosts } from '@/components/costs/RunCosts'
 import { useSplitwise } from '@/components/costs/useSplitwise'
 import { useContactChoice } from './ContactChoice'
 import { requestStage } from './meta'
@@ -330,6 +331,8 @@ function RunSheetFor({
           })}
         </ul>
       )}
+
+      <RunCosts houseId={houseId} runId={run.id} label={label} />
 
       {tapMode && pending.length > 0 && (
         <Button

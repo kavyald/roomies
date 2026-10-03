@@ -213,6 +213,7 @@ A run is **a batch of items handled together**. There are three kinds:
 
 - **[DECIDED]** Money is a **cost record**: an amount, who paid, an optional note, and what it was for (an item or a run). Nothing requires one.
 - **Adding one:** "Add cost" on any item, or the **Spent** amount beside a batch's **Finish**.
+- **Changing one:** any member can **edit** a cost (amount, who paid, note) or **remove** it ("Remove this cost?"), from the item's Costs section or the run's sheet. A removed cost stops counting toward Spent this month; the activity log keeps the edit or removal.
 - **Split** is equal among all members in v1.
 - **Open Splitwise** copies "{title} — ${amount}" and opens Splitwise. **[DECIDED] (owner)** There's no Splitwise API in v1.
 - The House tab shows **"Spent this month: $X · your share $Y"**.

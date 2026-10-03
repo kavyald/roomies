@@ -24,7 +24,12 @@ import {
   setFeelingAction,
   undoChoreAction,
 } from '@/app/actions/items'
-import { addCostAction, copiedToSplitwiseAction } from '@/app/actions/costs'
+import {
+  addCostAction,
+  copiedToSplitwiseAction,
+  editCostAction,
+  removeCostAction,
+} from '@/app/actions/costs'
 import { setNotificationEnabledAction, updateMySettingsAction } from '@/app/actions/me'
 import { savePushSubscriptionAction } from '@/app/actions/push'
 import {
@@ -121,6 +126,8 @@ export function HouseProviders({
       reopenPoll: (input) => reopenPollAction(houseId, input),
       setPollDeadline: (input) => setPollDeadlineAction(houseId, input),
       addCost: (input) => addCostAction(houseId, input),
+      editCost: (input) => editCostAction(houseId, input),
+      removeCost: (input) => removeCostAction(houseId, input),
       copiedToSplitwise: (input) => copiedToSplitwiseAction(houseId, input),
       savePushSubscription: (input) => savePushSubscriptionAction(houseId, input),
       updateMySettings: (input) => updateMySettingsAction(houseId, input),

@@ -159,6 +159,7 @@ export type CostsTable = {
   run_id: string | null
   created_by: string
   created_at: Timestamp
+  removed_at: Timestamp | null
 }
 
 export type FeelingsTable = {

@@ -323,7 +323,16 @@ export const costToDomain = (r: Selectable<CostsTable>): Cost =>
         : undefined,
     createdBy: asId<'user'>(r.created_by),
     createdAt: toInstant(r.created_at),
+    removedAt: optInstant(r.removed_at),
   })
+
+/** What an edit or a removal writes; the rest of a cost is immutable (column grants). */
+export const costChangesToRow = (c: Cost) => ({
+  amount_cents: c.amount,
+  paid_by: c.paidBy,
+  note: c.note ?? null,
+  removed_at: c.removedAt ? toDate(c.removedAt) : null,
+})
 
 export const costToRow = (c: Cost) => ({
   id: c.id,
@@ -335,6 +344,7 @@ export const costToRow = (c: Cost) => ({
   run_id: c.for && 'run' in c.for ? c.for.run : null,
   created_by: c.createdBy,
   created_at: toDate(c.createdAt),
+  removed_at: c.removedAt ? toDate(c.removedAt) : null,
 })
 
 // ---- polls --------------------------------------------------------------------------------------

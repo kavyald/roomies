@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { addCost, copiedToSplitwise, monthlySpend, splitwiseText, type Cost } from './costs'
+import {
+  activeCosts,
+  addCost,
+  copiedToSplitwise,
+  editCost,
+  monthlySpend,
+  removeCost,
+  splitwiseText,
+  type Cost,
+} from './costs'
 import {
   asId,
   type ActionId,
@@ -80,6 +89,93 @@ describe('monthlySpend', () => {
     expect(monthlySpend(costs, 4, '2026-09', TZ)).toEqual({ total: 5250, share: 1313 })
     expect(monthlySpend([], 4, '2026-09', TZ)).toEqual({ total: 0, share: 0 })
     expect(monthlySpend(costs, 0, '2026-10', TZ)).toEqual({ total: 999, share: 999 })
+  })
+
+  it('leaves removed costs out', () => {
+    const costs = [c(4250, '2026-09-02'), { ...c(1000, '2026-09-03'), removedAt: ctx.now }]
+    expect(monthlySpend(costs, 2, '2026-09', TZ)).toEqual({ total: 4250, share: 2125 })
+    expect(activeCosts(costs).map((x) => x.amount)).toEqual([4250])
+  })
+})
+
+describe('editCost', () => {
+  const item = asId<'item'>('vacuum') as ItemId
+  const base: Cost = { ...c(4000, '2026-09-02'), note: 'Groceries', for: { item } }
+  const by = { by: wren, actionId: ctx.actionId }
+
+  it('changes the amount, who paid, and the note, and says what changed', () => {
+    const r = editCost(base, { amount: 4250 as Cents, paidBy: wren, note: ' Milk ' }, by)
+    expect(r.ok && r.value.cost).toEqual({ ...base, amount: 4250, paidBy: wren, note: 'Milk' })
+    expect(r.ok && r.value.events).toEqual([
+      {
+        kind: 'cost.edited',
+        costId: base.id,
+        itemId: item,
+        memberId: wren,
+        changes: { amount: [4000, 4250], paid_by: [kavya, wren], note: ['Groceries', 'Milk'] },
+        actionId: 'a',
+        by: wren,
+      },
+    ])
+  })
+
+  it('clears the note with null or blank, and keeps it when left out', () => {
+    for (const note of [null, '  ']) {
+      const r = editCost(base, { note }, by)
+      expect(r.ok && r.value.cost.note).toBeUndefined()
+      expect(r.ok && 'note' in r.value.cost).toBe(false)
+      expect(r.ok && r.value.events[0]).toMatchObject({ changes: { note: ['Groceries', null] } })
+    }
+    const kept = editCost(base, { amount: 1 as Cents }, by)
+    expect(kept.ok && kept.value.cost.note).toBe('Groceries')
+  })
+
+  it('refuses bad amounts, long notes, no change, and removed costs', () => {
+    for (const amount of [0, -1, 2.5]) {
+      expect(editCost(base, { amount: amount as Cents }, by)).toEqual({
+        ok: false,
+        error: 'not_positive',
+      })
+    }
+    expect(editCost(base, { amount: 10_000_001 as Cents }, by)).toEqual({
+      ok: false,
+      error: 'too_large',
+    })
+    expect(editCost(base, { note: 'x'.repeat(281) }, by)).toEqual({
+      ok: false,
+      error: 'note_too_long',
+    })
+    expect(editCost(base, { amount: 4000 as Cents, note: 'Groceries' }, by)).toEqual({
+      ok: false,
+      error: 'no_change',
+    })
+    expect(editCost({ ...base, removedAt: ctx.now }, { amount: 1 as Cents }, by)).toEqual({
+      ok: false,
+      error: 'removed',
+    })
+  })
+})
+
+describe('removeCost', () => {
+  it('marks it removed, once', () => {
+    const base: Cost = { ...c(4250, '2026-09-02'), for: { run } }
+    const r = removeCost(base, { by: wren, now: ctx.now, actionId: ctx.actionId })
+    expect(r.ok && r.value.cost).toEqual({ ...base, removedAt: ctx.now })
+    expect(r.ok && r.value.events).toEqual([
+      {
+        kind: 'cost.removed',
+        costId: base.id,
+        runId: run,
+        memberId: kavya,
+        actionId: 'a',
+        by: wren,
+      },
+    ])
+    if (!r.ok) return
+    expect(removeCost(r.value.cost, { by: wren, now: ctx.now, actionId: ctx.actionId })).toEqual({
+      ok: false,
+      error: 'already_removed',
+    })
   })
 })
 

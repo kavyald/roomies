@@ -5,19 +5,26 @@ import { Field, inputClass } from '@/components/auth/fields'
 import { useMembers, useProfiles } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import type { HouseId, UserId } from '@/lib/domain/ids'
-import { parseCents, type Cents } from '@/lib/domain/money'
+import { formatCents, parseCents, type Cents } from '@/lib/domain/money'
 
-/** Amount + who paid (defaults to me) + an optional note. `value()` is null until it's valid. */
-export function useCostFields(houseId: HouseId, idPrefix: string) {
+/** What an edit starts from: the cost as it is. */
+export type CostFieldsInitial = { amount: Cents; paidBy: UserId; note?: string }
+
+/**
+ * Amount + who paid (defaults to me) + an optional note. `value()` is null until it's valid. With
+ * `initial`, the fields start from an existing cost (Edit).
+ */
+export function useCostFields(houseId: HouseId, idPrefix: string, initial?: CostFieldsInitial) {
   const { me } = useAppClient()
   const members = useMembers(houseId)
   const profiles = useProfiles(houseId)
-  const [amount, setAmount] = useState('')
-  const [paidBy, setPaidBy] = useState<UserId>(me)
-  const [note, setNote] = useState('')
+  const [amount, setAmount] = useState(initial ? formatCents(initial.amount).replace('$', '') : '')
+  const [paidBy, setPaidBy] = useState<UserId>(initial?.paidBy ?? me)
+  const [note, setNote] = useState(initial?.note ?? '')
   const parsed = parseCents(amount)
   const names = new Map((profiles.data ?? []).map((p) => [p.id as string, p.displayName]))
-  const people = (members.data ?? []).filter((m) => m.status.active)
+  // Whoever paid stays pickable on an edit, even after they've moved out.
+  const people = (members.data ?? []).filter((m) => m.status.active || m.userId === initial?.paidBy)
 
   const fields = (
     <div className="grid gap-2">
