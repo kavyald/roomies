@@ -146,11 +146,20 @@ const EDIT_WORDS: Readonly<Record<string, string>> = {
 const listOf = (words: readonly string[]) =>
   words.length < 2 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`
 
-const describeEdit = (changes: FieldChanges | undefined): string | undefined => {
+const describeEdit = (
+  changes: FieldChanges | undefined,
+  who: (id: UserId) => string,
+): string | undefined => {
   if (!changes) return undefined
   const parts: string[] = []
-  const before = (changes as Record<string, readonly unknown[]>).title?.[0]
+  const fields = changes as Record<string, readonly unknown[]>
+  const before = fields.title?.[0]
   if (typeof before === 'string') parts.push(`Was “${before}”`)
+  // Whose a need is (T45): "Now for Kavya" / "Now for the house".
+  if (fields.for_member) {
+    const owner = fields.for_member[1]
+    parts.push(typeof owner === 'string' ? `Now for ${who(owner as UserId)}` : 'Now for the house')
+  }
   const rest = Object.keys(changes).flatMap((k) => (EDIT_WORDS[k] ? [EDIT_WORDS[k]!] : []))
   if (rest.length) parts.push(`Changed the ${listOf(rest)}`)
   return parts.join(' · ') || undefined
@@ -408,7 +417,8 @@ export const activityLine = (
 
   const quoted = (note: string | undefined) => (note ? `“${note}”` : undefined)
   const detail = (() => {
-    if (first.kind === 'item.edited') return describeEdit(first.changes as FieldChanges | undefined)
+    if (first.kind === 'item.edited')
+      return describeEdit(first.changes as FieldChanges | undefined, who)
     if (first.kind === 'cost.edited')
       return describeCostEdit(first.changes as FieldChanges | undefined)
     if (first.kind === 'feeling.set')

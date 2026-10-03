@@ -231,6 +231,7 @@ alter table items enable row level security;
 create policy "items read"   on items for select using (is_member(house_id));
 create policy "items insert" on items for insert with check (is_member(house_id) and created_by = auth.uid());
 create policy "items update" on items for update using (is_member(house_id)) with check (is_member(house_id));
+-- these cover items.for_member too (T45): a personal need is visible to, and workable by, every member
 -- no delete policy: soft-delete via archived_at only (feelings are the one exception, below)
 ```
 
@@ -341,6 +342,7 @@ items           (id, house_id,
                  repeat_days int null,                      -- chores only, 1–365: null = as needed
                  last_done_at null, last_done_by null,      -- chores only
                  contact_id null,                           -- tasks only: "handled by"
+                 for_member null → profiles,                -- needs only (T45): whose it is; null = the house's. A label only
                  done_at null, done_by null,                -- needs & tasks (chores use last_done_*)
                  run_id null, run_kind null,                -- the run it's on RIGHT NOW (null = in the pool); history is in activity_events
                  created_by, created_at, updated_at, archived_at null)
@@ -353,7 +355,8 @@ items           (id, house_id,
                  check (category <> 'chore' or done_at is null)          -- chores are never "done", only "last done"
                  check ((done_at is null) = (done_by is null)), check ((last_done_at is null) = (last_done_by is null))
                  check (when_at is not null or not when_has_time)
-                 unique (house_id, lower(btrim(title))) where category = 'need' and done_at is null and archived_at is null
+                 check (category = 'need' or for_member is null)
+                 unique (house_id, coalesce(for_member, nil uuid), lower(btrim(title))) where category = 'need' and done_at is null and archived_at is null  -- the house's Milk and Kavya's are two needs
                                                                           -- adding a need that's already open points to it
 
 feelings        (item_id, user_id, house_id, kind: anxious|frustrated|confused|fine|meh|thanks, note null, updated_at)
@@ -444,7 +447,7 @@ interface ItemBase {
   createdBy: UserId; createdAt: Instant; archivedAt?: Instant
 }
 type Done = { at: Instant; by: UserId }
-type Need  = ItemBase & { category: 'need';  done?: Done }                       // urgency = feelings + needed-by date
+type Need  = ItemBase & { category: 'need';  done?: Done; forMember?: UserId }  // urgency = feelings + needed-by date; forMember absent = the house's (T45)
 type Chore = ItemBase & { category: 'chore'; repeatDays: number | null; lastDone?: Done }   // null = as needed
 type Task  = ItemBase & { category: 'task';  contactId?: ContactId; done?: Done }
 type Item = Need | Chore | Task
@@ -636,7 +639,7 @@ select changes, actor_id, at from activity_events
 |---|---|---|
 | **Items** (`items.ts`) | | |
 | `createItem` | `(input: NewItem, ctx: { by, now, id, houseId, actionId, openNeeds }) → Result<{ item; events }, ItemError \| 'duplicate_need'>` | `ItemError` = `empty_title` · `title_too_long` · `invalid_for_category` · `bad_repeat`. A duplicate open need returns the existing one's id in `detail.existingId`. |
-| `editItem` | `(i: Item, patch: ItemPatch, ctx: { by, actionId, openNeeds }) → Result<{ item; events }, ItemError \| 'duplicate_need' \| 'no_change' \| 'on_a_run'>` | Category can't change. "Handled by" (tasks only) is a patch field (`contactId`), recorded as `item.handled_by_changed`; a task on a request or visit keeps that run's contact (`on_a_run`, with the run's id in `detail`): moving it is how "Handled by" changes there; assignee changes as `item.assigned`; the rest as one `item.edited` with the diff. |
+| `editItem` | `(i: Item, patch: ItemPatch, ctx: { by, actionId, openNeeds }) → Result<{ item; events }, ItemError \| 'duplicate_need' \| 'no_change' \| 'on_a_run'>` | Category can't change. Whose a need is (`forMember`, needs only; "Me" when adding is `NewItem.forMe`, always the adder) is an `item.edited` change `for_member`; the duplicate check compares the title and whose it is. "Handled by" (tasks only) is a patch field (`contactId`), recorded as `item.handled_by_changed`; a task on a request or visit keeps that run's contact (`on_a_run`, with the run's id in `detail`): moving it is how "Handled by" changes there; assignee changes as `item.assigned`; the rest as one `item.edited` with the diff. |
 | `markDone` / `reopenItem` | `(i: Need \| Task, by, now, actionId) → Result<…, 'already_done' \| 'archived'>` / `(i, by, actionId, openNeeds) → Result<…, 'not_done' \| 'duplicate_need'>` | Got it / Done, and its undo |
 | `doChore` / `undoChore` | `(c: Chore, by, now, actionId) → Result<{ chore; events }, 'archived'>` / `(c: Chore, doneAt, didIt: ChoreDoneChange \| undefined, by, actionId) → Result<…, 'nothing_to_undo' \| 'done_again'>` | Did it updates last done; `chore.done` carries `changes.lastDone: [previous \| null, next]`. Its undo (T54) restores `previous` (read back with `choreDoneChange`) only while the chore's last done is still `by`'s Did it at `doneAt`; once anyone has done it again it's `done_again`. Like `reopenItem`, it doesn't put the chore back on a run it left. |
 | `archiveItem` / `restoreItem` | `(i, by, now, actionId) → Result<…, 'already_archived'>` / `(i, by, actionId, openNeeds) → Result<…, 'not_archived' \| 'duplicate_need'>` | "Delete" and its Undo / "Bring it back" in the app (PRD D30): a soft delete that sets `archived_at`, so activity still points at the row. Activity says "deleted" / "brought back"; no restore window |

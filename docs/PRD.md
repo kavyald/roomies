@@ -129,7 +129,8 @@ Every item has:
 
 - **Adding:** a title is enough ("tomatoes"). Optional: room, who's getting it, needed by, note ("the oat one, not almond").
 - **Urgency comes from feelings**, not a separate flag. **[DECIDED] (owner)** 😰 "we're on the last roll" does what a "needed soon" toggle would, and it says why. Needs with a feeling sort to the top of the list. A needed-by date also raises priority.
-- **Adding something that's already on the list** doesn't duplicate it. The app points to the existing one.
+- **Adding something that's already on the list** doesn't duplicate it. The app points to the existing one. "Already on the list" means the same title for the same owner: the house's "Milk" and Kavya's "Milk" are two needs.
+- **For me or for the house** (T45, owner): a need is the house's unless whoever adds it picks **Me** (a House / Me toggle beside "We need…" and on the need form; the last choice is remembered on that phone). It's a label only: costs, the equal split, Spent this month and Splitwise don't change. Everyone sees personal needs ("For Kavya"), anyone can get one or put it on a run, and priority treats them like any need. Anyone can change whose it is on the detail; it shows in Activity.
 - **Clearing a need:**
   - **Got it:** check it off directly.
   - **On a run:** it's checked off when the run finishes (§6.5).

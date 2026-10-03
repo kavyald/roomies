@@ -326,3 +326,30 @@ describe('feelings', () => {
     expect(deps.uow.state.feelings.size).toBe(0)
   })
 })
+
+describe('a need for me or for the house (T45)', () => {
+  it('is for whoever adds it, can change hands, and only names housemates', async () => {
+    const { deps, s, as, create, edit, kinds } = await setup()
+    const mine = await create(as('Wren'), { category: 'need', title: 'Oat milk', forMe: true })
+    expect(mine.ok && mine.value).toMatchObject({ forMember: s.people.Wren })
+    // The house's oat milk is a different need.
+    expect((await create(as('Sam'), { category: 'need', title: 'oat milk' })).ok).toBe(true)
+    if (!mine.ok) throw new Error(mine.error)
+
+    const other = await sampleHouse(
+      deps.uow,
+      deps.ids,
+      async () => deps.ids.newId<'user'>() as UserId,
+    )
+    expect(
+      await edit(as('Sam'), { id: mine.value.id, patch: { forMember: other.people.Sam } }),
+    ).toEqual({ ok: false, error: 'unknown_member' })
+    expect(
+      await edit(as('Sam'), { id: mine.value.id, patch: { forMember: s.people.Sam } }),
+    ).toMatchObject({ ok: true, value: { forMember: s.people.Sam } })
+    expect(kinds().at(-1)).toBe('item.edited')
+    expect(deps.uow.state.activity.at(-1)?.changes).toEqual({
+      for_member: [s.people.Wren, s.people.Sam],
+    })
+  })
+})

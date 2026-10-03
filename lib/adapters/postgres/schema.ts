@@ -92,6 +92,7 @@ export type ItemsTable = {
   last_done_at: Timestamp | null
   last_done_by: string | null
   contact_id: string | null
+  for_member: string | null
   done_at: Timestamp | null
   done_by: string | null
   run_id: string | null

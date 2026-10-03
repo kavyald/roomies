@@ -37,6 +37,7 @@ import {
   CHANGED_MEANWHILE,
 } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
+import { useAppClient } from '@/lib/client/provider'
 import { relativeTime } from '@/lib/domain/format'
 import type { HouseId, ItemId, PollId, RunId } from '@/lib/domain/ids'
 import { ItemCosts } from '@/components/costs/ItemCosts'
@@ -295,6 +296,7 @@ function AddSheet({
           if (await save(v)) onClose()
         }}
         onAddAnother={save}
+        askWhose
       />
       <button
         type="button"
@@ -354,6 +356,7 @@ function ItemDetailSheet({
   const toast = useToast()
   const celebrate = useCelebrate()
   const copy = useCopy()
+  const { me } = useAppClient()
   // The item as it was when Edit was tapped: the form starts from it and saves against its
   // version, so a change someone makes meanwhile is never quietly undone (§7.5).
   const [editing, setEditing] = useState<Item | null>(null)
@@ -440,6 +443,48 @@ function ItemDetailSheet({
   }
 
   const rows: [string, React.ReactNode][] = []
+  if (item.category === 'need') {
+    // Whose it is (T45): changeable while it's open, by anyone; recorded as an edit.
+    const owner = item.forMember
+    const whose = !owner ? 'house' : owner === me ? 'me' : 'other'
+    const setWhose = async (w: typeof whose) => {
+      if (w === whose || w === 'other') return
+      const r = await edit.mutateAsync({
+        id: item.id,
+        patch: { forMember: w === 'me' ? me : null },
+        version: item.version,
+      })
+      if (r.ok) toast(w === 'me' ? 'Just for you now.' : 'For the house now.')
+      else if (r.error === 'duplicate_need')
+        toast(
+          w === 'me'
+            ? 'You already have that on the list.'
+            : 'The house already has that on the list.',
+        )
+      else toast(PROBLEM[r.error] ?? oops)
+    }
+    rows.push([
+      'For',
+      isOpen(item) ? (
+        <SegmentedControl
+          key="for"
+          compact
+          label="Who it's for"
+          value={whose}
+          onChange={setWhose}
+          options={[
+            { value: 'house', label: 'House' },
+            { value: 'me', label: 'Me' },
+            ...(whose === 'other' ? [{ value: 'other' as const, label: nameOf(owner)! }] : []),
+          ]}
+        />
+      ) : owner ? (
+        nameOf(owner)
+      ) : (
+        'The house'
+      ),
+    ])
+  }
   if (room) rows.push(['Room', <RoomChip key="room" name={room.name} element={room.element} />])
   if (item.category === 'chore') {
     rows.push([

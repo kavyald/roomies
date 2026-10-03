@@ -9,10 +9,11 @@ import { Swipeable } from '@/components/ui/Swipeable'
 import type { Feeling } from '@/lib/domain/feelings'
 import type { Contact, Element, Room } from '@/lib/domain/house'
 import type { HouseId } from '@/lib/domain/ids'
-import type { Item } from '@/lib/domain/items'
+import { needOwner, type Item } from '@/lib/domain/items'
 import type { Tier } from '@/lib/domain/priority'
 import type { Run } from '@/lib/domain/runs'
 import { onRunLabel, RUN_ICON } from '@/components/runs/meta'
+import { ForChip } from '@/components/needs/Whose'
 import { FeelingButton, FeelingCounts, FeelingTray } from './Feelings'
 import { useItemSheets } from './ItemSheets'
 import { CATEGORY, FINISH, scheduleLabel } from './meta'
@@ -40,7 +41,7 @@ export const feelSide = {
 
 /**
  * An item as a card (FRONTEND §5.1): one line with the tier (and, on Home, the category) and the
- * feelings; the title; at most two chips (room, then the run it's on or who's handling it); one
+ * feelings; the title; at most three chips (whose need it is, the room, then the run it's on or who's handling it); one
  * meta line. Tapping it opens the detail sheet. Beside it, the check button does the quick action
  * and 🙂+ opens the emoji tray; swiping right and left do the same two things.
  */
@@ -85,7 +86,8 @@ export function ItemCard({
     <span className="text-[0.8rem] font-bold text-ink-soft">{scheduleLabel(item)}</span>
   ) : null
   const hasTop = !!tier || !!kind || !!feelings?.length
-  const hasChips = !!room || !!onRun || !!contact
+  const owner = needOwner(item)
+  const hasChips = !!owner || !!room || !!onRun || !!contact
   const hasMeta = !!assignee || !!meta
   // VoiceOver reads the title first; the tier, chips and meta line follow as the description.
   const id = useId()
@@ -130,6 +132,7 @@ export function ItemCard({
             </h3>
             {hasChips && (
               <span id={`${id}-chips`} className="flex flex-wrap gap-1.5">
+                <ForChip item={item} person={ctx.person} />
                 {room && <RoomChip name={room.name} element={room.element} />}
                 {onRun ? (
                   <Chip icon={RUN_ICON[onRun.run.kind]}>{onRunLabel(onRun.run, onRun.label)}</Chip>

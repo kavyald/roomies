@@ -48,6 +48,7 @@ import { useContactChoice } from './ContactChoice'
 import { requestStage } from './meta'
 import { AddMore, SendRequest, VisitDate } from './RunExtras'
 import { RunHeader } from './RunHeader'
+import { ForChip } from '@/components/needs/Whose'
 
 type Panel = null | 'move' | 'back' | 'hand'
 const NEW_VISIT = '__new_visit'
@@ -292,7 +293,8 @@ function RunSheetFor({
                     <span className="min-w-0 flex-1">
                       <span className={cn('font-bold', checked && 'text-ink-soft line-through')}>
                         {title}
-                      </span>
+                      </span>{' '}
+                      <ForChip item={item} person={ctx.person} />
                       {isDone && (
                         <span className="block text-[0.8rem] font-semibold text-ink-soft">
                           ✓ {doneLabel} · tap to put it back
@@ -314,7 +316,10 @@ function RunSheetFor({
                       onChange={() => toggle(e.itemId)}
                     />
                     <Icon aria-hidden className="size-4 text-ink-soft" />
-                    <span className="flex-1 font-bold">{title}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="font-bold">{title}</span>{' '}
+                      <ForChip item={item} person={ctx.person} />
+                    </span>
                   </label>
                 </li>
               )

@@ -136,6 +136,63 @@ describe('createItem', () => {
   })
 })
 
+describe('a need for me or for the house (T45)', () => {
+  it('"Me" is whoever adds it; only needs can be someone\'s', () => {
+    const r = createItem({ category: 'need', title: 'Oat milk', forMe: true }, ctx())
+    expect(r.ok && r.value.item).toMatchObject({ category: 'need', forMember: kavya })
+    const house = createItem({ category: 'need', title: 'Oat milk', forMe: false }, ctx())
+    expect(house.ok && 'forMember' in house.value.item).toBe(false)
+    expect(createItem({ category: 'task', title: 'Latch', forMe: true }, ctx())).toMatchObject({
+      error: 'invalid_for_category',
+    })
+  })
+
+  it("the house's Milk and Kavya's Milk aren't duplicates; two of Kavya's are", () => {
+    const houseMilk = need('Milk')
+    const mine = need('Milk2', { title: 'Milk', forMember: kavya })
+    expect(createItem({ category: 'need', title: 'milk', forMe: true }, ctx([houseMilk])).ok).toBe(
+      true,
+    )
+    expect(createItem({ category: 'need', title: 'milk', forMe: true }, ctx([mine]))).toMatchObject(
+      { error: 'duplicate_need', detail: { existingId: 'Milk2' } },
+    )
+    expect(createItem({ category: 'need', title: 'milk' }, ctx([mine])).ok).toBe(true)
+    // Wren's Milk is Wren's: Kavya adding hers is fine.
+    const wrens = need('Milk3', { title: 'Milk', forMember: wren })
+    expect(createItem({ category: 'need', title: 'Milk', forMe: true }, ctx([wrens])).ok).toBe(true)
+  })
+
+  it('changing whose it is is an edit, checked for duplicates', () => {
+    const mine = need('Soap', { forMember: kavya })
+    const r = editItem(mine, { forMember: null }, { by: wren, actionId: a, openNeeds: [mine] })
+    expect(r.ok && r.value.item).not.toHaveProperty('forMember')
+    expect(r.ok && r.value.events).toEqual([
+      {
+        kind: 'item.edited',
+        itemId: 'Soap',
+        changes: { for_member: [kavya, null] },
+        actionId: a,
+        by: wren,
+      },
+    ])
+    const houseSoap = need('Soap2', { title: 'Soap' })
+    expect(
+      editItem(mine, { forMember: null }, { by: kavya, actionId: a, openNeeds: [mine, houseSoap] }),
+    ).toMatchObject({ error: 'duplicate_need', detail: { existingId: 'Soap2' } })
+    expect(editItem(task, { forMember: kavya }, { by: kavya, actionId: a, openNeeds: [] })).toEqual(
+      { ok: false, error: 'invalid_for_category' },
+    )
+  })
+
+  it('reopening checks against the same owner', () => {
+    const got = need('Eggs', { forMember: kavya, done: { at: now, by: kavya } })
+    expect(reopenItem(got, kavya, a, [need('Eggs2', { title: 'Eggs' })]).ok).toBe(true)
+    expect(
+      reopenItem(got, kavya, a, [need('Eggs2', { title: 'Eggs', forMember: kavya })]),
+    ).toMatchObject({ error: 'duplicate_need' })
+  })
+})
+
 describe('editItem', () => {
   it('records field changes in one edit, and assignee / handled-by as their own events', () => {
     const contactId = asId<'contact'>('super') as ContactId

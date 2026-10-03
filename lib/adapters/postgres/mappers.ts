@@ -297,7 +297,12 @@ export const itemToDomain = (
         done,
       })
     default:
-      return compact({ ...base, category: 'need' as const, done })
+      return compact({
+        ...base,
+        category: 'need' as const,
+        done,
+        forMember: r.for_member ? asId<'user'>(r.for_member) : undefined,
+      })
   }
 }
 
@@ -309,6 +314,7 @@ export const itemToRow = (i: Item, tz: string) => {
     lastDone?: Done
     contactId?: string
     done?: Done
+    forMember?: string
   }
   return {
     id: i.id,
@@ -325,6 +331,7 @@ export const itemToRow = (i: Item, tz: string) => {
     last_done_at: loose.lastDone ? toDate(loose.lastDone.at) : null,
     last_done_by: loose.lastDone?.by ?? null,
     contact_id: loose.contactId ?? null,
+    for_member: loose.forMember ?? null,
     done_at: loose.done ? toDate(loose.done.at) : null,
     done_by: loose.done?.by ?? null,
     run_id: i.run?.id ?? null,

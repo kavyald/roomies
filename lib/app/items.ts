@@ -31,10 +31,16 @@ export type ReferenceError = 'unknown_member' | 'unknown_room' | 'unknown_contac
 const checkReferences = async (
   repos: Repos,
   actor: HouseActor,
-  refs: { assignee?: UserId | null; roomId?: Item['roomId'] | null; contactId?: string | null },
+  refs: {
+    assignee?: UserId | null
+    roomId?: Item['roomId'] | null
+    contactId?: string | null
+    forMember?: UserId | null
+  },
 ): Promise<ReferenceError | null> => {
-  if (refs.assignee) {
-    const m = await repos.members.get(actor.houseId, refs.assignee)
+  for (const person of [refs.assignee, refs.forMember]) {
+    if (!person) continue
+    const m = await repos.members.get(actor.houseId, person)
     if (!m?.status.active) return 'unknown_member'
   }
   if (refs.roomId) {

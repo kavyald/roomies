@@ -106,6 +106,36 @@ export const itemsContract = (name: string, makeHarness: () => Promise<UnitOfWor
       expect(open.map((n) => n.title).sort()).toEqual(['Milk', 'Paper towels', 'oat milk'])
     })
 
+    it("T45: a need is the house's or one person's; only needs are someone's", async () => {
+      const { house, member, admin, need, put, get } = await setup()
+      const mine = need('Milk', { forMember: member })
+      await put(mine)
+      expect(await get(mine.id)).toEqual(mine)
+      // The house's Milk and Wren's are separate needs; a second of mine is a repeat.
+      await put(need('milk'))
+      await put(need('MILK', { forMember: admin }))
+      await expect(put(need(' milk ', { forMember: member }))).rejects.toBeInstanceOf(
+        ConstraintViolation,
+      )
+      await expect(put(need('Milk'))).rejects.toBeInstanceOf(ConstraintViolation)
+      // Giving it back to the house, while the house has one open, is a repeat too.
+      await expect(
+        put({ ...(await get(mine.id))!, forMember: undefined } as Item),
+      ).rejects.toBeInstanceOf(ConstraintViolation)
+      await expect(
+        put({
+          ...need('Trash'),
+          category: 'chore',
+          repeatDays: 7,
+          forMember: member,
+        } as unknown as Item),
+      ).rejects.toBeInstanceOf(ConstraintViolation)
+      const open = await h.uow.run(system(house.id), (r) => r.items.openNeeds(house.id))
+      expect(open.map((n) => n.forMember ?? 'house').sort()).toEqual(
+        [admin, member, 'house'].sort(),
+      )
+    })
+
     it("a chore can't be done, and only tasks have a contact", async () => {
       const { house, member, need, put } = await setup()
       const chore = {

@@ -15,6 +15,7 @@ export const newItemSchema = z.object({
   priority: priority.optional(),
   repeatDays: z.number().int().nullable().optional(),
   contactId: z.uuid().optional(),
+  forMe: z.boolean().optional(),
 })
 
 export const itemPatchSchema = z.object({
@@ -28,6 +29,7 @@ export const itemPatchSchema = z.object({
     priority: priority.optional(),
     repeatDays: z.number().int().nullable().optional(),
     contactId: z.uuid().nullable().optional(),
+    forMember: z.uuid().nullable().optional(),
   }),
   /** The item's version when the form opened: a newer save makes this a conflict (§7.5). */
   version: z.string().max(40).optional(),

@@ -519,6 +519,7 @@ const checkItem = (s: MemoryState, item: Item): void => {
     lastDone?: unknown
     contactId?: unknown
     done?: unknown
+    forMember?: unknown
   }
   if (!i.title.trim() || i.title.trim().length > 120) refuse('title')
   if (i.category !== 'chore' && (i.repeatDays != null || i.lastDone)) refuse('chore-only fields')
@@ -529,6 +530,7 @@ const checkItem = (s: MemoryState, item: Item): void => {
   )
     refuse('repeat days are 1 to 365')
   if (i.category !== 'task' && i.contactId) refuse('task-only contact')
+  if (i.category !== 'need' && i.forMember) refuse('need-only owner')
   if (i.category === 'chore' && i.done) refuse('chores are never done')
   if (i.run && (i.done || i.archivedAt)) refuse('done or archived items are not on a run')
   if (i.run) {
@@ -545,7 +547,8 @@ const checkItem = (s: MemoryState, item: Item): void => {
         o.category === 'need' &&
         !o.done &&
         !o.archivedAt &&
-        sameNeed(o.title, i.title),
+        sameNeed(o.title, i.title) &&
+        (o.forMember ?? null) === (i.forMember ?? null),
     )
     if (clash) refuse('an open need with this title already exists')
   }

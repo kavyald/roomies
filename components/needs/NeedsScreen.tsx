@@ -28,6 +28,7 @@ import { useNow } from '@/lib/client/use-now'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
 import { feelingScore } from '@/lib/domain/feelings'
 import { needList } from '@/lib/domain/lists'
+import { ForChip, useWhoseChoice, WhoseToggle } from './Whose'
 
 /**
  * The shared shopping list (FRONTEND §5.5): "We need…" at the top, then each open need with a
@@ -51,6 +52,7 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
     (polls.data ?? []).filter((p) => p.state.open && p.itemId).map((p) => p.itemId as string),
   )
   const [title, setTitle] = useState('')
+  const [whose, setWhose] = useWhoseChoice()
   const [highlight, setHighlight] = useState<ItemId | null>(null)
   const rows = useRef(new Map<string, HTMLLIElement>())
   // One emoji tray open at a time; closing it puts focus back on that row's 🙂+.
@@ -71,7 +73,11 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
   const add = async (e: FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
-    const r = await create.mutateAsync({ category: 'need', title })
+    const r = await create.mutateAsync({
+      category: 'need',
+      title,
+      ...(whose === 'me' && { forMe: true }),
+    })
     if (r.ok) {
       setTitle('')
       return
@@ -105,7 +111,7 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
 
   return (
     <div className="grid gap-4">
-      <form onSubmit={add} className="flex gap-2">
+      <form onSubmit={add} className="flex items-center gap-2">
         <label htmlFor="we-need" className="sr-only">
           We need…
         </label>
@@ -119,6 +125,7 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
+        <WhoseToggle value={whose} onChange={setWhose} />
         <button
           type="submit"
           aria-label="Add to the list"
@@ -184,13 +191,14 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
                         <span className="font-bold">{n.title}</span>
                         <FeelingCounts feelings={feelingsBy.get(n.id) ?? []} />
                       </span>
-                      {(n.note || room || when || onRun || polled) && (
+                      {(n.note || room || when || onRun || polled || n.forMember) && (
                         <span className="flex flex-wrap items-center gap-1.5 text-[0.8rem] font-semibold text-ink-soft">
                           {onRun && (
                             <Chip icon={RUN_ICON[onRun.run.kind]}>
                               {onRunLabel(onRun.run, onRun.label)}
                             </Chip>
                           )}
+                          <ForChip item={n} person={ctx.person} />
                           {polled && <Chip icon={BarChart3}>Poll</Chip>}
                           {room && <RoomChip name={room.name} element={room.element} />}
                           {when && <span>{when}</span>}

@@ -9,6 +9,7 @@ import { useContacts, useMembers, useProfiles, useRooms } from '@/lib/client/hoo
 import type { ContactId, HouseId, RoomId, UserId } from '@/lib/domain/ids'
 import type { Category, Item, NewItem, Priority } from '@/lib/domain/items'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
+import { useWhoseChoice, WhoseToggle } from '@/components/needs/Whose'
 import { RoomSelect } from './RoomSelect'
 
 export type ItemFormValues = {
@@ -22,6 +23,8 @@ export type ItemFormValues = {
   repeat: 'as_needed' | 'every'
   repeatDays: number
   contactId: ContactId | ''
+  /** Needs, when adding: just for me, not the house (T45). */
+  forMe: boolean
 }
 
 export const valuesFrom = (item?: Item): ItemFormValues => ({
@@ -35,6 +38,7 @@ export const valuesFrom = (item?: Item): ItemFormValues => ({
   repeat: item?.category === 'chore' && item.repeatDays ? 'every' : 'as_needed',
   repeatDays: item?.category === 'chore' && item.repeatDays ? item.repeatDays : 7,
   contactId: item?.category === 'task' ? (item.contactId ?? '') : '',
+  forMe: false,
 })
 
 /** The form's values as a new item (optional fields left out when empty). */
@@ -50,6 +54,7 @@ export const toNewItem = (category: Category, v: ItemFormValues): NewItem => ({
   ...(v.priority !== 'normal' && { priority: v.priority }),
   ...(category === 'chore' && { repeatDays: v.repeat === 'every' ? v.repeatDays : null }),
   ...(category === 'task' && v.contactId && { contactId: v.contactId }),
+  ...(category === 'need' && v.forMe && { forMe: true }),
 })
 
 const Label = ({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) => (
@@ -73,6 +78,7 @@ export function ItemForm({
   expanded: startExpanded = false,
   onSubmit,
   onAddAnother,
+  askWhose,
 }: {
   houseId: HouseId
   category: Category
@@ -83,8 +89,13 @@ export function ItemForm({
   onSubmit: (v: ItemFormValues) => void
   /** Adds this one and keeps the form open; resolves true once the house has it. */
   onAddAnother?: (v: ItemFormValues) => Promise<boolean>
+  /** Adding a need: show House / Me (remembered on this device). Editing uses the detail. */
+  askWhose?: boolean
 }) {
   const [v, setV] = useState(initial)
+  const [whose, setWhose] = useWhoseChoice()
+  const showWhose = askWhose && category === 'need'
+  const withWhose = (x: ItemFormValues) => (showWhose ? { ...x, forMe: whose === 'me' } : x)
   const titleRef = useRef<HTMLInputElement>(null)
   const [expanded, setExpanded] = useState(startExpanded)
   const rooms = useRooms(houseId)
@@ -103,11 +114,11 @@ export function ItemForm({
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (v.title.trim()) onSubmit(v)
+    if (v.title.trim()) onSubmit(withWhose(v))
   }
   const another = async () => {
     if (!v.title.trim() || !onAddAnother) return
-    if (await onAddAnother(v)) {
+    if (await onAddAnother(withWhose(v))) {
       setV((p) => ({ ...p, title: '', note: '' }))
       titleRef.current?.focus()
     }
@@ -128,6 +139,8 @@ export function ItemForm({
           onChange={(e) => set('title', e.target.value)}
         />
       </div>
+
+      {showWhose && <WhoseToggle value={whose} onChange={setWhose} />}
 
       {category === 'chore' && (
         <div className="grid gap-1.5">

@@ -36,7 +36,12 @@ type ItemBase = {
 /** An item's or run's saved version, as loaded; only ever compared for equality. */
 export type Version = string & { readonly __version: unique symbol }
 
-export type Need = ItemBase & { readonly category: 'need'; readonly done?: Done }
+export type Need = ItemBase & {
+  readonly category: 'need'
+  readonly done?: Done
+  /** Whose need it is (PRD §6.1, T45); absent means the house's. A label only: money is unchanged. */
+  readonly forMember?: UserId
+}
 /** `repeatDays: null` means "as needed". */
 export type Chore = ItemBase & {
   readonly category: 'chore'
@@ -63,6 +68,25 @@ const clean = (s: string | undefined): string | undefined => {
 export const sameNeed = (a: string, b: string): boolean =>
   a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase()
 
+/** Whose a need is: a member's id, or undefined for the house. */
+export const needOwner = (i: Item): UserId | undefined =>
+  i.category === 'need' ? i.forMember : undefined
+
+/**
+ * The open need that `title` (for `forMember`, or the house) would repeat, other than `self`: the
+ * house's "Milk" and Kavya's "Milk" are different needs (T45).
+ */
+export const duplicateNeed = (
+  openNeeds: readonly Need[],
+  title: string,
+  forMember: UserId | undefined,
+  self?: ItemId,
+): Need | undefined =>
+  openNeeds.find(
+    (n) =>
+      n.id !== self && sameNeed(n.title, title) && (n.forMember ?? null) === (forMember ?? null),
+  )
+
 export const isOpen = (i: Item): boolean => !i.archivedAt && (i.category === 'chore' || !i.done)
 
 // ---- creating ------------------------------------------------------------------------------
@@ -79,6 +103,8 @@ export type NewItem = {
   readonly repeatDays?: number | null
   /** Tasks only. */
   readonly contactId?: ContactId
+  /** Needs only: just for whoever adds it ("Me"), not the house (T45). */
+  readonly forMe?: boolean
 }
 
 export type ItemError = 'empty_title' | 'title_too_long' | 'invalid_for_category' | 'bad_repeat'
@@ -112,9 +138,11 @@ export const createItem = (
   if (!title.ok) return title
   if (input.category !== 'chore' && input.repeatDays != null) return err('invalid_for_category')
   if (input.category !== 'task' && input.contactId) return err('invalid_for_category')
+  if (input.category !== 'need' && input.forMe) return err('invalid_for_category')
   if (!checkRepeat(input.repeatDays)) return err('bad_repeat')
+  const forMember = input.category === 'need' && input.forMe ? ctx.by : undefined
   if (input.category === 'need') {
-    const existing = ctx.openNeeds.find((n) => sameNeed(n.title, title.value))
+    const existing = duplicateNeed(ctx.openNeeds, title.value, forMember)
     if (existing) return err('duplicate_need', { existingId: existing.id })
   }
 
@@ -136,7 +164,7 @@ export const createItem = (
       ? { ...base, category: 'chore', repeatDays: input.repeatDays ?? null }
       : input.category === 'task'
         ? { ...base, category: 'task', ...(input.contactId && { contactId: input.contactId }) }
-        : { ...base, category: 'need' }
+        : { ...base, category: 'need', ...(forMember && { forMember }) }
   return ok({
     item,
     events: [
@@ -170,6 +198,8 @@ export type ItemPatch = {
   readonly priority?: Priority
   readonly repeatDays?: number | null
   readonly contactId?: ContactId | null
+  /** Needs only: whose it is; `null` gives it back to the house (T45). */
+  readonly forMember?: UserId | null
 }
 
 const sameWhen = (a?: When, b?: When) => a?.date === b?.date && a?.time === b?.time
@@ -191,6 +221,7 @@ export const editItem = (
   if (item.category !== 'chore' && patch.repeatDays !== undefined)
     return err('invalid_for_category')
   if (item.category !== 'task' && patch.contactId) return err('invalid_for_category')
+  if (item.category !== 'need' && patch.forMember) return err('invalid_for_category')
   if (!checkRepeat(patch.repeatDays)) return err('bad_repeat')
   if (
     item.category === 'task' &&
@@ -200,19 +231,25 @@ export const editItem = (
   )
     return err('on_a_run', { runId: item.run.id })
 
+  const pick = <T>(v: T | null | undefined, current: T | undefined): T | undefined =>
+    v === undefined ? current : v === null ? undefined : v
   let title = item.title
   if (patch.title !== undefined) {
     const t = checkTitle(patch.title)
     if (!t.ok) return t
     title = t.value
-    if (item.category === 'need' && !sameNeed(title, item.title)) {
-      const clash = ctx.openNeeds.find((n) => n.id !== item.id && sameNeed(n.title, title))
-      if (clash) return err('duplicate_need', { existingId: clash.id })
-    }
+  }
+  const forMember = item.category === 'need' ? pick(patch.forMember, item.forMember) : undefined
+  if (
+    item.category === 'need' &&
+    !item.done &&
+    !item.archivedAt &&
+    (!sameNeed(title, item.title) || forMember !== item.forMember)
+  ) {
+    const clash = duplicateNeed(ctx.openNeeds, title, forMember, item.id)
+    if (clash) return err('duplicate_need', { existingId: clash.id })
   }
 
-  const pick = <T>(v: T | null | undefined, current: T | undefined): T | undefined =>
-    v === undefined ? current : v === null ? undefined : v
   const note = patch.note === undefined ? item.note : clean(patch.note ?? undefined)
   const next = {
     ...item,
@@ -226,6 +263,7 @@ export const editItem = (
       repeatDays: patch.repeatDays === undefined ? item.repeatDays : patch.repeatDays,
     }),
     ...(item.category === 'task' && { contactId: pick(patch.contactId, item.contactId) }),
+    ...(item.category === 'need' && { forMember }),
   } as Item
 
   const changes: Record<string, readonly [unknown, unknown]> = {}
@@ -239,6 +277,8 @@ export const editItem = (
   diff('priority', item.priority, next.priority)
   if (item.category === 'chore' && next.category === 'chore')
     diff('repeat_days', item.repeatDays, next.repeatDays)
+  if (item.category === 'need' && next.category === 'need')
+    diff('for_member', item.forMember, next.forMember)
 
   const events: DomainEvent[] = []
   if (Object.keys(changes).length > 0) {
@@ -304,7 +344,7 @@ export const reopenItem = (
 ): Result<{ item: Need | Task; events: DomainEvent[] }, 'not_done' | 'duplicate_need'> => {
   if (!item.done) return err('not_done')
   if (item.category === 'need') {
-    const clash = openNeeds.find((n) => n.id !== item.id && sameNeed(n.title, item.title))
+    const clash = duplicateNeed(openNeeds, item.title, item.forMember, item.id)
     if (clash) return err('duplicate_need', { existingId: clash.id })
   }
   const { done: _done, ...rest } = item
@@ -418,7 +458,7 @@ export const restoreItem = (
 ): Result<{ item: Item; events: DomainEvent[] }, 'not_archived' | 'duplicate_need'> => {
   if (!item.archivedAt) return err('not_archived')
   if (item.category === 'need' && !item.done) {
-    const clash = openNeeds.find((n) => n.id !== item.id && sameNeed(n.title, item.title))
+    const clash = duplicateNeed(openNeeds, item.title, item.forMember, item.id)
     if (clash) return err('duplicate_need', { existingId: clash.id })
   }
   const { archivedAt: _a, ...rest } = item

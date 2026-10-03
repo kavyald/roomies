@@ -381,6 +381,13 @@ describe('T40: what a line is about, what it opens, and what else it says', () =
       'Changed the note',
     )
     expect(line('item.edited', { itemId: id('n1') }).detail).toBeUndefined()
+    // Whose a need is (T45).
+    expect(
+      line('item.edited', { itemId: id('n1'), changes: { for_member: [null, 'u-maya'] } }).detail,
+    ).toBe('Now for Maya')
+    expect(
+      line('item.edited', { itemId: id('n1'), changes: { for_member: ['u-maya', null] } }).detail,
+    ).toBe('Now for the house')
     expect(
       line('cost.edited', {
         costId: id('c'),
