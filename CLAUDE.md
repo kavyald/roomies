@@ -107,35 +107,10 @@ A task is finished when its card's "Done when" holds **and** all of these do:
 5. **Push `origin v1` once per milestone**, after its Q task passes and `pnpm test:all` is green.
 6. Log judgment calls, deviations and blockers on the task's Weyve card with `append_note` ("Decision YYYY-MM-DD: what. Why: why."). If you deviate from ARCHITECTURE.md, update the doc and its decision log in the same commit.
 
-### Long and parallel runs (usage limits)
+### Parallel builds and stops
 
-The owner is on Pro with no extra usage, so hitting the 5-hour limit stops work mid-step, and resuming a big context re-caches all of it. Plan for the stop.
-
-- **Handoff file:** keep `.claude/handoff.md` in the main checkout (untracked, listed in `.git/info/exclude`) current during any multi-task or parallel run: the plan, each agent → card → worktree/branch, what's merged into `v1`, and what's next. Rewrite it at each milestone (an agent reports, a merge lands). Keep it short; it's a pointer to git and Weyve, not a log.
-- **Check usage:** call `get_usage` (desktop app) after each commit, each agent report, and before launching an agent. Note how much the 5-hour window rose since the last check.
-- **Wind down** when the 5-hour budget left is under about twice the last interval's rise (working alone: at about 85%):
-  1. Launch nothing new.
-  2. Message running agents to commit their work in progress (`WIP T##` on their branch) or stop and leave the worktree as is.
-  3. `append_note` on each in-flight card with where it stopped.
-  4. Update the handoff file, then stop and tell the owner.
-- **Agents can't check usage;** the orchestrating session does it for them.
-- **Run at most 4 builder agents at a time,** one per dependency chain, and don't run two agents that edit the same files at once.
-- **After a pause,** start a fresh session with `/resume-build` instead of resuming the old one.
-
-### Builder agent (template)
-
-`.claude/agents/builder.md` is a reusable brief for parallel builds: one card (or one short chain) per agent, in its own worktree, with a slim tool set (no browser, simulator or docs connectors) so each turn re-reads far less. It names no branch or milestone; the launch prompt fills those in.
-
-- **Launch** with `subagent_type: "builder"`, `isolation: "worktree"`, and a prompt in this shape:
-  ```
-  Cards: T45, then T46
-  Base: v1 @ <commit>
-  Migration: supabase/migrations/<timestamp>_<name>.sql (or "none")
-  Notes: <anything specific to this run, e.g. files another agent owns>
-  ```
-- **Keep it current:** when the build process changes (test commands, branch rules, commit format), edit the template, not each launch prompt. Run-specific details go only in the prompt.
-- The orchestrator still starts and completes cards on Weyve, runs the slow tests, takes the screenshots at 375pt and merges.
-- A new or edited agent file is picked up by sessions started after the change.
+- To build several cards at once, use the `parallel-build` skill. It launches `builder` agents (`.claude/agents/builder.md`, a template with a slim tool set) and winds down before a usage limit.
+- To pick up a build that stopped (usage limit, crash), start a fresh session and use `/resume-build` instead of resuming the old one.
 
 ### Architecture rules (see ARCHITECTURE §4.1)
 

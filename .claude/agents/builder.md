@@ -1,6 +1,6 @@
 ---
 name: builder
-description: Template builder for parallel runs. Builds ONE Roomies Weyve card (or one short dependency chain) in its own git worktree while an orchestrating session merges into the base branch. Slim tool set (no browser, simulator or docs connectors) keeps every turn's context small. Launch with isolation "worktree" and the launch prompt from CLAUDE.md ("Builder agent"): cards, base branch and commit, migration filename.
+description: Template builder for parallel runs. Builds ONE Roomies Weyve card (or one short dependency chain) in its own git worktree while an orchestrating session merges into the base branch. Slim tool set (no browser, simulator or docs connectors) keeps every turn's context small. Launch with isolation "worktree" and the launch prompt from the parallel-build skill: cards, base branch and commit, migration filename.
 tools: Bash, Read, Edit, Write, Skill, mcp__plugin_weyve_weyve__get_task, mcp__plugin_weyve_weyve__update_task
 ---
 
