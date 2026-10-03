@@ -2,7 +2,7 @@
 
 A shared, phone-first hub for a house of roommates: what we need to buy, what needs doing, what we need to decide, and how everyone feels about it.
 
-> **Status: M0–M4 built** on the `v1` branch: everything runs locally. M6 (usability and personal needs) is in progress, also built locally; M5 (hosting and launch) comes after it. Tasks are planned and tracked on the **roomies** board in Weyve.
+> **Status: M0–M4 and M6 built** on the `v1` branch: everything runs locally. M5 (hosting and launch) is next. Tasks are planned and tracked on the **roomies** board in Weyve.
 
 ## The problem
 
