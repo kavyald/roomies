@@ -24,7 +24,7 @@ Migration: supabase/migrations/<timestamp>_<name>.sql (or "none")
 Notes: <anything specific to this run, e.g. files another agent owns>
 ```
 
-`start_task` each card on Weyve as its builder starts. Process changes (test commands, branch rules, commit format) go in the template, not in launch prompts. Sessions only pick up agent-file edits after they restart.
+`start_task` each card on Weyve as its builder starts. Worktrees are cut from the repo's default branch (`main`), not the build branch; the builder resets onto `Base` itself (template step 1), so don't message it about that. At merge, confirm the base before anything else: `git merge-base --is-ancestor <base commit> <builder commit>` must succeed, or the branch isn't built on the build branch. Process changes (test commands, branch rules, commit format) go in the template, not in launch prompts. Sessions only pick up agent-file edits after they restart.
 
 ## 3. Merge
 For each finished builder, in dependency order: rebase its branch on the build branch, run the slow checks the builder skipped (`pnpm test:db`, `pnpm test:e2e`, the untracked `e2e/zz-<card>-shots.spec.ts` for 375pt light and dark screenshots), look at the screenshots, fast-forward the build branch, and `complete_task` with the commit hash. Run the slow suites once per batch of merges where you can, not once per card.
