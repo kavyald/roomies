@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from './zod'
 
 export const pushSubscriptionSchema = z.object({
   endpoint: z.string().max(2000),

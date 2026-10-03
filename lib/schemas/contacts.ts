@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from './zod'
 
 /** Input for creating a contact, as sent from the browser. */
 export const newContactSchema = z.object({

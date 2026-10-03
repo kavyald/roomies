@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from './zod'
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
 export const mySettingsSchema = z.object({

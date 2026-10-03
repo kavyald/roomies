@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from './zod'
 import { whenSchema } from './items'
 
 const ids = z.array(z.uuid()).max(200)

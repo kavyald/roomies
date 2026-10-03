@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from './zod'
 
 const option = z.object({ label: z.string().max(200), note: z.string().max(1000).optional() })
 

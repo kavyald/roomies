@@ -1,6 +1,6 @@
 // The only reader of process.env (ARCHITECTURE §4.1). Everything else receives typed config.
 
-import { z } from 'zod'
+import { z } from './schemas/zod'
 
 const url = z.url({ protocol: /^https?$/ })
 
