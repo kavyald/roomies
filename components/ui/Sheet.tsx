@@ -29,6 +29,7 @@ export function Sheet({
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-40 bg-scrim" />
         <Drawer.Content
+          data-sheet // the toast moves to the top while a sheet is open
           // An open menu inside the sheet closes itself on Escape; the sheet stays.
           onEscapeKeyDown={(e) => {
             if ((e.target as Element | null)?.closest?.('[data-keeps-escape]')) e.preventDefault()

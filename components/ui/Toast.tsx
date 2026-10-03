@@ -93,7 +93,9 @@ export function ToastProvider({
       <div
         role="status"
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-4 bottom-[calc(100px+env(safe-area-inset-bottom))] z-60 mx-auto max-w-[398px]"
+        // Above the + button; while a sheet is open, at the top over the dimmed page, so it never
+        // covers the sheet's own buttons (T63).
+        className="pointer-events-none fixed inset-x-4 bottom-[calc(152px+env(safe-area-inset-bottom))] z-60 mx-auto max-w-[398px] [body:has([data-sheet])_&]:top-[calc(12px+env(safe-area-inset-top))] [body:has([data-sheet])_&]:bottom-auto"
       >
         {burst > 0 && <Burst key={`burst-${burst}`} onDone={endBurst} />}
         {toast && (

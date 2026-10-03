@@ -29,6 +29,10 @@ test('a swipe right finishes a task or a chore, with Undo; a swipe left opens th
   await expect(done).toBeVisible()
   await expect(latch).toBeHidden()
   await expect(page.getByRole('dialog')).toHaveCount(0) // the drag wasn't a tap
+  // With no sheet open, the toast sits above the + button (T63).
+  const plus = await page.getByRole('button', { name: 'Add', exact: true }).boundingBox()
+  const doneBox = await done.boundingBox()
+  expect(doneBox!.y + doneBox!.height).toBeLessThanOrEqual(plus!.y)
   await done.getByRole('button', { name: 'Undo' }).click()
   await expect(latch).toBeVisible()
 
@@ -103,6 +107,11 @@ test('+ on Needs adds three in one sheet; + on Chores makes a repeating chore in
     await expect(title).toHaveValue('')
     await expect(title).toBeFocused()
   }
+  // The "Added" toast sits above the open sheet, never over its buttons (T63).
+  const added = page.getByRole('status').filter({ hasText: 'Added' })
+  await expect(added).toBeVisible()
+  const [toastBox, sheetBox] = [await added.boundingBox(), await sheet.boundingBox()]
+  expect(toastBox!.y + toastBox!.height).toBeLessThanOrEqual(sheetBox!.y)
   await title.fill('Foil')
   await sheet.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(sheet).toBeHidden()
