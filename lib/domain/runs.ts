@@ -4,7 +4,7 @@
 
 import type { DomainEvent, StoredActivityRow } from './events'
 import type { ActionId, ContactId, HouseId, ItemId, RunId, UserId } from './ids'
-import type { Item } from './items'
+import type { Item, Version } from './items'
 import { err, ok, type Result } from './result'
 import type { Instant, When } from './time'
 
@@ -19,6 +19,8 @@ type RunBase = {
   readonly runner: UserId
   readonly createdBy: UserId
   readonly createdAt: Instant
+  /** Which save this copy was loaded at (like `Item.version`, ARCHITECTURE §7.5). */
+  readonly version?: Version
 }
 
 type OpenOrFinished =

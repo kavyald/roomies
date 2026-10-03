@@ -6,9 +6,15 @@
 
 import { Kysely, PostgresDialect, sql, type Transaction } from 'kysely'
 import pg from 'pg'
-import { AccessDenied, ConstraintViolation, type Repos, type UnitOfWork } from '../../app/ports'
+import {
+  AccessDenied,
+  Conflict,
+  ConstraintViolation,
+  type Repos,
+  type UnitOfWork,
+} from '../../app/ports'
 import type { HouseId, UserId } from '../../domain/ids'
-import type { Need } from '../../domain/items'
+import type { Need, Version } from '../../domain/items'
 import type { NotificationCategory } from '../../domain/notifications'
 import type { Actor } from '../../domain/actor'
 import { activityRowFor } from '../../domain/events'
@@ -80,7 +86,46 @@ const save = async (
   }
 }
 
+/**
+ * A row's version (`Item.version`, ARCHITECTURE §7.5): its `updated_at` (set by the
+ * `touch_updated_at` trigger) in whole microseconds, as text. Exact, unlike a JS Date, so two
+ * saves in the same millisecond still differ. `versionOf` reads the same value from PostgREST.
+ */
+const versionSql = (column: 'items.updated_at' | 'runs.updated_at') =>
+  sql<string>`(extract(epoch from ${sql.ref(column)}) * 1000000)::bigint::text`
+
 const reposFor = (trx: Trx): Repos => {
+  // Items and runs this transaction has written: it holds their row locks until it ends, so a
+  // second save of the same loaded copy (still carrying the version it was loaded at) is no race.
+  const written = new Set<string>()
+  /**
+   * Saves an item or run (ARCHITECTURE §7.5). A loaded copy (`loaded` set) updates only while the
+   * stored row is still that version; zero rows then means someone saved it since (`Conflict`)
+   * or, if the version still matches, a row this actor can't change (on to the insert, whose key
+   * clash is AccessDenied). Under READ COMMITTED a racing writer waits for the first to commit,
+   * then re-checks the WHERE against the new row, so exactly one of them wins. A new copy (no
+   * version) updates by id or inserts, as every other save does.
+   */
+  const saveLoaded = async (
+    key: string,
+    loaded: Version | undefined,
+    update: (version: Version | null) => Promise<{ numUpdatedRows: bigint }>,
+    stored: () => Promise<{ version: string } | undefined>,
+    insert: () => Promise<unknown>,
+  ): Promise<void> => {
+    const version = loaded && !written.has(key) ? loaded : null
+    await save(async () => {
+      const r = await update(version)
+      if (version && r.numUpdatedRows === BigInt(0)) {
+        const now = await stored()
+        if (now && now.version !== version)
+          throw new Conflict(`${key} was saved by someone else after it was loaded`)
+      }
+      return r
+    }, insert)
+    written.add(key)
+  }
+
   // A house's time zone, for reading and writing item dates as local dates (cached per transaction).
   const zones = new Map<string, Promise<string>>()
   const tzOf = (houseId: string): Promise<string> => {
@@ -101,12 +146,14 @@ const reposFor = (trx: Trx): Repos => {
       .selectFrom('items')
       .innerJoin('houses', 'houses.id', 'items.house_id')
       .selectAll('items')
+      .select(versionSql('items.updated_at').as('version'))
       .select(sql<string>`houses.settings->>'timezone'`.as('tz'))
   const runsWithZone = () =>
     trx
       .selectFrom('runs')
       .innerJoin('houses', 'houses.id', 'runs.house_id')
       .selectAll('runs')
+      .select(versionSql('runs.updated_at').as('version'))
       .select(sql<string>`houses.settings->>'timezone'`.as('tz'))
 
   return {
@@ -312,8 +359,21 @@ const reposFor = (trx: Trx): Repos => {
       save: async (item) => {
         const row = itemToRow(item, await tzOf(item.houseId))
         const { id: _id, created_by: _by, created_at: _at, ...editable } = row
-        await save(
-          () => trx.updateTable('items').set(editable).where('id', '=', item.id).executeTakeFirst(),
+        await saveLoaded(
+          `items/${item.id}`,
+          item.version,
+          (version) => {
+            const q = trx.updateTable('items').set(editable).where('id', '=', item.id)
+            return (
+              version ? q.where(versionSql('items.updated_at'), '=', version) : q
+            ).executeTakeFirst()
+          },
+          () =>
+            trx
+              .selectFrom('items')
+              .select(versionSql('items.updated_at').as('version'))
+              .where('id', '=', item.id)
+              .executeTakeFirst(),
           () => trx.insertInto('items').values(row).execute(),
         )
       },
@@ -334,8 +394,21 @@ const reposFor = (trx: Trx): Repos => {
         const row = runToRow(run, await tzOf(run.houseId))
         // A run's kind never changes: leave it (and who started it, and when) as stored.
         const { id: _id, kind: _kind, created_by: _by, created_at: _at, ...editable } = row
-        await save(
-          () => trx.updateTable('runs').set(editable).where('id', '=', run.id).executeTakeFirst(),
+        await saveLoaded(
+          `runs/${run.id}`,
+          run.version,
+          (version) => {
+            const q = trx.updateTable('runs').set(editable).where('id', '=', run.id)
+            return (
+              version ? q.where(versionSql('runs.updated_at'), '=', version) : q
+            ).executeTakeFirst()
+          },
+          () =>
+            trx
+              .selectFrom('runs')
+              .select(versionSql('runs.updated_at').as('version'))
+              .where('id', '=', run.id)
+              .executeTakeFirst(),
           () => trx.insertInto('runs').values(row).execute(),
         )
       },

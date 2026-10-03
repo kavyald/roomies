@@ -24,6 +24,8 @@ import {
   useReturnToPool,
   useRunActivity,
   useRuns,
+  isStale,
+  CHANGED_MEANWHILE,
 } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import { useNow } from '@/lib/client/use-now'
@@ -153,9 +155,12 @@ function RunSheetFor({
     setNote('')
     setTarget('')
   }
-  const say = (ok: boolean, success: string) => {
-    toast(ok ? success : "Couldn't do that. Try again.")
-    if (ok) reset()
+  const oops = (r: { ok: boolean; error?: string }) =>
+    isStale(r.error) ? CHANGED_MEANWHILE : "Couldn't do that. Try again."
+  const say = (r: { ok: boolean; error?: string }, success: string) => {
+    toast(r.ok ? success : oops(r))
+    // Someone moved them first: start over from the latest.
+    if (r.ok || isStale(r.error)) reset()
   }
   const toggle = (id: ItemId) =>
     setSelected((s) => {
@@ -182,7 +187,7 @@ function RunSheetFor({
     withSaving(id, async () => {
       const r = await done.mutateAsync({ runId: run.id, itemIds: [id] })
       if (r.ok) celebrate()
-      else toast("Couldn't do that. Try again.")
+      else toast(oops(r))
     })
   /** Tapping a done row again (a mis-tap): it's open again and back on this run. */
   const unmark = (item: Item) =>
@@ -242,7 +247,7 @@ function RunSheetFor({
         ...(when && { when }),
         note: note || undefined,
       })
-      return say(r.ok, `Moved to a new ${contactName ?? ''} visit.`.replace('  ', ' '))
+      return say(r, `Moved to a new ${contactName ?? ''} visit.`.replace('  ', ' '))
     }
     const r = await move.mutateAsync({
       fromRunId: run.id,
@@ -250,7 +255,7 @@ function RunSheetFor({
       itemIds: chosen,
       note: note || undefined,
     })
-    say(r.ok, `Moved to ${ctx.run(target)?.label ?? 'the other run'}.`)
+    say(r, `Moved to ${ctx.run(target)?.label ?? 'the other run'}.`)
   }
 
   return (
@@ -371,7 +376,7 @@ function RunSheetFor({
                 say(
                   await done.mutateAsync({ runId: run.id, itemIds: chosen }).then((r) => {
                     if (r.ok) celebrate()
-                    return r.ok
+                    return r
                   }),
                   chosen.length === 1
                     ? `${doneLabel}. 💛`
@@ -483,14 +488,12 @@ function RunSheetFor({
                 disabled={busy}
                 onClick={async () =>
                   say(
-                    (
-                      await back.mutateAsync({
-                        runId: run.id,
-                        itemIds: chosen,
-                        note: note || undefined,
-                        clearContact: run.kind !== 'batch' && clearContact,
-                      })
-                    ).ok,
+                    await back.mutateAsync({
+                      runId: run.id,
+                      itemIds: chosen,
+                      note: note || undefined,
+                      clearContact: run.kind !== 'batch' && clearContact,
+                    }),
                     'Back in the pool.',
                   )
                 }
@@ -515,7 +518,7 @@ function RunSheetFor({
                     contactId,
                     note: note || undefined,
                   })
-                  say(r.ok, `Added to ${ctx.contacts.get(contactId)?.name ?? 'their'} list.`)
+                  say(r, `Added to ${ctx.contacts.get(contactId)?.name ?? 'their'} list.`)
                 }}
               >
                 Hand over
@@ -638,7 +641,7 @@ function FinishRun({
       runId: run.id,
       ...(cost && { spent: cost.amount, paidBy: cost.paidBy }),
     })
-    if (!r.ok) return toast("Couldn't finish it. Try again.")
+    if (!r.ok) return toast(isStale(r.error) ? CHANGED_MEANWHILE : "Couldn't finish it. Try again.")
     celebrate()
     const recorded = r.value.cost
     const back =

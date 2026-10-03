@@ -360,6 +360,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 | Push: assigned | "You're on trash this week 🗑️" | "New assignment" |
 | Poll tie | "It's a tie (1–1). Talk it out?" | "Vote failed" |
 | Network error | "Couldn't reach the house. Check your connection and try again." | "Error 500" |
+| Someone saved or moved it first | "Someone just changed this. Here's the latest." | "Conflict: version mismatch" |
 | Invite expired | "This invite has expired. Ask a roommate for a fresh link." | "Invalid token" |
 | Delete confirm | "Delete this? You can undo it right after." | "Are you sure?" · "Archive this? You can bring it back for 30 days." |
 

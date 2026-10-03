@@ -29,6 +29,8 @@ export const itemPatchSchema = z.object({
     repeatDays: z.number().int().nullable().optional(),
     contactId: z.uuid().nullable().optional(),
   }),
+  /** The item's version when the form opened: a newer save makes this a conflict (§7.5). */
+  version: z.string().max(40).optional(),
 })
 
 export const itemIdSchema = z.uuid()

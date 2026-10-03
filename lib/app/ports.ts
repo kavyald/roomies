@@ -120,6 +120,10 @@ export interface ItemRepo {
   openNeeds(houseId: HouseId): Promise<Need[]>
   /** The items on a run right now. */
   onRun(runId: RunId): Promise<Item[]>
+  /**
+   * Inserts a new item, or updates it if it's still the copy that was loaded: an item with
+   * `version` that someone saved since throws `Conflict` (§7.5).
+   */
   save(item: Item): Promise<void>
 }
 
@@ -189,6 +193,7 @@ export interface CostRepo {
 export interface RunRepo {
   get(id: RunId): Promise<Run | undefined>
   listByHouse(houseId: HouseId): Promise<Run[]>
+  /** Like `ItemRepo.save`: a run saved over a newer copy throws `Conflict` (§7.5). */
   save(run: Run): Promise<void>
 }
 
@@ -246,6 +251,14 @@ export class ConstraintViolation extends Error {
 /** Thrown by a UnitOfWork when a write breaks an access rule (RLS in Postgres). */
 export class AccessDenied extends Error {
   override name = 'AccessDenied'
+}
+
+/**
+ * Thrown by a UnitOfWork when an item or run is saved over a newer copy: someone else saved it
+ * after this copy was loaded (its `version` no longer matches, ARCHITECTURE §7.5).
+ */
+export class Conflict extends Error {
+  override name = 'Conflict'
 }
 
 // ---- auth ----------------------------------------------------------------------

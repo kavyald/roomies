@@ -37,6 +37,7 @@ proxy.ts                     Next 16's middleware: sets the page CSP (nonce), re
   - `pnpm test:e2e` resets the local DB, so a browser signed in on the dev server gets signed out; sign in again (code from Mailpit).
   - Item cards are named by their title for VoiceOver (tier, chips and meta are the description), so locate them with `getByRole('button', { name: title, exact: true })`.
   - When a member leaves, record the event *before* updating the membership (they can't write the log afterwards).
+  - Items and runs carry a `version` (their `updated_at` to the microsecond, A27): saving a copy someone saved since throws `Conflict`, which actions answer as `conflict`. Load before you save; contract round-trips compare with `unversioned(...)`.
   - Never nest a control inside a row button: `ListRow`'s `trailing` sits beside it.
   - Cards and Needs rows swipe (`components/ui/Swipeable`, pointer events, `touch-action: pan-y`): right finishes, left opens the emoji tray. Each also has a 🙂+ button named "Share a feeling: <title>" beside its own button. In e2e, swipe with `page.mouse` (down, move with `steps`, up); in jsdom, stub `setPointerCapture` (Vaul needs it too).
   - Port 3000 on this Mac is often taken by another project's server; `.claude/launch.json` (untracked) uses auto ports.

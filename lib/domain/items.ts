@@ -26,7 +26,15 @@ type ItemBase = {
   readonly createdBy: UserId
   readonly createdAt: Instant
   readonly archivedAt?: Instant
+  /**
+   * Which save this copy was loaded at (opaque: the row's `updated_at` to the microsecond). A save
+   * checks it, so it never overwrites a newer copy (ARCHITECTURE §7.5). Absent until first saved.
+   */
+  readonly version?: Version
 }
+
+/** An item's or run's saved version, as loaded; only ever compared for equality. */
+export type Version = string & { readonly __version: unique symbol }
 
 export type Need = ItemBase & { readonly category: 'need'; readonly done?: Done }
 /** `repeatDays: null` means "as needed". */

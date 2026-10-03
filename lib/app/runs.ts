@@ -2,7 +2,7 @@
 // function → save → record events, in one transaction, acting as the member (RLS applies).
 
 import { checkCostRefs } from './costs'
-import type { AppDeps, Repos } from './ports'
+import { Conflict, type AppDeps, type Repos } from './ports'
 import { actorUser, type HouseActor } from '../domain/actor'
 import { addCost, type Cost } from '../domain/costs'
 import type { DomainEvent } from '../domain/events'
@@ -54,15 +54,62 @@ const loadRun = async (repos: Repos, actor: HouseActor, id: RunId): Promise<Run 
   return run?.houseId === actor.houseId ? run : null
 }
 
-const saveAll = async (
+/**
+ * How an item save can lose a race (ARCHITECTURE §7.2c, §7.5): items leaving a run must still be
+ * on it (else `not_on_run`), and items joining one must still be in the pool (else
+ * `already_on_a_run`).
+ */
+type Leaving = { readonly leaving: RunId; readonly loaded: Run }
+type Joining = { readonly joining: true }
+type Race = Leaving | Joining
+type Lost<R> = R extends Leaving ? 'not_on_run' : R extends Joining ? 'already_on_a_run' : never
+
+const joining: Joining = { joining: true }
+const leaving = (run: Run): Leaving => ({ leaving: run.id, loaded: run })
+
+/** Saves an item; if someone moved it first, says so as the domain would have. */
+const saveItem = async (
   repos: Repos,
+  item: Item,
+  race: Race | undefined,
+): Promise<Result<void, 'not_on_run' | 'already_on_a_run'>> => {
+  try {
+    await repos.items.save(item)
+    return ok(undefined)
+  } catch (e) {
+    if (!(e instanceof Conflict) || !race) throw e
+    // The newer copy someone else committed (this transaction can still read it).
+    const now = await repos.items.get(item.id)
+    if ('leaving' in race && now?.run?.id !== race.leaving)
+      return err('not_on_run', { itemId: item.id })
+    if ('joining' in race && now?.run) return err('already_on_a_run', { itemId: item.id })
+    throw e
+  }
+}
+
+/**
+ * Saves a change and records its events. New runs go first (items point at them), then the
+ * items, then the runs they left, so of two people moving the same item at once the second hears
+ * `not_on_run` (or `already_on_a_run`), not a bare conflict. A run the items left is saved only
+ * if it changed (a request closing), so two people working different items on one run don't
+ * collide on it.
+ */
+const saveAll = async <R extends Race | undefined = undefined>(
+  { repos, now }: Pick<Ctx, 'repos' | 'now'>,
   actor: HouseActor,
-  now: Instant,
   out: { items?: readonly Item[]; runs?: readonly Run[]; events: readonly DomainEvent[] },
-) => {
-  for (const run of out.runs ?? []) await repos.runs.save(run)
-  for (const item of out.items ?? []) await repos.items.save(item)
+  race?: R,
+): Promise<Result<void, Lost<R>>> => {
+  const runs = out.runs ?? []
+  for (const run of runs) if (!run.version) await repos.runs.save(run)
+  for (const item of out.items ?? []) {
+    const saved = await saveItem(repos, item, race)
+    if (!saved.ok) return saved as Result<void, Lost<R>>
+  }
+  const unchanged = race && 'loaded' in race ? race.loaded : undefined
+  for (const run of runs) if (run.version && run !== unchanged) await repos.runs.save(run)
   await repos.events.record(actor.houseId, out.events, now)
+  return ok(undefined)
 }
 
 /** Runs `fn` as the member, with the clock's now and a fresh action id, in one transaction. */
@@ -104,7 +151,8 @@ export const makeStartRun = (deps: Deps) =>
     const id = deps.ids.newId<'run'>() as RunId
     const r = startRun(input, items, { ...ctx, id, houseId: actor.houseId })
     if (!r.ok) return r
-    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    const saved = await saveAll(ctx, actor, { runs: [r.value.run], ...r.value }, joining)
+    if (!saved.ok) return saved
     return ok(r.value.run as Run)
   })
 
@@ -115,7 +163,8 @@ export const makeAddToRun = (deps: Deps) =>
     if (!run || !items) return err('not_found')
     const r = addToRun(run, items, ctx)
     if (!r.ok) return r
-    await saveAll(ctx.repos, actor, ctx.now, r.value)
+    const saved = await saveAll(ctx, actor, r.value, joining)
+    if (!saved.ok) return saved
     return ok(run)
   })
 
@@ -126,7 +175,8 @@ export const makeMarkRunItemsDone = (deps: Deps) =>
     if (!s) return err('not_found')
     const r = markRunItemsDone(s.run, s.items, { ...ctx, remainingOnRun: s.remaining })
     if (!r.ok) return r
-    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    const saved = await saveAll(ctx, actor, { runs: [r.value.run], ...r.value }, leaving(s.run))
+    if (!saved.ok) return saved
     return ok(r.value.run)
   })
 
@@ -148,7 +198,8 @@ export const makeMoveRunItems = (deps: Deps) =>
         remainingOnFrom: s.remaining,
       })
       if (!r.ok) return r
-      await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.from], ...r.value })
+      const saved = await saveAll(ctx, actor, { runs: [r.value.from], ...r.value }, leaving(s.run))
+      if (!saved.ok) return saved
       return ok([r.value.from, to])
     },
   )
@@ -171,7 +222,8 @@ export const makeReturnToPool = (deps: Deps) =>
         remainingOnFrom: s.remaining,
       })
       if (!r.ok) return r
-      await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.from], ...r.value })
+      const saved = await saveAll(ctx, actor, { runs: [r.value.from], ...r.value }, leaving(s.run))
+      if (!saved.ok) return saved
       return ok(r.value.from)
     },
   )
@@ -204,10 +256,14 @@ export const makeFinishRun = (deps: Deps) =>
         cost = c.value.cost
         events.push(...c.value.events)
       }
-      for (const run of [r.value.run]) await ctx.repos.runs.save(run)
-      for (const item of r.value.items) await ctx.repos.items.save(item)
       if (cost) await ctx.repos.costs.add(cost)
-      await ctx.repos.events.record(actor.houseId, events, ctx.now)
+      const saved = await saveAll(
+        ctx,
+        actor,
+        { runs: [r.value.run], items: r.value.items, events },
+        leaving(run),
+      )
+      if (!saved.ok) return saved
       return ok({ run: r.value.run as Run, ...(cost && { cost }) })
     },
   )
@@ -232,7 +288,8 @@ export const makeStartRequest = (deps: Deps) =>
       houseId: actor.houseId,
     })
     if (!r.ok) return r
-    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    const saved = await saveAll(ctx, actor, { runs: [r.value.run], ...r.value }, joining)
+    if (!saved.ok) return saved
     return ok(r.value.run as Run)
   })
 
@@ -250,7 +307,8 @@ export const makePlanVisit = (deps: Deps) =>
         houseId: actor.houseId,
       })
       if (!r.ok) return r
-      await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+      const saved = await saveAll(ctx, actor, { runs: [r.value.run], ...r.value }, joining)
+      if (!saved.ok) return saved
       return ok(r.value.run as Run)
     },
   )
@@ -264,10 +322,16 @@ export const makeAddToRequest = (deps: Deps) =>
     const id = deps.ids.newId<'run'>() as RunId
     const r = addToRequest(task, runs, { ...ctx, id, houseId: actor.houseId })
     if (!r.ok) return r
-    await saveAll(ctx.repos, actor, ctx.now, {
-      runs: r.value.created ? [r.value.run] : [],
-      ...r.value,
-    })
+    const saved = await saveAll(
+      ctx,
+      actor,
+      {
+        runs: r.value.created ? [r.value.run] : [],
+        ...r.value,
+      },
+      joining,
+    )
+    if (!saved.ok) return saved
     return ok(r.value.run as Run)
   })
 
@@ -303,7 +367,7 @@ export const makeSendRequest = (deps: Deps) =>
     const message = await composeMessage(ctx.repos, actor, run, tasks)
     const r = sendRequest(run, input.via, message, tasks.length, ctx)
     if (!r.ok) return r
-    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    await saveAll(ctx, actor, { runs: [r.value.run], ...r.value })
     return ok({ run: r.value.run as Run, message })
   })
 
@@ -328,10 +392,16 @@ export const makeHandToContact = (deps: Deps) =>
         remainingOnFrom: s.remaining,
       })
       if (!r.ok) return r
-      await saveAll(ctx.repos, actor, ctx.now, {
-        runs: [...(r.value.created ? [r.value.to] : []), r.value.from],
-        ...r.value,
-      })
+      const saved = await saveAll(
+        ctx,
+        actor,
+        {
+          runs: [...(r.value.created ? [r.value.to] : []), r.value.from],
+          ...r.value,
+        },
+        leaving(s.run),
+      )
+      if (!saved.ok) return saved
       return ok([r.value.from, r.value.to as Run])
     },
   )
@@ -368,11 +438,17 @@ export const makeMoveToNewVisit = (deps: Deps) =>
         remainingOnFrom: s.remaining,
       })
       if (!r.ok) return r
-      await saveAll(ctx.repos, actor, ctx.now, {
-        runs: [v.value.run, r.value.from],
-        items: r.value.items,
-        events: [...v.value.events, ...r.value.events],
-      })
+      const saved = await saveAll(
+        ctx,
+        actor,
+        {
+          runs: [v.value.run, r.value.from],
+          items: r.value.items,
+          events: [...v.value.events, ...r.value.events],
+        },
+        leaving(s.run),
+      )
+      if (!saved.ok) return saved
       return ok([r.value.from, v.value.run as Run])
     },
   )
@@ -384,7 +460,7 @@ export const makeSetVisitDate = (deps: Deps) =>
     if (!run) return err('not_found')
     const r = setVisitDate(run, input.when, ctx)
     if (!r.ok) return r
-    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    await saveAll(ctx, actor, { runs: [r.value.run], ...r.value })
     return ok(r.value.run as Run)
   })
 
@@ -395,7 +471,7 @@ export const makeRenameRun = (deps: Deps) =>
     if (!run) return err('not_found')
     const r = renameRun(run, input.title, ctx)
     if (!r.ok) return r
-    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    await saveAll(ctx, actor, { runs: [r.value.run], ...r.value })
     return ok(r.value.run)
   })
 
@@ -408,6 +484,6 @@ export const makeSetRunner = (deps: Deps) =>
     if (!m?.status.active) return err('unknown_member')
     const r = setRunner(run, input.runner, ctx)
     if (!r.ok) return r
-    await saveAll(ctx.repos, actor, ctx.now, { runs: [r.value.run], ...r.value })
+    await saveAll(ctx, actor, { runs: [r.value.run], ...r.value })
     return ok(r.value.run)
   })

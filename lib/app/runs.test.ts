@@ -6,7 +6,8 @@ import { itemPath } from '../domain/runs'
 import type { LocalDate, LocalTime } from '../domain/time'
 import type { Item } from '../domain/items'
 import { sampleHouse } from '../testing/sample-house'
-import { makeCreateItem, makeMarkDone } from './items'
+import { makeCreateItem, makeEditItem, makeMarkDone } from './items'
+import { Conflict, type UnitOfWork } from './ports'
 import { makeCreateContact } from './contacts'
 import {
   makeAddToRequest,
@@ -322,5 +323,99 @@ describe('requests and visits', () => {
     expect(
       await makeStartRequest(t.deps)(t.as('Wren'), { contactId: 'nope' as ContactId, itemIds: [] }),
     ).toEqual({ ok: false, error: 'not_found' })
+  })
+})
+
+/** A unit of work whose first read of `stale.id` serves `stale`: the copy loaded just before
+ * someone else's save landed, which is how two people moving the same thing at once look. */
+const loadedBefore = (uow: UnitOfWork, stale: Item): UnitOfWork => ({
+  run: (actor, fn) =>
+    uow.run(actor, (repos) => {
+      let served = false
+      return fn({
+        ...repos,
+        items: {
+          ...repos.items,
+          get: async (id) => {
+            if (id !== stale.id || served) return repos.items.get(id)
+            served = true
+            return stale
+          },
+        },
+      })
+    }),
+})
+
+describe('two people at once (§7.2c, §7.5)', () => {
+  it('moving the same item: exactly one move is recorded, the other hears not_on_run', async () => {
+    const t = await setup()
+    const [milk] = await t.needs('Milk')
+    const from = await t.start(t.as('Kavya'), { itemIds: [milk!] })
+    const a = await t.start(t.as('Sam'), { itemIds: (await t.needs('Eggs'))! })
+    const b = await t.start(t.as('Wren'), { itemIds: (await t.needs('Bread'))! })
+    if (!from.ok || !a.ok || !b.ok) throw new Error('setup')
+    const [first, second] = await Promise.all([
+      t.move(t.as('Sam'), { fromRunId: from.value.id, toRunId: a.value.id, itemIds: [milk!] }),
+      t.move(t.as('Wren'), { fromRunId: from.value.id, toRunId: b.value.id, itemIds: [milk!] }),
+    ])
+    expect(first).toMatchObject({ ok: true })
+    expect(second).toMatchObject({ ok: false, error: 'not_on_run' })
+    expect(t.kinds().filter((k) => k === 'run.item_moved')).toHaveLength(1)
+    expect(t.item(milk!).run?.id).toBe(a.value.id)
+  })
+
+  it('a move that loaded the item before someone else moved it hears not_on_run, not a conflict', async () => {
+    const t = await setup()
+    const [milk] = await t.needs('Milk')
+    const from = await t.start(t.as('Kavya'), { itemIds: [milk!] })
+    const a = await t.start(t.as('Sam'), { itemIds: (await t.needs('Eggs'))! })
+    if (!from.ok || !a.ok) throw new Error('setup')
+    const stale = t.item(milk!)
+    expect(
+      await t.move(t.as('Sam'), {
+        fromRunId: from.value.id,
+        toRunId: a.value.id,
+        itemIds: [milk!],
+      }),
+    ).toMatchObject({ ok: true })
+    const late = { ...t.deps, uow: loadedBefore(t.deps.uow, stale) }
+    const before = t.kinds()
+    expect(
+      await makeReturnToPool(late)(t.as('Wren'), {
+        runId: from.value.id,
+        itemIds: [milk!],
+        clearContact: false,
+      }),
+    ).toEqual({ ok: false, error: 'not_on_run', detail: { itemId: milk } })
+    expect(t.kinds()).toEqual(before)
+    expect(t.item(milk!).run?.id).toBe(a.value.id)
+  })
+
+  it('an item added to a run while someone else was adding it elsewhere: already_on_a_run', async () => {
+    const t = await setup()
+    const [milk] = await t.needs('Milk')
+    const stale = t.item(milk!)
+    expect(await t.start(t.as('Kavya'), { itemIds: [milk!] })).toMatchObject({ ok: true })
+    const late = { ...t.deps, uow: loadedBefore(t.deps.uow, stale) }
+    expect(await makeStartRun(late)(t.as('Wren'), { itemIds: [milk!] })).toEqual({
+      ok: false,
+      error: 'already_on_a_run',
+      detail: { itemId: milk },
+    })
+    expect(t.kinds().filter((k) => k === 'run.created')).toHaveLength(1)
+  })
+
+  it('an item that was only edited meanwhile is a plain conflict (the client refetches)', async () => {
+    const t = await setup()
+    const [milk] = await t.needs('Milk')
+    const from = await t.start(t.as('Kavya'), { itemIds: [milk!] })
+    if (!from.ok) throw new Error('setup')
+    const stale = t.item(milk!)
+    await makeEditItem(t.deps)(t.as('Sam'), { id: milk!, patch: { title: 'Oat milk' } })
+    const late = { ...t.deps, uow: loadedBefore(t.deps.uow, stale) }
+    await expect(
+      makeMarkRunItemsDone(late)(t.as('Wren'), { runId: from.value.id, itemIds: [milk!] }),
+    ).rejects.toBeInstanceOf(Conflict)
+    expect(t.item(milk!)).toMatchObject({ title: 'Oat milk', run: { id: from.value.id } })
   })
 })

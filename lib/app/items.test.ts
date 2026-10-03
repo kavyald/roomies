@@ -220,6 +220,37 @@ describe('items, end to end on the memory adapters', () => {
     ).toMatchObject({ ok: true })
   })
 
+  it('two roommates edit the same task: the second hears "conflict" and nothing of theirs is saved (§7.5)', async () => {
+    const { deps, as, create, edit, kinds } = await setup()
+    const leak = await create(as('Kavya'), { category: 'task', title: 'Leak under the sink' })
+    if (!leak.ok) throw new Error(leak.error)
+    const id = leak.value.id
+    const stored = () => deps.uow.state.items.get(id)!
+    // Sam and Wren both open Edit on the same copy.
+    const opened = stored().version
+    expect(opened).toEqual(expect.any(String))
+    expect(
+      await edit(as('Sam'), {
+        id,
+        patch: { title: 'Leak under the bathroom sink' },
+        version: opened,
+      }),
+    ).toMatchObject({ ok: true })
+    expect(stored().version).not.toEqual(opened)
+    const before = kinds()
+    expect(
+      await edit(as('Wren'), { id, patch: { title: 'Leak!', note: 'Dripping' }, version: opened }),
+    ).toEqual({ ok: false, error: 'conflict' })
+    expect(stored()).toMatchObject({ title: 'Leak under the bathroom sink' })
+    expect(stored()).not.toHaveProperty('note')
+    expect(kinds()).toEqual(before)
+    // From the latest copy, Wren's edit goes through.
+    expect(
+      await edit(as('Wren'), { id, patch: { note: 'Dripping' }, version: stored().version }),
+    ).toMatchObject({ ok: true })
+    expect(stored()).toMatchObject({ title: 'Leak under the bathroom sink', note: 'Dripping' })
+  })
+
   it('only points at people, rooms, and contacts of this house', async () => {
     const { deps, as, create } = await setup()
     const other = await sampleHouse(

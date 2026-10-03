@@ -35,6 +35,17 @@ export type UnitOfWorkHarness = {
 
 const T0 = instant(Date.UTC(2026, 8, 29, 16, 0))
 
+/**
+ * An item or run as read back, without the version the store stamps on it (§7.5), so a round
+ * trip compares what was written. Checks the version is there.
+ */
+export const unversioned = <T extends { version?: string }>(x: T | undefined): T | undefined => {
+  if (x === undefined) return x
+  expect(x.version).toEqual(expect.any(String))
+  const { version: _v, ...rest } = x
+  return rest as T
+}
+
 export const system = (houseId: HouseId): HouseActor => ({ kind: 'system', houseId })
 export const asMember = (houseId: HouseId, userId: UserId): HouseActor => ({
   kind: 'member',

@@ -18,6 +18,7 @@ import {
   type Item,
   type ItemError,
   type ItemPatch,
+  type Version,
   type NewItem,
 } from '../domain/items'
 import { err, ok, type Result } from '../domain/result'
@@ -100,11 +101,16 @@ const change =
       return ok(r.value.item)
     })
 
+/**
+ * Edit an item. `version` is the one the person started editing from: if someone has saved it
+ * since, the edit is a `conflict` and nothing changes (ARCHITECTURE §7.5).
+ */
 export const makeEditItem = (deps: Deps) => {
-  return (actor: HouseActor, input: { id: ItemId; patch: ItemPatch }) =>
-    change<ItemError | ReferenceError | 'duplicate_need' | 'no_change' | 'on_a_run'>(
+  return (actor: HouseActor, input: { id: ItemId; patch: ItemPatch; version?: Version }) =>
+    change<ItemError | ReferenceError | 'duplicate_need' | 'no_change' | 'on_a_run' | 'conflict'>(
       deps,
       async (item, { by, actionId, repos }) => {
+        if (input.version && item.version && input.version !== item.version) return err('conflict')
         const bad = await checkReferences(repos, actor, input.patch)
         if (bad) return err(bad)
         const openNeeds = item.category === 'need' ? await repos.items.openNeeds(item.houseId) : []

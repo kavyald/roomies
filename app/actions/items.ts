@@ -13,7 +13,7 @@ import {
   makeUndoChore,
 } from '@/lib/app/items'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
-import type { ItemPatch, NewItem } from '@/lib/domain/items'
+import type { ItemPatch, NewItem, Version } from '@/lib/domain/items'
 import { instant } from '@/lib/domain/time'
 import {
   itemIdSchema,
@@ -37,7 +37,11 @@ export async function editItemAction(houseId: HouseId, input: unknown) {
   return makeAction(
     itemPatchSchema,
     (deps, actor, i) =>
-      makeEditItem(deps)(actor, { id: i.id as ItemId, patch: i.patch as ItemPatch }),
+      makeEditItem(deps)(actor, {
+        id: i.id as ItemId,
+        patch: i.patch as ItemPatch,
+        ...(i.version && { version: i.version as Version }),
+      }),
     houseEnv(houseId),
   )(input)
 }

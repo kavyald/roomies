@@ -68,6 +68,13 @@ export const useRevokeInvite = (houseId: HouseId) => {
 /** Query families keyed by the house alone (the ones a command refreshes). */
 type HouseKey = Exclude<keyof typeof keys, 'itemActivity' | 'runActivity'>
 
+/** Answers that mean this screen was behind: someone saved or moved the thing first (§7.5). */
+const STALE = new Set(['conflict', 'not_on_run', 'already_on_a_run'])
+/** Whether a command's error means someone got there first; the house refetches on its own. */
+export const isStale = (error: string | undefined): boolean => STALE.has(error ?? '')
+/** What a screen says when it was behind (FRONTEND §7). */
+export const CHANGED_MEANWHILE = "Someone just changed this. Here's the latest."
+
 const useHouseCommand = <I, R extends { ok: boolean }>(
   houseId: HouseId,
   run: (commands: ReturnType<typeof useAppClient>['commands'], input: I) => Promise<R>,
@@ -78,6 +85,9 @@ const useHouseCommand = <I, R extends { ok: boolean }>(
   return useMutation({
     mutationFn: (input: I) => run(commands, input),
     onSuccess: (r) => {
+      // Someone saved the same thing first (§7.5): fetch the latest of everything in the house.
+      if (!r.ok && isStale((r as { error?: string }).error))
+        return qc.invalidateQueries({ queryKey: keys.house(houseId) })
       if (!r.ok) return
       return Promise.all(
         [...affects, 'activity' as const].map((k) =>

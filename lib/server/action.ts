@@ -1,9 +1,10 @@
 // The shape of every server action (ARCHITECTURE §4.1 rule 4): parse input with Zod, find who's
-// acting, build deps, call one use case, and hand back its Result. Anything unexpected becomes a
-// plain 'unexpected' so no stack trace or SQL error reaches the browser.
+// acting, build deps, call one use case, and hand back its Result. A lost race to save the same
+// item or run is 'conflict' (§7.5); anything unexpected becomes a plain 'unexpected' so no stack
+// trace or SQL error reaches the browser.
 
 import type { z } from 'zod'
-import { AccessDenied, type AppDeps } from '../app/ports'
+import { AccessDenied, Conflict, type AppDeps } from '../app/ports'
 import type { CommandResult } from '../client/app-client'
 import type { HouseActor } from '../domain/actor'
 import { err, type Result } from '../domain/result'
@@ -34,6 +35,7 @@ export const makeAction =
       return result
     } catch (e) {
       if (e instanceof AccessDenied) return err('not_allowed')
+      if (e instanceof Conflict) return err('conflict')
       ;(env.log ?? console.error)(e)
       return err('unexpected')
     }

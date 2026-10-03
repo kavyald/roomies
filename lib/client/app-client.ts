@@ -30,12 +30,16 @@ type RunStartError =
   'already_on_a_run' | 'done_item' | 'tasks_only' | 'title_too_long' | 'not_found'
 type RunMoveError =
   'nothing_selected' | 'not_on_run' | 'same_run' | 'target_closed' | 'tasks_only' | 'not_found'
-import type { Item, ItemError, ItemPatch, NewItem } from '../domain/items'
+import type { Item, ItemError, ItemPatch, NewItem, Version } from '../domain/items'
 import type { NewInvite } from '../domain/invites'
 import type { Result } from '../domain/result'
 
-/** What any command can fail with, besides its own business errors. */
-export type CommandFailure = 'invalid_input' | 'not_signed_in' | 'not_allowed' | 'unexpected'
+/**
+ * What any command can fail with, besides its own business errors. `conflict`: someone saved the
+ * same item or run first (ARCHITECTURE §7.5); the client refetches and says so.
+ */
+export type CommandFailure =
+  'invalid_input' | 'not_signed_in' | 'not_allowed' | 'conflict' | 'unexpected'
 
 export type CommandResult<T, E extends string = never> = Result<T, E | CommandFailure>
 
@@ -79,6 +83,8 @@ export type AppCommands = {
   editItem(input: {
     id: ItemId
     patch: ItemPatch
+    /** The version the edit started from; a newer save answers `conflict` (§7.5). */
+    version?: Version
   }): Promise<
     CommandResult<
       Item,
@@ -160,6 +166,7 @@ export type AppCommands = {
       { run: Run; cost?: Cost },
       | 'finished'
       | 'not_finishable'
+      | 'not_on_run'
       | 'not_found'
       | 'unknown_member'
       | 'not_positive'

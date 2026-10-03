@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { AccessDenied } from '../app/ports'
+import { AccessDenied, Conflict } from '../app/ports'
 import { depsForTest } from '../compose'
 import type { HouseActor } from '../domain/actor'
 import type { HouseId, UserId } from '../domain/ids'
@@ -40,7 +40,7 @@ describe('makeAction', () => {
     expect(await act({ n: 1 })).toEqual({ ok: false, error: 'not_signed_in' })
   })
 
-  it('maps access denials and hides unexpected errors', async () => {
+  it('maps access denials and lost races, and hides unexpected errors', async () => {
     const denied = makeAction(
       schema,
       async () => {
@@ -49,6 +49,14 @@ describe('makeAction', () => {
       env(),
     )
     expect(await denied({ n: 1 })).toEqual({ ok: false, error: 'not_allowed' })
+    const raced = makeAction(
+      schema,
+      async () => {
+        throw new Conflict('items/1 was saved by someone else after it was loaded')
+      },
+      env(),
+    )
+    expect(await raced({ n: 1 })).toEqual({ ok: false, error: 'conflict' })
     const e = env()
     const boom = makeAction(
       schema,

@@ -34,6 +34,7 @@ import {
   useReopenItem,
   useRestoreItem,
   useRooms,
+  CHANGED_MEANWHILE,
 } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import { relativeTime } from '@/lib/domain/format'
@@ -85,6 +86,8 @@ const PROBLEM: Record<string, string> = {
   unknown_contact: "That contact isn't there anymore.",
   bad_repeat: 'Pick between 1 and 365 days.',
   on_a_run: "It's on a request or visit. Move it there to change who's handling it.",
+  // Someone saved it first (ARCHITECTURE §7.5); the house's data refetches with this.
+  conflict: CHANGED_MEANWHILE,
 }
 const oops = "Couldn't reach the house. Check your connection and try again."
 
@@ -351,7 +354,9 @@ function ItemDetailSheet({
   const toast = useToast()
   const celebrate = useCelebrate()
   const copy = useCopy()
-  const [editing, setEditing] = useState(false)
+  // The item as it was when Edit was tapped: the form starts from it and saves against its
+  // version, so a change someone makes meanwhile is never quietly undone (§7.5).
+  const [editing, setEditing] = useState<Item | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [pickingHandler, setPickingHandler] = useState(false)
   const edit = useEditItem(houseId)
@@ -411,15 +416,20 @@ function ItemDetailSheet({
         <ItemForm
           houseId={houseId}
           category={item.category}
-          initial={valuesFrom(item)}
+          initial={valuesFrom(editing)}
           expanded
           submitLabel="Save"
           busy={busy}
           onSubmit={async (v) => {
-            const r = await edit.mutateAsync({ id: item.id, patch: patchFrom(item, v) })
-            if (r.ok || r.error === 'no_change') {
-              setEditing(false)
+            const r = await edit.mutateAsync({
+              id: item.id,
+              patch: patchFrom(editing, v),
+              version: editing.version,
+            })
+            if (r.ok || r.error === 'no_change' || r.error === 'conflict') {
+              setEditing(null)
               if (r.ok) toast('Saved.')
+              else if (r.error === 'conflict') toast(CHANGED_MEANWHILE)
             } else if (r.error === 'duplicate_need')
               toast("There's already an open need with that name.")
             else toast(PROBLEM[r.error] ?? oops)
@@ -565,7 +575,7 @@ function ItemDetailSheet({
   const menu = item.archivedAt
     ? []
     : [
-        { label: 'Edit', onSelect: () => setEditing(true) },
+        { label: 'Edit', onSelect: () => setEditing(item) },
         { label: 'Delete', tone: 'soft' as const, onSelect: () => setConfirmDelete(true) },
       ]
 

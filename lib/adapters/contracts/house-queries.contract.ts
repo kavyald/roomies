@@ -8,7 +8,7 @@ import type { Contact, Room } from '../../domain/house'
 import type { HouseId, UserId } from '../../domain/ids'
 import type { DomainEvent } from '../../domain/events'
 import { instant } from '../../domain/time'
-import { seedHouse, system, type UnitOfWorkHarness } from './unit-of-work.contract'
+import { seedHouse, system, unversioned, type UnitOfWorkHarness } from './unit-of-work.contract'
 
 const T = instant(Date.UTC(2026, 8, 29, 16, 0))
 
@@ -88,7 +88,9 @@ export const houseQueriesContract = (
         createdAt: T,
       } as const
       await h.uow.run(system(house.id), (r) => r.items.save(item as never))
-      expect(await h.queriesFor(member, house.id).items(house.id)).toEqual([item])
+      expect((await h.queriesFor(member, house.id).items(house.id)).map(unversioned)).toEqual([
+        item,
+      ])
       const stranger = await seedHouse(h)
       expect(await h.queriesFor(stranger.member, stranger.house.id).items(house.id)).toEqual([])
     })

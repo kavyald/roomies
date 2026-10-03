@@ -2,7 +2,13 @@
 // and swaps it in on commit. Access rules mirror the RLS policies in supabase/migrations, so a use
 // case that reaches across houses fails here the same way it fails in Postgres.
 
-import { AccessDenied, ConstraintViolation, type Repos, type UnitOfWork } from '../../app/ports'
+import {
+  AccessDenied,
+  Conflict,
+  ConstraintViolation,
+  type Repos,
+  type UnitOfWork,
+} from '../../app/ports'
 import type { Actor } from '../../domain/actor'
 import { activityRowFor, type StoredActivityRow } from '../../domain/events'
 import { isFailedResult } from '../../domain/result'
@@ -27,7 +33,7 @@ import type { PushSubscription } from '../../domain/push'
 import type { Instant } from '../../domain/time'
 import type { Poll, PollOption } from '../../domain/polls'
 import type { Feeling } from '../../domain/feelings'
-import { sameNeed, type Item, type Need } from '../../domain/items'
+import { sameNeed, type Item, type Need, type Version } from '../../domain/items'
 import type { Run } from '../../domain/runs'
 import { isValidWeight } from '../../domain/weights'
 
@@ -115,11 +121,33 @@ const deny = (what: string): never => {
   throw new AccessDenied(`Not allowed to write ${what}`)
 }
 
+/**
+ * The version a saved item or run gets (Postgres: `updated_at` from the `touch_updated_at`
+ * trigger, ARCHITECTURE §7.5). Saving a loaded copy over a newer one is a `Conflict`; a copy with
+ * no version (new, or built by hand) just writes. A row this transaction already wrote keeps its
+ * version, as Postgres keeps one `now()` per transaction. Memory has no clock, so the version is
+ * a counter.
+ */
+const versioned = <T extends { version?: Version }>(
+  what: string,
+  next: T,
+  old: T | undefined,
+  written: Set<string>,
+): T => {
+  const stored = Number(old?.version ?? 0)
+  if (old && written.has(what)) return { ...next, version: old.version }
+  if (old && next.version && next.version !== old.version)
+    throw new Conflict(`${what} was saved by someone else after it was loaded`)
+  return { ...next, version: String(stored + 1) as Version }
+}
+
 // ---- repos over one transaction's working copy ------------------------------------
 
 const reposFor = (s: MemoryState, a: Actor): Repos => {
   const visible = <T extends { houseId: HouseId }>(rows: Iterable<T>, houseId: HouseId) =>
     [...rows].filter((r) => r.houseId === houseId && isMember(s, a, houseId))
+  // Items and runs this transaction has saved (see `versioned`).
+  const written = new Set<string>()
 
   return {
     houses: {
@@ -235,7 +263,9 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         if (!isMember(s, a, item.houseId) || (old && !isMember(s, a, old.houseId))) deny('items')
         if (!old && a.kind !== 'system' && item.createdBy !== uid(a)) deny('items')
         checkItem(s, item)
-        s.items.set(item.id, item)
+        const key = `items/${item.id}`
+        s.items.set(item.id, versioned(key, item, old, written))
+        written.add(key)
       },
     },
     feelings: {
@@ -271,7 +301,9 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         if (old && old.kind !== run.kind) throw new ConstraintViolation('runs: kind never changes')
         if (run.title !== undefined && !(run.title.trim() && run.title.trim().length <= 80))
           throw new ConstraintViolation('runs: title')
-        s.runs.set(run.id, run)
+        const key = `runs/${run.id}`
+        s.runs.set(run.id, versioned(key, run, old, written))
+        written.add(key)
       },
     },
     notifications: {

@@ -4,6 +4,8 @@
 import type { ColumnType, Generated } from 'kysely'
 
 type Timestamp = ColumnType<Date, Date | string, Date | string>
+/** A timestamp the database fills in (a default, or the `touch_updated_at` trigger). */
+type DefaultTimestamp = ColumnType<Date, Date | string | undefined, Date | string>
 type Json<T> = ColumnType<T, T | string, T | string>
 
 export type ProfilesTable = {
@@ -96,7 +98,7 @@ export type ItemsTable = {
   run_kind: 'batch' | 'request' | 'visit' | null
   created_by: string
   created_at: Timestamp
-  updated_at: Generated<Timestamp>
+  updated_at: DefaultTimestamp
   archived_at: Timestamp | null
 }
 
@@ -115,7 +117,7 @@ export type RunsTable = {
   finished_at: Timestamp | null
   created_by: string
   created_at: Timestamp
-  updated_at: Generated<Timestamp>
+  updated_at: DefaultTimestamp
 }
 
 export type PollsTable = {
@@ -127,7 +129,7 @@ export type PollsTable = {
   closed_at: Timestamp | null
   created_by: string
   created_at: Timestamp
-  updated_at: Generated<Timestamp>
+  updated_at: DefaultTimestamp
 }
 
 export type PollOptionsTable = {
@@ -208,7 +210,7 @@ export type NotificationPrefsTable = {
   user_id: string
   category: string
   enabled: boolean
-  updated_at: Generated<Timestamp>
+  updated_at: DefaultTimestamp
 }
 
 export type NotificationsOutboxTable = {

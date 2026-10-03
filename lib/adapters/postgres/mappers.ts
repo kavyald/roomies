@@ -5,7 +5,7 @@ import type { StoredActivityRow } from '../../domain/events'
 import { feelingWeightsFrom, type Feeling } from '../../domain/feelings'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
 import { asId } from '../../domain/ids'
-import type { Done, Item } from '../../domain/items'
+import type { Done, Item, Version } from '../../domain/items'
 import type { Cost } from '../../domain/costs'
 import type { Cents } from '../../domain/money'
 import type { Poll, PollOption } from '../../domain/polls'
@@ -37,6 +37,30 @@ import type {
 } from './schema'
 
 export const toInstant = (d: Date | string): Instant => instant(new Date(d).getTime())
+
+/** ISO 8601 as Postgres writes a timestamptz to JSON: to the second, a fraction, an offset. */
+const ISO_TIMESTAMP = /^(.+T\d\d:\d\d:\d\d)(?:\.(\d{1,6}))?(Z|[+-]\d\d(?::?\d\d)?)$/
+
+/**
+ * An item's or run's version (ARCHITECTURE §7.5): its `updated_at` in microseconds since the
+ * epoch, as text, since two saves can land in the same millisecond. Server reads select it
+ * exactly (`version`, see `versionSql`); PostgREST sends `updated_at` as ISO text with the
+ * microseconds, read here. A JS Date has only milliseconds, so it gives no version.
+ */
+export const versionOf = (r: {
+  updated_at: Date | string
+  version?: string | null
+}): Version | undefined => {
+  if (r.version) return r.version as Version
+  const m = typeof r.updated_at === 'string' ? ISO_TIMESTAMP.exec(r.updated_at) : null
+  if (!m) return undefined
+  const [, seconds, fraction = '', zone = 'Z'] = m
+  const offset =
+    zone === 'Z' ? zone : `${zone.slice(0, 3)}:${zone.replace(':', '').slice(3) || '00'}`
+  const micros = Date.parse(`${seconds}${offset}`) * 1000 + Number(fraction.padEnd(6, '0'))
+  return Number.isFinite(micros) ? (String(micros) as Version) : undefined
+}
+
 export const toDate = (i: Instant): Date => new Date(i.epochMs)
 const optInstant = (d: Date | string | null) => (d === null ? undefined : toInstant(d))
 
@@ -227,7 +251,10 @@ export const activityToDomain = (r: Selectable<ActivityEventsTable>): StoredActi
 // `when` is stored as an instant plus "has a time"; a date alone is the start of that day in the
 // house's time zone, so it reads back as the same date.
 
-export const itemToDomain = (r: Selectable<ItemsTable>, tz: string): Item => {
+export const itemToDomain = (
+  r: Selectable<ItemsTable> & { version?: string },
+  tz: string,
+): Item => {
   const when: When | undefined = r.when_at
     ? {
         date: localDateOf(toInstant(r.when_at), tz),
@@ -247,6 +274,7 @@ export const itemToDomain = (r: Selectable<ItemsTable>, tz: string): Item => {
     createdBy: asId<'user'>(r.created_by),
     createdAt: toInstant(r.created_at),
     archivedAt: optInstant(r.archived_at),
+    version: versionOf(r),
   })
   const done =
     r.done_at && r.done_by ? { at: toInstant(r.done_at), by: asId<'user'>(r.done_by) } : undefined
@@ -407,7 +435,7 @@ const whenOf = (at: Date | string | null, hasTime: boolean, tz: string): When | 
       }
     : undefined
 
-export const runToDomain = (r: Selectable<RunsTable>, tz: string): Run => {
+export const runToDomain = (r: Selectable<RunsTable> & { version?: string }, tz: string): Run => {
   const base = compact({
     id: asId<'run'>(r.id),
     houseId: asId<'house'>(r.house_id),
@@ -415,6 +443,7 @@ export const runToDomain = (r: Selectable<RunsTable>, tz: string): Run => {
     runner: asId<'user'>(r.runner_id),
     createdBy: asId<'user'>(r.created_by),
     createdAt: toInstant(r.created_at),
+    version: versionOf(r),
   })
   const openOrFinished = r.finished_at
     ? { open: false as const, finishedAt: toInstant(r.finished_at) }

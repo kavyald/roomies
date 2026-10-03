@@ -3,13 +3,20 @@
 
 import { beforeAll, describe, expect, it } from 'vitest'
 import { makeEditItem } from '../../app/items'
-import { AccessDenied, ConstraintViolation } from '../../app/ports'
+import { makeMarkRunItemsDone, makeMoveRunItems } from '../../app/runs'
+import { AccessDenied, Conflict, ConstraintViolation } from '../../app/ports'
 import type { Contact } from '../../domain/house'
 import type { Need, Task } from '../../domain/items'
 import type { Batch, Request, Run, Visit } from '../../domain/runs'
 import { instant, type LocalDate, type LocalTime } from '../../domain/time'
 import { fixedClock } from '../clock'
-import { asMember, seedHouse, system, type UnitOfWorkHarness } from './unit-of-work.contract'
+import {
+  asMember,
+  seedHouse,
+  system,
+  unversioned,
+  type UnitOfWorkHarness,
+} from './unit-of-work.contract'
 
 const T = instant(Date.UTC(2026, 8, 29, 16, 0))
 const LATER = instant(Date.UTC(2026, 8, 30, 16, 0))
@@ -51,7 +58,8 @@ export const runsContract = (name: string, makeHarness: () => Promise<UnitOfWork
       })
       const me = asMember(house.id, member)
       const putRun = (run: Run) => h.uow.run(me, (r) => r.runs.save(run))
-      const getRun = (id: Run['id']) => h.uow.run(me, (r) => r.runs.get(id))
+      const getRun = async (id: Run['id']) =>
+        unversioned(await h.uow.run(me, (r) => r.runs.get(id)))
       const need = (title: string, o: Partial<Need> = {}): Need => ({
         id: h.ids.newId(),
         houseId: house.id,
@@ -140,7 +148,7 @@ export const runsContract = (name: string, makeHarness: () => Promise<UnitOfWork
         error: 'on_a_run',
         detail: { runId: req.id },
       })
-      expect(await h.uow.run(s.me, (r) => r.items.get(leak.id))).toEqual(leak)
+      expect(unversioned(await h.uow.run(s.me, (r) => r.items.get(leak.id)))).toEqual(leak)
     })
 
     it("members read and write their house's runs only, and start them in their own name", async () => {
@@ -247,5 +255,69 @@ export const runsContract = (name: string, makeHarness: () => Promise<UnitOfWork
       await expect(s.putRun({ ...s.visit(), id: run.id } as Run)).rejects.toBeInstanceOf(
         ConstraintViolation,
       )
+    })
+
+    it('T50: a run saved over a newer copy is a Conflict (§7.5)', async () => {
+      const s = await setup()
+      const run = s.batch()
+      await s.putRun(run)
+      const load = () => h.uow.run(s.me, (r) => r.runs.get(run.id))
+      const stale = (await load())!
+      const fresh = (await load())!
+      await h.uow.run(asMember(s.house.id, s.admin), (r) =>
+        r.runs.save({ ...fresh, title: 'Groceries' }),
+      )
+      await expect(
+        h.uow.run(s.me, (r) => r.runs.save({ ...stale, runner: s.admin })),
+      ).rejects.toBeInstanceOf(Conflict)
+      expect(await s.getRun(run.id)).toMatchObject({ title: 'Groceries', runner: s.member })
+      expect((await load())!.version).not.toEqual(stale.version)
+    })
+
+    it('T50: two people moving the same item at once record exactly one move (§7.2c)', async () => {
+      const s = await setup()
+      const [from, a, b] = [s.batch(), s.batch(), s.batch()]
+      for (const run of [from, a, b]) await s.putRun(run)
+      const milk = s.need('Milk', { run: { id: from.id, kind: 'batch' } })
+      await s.putItem(milk)
+      const move = makeMoveRunItems({ uow: h.uow, ids: h.ids, clock: fixedClock(T) })
+      const results = await Promise.all(
+        (
+          [
+            [s.member, a.id],
+            [s.admin, b.id],
+          ] as const
+        ).map(([who, to]) =>
+          move(asMember(s.house.id, who), { fromRunId: from.id, toRunId: to, itemIds: [milk.id] }),
+        ),
+      )
+      expect(results.filter((r) => r.ok)).toHaveLength(1)
+      expect(results.find((r) => !r.ok)).toMatchObject({ ok: false, error: 'not_on_run' })
+      const story = await h.uow.run(s.me, (r) => r.events.forRun(s.house.id, from.id))
+      const moves = story.filter((e) => e.kind === 'run.item_moved')
+      expect(moves).toHaveLength(1)
+      const now = await h.uow.run(s.me, (r) => r.items.get(milk.id))
+      expect(now?.run?.id).toBe(moves[0]!.toRunId)
+    })
+
+    it('T50: two people getting different items on one run at once both land (§7.2c)', async () => {
+      const s = await setup()
+      const run = s.batch()
+      await s.putRun(run)
+      const on = { run: { id: run.id, kind: 'batch' as const } }
+      const [milk, eggs] = [s.need('Milk', on), s.need('Eggs', on)]
+      for (const item of [milk, eggs]) await s.putItem(item)
+      const got = makeMarkRunItemsDone({ uow: h.uow, ids: h.ids, clock: fixedClock(T) })
+      const results = await Promise.all(
+        (
+          [
+            [s.member, milk.id],
+            [s.admin, eggs.id],
+          ] as const
+        ).map(([who, id]) => got(asMember(s.house.id, who), { runId: run.id, itemIds: [id] })),
+      )
+      expect(results.map((r) => r.ok)).toEqual([true, true])
+      for (const id of [milk.id, eggs.id])
+        expect(await h.uow.run(s.me, (r) => r.items.get(id))).toHaveProperty('done')
     })
   })

@@ -2,10 +2,16 @@
 // the storage itself (the DB's CHECKs and unique index; the memory adapter's mirror of them).
 
 import { beforeAll, describe, expect, it } from 'vitest'
-import { AccessDenied, ConstraintViolation } from '../../app/ports'
+import { AccessDenied, Conflict, ConstraintViolation } from '../../app/ports'
 import type { Chore, Item, Need, Task } from '../../domain/items'
 import { instant, type LocalDate, type LocalTime } from '../../domain/time'
-import { asMember, seedHouse, system, type UnitOfWorkHarness } from './unit-of-work.contract'
+import {
+  asMember,
+  seedHouse,
+  system,
+  unversioned,
+  type UnitOfWorkHarness,
+} from './unit-of-work.contract'
 
 const T = instant(Date.UTC(2026, 8, 29, 16, 0))
 
@@ -30,7 +36,8 @@ export const itemsContract = (name: string, makeHarness: () => Promise<UnitOfWor
       })
       const put = (item: Item) =>
         h.uow.run(asMember(seeded.house.id, seeded.member), (r) => r.items.save(item))
-      const get = (id: Item['id']) => h.uow.run(system(seeded.house.id), (r) => r.items.get(id))
+      const get = async (id: Item['id']) =>
+        unversioned(await h.uow.run(system(seeded.house.id), (r) => r.items.get(id)))
       return { ...seeded, need, put, get }
     }
 
@@ -222,5 +229,71 @@ export const itemsContract = (name: string, makeHarness: () => Promise<UnitOfWor
       await expect(
         h.uow.run(me, (r) => r.items.save(mine.need('Forged', { createdBy: mine.admin }))),
       ).rejects.toBeInstanceOf(AccessDenied)
+      // A loaded copy (with its version) of another house's item is still theirs, not a conflict.
+      const loaded = await h.uow.run(system(theirs.house.id), (r) => r.items.get(secret.id))
+      await expect(
+        h.uow.run(me, (r) => r.items.save({ ...loaded!, title: 'Spoiled' })),
+      ).rejects.toBeInstanceOf(AccessDenied)
+    })
+
+    it('T50: a copy saved over a newer one is a Conflict, and the newer one stays (§7.5)', async () => {
+      const { house, member, admin, need, put, get } = await setup()
+      const milk = need('Milk')
+      await put(milk)
+      const wren = asMember(house.id, member)
+      const kavya = asMember(house.id, admin)
+      const load = (as: typeof wren) => h.uow.run(as, (r) => r.items.get(milk.id))
+      const wrens = (await load(wren))!
+      const kavyas = (await load(kavya))!
+      expect(wrens.version).toEqual(expect.any(String))
+      await h.uow.run(kavya, (r) => r.items.save({ ...kavyas, title: 'Oat milk' }))
+      await expect(
+        h.uow.run(wren, (r) => r.items.save({ ...wrens, note: 'the big one' })),
+      ).rejects.toBeInstanceOf(Conflict)
+      const now = await get(milk.id)
+      expect(now).toMatchObject({ title: 'Oat milk' })
+      expect(now).not.toHaveProperty('note')
+
+      // Every save moves the version on, even two in quick succession.
+      const latest = (await load(wren))!
+      expect(latest.version).not.toEqual(wrens.version)
+      await h.uow.run(wren, (r) => r.items.save({ ...latest, priority: 'high' }))
+      await expect(
+        h.uow.run(wren, (r) => r.items.save({ ...latest, note: 'the big one' })),
+      ).rejects.toBeInstanceOf(Conflict)
+
+      // One transaction can save the copy it loaded more than once.
+      await h.uow.run(wren, async (r) => {
+        const copy = (await r.items.get(milk.id))!
+        await r.items.save({ ...copy, note: 'the big one' })
+        await r.items.save({ ...copy, note: 'the big one', priority: 'urgent' })
+      })
+      expect(await get(milk.id)).toMatchObject({
+        title: 'Oat milk',
+        note: 'the big one',
+        priority: 'urgent',
+      })
+    })
+
+    it('T50: of two saves racing from the same copy, exactly one lands', async () => {
+      const { house, member, admin, need, put, get } = await setup()
+      const bulbs = need('Bulbs')
+      await put(bulbs)
+      const loaded = (await h.uow.run(system(house.id), (r) => r.items.get(bulbs.id)))!
+      const results = await Promise.allSettled(
+        (
+          [
+            [member, 'Bulbs (warm)'],
+            [admin, 'Bulbs (cool)'],
+          ] as const
+        ).map(([who, title]) =>
+          h.uow.run(asMember(house.id, who), (r) => r.items.save({ ...loaded, title })),
+        ),
+      )
+      expect(results.map((r) => r.status).sort()).toEqual(['fulfilled', 'rejected'])
+      const lost = results.find((r) => r.status === 'rejected') as PromiseRejectedResult
+      expect(lost.reason).toBeInstanceOf(Conflict)
+      const won = results[0]!.status === 'fulfilled' ? 'Bulbs (warm)' : 'Bulbs (cool)'
+      expect(await get(bulbs.id)).toMatchObject({ title: won })
     })
   })
