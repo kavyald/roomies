@@ -119,7 +119,7 @@ The owner is on Pro with no extra usage, so hitting the 5-hour limit stops work 
   3. `append_note` on each in-flight card with where it stopped.
   4. Update the handoff file, then stop and tell the owner.
 - **Agents can't check usage;** the orchestrating session does it for them.
-- **Run at most 4 builder agents at a time,** one per dependency chain, and don't run two agents that edit the same files at once. Create their worktrees from `v1`.
+- **Run at most 4 builder agents at a time,** one per dependency chain, and don't run two agents that edit the same files at once. Use the `builder` agent (`.claude/agents/builder.md`) with `isolation: "worktree"`: it carries the shared brief and a slim tool set (no browser, simulator or docs connectors), so each turn re-reads far less. Its prompt only needs the card id(s), the `v1` commit to start from, and any reserved migration filename.
 - **After a pause,** start a fresh session with `/resume-build` instead of resuming the old one.
 
 ### Architecture rules (see ARCHITECTURE §4.1)
