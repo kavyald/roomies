@@ -1,6 +1,6 @@
 import type { ErrorEvent } from '@sentry/nextjs'
 import { describe, expect, it } from 'vitest'
-import { redactEmails, scrubBreadcrumb, scrubEvent, withoutQuery } from './scrub'
+import { redactEmails, redactTokens, scrubBreadcrumb, scrubEvent, withoutQuery } from './scrub'
 
 describe('redactEmails', () => {
   it('replaces every address and leaves the rest', () => {
@@ -11,11 +11,23 @@ describe('redactEmails', () => {
   })
 })
 
+describe('redactTokens', () => {
+  it('hides setup and invite tokens in paths and leaves other paths alone', () => {
+    expect(redactTokens('https://x.app/setup/abc123def?x=1')).toBe(
+      'https://x.app/setup/[token]?x=1',
+    )
+    expect(redactTokens('GET /join/Zx9-tok')).toBe('GET /join/[token]')
+    expect(redactTokens('/join/[token]')).toBe('/join/[token]')
+    expect(redactTokens('/h/h1/i/i1')).toBe('/h/h1/i/i1')
+  })
+})
+
 describe('withoutQuery', () => {
   it('keeps the path (ids) and drops the query and fragment', () => {
     expect(withoutQuery('https://x.app/h/h1/i/i1?title=Lemons#top')).toBe('https://x.app/h/h1/i/i1')
     expect(withoutQuery('/rest/v1/items?title=eq.Lemons')).toBe('/rest/v1/items')
     expect(withoutQuery('/h/h1')).toBe('/h/h1')
+    expect(withoutQuery('https://x.app/join/tok123?ref=a')).toBe('https://x.app/join/[token]')
   })
 })
 
@@ -98,6 +110,19 @@ describe('scrubEvent', () => {
     expect(JSON.stringify(s)).not.toMatch(
       /Lemons|lemons|secret|roomies\.test|example\.com|1\.2\.3\.4/,
     )
+  })
+
+  it('hides the setup or invite token in the url, transaction, crumbs and messages', () => {
+    const s = scrubEvent({
+      type: undefined,
+      message: 'bad link https://x.app/join/sekrit1',
+      transaction: '/setup/sekrit2',
+      request: { url: 'https://x.app/setup/sekrit2' },
+      exception: { values: [{ type: 'Error', value: 'no invite /join/sekrit1' }] },
+      breadcrumbs: [{ category: 'navigation', data: { from: '/', to: '/join/sekrit1' } }],
+    })
+    expect(JSON.stringify(s)).not.toMatch(/sekrit/)
+    expect(s.request?.url).toBe('https://x.app/setup/[token]')
   })
 
   it('leaves an event without a request or exception alone', () => {

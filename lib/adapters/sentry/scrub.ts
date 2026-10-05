@@ -1,15 +1,23 @@
 // What leaves the app in an error report (ARCHITECTURE §5.3, A28): the stack, the route and ids.
-// No emails, request bodies, cookies, headers or query strings, and no breadcrumbs that could carry
-// what someone typed or tapped (item titles, poll questions, names live in button labels).
+// No emails, request bodies, cookies, headers or query strings, no setup or invite tokens (they sit
+// in the path: /setup/<token>, /join/<token>), and no breadcrumbs that could carry what someone typed
+// or tapped (item titles, poll questions, names live in button labels).
 
 import type { Breadcrumb, ErrorEvent } from '@sentry/nextjs'
 
 const EMAIL = /[^\s@"'<>(),;:]+@[^\s@"'<>(),;:]+\.[a-z]{2,}/gi
 
+const TOKEN_PATH = /\/(setup|join)\/[^/?#\s"'<>]+/g
+
 export const redactEmails = (s: string): string => s.replace(EMAIL, '[email]')
 
-/** A URL without its query string or fragment (ids in the path stay; filters and tokens don't). */
-export const withoutQuery = (url: string): string => url.replace(/[?#].*$/s, '')
+/** /setup/<token> and /join/<token> become /setup/[token] and /join/[token]. */
+export const redactTokens = (s: string): string => s.replace(TOKEN_PATH, '/$1/[token]')
+
+const redact = (s: string): string => redactTokens(redactEmails(s))
+
+/** A URL without its query string, fragment or path token (ids in the path stay). */
+export const withoutQuery = (url: string): string => redactTokens(url.replace(/[?#].*$/s, ''))
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined)
 
@@ -42,7 +50,8 @@ export const scrubEvent = (event: ErrorEvent): ErrorEvent => {
     ...event,
     user: undefined,
     extra: undefined,
-    message: event.message && redactEmails(event.message),
+    message: event.message && redact(event.message),
+    transaction: event.transaction && withoutQuery(event.transaction),
     request: request && {
       method: request.method,
       url: request.url && withoutQuery(request.url),
@@ -51,7 +60,7 @@ export const scrubEvent = (event: ErrorEvent): ErrorEvent => {
       ...event.exception,
       values: event.exception.values?.map((v) => ({
         ...v,
-        value: v.value && redactEmails(v.value),
+        value: v.value && redact(v.value),
       })),
     },
     breadcrumbs: event.breadcrumbs?.flatMap((b) => scrubBreadcrumb(b) ?? []),
