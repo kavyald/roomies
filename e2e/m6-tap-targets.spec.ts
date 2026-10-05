@@ -183,7 +183,11 @@ test.describe('at 375pt', () => {
       await fitsSideways(page, 'house')
       await page.goto(`${h}/me`)
       await expect(page.getByRole('group', { name: 'Tell me when' })).toBeVisible()
-      await expect(page.getByRole('switch', { name: 'Quiet hours' })).toBeInViewport()
+      // Reachable, not above the fold: how much fits depends on the fallback font (Linux CI wraps
+      // more lines than SF Pro Rounded). Only item views must fit without scrolling (PRD §12).
+      const quiet = page.getByRole('switch', { name: 'Quiet hours' })
+      await quiet.scrollIntoViewIfNeeded()
+      await expect(quiet).toBeInViewport()
       await fitsSideways(page, 'me')
     })
   }
