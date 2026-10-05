@@ -459,10 +459,12 @@ const LAYERS = [
  { id:'entry', n:'1', title:'Entry points', sub:'Thin: parse with Zod, find the actor, build deps, call one use case, map the Result.', mods:[
   { name:'app/actions/*', desc:'11 server-action files', fns:[
     ['makeAction(schema, run, env)','lib/server/action.ts. Zod → actor → deps → use case → Result. AccessDenied becomes not_allowed, anything else unexpected, so no SQL error reaches the browser.'],
-    ['houseEnv(houseId)','app/actions/env.ts. Shared by all house actions; afterSuccess runs sendNotificationsNow via Next after().'],
+    ['houseEnv(houseId)','app/actions/env.ts. Shared by all house actions; afterSuccess runs sendNotificationsNow via Next after(); unexpected errors are logged and sent to Sentry via logUnexpected (A28).'],
     ['items, runs, polls, costs, house, invites, contacts, me, push, setup, auth','One file per area. auth.ts holds requestCode (always the same neutral answer) and verifyCode (sets the session cookie).'] ]},
-  { name:'app/api/cron/[job]', desc:'the only API route', fns:[
+  { name:'app/api/cron/[job]', desc:'one of two route handlers', fns:[
     ['POST tick | reminders | close-polls | send-notifications','Constant-time check of x-cron-secret, then the job use case with depsForJob(). Unknown job → 404; failure → 500 without details.'] ]},
+  { name:'app/monitoring', desc:'the Sentry tunnel', fns:[
+    ['POST','Forwards browser error reports to Sentry, only for our DSN (A28); lib/server/error-tunnel.ts.'] ]},
   { name:'proxy.ts', desc:'Next 16 middleware', fns:[
     ['proxy(request)','Sets the page Content-Security-Policy with a fresh nonce (lib/server/csp.ts), refreshes the Supabase session cookie on every page request and sends signed-out visitors on /h/* to /sign-in. Pages re-check; RLS guards the data regardless.'] ]},
   { name:'lib/server/session.ts', desc:'who is asking', fns:[
@@ -813,7 +815,7 @@ $('#prlist').innerHTML = PR.map((p,i)=>'<div class="pr"><span class="k">'+String
 
 /* ---------------- Gaps ---------------- */
 const GAPS = [
- ['Not started','M5: hosting and launch','E1–E5 and Q5 are untouched by design: hosted Supabase (staging + prod), the Gmail sender, Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is also not installed yet. E5 now also waits on Q6, since M6 is built first.','Weyve cards E1–E5 and Q5 (M5)'],
+ ['Not started','M5: hosting and launch','E1–E5 and Q5 are untouched by design: hosted Supabase (staging + prod), the Gmail sender, Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is wired in (A28) but stays off until E6 sets a DSN. E5 now also waits on Q6, since M6 is built first.','Weyve cards E1–E5 and Q5 (M5)'],
  ['Misplaced','Nil-UUID system actor, four copies','The same “Roomies itself” actor is built separately in setup.ts, push.ts, jobs.ts and invites.ts.','lib/app/{setup,push,jobs,invites}.ts'],
  ['Misplaced','Behavior in the composition root','sendNotificationsNow (running a use case, logging) lives in compose.ts, which should only wire adapters.','lib/compose.ts']
 ];

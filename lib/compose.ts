@@ -8,6 +8,7 @@ import { MemoryUnitOfWork } from './adapters/memory/db'
 import type { DB } from './adapters/postgres/schema'
 import { postgresRateLimiter } from './adapters/postgres/rate-limiter'
 import { postgresSecurityLog } from './adapters/postgres/security-log'
+import { reportError } from './adapters/sentry'
 import { createDb, PostgresUnitOfWork } from './adapters/postgres/unit-of-work'
 import { fakePush, type FakePush } from './adapters/push/fake'
 import { webPushSender } from './adapters/push/web-push'
@@ -77,8 +78,23 @@ export const sendNotificationsNow = async (): Promise<void> => {
     if (r.ok && r.value.messages > 0) console.log(`[push] ${JSON.stringify(r.value)}`)
   } catch (e) {
     console.error('[push] sending failed', e)
+    reportError(e, 'push')
   }
 }
+
+/** Sends an error the app caught and answered for itself to Sentry, when it's on (A28). */
+export const reportCaught =
+  (where: string) =>
+  (e: unknown): void =>
+    reportError(e, where)
+
+/** The same, logged to the server console as well (an action's 'unexpected'). */
+export const logUnexpected =
+  (where: string) =>
+  (e: unknown): void => {
+    console.error(e)
+    reportError(e, where)
+  }
 
 export type TestDeps = AppDeps & {
   readonly uow: MemoryUnitOfWork

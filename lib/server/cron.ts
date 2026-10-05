@@ -23,6 +23,8 @@ export const handleCron = async (
     readonly jobs: Readonly<Record<string, CronJob>>
     readonly now: () => number
     readonly log: (line: string) => void
+    /** Sends a failed job's error on (to Sentry when it's on); the response never carries it. */
+    readonly report?: (e: unknown) => void
   },
 ): Promise<CronResponse> => {
   if (!sameSecret(secret, env.cronSecret)) return { status: 401, body: { error: 'unauthorized' } }
@@ -35,6 +37,7 @@ export const handleCron = async (
     return { status: 200, body: { job, ok: true, ...result } }
   } catch (e) {
     env.log(`[cron] ${job} error: ${e instanceof Error ? e.message : String(e)}`)
+    env.report?.(e)
     return { status: 500, body: { job, ok: false } }
   }
 }

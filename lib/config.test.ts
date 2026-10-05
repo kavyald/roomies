@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ConfigError, loadConfig, loadPublicConfig } from './config'
+import { ConfigError, loadConfig, loadErrorReportingConfig, loadPublicConfig } from './config'
 
 const good = {
   DATABASE_URL: 'postgresql://app_server:pw@127.0.0.1:54322/postgres',
@@ -57,5 +57,33 @@ describe('loadConfig', () => {
 
   it('checks the public values on their own', () => {
     expect(() => loadPublicConfig({})).toThrow(/NEXT_PUBLIC_SUPABASE_URL: missing/)
+  })
+})
+
+describe('loadErrorReportingConfig', () => {
+  const DSN = 'https://abc123@o1.ingest.sentry.io/42'
+
+  it('is off without a DSN, as in local dev and the test suites', () => {
+    expect(loadErrorReportingConfig({})).toBeNull()
+    expect(loadErrorReportingConfig({ NEXT_PUBLIC_SENTRY_DSN: '' })).toBeNull()
+  })
+
+  it('reads the DSN and environment, defaulting to development', () => {
+    expect(loadErrorReportingConfig({ NEXT_PUBLIC_SENTRY_DSN: DSN })).toEqual({
+      dsn: DSN,
+      environment: 'development',
+    })
+    expect(
+      loadErrorReportingConfig({
+        NEXT_PUBLIC_SENTRY_DSN: DSN,
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: 'staging',
+      }),
+    ).toEqual({ dsn: DSN, environment: 'staging' })
+  })
+
+  it('refuses a DSN that is not a URL', () => {
+    expect(() => loadErrorReportingConfig({ NEXT_PUBLIC_SENTRY_DSN: 'nope' })).toThrow(
+      /NEXT_PUBLIC_SENTRY_DSN: (?!missing)/,
+    )
   })
 })

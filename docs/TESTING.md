@@ -117,5 +117,6 @@ Run on the preview URL, then again on prod at launch:
 ## 8. Not tested automatically
 
 - Real email delivery through Gmail (covered by the manual checklist and E1).
+- Error reports reaching Sentry. Without `NEXT_PUBLIC_SENTRY_DSN` (local, CI and every test run) Sentry never starts and nothing is sent; unit tests cover the config, the scrubber (`lib/adapters/sentry/scrub.test.ts`) and the `/monitoring` tunnel (`lib/server/error-tunnel.test.ts`). E6 checks delivery on staging.
 - iOS push delivery and PWA install (covered by the manual checklist).
 - Visual design beyond axe contrast checks. Screens are checked by eye at 375pt in light and dark as part of each task's definition of done.

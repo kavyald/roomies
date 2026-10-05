@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs/config'
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -24,4 +25,18 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+// Sentry (ARCHITECTURE A28). Source maps are uploaded only when
+// the build has SENTRY_AUTH_TOKEN (a Vercel secret; never in the repo); the release is the commit SHA
+// Vercel provides. The runtime DSN comes from lib/config.ts.
+const uploadSourceMaps = Boolean(process.env.SENTRY_AUTH_TOKEN)
+
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  sourcemaps: { disable: !uploadSourceMaps },
+  release: { create: uploadSourceMaps },
+  silent: !uploadSourceMaps,
+  telemetry: false,
+  suppressOnRouterTransitionStartWarning: true,
+})

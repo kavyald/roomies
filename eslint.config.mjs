@@ -66,9 +66,22 @@ const testsReachEverything = {
 // ESLint keeps only the last matching config for a rule, so each file group gets exactly one
 // `no-restricted-imports` entry built from these pieces.
 
-const INFRA = 'Only lib/adapters and lib/compose.ts may use Supabase, Kysely, pg, or web-push.'
+const INFRA =
+  'Only lib/adapters and lib/compose.ts may use Supabase, Kysely, pg, web-push, or Sentry.'
 const infraPackages = [
-  { group: ['@supabase/*', 'kysely', 'kysely/*', 'pg', 'pg/*', 'web-push'], message: INFRA },
+  {
+    group: [
+      '@supabase/*',
+      'kysely',
+      'kysely/*',
+      'pg',
+      'pg/*',
+      'web-push',
+      '@sentry/*',
+      '@sentry/*/*',
+    ],
+    message: INFRA,
+  },
 ]
 const noTesting = [
   {
@@ -106,7 +119,14 @@ const importRules = [
   restrict(
     ['**/*.{ts,tsx}'],
     [...infraPackages, ...noTesting],
-    ['lib/adapters/**', 'lib/compose.ts', 'lib/compose.client.ts', 'lib/testing/**'],
+    // next.config.ts wraps the build with Sentry's plugin (source maps, the tunnel route).
+    [
+      'lib/adapters/**',
+      'lib/compose.ts',
+      'lib/compose.client.ts',
+      'lib/testing/**',
+      'next.config.ts',
+    ],
   ),
   // The domain and use cases: plain TypeScript.
   restrict(

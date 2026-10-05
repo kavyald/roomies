@@ -105,6 +105,35 @@ export const publicConfig = (): PublicConfig =>
     NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
   })
 
+/** Where errors go (Sentry, ARCHITECTURE A28). The DSN isn't a secret: it ships to the browser. */
+export type ErrorReportingConfig = {
+  readonly dsn: string
+  /** 'staging' or 'production' on Vercel; 'development' when unset. */
+  readonly environment: string
+}
+
+const errorReportingSchema = z.object({
+  NEXT_PUBLIC_SENTRY_DSN: url.optional(),
+  NEXT_PUBLIC_SENTRY_ENVIRONMENT: z.string().optional(),
+})
+
+/** Null without a DSN: local dev, the test suites and CI report nothing. */
+export const loadErrorReportingConfig = (env: Env): ErrorReportingConfig | null => {
+  const e = parse(errorReportingSchema, clean(env))
+  if (!e.NEXT_PUBLIC_SENTRY_DSN) return null
+  return {
+    dsn: e.NEXT_PUBLIC_SENTRY_DSN,
+    environment: e.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? 'development',
+  }
+}
+
+/** Read the same way on the server, the edge and in the browser (literal names, see above). */
+export const errorReportingConfig = (): ErrorReportingConfig | null =>
+  loadErrorReportingConfig({
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
+  })
+
 /** Called from instrumentation.ts so a bad environment stops the server at startup. */
 export const checkConfigAtStartup = (): void => {
   if (process.env.NEXT_RUNTIME === 'nodejs') serverConfig()

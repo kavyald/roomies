@@ -8,7 +8,7 @@ Read this first. It covers where the project stands, how the work is planned (on
 
 ```
 docs/                        PRD, ARCHITECTURE (decision log A1–A25), FRONTEND, TESTING, architecture-guide.html, archive/ (mockup-v1.html; ignored by docs-check)
-app/                         Next.js routes: /sign-in, /setup/[token], /join/[token], / (routes you to your house), /h/[houseId]/{,needs,chores,tasks,house,activity,calendar,me,i/[itemId],p/[pollId],r/[runId]}, /dev/kit, /offline, actions/
+app/                         Next.js routes: /sign-in, /setup/[token], /join/[token], / (routes you to your house), /h/[houseId]/{,needs,chores,tasks,house,activity,calendar,me,i/[itemId],p/[pollId],r/[runId]}, /dev/kit, /offline, /monitoring (Sentry tunnel), actions/
 components/ui/               the UI kit (see /dev/kit in light + dark); components/shell, house, auth, setup, join, me, activity, items (sheets, cards, feelings), runs, polls, costs, calendar, home, needs, chores, tasks
 lib/domain/                  pure types + functions (ids, time/DST, money, result, actor, house, events, activity, format, rooms, setup, invites, members, items, lists, feelings, priority, weights, runs, polls, costs, calendar)
 lib/app/                     ports.ts + use cases (contacts, session/whereTo, setup, invites, house, items, runs, polls, costs)

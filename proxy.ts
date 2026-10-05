@@ -47,8 +47,9 @@ export async function proxy(request: NextRequest) {
   return withCsp(response)
 }
 
+// /monitoring is the Sentry tunnel (app/monitoring/route.ts): no page, no session.
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|icons/|sw\\.js|manifest\\.webmanifest|favicon\\.ico).*)',
+    '/((?!_next/static|_next/image|icons/|monitoring|sw\\.js|manifest\\.webmanifest|favicon\\.ico).*)',
   ],
 }

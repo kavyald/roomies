@@ -36,4 +36,13 @@ describe('handleCron', () => {
     })
     expect(e.log).toHaveBeenCalledWith('[cron] boom error: db down')
   })
+
+  it("hands a failing job's error to the reporter, and nothing else", async () => {
+    const report = vi.fn()
+    const boom = new Error('db down')
+    await handleCron('ok', SECRET, { ...env({ ok: async () => ({}) }), report })
+    expect(report).not.toHaveBeenCalled()
+    await handleCron('boom', SECRET, { ...env({ boom: async () => Promise.reject(boom) }), report })
+    expect(report).toHaveBeenCalledExactlyOnceWith(boom)
+  })
 })
