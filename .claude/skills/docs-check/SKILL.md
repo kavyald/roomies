@@ -75,6 +75,12 @@ Governs: how tests are split, which layer goes where, the commands, test data an
 Owner guidance:
 - (none yet)
 
+### DEPLOYMENT.md
+Governs: the M5 hosting and launch plan: the decisions (which branch is production, the two Vercel projects, how migrations run, backups), staging vs prod, the GitHub branches and environments, what goes into Supabase, Vercel and GitHub secrets, what still has to be built, and the order of the M5 cards.
+Notes: until M5 is built, it's newer than ARCHITECTURE §9 and TESTING §5 and §7 where they disagree; the owner chose to update those docs as each piece is built, so that disagreement alone isn't a finding. Flag a diff that builds a deploy piece without updating both this plan and the doc that piece belongs to, or that contradicts a decision here (type (c)).
+Owner guidance:
+- (none yet)
+
 ### architecture-guide.html
 Governs: nothing on its own. It's a hand-written, interactive summary of the build: the layers and modules, the system map and journeys, decisions, stats, the "unfinished" list, recommendations, and a footer naming its sources and commit.
 Notes: check it for staleness against both the code and the other docs. Its facts are in the page text and in JS constants (`LAYERS`, `NODES`, `EDGES`, `FLOWS`, `NODE_INFO`, and so on). Small drift in counts can wait for a milestone or Q-task commit; wrong structure or decisions can't.

@@ -99,6 +99,7 @@ docs/
   ARCHITECTURE.md         system design and data model
   FRONTEND.md             visual design and screens
   TESTING.md              test suite plan
+  DEPLOYMENT.md           hosting and launch plan (M5): branches, staging vs prod, the steps
   architecture-guide.html interactive field guide to the build
   archive/mockup-v1.html  the original clickable prototype
 ```
