@@ -100,7 +100,7 @@ A task is finished when its card's "Done when" holds **and** all of these do:
    - **Docker:** run `docker info`. If it fails, ask the owner to start Docker Desktop (`open -a Docker`) and say "retry".
    - **Weyve:** run `whoami` and read project `736d65d894464a82b9cc38603c43a532`. If the Weyve tools are missing or not signed in, ask the owner to connect the Weyve plugin and say "retry", or confirm they want to continue without it.
 2. Work on **`v1`**, never on `main`.
-3. **Check the docs before every commit.** After the code changes and tests, stage exactly what you'll commit, then run the `docs-check` skill (`/docs-check`). It compares the staged diff with `docs/` (except `docs/archive/`) and reports every discrepancy with a proposed doc edit or code fix. Resolve each finding or get the owner's sign-off before committing. A PreToolUse hook (`.claude/hooks/require-docs-check.mjs`) refuses `git commit` until the staged diff has passed, and refuses `git commit -a`.
+3. **Check the docs before every commit.** After the code changes and tests, stage exactly what you'll commit, then run the `docs-check` skill (`/docs-check`). It compares the staged diff with `docs/` (except `docs/archive/`), `CLAUDE.md` and `README.md`, and reports every discrepancy with a proposed doc edit or code fix. Resolve each finding or get the owner's sign-off before committing. A PreToolUse hook (`.claude/hooks/require-docs-check.mjs`) refuses `git commit` until the staged diff has passed, and refuses `git commit -a`.
 4. Commit once per task, with the ID first (`T07 Base schema + RLS`). End every message with:
    ```
    Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

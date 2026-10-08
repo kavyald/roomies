@@ -1,11 +1,11 @@
 ---
 name: docs-check
-description: Check that staged code changes agree with the docs in docs/ (ARCHITECTURE, PRD, FRONTEND, TESTING, architecture-guide). Run it before every git commit in this repo, after the code changes and tests are done. The commit hook refuses commits whose staged diff hasn't passed it. Also usable report-only on the working tree or a commit range.
+description: Check that staged code changes agree with the docs in docs/ (ARCHITECTURE, PRD, FRONTEND, TESTING, DEPLOYMENT, architecture-guide) and with CLAUDE.md and README.md at the repo root. Run it before every git commit in this repo, after the code changes and tests are done. The commit hook refuses commits whose staged diff hasn't passed it. Also usable report-only on the working tree or a commit range.
 ---
 
 # docs-check
 
-Make sure a commit leaves code and `docs/` in agreement. When they disagree, show the owner what disagrees and a proposed fix. Never quietly edit docs or code to make the check pass.
+Make sure a commit leaves code, `docs/`, `CLAUDE.md` and `README.md` in agreement. When they disagree, show the owner what disagrees and a proposed fix. Never quietly edit docs or code to make the check pass.
 
 `docs/archive/` is out of scope. Ignore everything in it.
 
@@ -19,7 +19,7 @@ Make sure a commit leaves code and `docs/` in agreement. When they disagree, sho
    ```
    It prints:
    - the files in scope,
-   - docs under `docs/` that this skill has no section for,
+   - docs under `docs/` (plus `CLAUDE.md` and `README.md`) that this skill has no section for,
    - sections whose doc no longer exists,
    - every non-empty Owner guidance list.
 
@@ -51,7 +51,7 @@ Make sure a commit leaves code and `docs/` in agreement. When they disagree, sho
 
 ## Per-doc guidance
 
-Each covered doc has a section below. `context.sh` treats each `### <file>` heading as a covered doc (a path relative to `docs/`, or `Outside docs/`), so adding a doc means adding a section. **Owner guidance** is for the owner to fill in over time. Treat each bullet there as an extra check for this doc, alongside what the doc itself says.
+Each covered doc has a section below. `context.sh` treats each `### <file>` heading as a covered doc (a path relative to `docs/`, so the root files are `../CLAUDE.md` and `../README.md`), so adding a doc means adding a section. **Owner guidance** is for the owner to fill in over time. Treat each bullet there as an extra check for this doc, alongside what the doc itself says.
 
 ### ARCHITECTURE.md
 Governs: code structure (layers, ports & adapters, DI), schema and RLS, the activity log, use cases and the function catalog, jobs, realtime, and the frontend route tree.
@@ -87,8 +87,14 @@ Notes: check it for staleness against both the code and the other docs. Its fact
 Owner guidance:
 - (none yet)
 
-### Outside docs/
-Governs: the parts of `CLAUDE.md` ("Current state", the repo tree, surprises) and `README.md` (the docs tree, how to run) that describe what exists.
-Notes: a light check. Flag them only when this diff makes a statement in them wrong.
+### ../CLAUDE.md
+Governs: how Claude works in this repo. "Current state" (which milestones are done, what runs locally, the repo tree, the surprises list), the Weyve rules (task IDs, milestones, tags, edges, the card-update table), the definition of done, how to build (branches, docs-check, commit and push rules), and the architecture rules summary.
+Notes: check it fully, not lightly. Flag a diff that makes any statement in it wrong: a milestone or card finished without updating "Current state", a new top-level folder or `lib/` module missing from the tree, a new gotcha worth a "Surprises" bullet, a changed command, a branch or push rule that the workflow no longer follows, or an RLS addition beyond the base pattern that isn't in the list. Its architecture rules summarize ARCHITECTURE §4.1; if they drift apart, that's a finding on both. Changes to its process rules (Weyve, branches, commits) are type (c).
+Owner guidance:
+- (none yet)
+
+### ../README.md
+Governs: the public face of the repo: the problem, what Roomies does, the prototype link, the Docs table, the stack, the roadmap, how to run and test it, and the repo layout.
+Notes: check it fully. Flag a diff that adds, renames or removes a doc without updating the Docs table and the repo layout, changes a setup or test command or a prerequisite (Node, pnpm, Docker), changes the stack, or finishes a milestone without updating the roadmap. The repo is public: flag anything in it that looks like a secret, a real email or a hosted URL that shouldn't be there.
 Owner guidance:
 - (none yet)

@@ -24,7 +24,7 @@ fi
 covered=$(awk '/^## Per-doc guidance/{on=1; next} on && /^## /{on=0} on && /^### /{sub(/^### /,""); print}' "$skill")
 
 echo
-echo "== Docs coverage (docs/archive/ is ignored)"
+echo "== Docs coverage (docs/, CLAUDE.md and README.md; docs/archive/ is ignored)"
 problems=0
 while IFS= read -r f; do
   rel=${f#docs/}
@@ -33,8 +33,13 @@ while IFS= read -r f; do
     problems=1
   fi
 done < <(find docs -type f ! -path 'docs/archive/*' ! -name '.DS_Store' | sort)
+for f in CLAUDE.md README.md; do
+  if ! grep -qxF "../$f" <<<"$covered"; then
+    echo "UNCOVERED: $f has no section (### ../$f) in $skill. Ask the owner to add guidance for it."
+    problems=1
+  fi
+done
 while IFS= read -r c; do
-  [ "$c" = "Outside docs/" ] && continue
   if [ ! -e "docs/$c" ]; then
     echo "MISSING: $skill has a section for docs/$c, which doesn't exist. Ask the owner to update the skill."
     problems=1
