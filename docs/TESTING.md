@@ -67,7 +67,7 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 
   Use-case tests get their dependencies from `depsForTest()` in `lib/compose.ts`. The lint rules allow `lib/testing/` to be imported only from test files.
 - **One house per test.** Database tests make theirs with `aDbHouse()`, and E2E journeys with `anOwner()` in `e2e/support.ts` (a real account that is admin of a new house with the apartment's rooms). Tests never share rows, so they can run in parallel and nothing needs truncating. `supabase db reset` runs once per `test:all` to apply migrations and `seed.sql`.
-- **`asUser(userId, fn)`** opens a transaction with `set local role authenticated` plus the user's JWT claims, which is the same mechanism the UnitOfWork uses. RLS tests go through the real path, and `auth.uid()` equals the user inside `fn`.
+- **`asUser(userId, fn)`** opens a transaction with `set local role app_writer` plus the user's JWT claims, which is the same mechanism the UnitOfWork uses. RLS tests go through the real path, and `auth.uid()` equals the user inside `fn`. **`asBrowser(userId, fn)`** is the browser's REST role (`authenticated`): it reads under RLS and every write is refused (A30); `supabase/tests/grants.test.ts` uses it, the REST API with a user token, and a grant guard over every table.
 - **Time is always injected.** No test depends on the real clock. Daylight-saving tests use fixed instants on both sides of a change in the house's time zone.
 - **Sign-in codes in E2E** are read from the local Mailpit API (`localhost:54324`). Nothing reaches a real inbox.
 

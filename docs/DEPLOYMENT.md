@@ -133,10 +133,6 @@ All of the app is built. These deploy pieces aren't, and none of them needs an a
 | The smoke suite: `pnpm test:smoke`, `e2e/smoke.spec.ts`, sign-in through the admin API, the smoke house, a read-only mode | Q5 |
 | The encrypted weekly backup workflow and a restore script | E5 |
 | A deliberate error for the Sentry check, on a throwaway preview branch so it never reaches `staging` | E2 |
-| Server-only writes, step 1: a migration that creates `app_writer` (member of `authenticated`, granted to `app_server`) with the write grants members need (INSERT/UPDATE, DELETE on `feelings` and `poll_votes`, the `costs` column UPDATE, sequence USAGE); the UnitOfWork and `lib/testing/db.ts` switch to it | D9, E5 |
-| Server-only writes, step 2: a migration that revokes every write privilege on `public` from `authenticated`, including default privileges for future tables; a grant-guard test (no write grant for `authenticated`, the expected list for `app_writer`, `authenticator` not a member of `app_writer`, the Realtime publication holds only `activity_events`); refusal tests as the browser role and through the REST API with a real user token | D9, E5 |
-| Smaller fixes: `member_role(h, u)` answers only members of `h`; the outbox policy requires `user_id` to be an active member of `house_id`; `public/sw.js` opens only same-origin URLs; an RLS test for each | §8, E5 |
-| Optional: move the policy helpers (`is_member`, `member_role`, …) into a `private` schema the REST API doesn't expose | §8 |
 
 **To check on the first deploy** (none of this shows up locally):
 
@@ -155,7 +151,7 @@ All of the app is built. These deploy pieces aren't, and none of them needs an a
 The code changes come first, all on `v1`. The PR into `staging` opens only once they're done, and Phase A ends when it's squash-merged.
 
 1. Build the pieces in §6 on `v1`, each with its doc updates (ARCHITECTURE §9 and a new decision for D1–D5, TESTING §5 and §7, CLAUDE.md's branch rules).
-2. The server-only writes (D9) and the smaller fixes from §6, also on `v1`. Before launch, steps 1 and 2 may ship together: prod runs no code yet, and on staging the worst case is a minute of refused writes on throwaway data. After launch, step 2 removes grants the old code needs, so it would ship a release after step 1 (D5).
+2. The server-only writes (D9), the `private` schema for the policy helpers and the smaller fixes in §8 (`member_role`, the outbox policy, same-origin notification URLs), also on `v1`; built in T73 (ARCHITECTURE A30). Before launch, steps 1 and 2 may ship together: prod runs no code yet, and on staging the worst case is a minute of refused writes on throwaway data. After launch, step 2 removes grants the old code needs, so it would ship a release after step 1 (D5).
 3. Turn on GitHub secret scanning and push protection, and run a gitleaks scan over the full history. Rotate anything it finds (§8).
 4. Open the PR from `v1` into `staging` and get CI (`fast` and `full`) green.
 5. Turn on branch protection on `staging` and `main` (owner's go-ahead), so the PR merges under the rules in §3.
@@ -208,5 +204,4 @@ The repo is public, so anyone can read the schema, every RLS policy and the role
 
 **Accepted, not fixed**
 
-- If the policy helpers stay in `public` (the optional piece in §6), a signed-in user can call them as RPCs. They return booleans about the caller's own membership, plus whether a house exists.
 - Injected script or a stolen session can still call the app's server actions. Server-only writes limit that to real actions, validated and recorded in Activity under that person's name. The page CSP (`proxy.ts`) is the defense against XSS.

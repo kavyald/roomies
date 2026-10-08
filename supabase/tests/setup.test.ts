@@ -2,7 +2,7 @@
 // inside one transaction that first removes every house and is rolled back at the end.
 
 import { afterAll, describe, expect, it } from 'vitest'
-import { newId, pool, refused } from '../../lib/testing/db'
+import { actAs as actAsUser, newId, pool, refused } from '../../lib/testing/db'
 
 afterAll(() => pool.end())
 
@@ -14,12 +14,7 @@ describe('house setup policies', () => {
     const owner = newId()
     const other = newId()
     const house = newId()
-    const actAs = async (userId: string) => {
-      await db.query('set local role authenticated')
-      await db.query("select set_config('request.jwt.claims', $1, true)", [
-        JSON.stringify({ sub: userId, role: 'authenticated' }),
-      ])
-    }
+    const actAs = (userId: string) => actAsUser(db, userId)
     try {
       await db.query('begin')
       // Hold new houses back until the rollback, so "no house exists" stays true while we test it.
@@ -38,7 +33,7 @@ describe('house setup policies', () => {
 
       await db.query('reset role')
       await actAs(owner)
-      expect((await db.query('select public.no_house_exists() as ok')).rows[0].ok).toBe(true)
+      expect((await db.query('select private.no_house_exists() as ok')).rows[0].ok).toBe(true)
       await db.query(insertHouse, [house, 'The apartment', owner, settings])
       await db.query(
         "insert into house_members (house_id, user_id, role) values ($1, $2, 'admin')",
@@ -48,7 +43,7 @@ describe('house setup policies', () => {
         "insert into rooms (id, house_id, name, floor, kind) values ($1, $2, 'Kitchen', 'first', 'common')",
         [newId(), house],
       )
-      expect((await db.query('select public.no_house_exists() as ok')).rows[0].ok).toBe(false)
+      expect((await db.query('select private.no_house_exists() as ok')).rows[0].ok).toBe(false)
 
       // A second house is refused, even for the owner.
       expect(await refused(db, insertHouse, [newId(), 'Another', owner, settings])).toBe('42501')

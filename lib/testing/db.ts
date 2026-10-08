@@ -1,6 +1,7 @@
 // Database test helpers (TESTING.md §4). Tests connect as `postgres` to set up rows, and use
-// asUser() to act the way the app does: `set local role authenticated` plus the user's JWT claims,
+// asUser() to act the way the app does: `set local role app_writer` plus the user's JWT claims,
 // the same mechanism as the Postgres UnitOfWork, so RLS applies and auth.uid() is the user.
+// asBrowser() is the browser's role (`authenticated`), which reads but can't write (A30).
 
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
@@ -28,15 +29,25 @@ export const asOwner = async <T>(fn: (db: Db) => Promise<T>): Promise<T> => {
   }
 }
 
+/** Switches the open transaction to `userId` as the server writes for them (`app_writer`), or as
+ * the browser's REST role (`authenticated`, read-only). */
+export const actAs = async (
+  db: Db,
+  userId: string,
+  role: 'app_writer' | 'authenticated' = 'app_writer',
+): Promise<void> => {
+  await db.query(`set local role ${role}`)
+  await db.query("select set_config('request.jwt.claims', $1, true)", [
+    JSON.stringify({ sub: userId, role: 'authenticated' }),
+  ])
+}
+
 /** Runs `fn` in a transaction as a signed-in user (RLS applies). Rolls back afterwards. */
 export const asUser = async <T>(userId: string, fn: (db: Db) => Promise<T>): Promise<T> => {
   const db = await pool.connect()
   try {
     await db.query('begin')
-    await db.query('set local role authenticated')
-    await db.query("select set_config('request.jwt.claims', $1, true)", [
-      JSON.stringify({ sub: userId, role: 'authenticated' }),
-    ])
+    await actAs(db, userId)
     return await fn(db)
   } finally {
     await db.query('rollback')
@@ -52,10 +63,7 @@ export const asUserCommitted = async <T>(
   const db = await pool.connect()
   try {
     await db.query('begin')
-    await db.query('set local role authenticated')
-    await db.query("select set_config('request.jwt.claims', $1, true)", [
-      JSON.stringify({ sub: userId, role: 'authenticated' }),
-    ])
+    await actAs(db, userId)
     const out = await fn(db)
     await db.query('commit')
     return out
@@ -63,6 +71,20 @@ export const asUserCommitted = async <T>(
     await db.query('rollback')
     throw e
   } finally {
+    db.release()
+  }
+}
+
+/** Runs `fn` as a signed-in user's browser would through the REST API (the `authenticated` role:
+ * reads under RLS, no writes). Rolls back afterwards. */
+export const asBrowser = async <T>(userId: string, fn: (db: Db) => Promise<T>): Promise<T> => {
+  const db = await pool.connect()
+  try {
+    await db.query('begin')
+    await actAs(db, userId, 'authenticated')
+    return await fn(db)
+  } finally {
+    await db.query('rollback')
     db.release()
   }
 }

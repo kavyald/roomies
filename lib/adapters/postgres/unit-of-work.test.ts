@@ -43,9 +43,9 @@ describe('Postgres UnitOfWork: the session inside a transaction', () => {
       return rows[0]!
     })
 
-  it('auth.uid() is the acting member, under the authenticated role', async () => {
+  it('auth.uid() is the acting member, under the app_writer role', async () => {
     const { house, member } = await seedHouse(harness)
-    expect(await whoAmI(asMember(house.id, member))).toEqual({ uid: member, role: 'authenticated' })
+    expect(await whoAmI(asMember(house.id, member))).toEqual({ uid: member, role: 'app_writer' })
   })
 
   it('jobs run as service_role with no user', async () => {

@@ -1,6 +1,7 @@
 // Postgres UnitOfWork (ARCHITECTURE §4.1). Connects as `app_server`, which can do nothing by
 // itself; each transaction switches role so the database enforces access:
-//   member → `set local role authenticated` + their JWT claims (RLS applies, auth.uid() = them)
+//   member → `set local role app_writer` + their JWT claims (RLS applies, auth.uid() = them;
+//            app_writer is `authenticated` plus the write grants the browser doesn't have, A30)
 //   system → `set local role service_role` (jobs; bypasses RLS)
 // All session state is transaction-local, so this works through a transaction pooler.
 
@@ -169,7 +170,7 @@ const reposFor = (trx: Trx): Repos => {
           houseToDomain,
         ),
       setupAvailable: async () => {
-        const { rows } = await sql<{ ok: boolean }>`select public.no_house_exists() as ok`.execute(
+        const { rows } = await sql<{ ok: boolean }>`select private.no_house_exists() as ok`.execute(
           trx,
         )
         return rows[0]?.ok === true
@@ -802,7 +803,7 @@ export class PostgresUnitOfWork implements UnitOfWork {
     try {
       return await this.db.transaction().execute(async (trx) => {
         if (actor.kind !== 'system') {
-          await sql`set local role authenticated`.execute(trx)
+          await sql`set local role app_writer`.execute(trx)
           const claims = JSON.stringify({ sub: actor.userId, role: 'authenticated' })
           await sql`select set_config('request.jwt.claims', ${claims}, true)`.execute(trx)
         } else {

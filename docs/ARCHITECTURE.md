@@ -159,7 +159,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 
 | Port | Methods (abridged) | Production adapter | Test adapter |
 |---|---|---|---|
-| `UnitOfWork` | `run<T>(actor, fn: (repos: Repos) => Promise<T>): Promise<T>`, one transaction per call. It rolls back when `fn` throws **or resolves to a failed `Result`** (A21). A broken CHECK/unique rule throws `ConstraintViolation`, a broken RLS rule `AccessDenied`. | Postgres (`PostgresUnitOfWork`): `begin` → a member or user gets `set local role authenticated` + `set_config('request.jwt.claims', …)` so **RLS still applies**; the system actor gets `set local role service_role` → `commit` | `MemoryUnitOfWork` (`lib/adapters/memory/db.ts`, which mirrors each RLS rule) |
+| `UnitOfWork` | `run<T>(actor, fn: (repos: Repos) => Promise<T>): Promise<T>`, one transaction per call. It rolls back when `fn` throws **or resolves to a failed `Result`** (A21). A broken CHECK/unique rule throws `ConstraintViolation`, a broken RLS rule `AccessDenied`. | Postgres (`PostgresUnitOfWork`): `begin` → a member or user gets `set local role app_writer` (a member of `authenticated` with the write grants, A30) + `set_config('request.jwt.claims', …)` so **RLS still applies**; the system actor gets `set local role service_role` → `commit` | `MemoryUnitOfWork` (`lib/adapters/memory/db.ts`, which mirrors each RLS rule) |
 | `Repos` (inside a UoW) | `houses`, `profiles`, `members`, `rooms`, `contacts`, `invites`, `items`, `feelings`, `runs`, `polls`, `costs`, `notifications`, `pushSubscriptions`, `events`. Most have `get` / `listByHouse` / `save`. Exceptions: `costs` is `get` / `listByHouse` / `add` / `update` (`update` writes only the amount, who paid, the note and `removed_at`, T57); `polls` saves piece by piece (`create` / `addOption` / `setVote` / `removeVote` / `saveState`, one RLS rule each; `saveState` writes the deadline and closing or reopening); `feelings` also has `remove`; `notifications` is `offFor` / `setEnabled` / `enqueue` / `pending` / `markSent`; `pushSubscriptions` is `save` / `forUsers` / `markOk` / `markGone`. Saves are update-then-insert, not upsert (RLS on upserts). | Kysely queries | in-memory tables |
 | `EventSink` (`repos.events`) | `record(houseId, events: DomainEvent[], at: Instant)`: stamps rows with the injected clock's `at` (A21) and writes `activity_events`; `withNotifications(uow)` (A23) makes the same call also write `notifications_outbox` in the **same transaction** (transactional outbox). `forRun(houseId, runId)` reads a run's story (rows on it or moved into it) inside the transaction; `lastForItem(houseId, itemId, kind)` reads an item's newest row of a kind (the `chore.done` an Undo takes back, T54). | Postgres | in-memory |
 | `Clock` | `now(): Instant` | `systemClock` | `fixedClock(t)` |
@@ -216,22 +216,22 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 4. `startJoin` runs the `startInvite` use case as the system actor: a rate-limit check, then the token's hash is looked up and the pure `validateInvite` checks expiry, uses, and revocation. Only if the invite is valid does it create the auth user (Supabase Admin API; an existing account is fine) and send the 6-digit code. **Public sign-up is turned off** in Supabase Auth settings, so an email typed into the regular sign-in screen without a valid invite gets no code and no account. A refused token goes to `security_events` (§5.4).
 5. The visitor enters the code (which signs them in) and picks an open bedroom → the `acceptJoin` server action runs the `acceptInvite` use case (system actor, re-checking the invite inside the write transaction), which saves their profile, inserts `house_members(house_id, user_id, role='member', status='active', room_id)`, increments uses, records `member.joined`, and notifies all members. **(owner)** There's no approval step.
 6. **Returning sign-in** (`/sign-in`): the `requestCode` server action calls `AuthGateway.sendCode`, which is `signInWithOtp({ email, options: { shouldCreateUser: false } })`. With public sign-up also disabled server-side, this only sends a code to emails that already have an account. The UI shows the same "If you have an account, we sent a code" message either way, so it doesn't reveal who's a member. `verifyCode` checks the code (`verifyOtp`) and sets the session cookie.
-7. From then on, **every house row carries `house_id`**, and RLS policies allow access only when `is_member(house_id)` is true for `auth.uid()`. Server-side use cases keep this protection: the Postgres `UnitOfWork` sets `role authenticated` and the user's JWT claims per transaction (§4.1).
+7. From then on, **every house row carries `house_id`**, and RLS policies allow access only when `is_member(house_id)` is true for `auth.uid()`. Server-side use cases keep this protection: the Postgres `UnitOfWork` sets `role app_writer` (a member of `authenticated`, so every policy applies) and the user's JWT claims per transaction (§4.1). Only the server writes (A30, below).
 
 ```sql
-create function is_member(h uuid) returns boolean
-language sql stable security definer set search_path = public as $$
+create function private.is_member(h uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
   select exists (
-    select 1 from house_members
+    select 1 from public.house_members
     where house_id = h and user_id = auth.uid() and status = 'active'
   );
 $$;
 
 -- pattern applied to every house-scoped table
 alter table items enable row level security;
-create policy "items read"   on items for select using (is_member(house_id));
-create policy "items insert" on items for insert with check (is_member(house_id) and created_by = auth.uid());
-create policy "items update" on items for update using (is_member(house_id)) with check (is_member(house_id));
+create policy "items read"   on items for select using (private.is_member(house_id));
+create policy "items insert" on items for insert with check (private.is_member(house_id) and created_by = auth.uid());
+create policy "items update" on items for update using (private.is_member(house_id)) with check (private.is_member(house_id));
 -- these cover items.for_member too (T45): a personal need is visible to, and workable by, every member
 -- no delete policy: soft-delete via archived_at only (feelings are the one exception, below)
 ```
@@ -242,7 +242,8 @@ Admin-only actions (invites, adding and removing members, roles, house details) 
 |---|---|---|
 | "houses setup" + `no_house_exists()` | `houses` insert | The first account creates the only house (below) |
 | `can_claim_house(h)` in "members admin insert" | `house_members` insert | The setup owner adds *themselves* as the first admin of the house they created, while it has no members |
-| "members update own" (+ `member_role`) | `house_members` update | You move out or change your room, never your role; someone who moved out can't reactivate themselves |
+| "members update own" (+ `member_role`) | `house_members` update | You move out or change your room, never your role; someone who moved out can't reactivate themselves. `member_role(h, u)` answers only a caller who is an active member of `h` |
+| "outbox enqueue" | `notifications_outbox` insert | Members enqueue for their own house, and only for its active members (`user_id`) |
 | "houses members set feeling weights" (+ `only_feeling_weights_changed`) | `houses` update | Any member saves the row when nothing but `settings.feeling_weights` differs from the stored one (A22, PRD §8.2) |
 | "feelings delete own" | `feelings` delete | One of two DELETE policies (with "poll votes withdraw own while open"): removing your own current feeling (its history stays in `activity_events`) |
 | "notification prefs read" (+ `shares_house`) | `notification_prefs` select | Housemates read each other's toggles, so whoever records an event enqueues only what the others want (A23); you change only your own |
@@ -251,11 +252,22 @@ Admin-only actions (invites, adding and removing members, roles, house details) 
 | "poll votes withdraw own while open" (+ `poll_is_open`) | `poll_votes` delete | Taking back your own vote while the poll is open (T55). Reopening and changing the deadline go through "polls update" (any member; `closed_at` and `closes_at` can be cleared) |
 | RLS on, no policies | `rate_limits`, `security_events` | Service role only (the server's system actor); `security_events` is append-only (select, insert, delete for pruning; no update) |
 
-Signed-out visitors (`anon`) have no grants on any table, and `authenticated` has no `DELETE` or `TRUNCATE` except `DELETE` on `feelings` and `poll_votes`.
+**Who writes (A30, DEPLOYMENT D9):** only the server. The roles:
+
+| Role | Who gets it | Grants |
+|---|---|---|
+| `anon` | Anyone with the anon key | None on any table, including future ones |
+| `authenticated` | A signed-in roommate's token, through the REST API and Realtime | `SELECT` only (under RLS). Every write is revoked, also for tables created later (default privileges) |
+| `app_writer` | Only `app_server`, per transaction (`set local role`), with the user's JWT claims. No login, never granted to `authenticator`, so no JWT can pick it | A member of `authenticated` (its reads and every policy `to authenticated`) plus `INSERT`/`UPDATE` on the house tables, `INSERT` only on `activity_events`, `notifications_outbox` and `costs` (plus the `costs` column `UPDATE`), `DELETE` only on `feelings` and `poll_votes`, and sequence `USAGE` |
+| `service_role` | The system actor (jobs, joins, setup) | Everything; bypasses RLS. No `UPDATE`/`DELETE` on `activity_events` |
+
+A new table grants its writes to `app_writer`, never to `authenticated`; `supabase/tests/grants.test.ts` checks the lists, that `authenticator` can't become `app_writer`, and that Realtime publishes only `activity_events`.
+
+**Policy helpers** (`is_member`, `is_admin`, `shares_house`, `no_house_exists`, `member_role`, `can_claim_house`, `poll_is_open`, `only_feeling_weights_changed`) live in the `private` schema, which the REST API doesn't expose, so nobody calls them as RPCs. Policies reach them by oid; `authenticated` may execute them but can't look the schema up, and `app_writer` and `service_role` can (the server calls `private.no_house_exists()`).
 
 **[DECIDED] A4:** no extra "house passcode" on invites. Joins notify everyone, links expire and can be revoked, and admins can remove people in one tap.
 
-**Single-house bootstrap (owner: one house only):** the very first account (you) is created with a one-time `SETUP_TOKEN` env var. Visiting `/setup/<SETUP_TOKEN>` runs the `startSetup` server action and use case (rate-limited; creates your account and sends a code), then `finishSetup` (signed in) runs the `setupHouse` use case, which creates the house and its rooms and makes you admin. After that, the route is permanently disabled once a house exists. It's also blocked by the RLS insert policy "houses setup", which requires `no_house_exists()` (a security-definer check that counts houses outside RLS). This avoids a "whoever signs in first owns the house" race.
+**Single-house bootstrap (owner: one house only):** the very first account (you) is created with a one-time `SETUP_TOKEN` env var. Visiting `/setup/<SETUP_TOKEN>` runs the `startSetup` server action and use case (rate-limited; creates your account and sends a code), then `finishSetup` (signed in) runs the `setupHouse` use case, which creates the house and its rooms and makes you admin. After that, the route is permanently disabled once a house exists. It's also blocked by the RLS insert policy "houses setup", which requires `private.no_house_exists()` (a security-definer check that counts houses outside RLS). This avoids a "whoever signs in first owns the house" race.
 
 **Who can join, summarized:**
 
@@ -577,7 +589,7 @@ create index on activity_events (action_id);                                    
 ```
 
 **Rules**
-- **Append-only.** RLS lets members **read** their house's rows and insert rows in their own name ("activity insert own"). There's no update/delete policy, and neither `authenticated` nor `service_role` has an `UPDATE`/`DELETE` grant. Undo writes a new event (`item.reopened`, `chore.undone`, `poll.reopened`). It never removes one.
+- **Append-only.** RLS lets members **read** their house's rows and insert rows in their own name ("activity insert own"). There's no update/delete policy, and neither `authenticated`, `app_writer` nor `service_role` has an `UPDATE`/`DELETE` grant. Undo writes a new event (`item.reopened`, `chore.undone`, `poll.reopened`). It never removes one.
 - **Written by `EventSink` in the same transaction** as the change. No triggers. It's the only table in the `supabase_realtime` publication (§7.5).
 - **One row per subject.** A bulk action writes one row per item, sharing an `action_id`. The Activity screen groups rows by `action_id` into one line ("Kavya moved 3 tasks to Landlord visit").
 - **Queried fields are columns, never `payload`.** `changes` holds field diffs (varying shape), and `payload` holds versioned extras (`{"v":1, …}`). Sizing, measured in T07 (`pnpm db:sizing`): 148–264 bytes per row depending on kind (feelings with a note are the largest), about **405 bytes/row on disk** including the six indexes and page overhead. At 50 events a day that's roughly **37 MB after 5 years** for one house (the pre-build estimate was ~30 MB).
@@ -957,3 +969,4 @@ iPhone UX specifics:
 | A26 | Page Content-Security-Policy (T52) | A nonce per request from `proxy.ts` with `'strict-dynamic'`, not `'unsafe-inline'` scripts or experimental SRI; every page renders per request (`connection()` in the root layout), which a single house's traffic doesn't notice. Styles keep `'unsafe-inline'` (Vaul and Radix insert unnonced `<style>` tags). `connect-src` names the Supabase origin from config, so local and hosted both work. | Default |
 | A27 | Optimistic concurrency for items and runs (T50) | A save of a loaded item or run checks a `version`: its `updated_at` (from `touch_updated_at`) to the microsecond, as text, since a JS Date drops microseconds and two saves can share a millisecond. No new column or migration. Run moves are guarded by the same item version rather than a separate `where run_id = :from`: a lost item save is re-read and reported as `not_on_run` / `already_on_a_run`, so one mechanism covers edits and moves. The run an item left is saved only when it changed, so work on different items of one run doesn't collide. §7.5 has the details. | Build (T50) |
 | A28 | Error reporting (E6) | `@sentry/nextjs`, errors only (no tracing, no replay). One adapter (`lib/adapters/sentry/`) starts it from `instrumentation.ts` (server + edge, plus `onRequestError`) and `instrumentation-client.ts`, with `NEXT_PUBLIC_SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_ENVIRONMENT` read by `errorReportingConfig()` in `lib/config.ts`; no DSN means nothing starts, so local dev, the test suites and CI send nothing. The browser posts to `/monitoring` on this origin (`app/monitoring/route.ts`), which forwards only envelopes for the configured DSN, so the CSP gains no Sentry host and the route can't relay to other projects; Sentry's own `tunnelRoute` rewrite was dropped because it forwards any `o`/`p` and warns on every proxied response. Reports are scrubbed before sending (§5.3). Source maps upload during the Vercel build only when `SENTRY_AUTH_TOKEN` is set; the release is the commit SHA Vercel provides. | Build (E6) |
+| A30 | Who writes to the database (T73, DEPLOYMENT D9) | Only the server. It switches to `app_writer` per member transaction: a no-login role that is a member of `authenticated` (so every RLS policy and read grant applies) and holds the write grants members need; it's granted to `app_server` (and to `postgres` for the database tests), never to `authenticator`. The browser's `authenticated` role keeps `SELECT` (REST reads, Realtime) and loses every write, including default privileges for future tables. The policy helpers move to a `private` schema the REST API doesn't expose. Security fixes in the same card: `member_role` answers only the house's active members, "outbox enqueue" requires `user_id` to be an active member, and the service worker opens only same-origin URLs. | Build (T73), per DEPLOYMENT §8 (owner approved the `private` schema) |

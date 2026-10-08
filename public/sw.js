@@ -85,10 +85,21 @@ self.addEventListener('push', (event) => {
   )
 })
 
-// Tapping a notification opens the thing it's about, reusing an open window if there is one.
+// Tapping a notification opens the thing it's about, reusing an open window if there is one. Only
+// this app's own pages: a URL on any other origin opens Home instead (DEPLOYMENT §8).
+const sameOriginUrl = (raw) => {
+  try {
+    const url = new URL(raw || '/', self.location.origin)
+    if (url.origin === self.location.origin) return url.href
+  } catch {
+    // not a URL: fall through to Home
+  }
+  return new URL('/', self.location.origin).href
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = new URL(event.notification.data?.url || '/', self.location.origin).href
+  const url = sameOriginUrl(event.notification.data?.url)
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
       const open = windows.find((w) => w.url.startsWith(self.location.origin))

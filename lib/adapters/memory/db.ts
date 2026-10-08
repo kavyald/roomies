@@ -324,7 +324,10 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
       enqueue: async (messages) => {
         let written = 0
         for (const m of messages) {
+          // "outbox enqueue": your own house, and only for its active members (rls_fixes).
           if (!isMember(s, a, m.houseId)) deny('notifications_outbox')
+          if (a.kind !== 'system' && !s.members.get(memberKey(m.houseId, m.userId))?.status.active)
+            deny('notifications_outbox')
           if (m.dedupeKey && s.outbox.some((x) => x.dedupeKey === m.dedupeKey)) continue
           s.outbox.push({ ...m, id: (s.outbox.at(-1)?.id ?? 0) + 1 })
           written++

@@ -79,6 +79,12 @@ export const notificationsContract = (
           r.notifications.enqueue([message(other.house.id)]),
         ),
       ).rejects.toBeInstanceOf(AccessDenied)
+      // ...and only for the house's active members (DEPLOYMENT §8).
+      await expect(
+        h.uow.run(asMember(house.id, member), (r) =>
+          r.notifications.enqueue([{ ...message(house.id), userId: other.member }]),
+        ),
+      ).rejects.toBeInstanceOf(AccessDenied)
     })
 
     it('browsers are yours: saved and read in your own name; the system sends', async () => {

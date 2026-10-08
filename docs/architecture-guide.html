@@ -276,7 +276,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
         <tbody>
           <tr><td>Phone → proxy → server actions</td><td>Every write, as a Next server action (POST). No table writes from the browser.</td></tr>
           <tr><td>Phone ↔ Postgres (left rail)</td><td>Reads through PostgREST with the user's JWT (RLS applies), and Realtime messages back.</td></tr>
-          <tr><td>Adapters → Postgres</td><td>Kysely SQL as <code>app_server</code>, switching to <code>authenticated</code> + JWT claims per transaction.</td></tr>
+          <tr><td>Adapters → Postgres</td><td>Kysely SQL as <code>app_server</code>, switching to <code>app_writer</code> (a member of <code>authenticated</code> with the write grants) + JWT claims per transaction.</td></tr>
           <tr><td>pg_cron → cron routes</td><td><code>pg_net</code> POSTs <code>/api/cron/&lt;job&gt;</code> with <code>x-cron-secret</code>; URL and secret come from Supabase Vault.</td></tr>
           <tr><td>Adapters → Web Push → service worker</td><td>VAPID-signed pushes via <code>web-push</code>; the service worker shows them.</td></tr>
           <tr><td>Auth → Gmail → you</td><td>6-digit sign-in codes via custom SMTP (Mailpit locally until E1).</td></tr>
@@ -542,7 +542,7 @@ const LAYERS = [
  ]},
  { id:'adapters', n:'4', title:'Adapters · lib/adapters', sub:'The only code that imports Supabase, Kysely, pg or web-push. Wired together in lib/compose.ts (server) and lib/compose.client.ts (browser).', mods:[
   { name:'postgres/', desc:'the server write path', fns:[
-    ['PostgresUnitOfWork','begin → set local role authenticated + request.jwt.claims → repos → commit. System jobs use service_role. 720 lines holding every repo.'],
+    ['PostgresUnitOfWork','begin → set local role app_writer + request.jwt.claims → repos → commit. System jobs use service_role. 720 lines holding every repo.'],
     ['save = update-then-insert','Not upsert, because an upsert also applies SELECT policies. Immutable columns are never rewritten.'],
     ['mappers.ts · schema.ts','Explicit row ↔ domain mapping; Kysely types written by hand and checked by contract round-trips.'],
     ['postgresRateLimiter','Fixed windows in rate_limits, counted in their own transaction.'],
@@ -646,7 +646,7 @@ const FLOWS = [
   '<code>makeAction</code> parses the input with Zod and builds a member actor from the verified session.',
   '<code>makeMarkDone(deps)</code> opens <code>uow.run(actor, …)</code>: one Postgres transaction.',
   'The pure <code>markDone(item, by, now)</code> returns the new item plus an <code>item.done</code> event.',
-  'The Postgres adapter switches to <code>authenticated</code> with your JWT claims, so RLS checks every statement.',
+  'The Postgres adapter switches to <code>app_writer</code> (a member of <code>authenticated</code>) with your JWT claims, so RLS checks every statement. The browser's <code>authenticated</code> role can only read.',
   'Item update, activity row and any outbox rows commit together. Then <code>after()</code> sends pushes once the response is gone.'] },
  {id:'read', name:'Load a screen', nodes:['ui','sbjs','pg'], edges:['r1'], steps:[
   'A screen calls a hook like <code>useItems(houseId)</code>.',
@@ -757,7 +757,7 @@ const BACK = [
  ['A2','Next.js + Supabase + Vercel','One vendor for Postgres, auth, realtime and cron; one language end to end. The runner-up was a Vite SPA with Supabase Edge Functions (a second runtime, Deno).',['Firebase: relational data (members, votes) fights a document store, and its rules are harder to test.','Custom API on Fly/Render: you\'d write auth, authz and uploads yourself.']],
  ['A10 · A11','Logic in TypeScript, not in Postgres','Use cases and pure domain functions hold every business rule. Postgres keeps RLS, foreign keys and CHECKs only; no logic RPCs, no triggers that write activity.',['Previous draft had RPCs and triggers: atomic, but logic split across SQL and TS, time from now(), and hidden side effects.']],
  ['A12','Writes through the server, reads direct','Browser writes only via server actions. Reads go straight to PostgREST with the user\'s JWT, so the server isn\'t a bottleneck for lists.',['Everything through the server: simpler mental model, extra hop for every list.']],
- ['§4.1','RLS still applies on the server','The server connects as app_server (no rights of its own) and per transaction runs set local role authenticated plus the caller\'s JWT claims. A bug in a use case can\'t reach another house.',['Service-role key for everything: simpler, but one bug leaks everything.']],
+ ['§4.1','RLS still applies on the server','The server connects as app_server (no rights of its own) and per transaction runs set local role app_writer (a member of authenticated, the only role with write grants) plus the caller\'s JWT claims. A bug in a use case can\'t reach another house.',['Service-role key for everything: simpler, but one bug leaks everything.']],
  ['A14 · A23','Transactional outbox','Every recorded event can enqueue notifications in the same transaction via withNotifications(uow), so a rolled-back change never notifies anyone.',['Send pushes inline: a failure or rollback leaves the two out of step.']],
  ['A24','Activity lines name their topic','Each activity page embeds the titles, run labels, poll questions and amounts its rows point at, in the same PostgREST request. One request per page, RLS filters the embedded rows, and a line opens its item, run or poll sheet in place.',['A lookup per line: one request per row, slower as history grows.']],
  ['A17 · D25','Activity log is the only history','items.run_id holds the current run; everything that happened (moves, earlier feelings, votes) lives in append-only activity_events with typed subject columns and an action_id per user action.',['run_items / run_claims tables: more tables to keep consistent.']],
