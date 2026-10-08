@@ -107,6 +107,7 @@ A task is finished when its card's "Done when" holds **and** all of these do:
    ```
    Git must use `121595788+kavyald@users.noreply.github.com`, because GitHub rejects pushes that expose a private email.
 5. **Push `origin v1` once per milestone**, after its Q task passes and `pnpm test:all` is green.
+   - **PRs into `staging` or `main` describe everything they bring, not the newest commit.** Read `git log origin/<base>..<head>` first. Name the whole range in the title, which becomes the squash commit's subject (e.g. `v1 build: M0–M4, M6 and M5 Phase A`, not the last task's name). In the body, list the range by milestone and card. When merging, pass the subject explicitly (`gh pr merge --squash --subject "<PR title> (#N)"`), because GitHub fills a one-commit PR's squash subject from that commit.
 6. Log judgment calls, deviations and blockers on the task's Weyve card with `append_note` ("Decision YYYY-MM-DD: what. Why: why."). If you deviate from ARCHITECTURE.md, update the doc and its decision log in the same commit.
 
 ### Parallel builds and stops

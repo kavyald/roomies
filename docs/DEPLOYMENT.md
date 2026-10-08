@@ -53,6 +53,7 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 | `main` | **Production** | Only by merging a PR from `staging` |
 
 - **Branch protection** on `staging` and `main`: a PR is required, `fast` and `full` must pass, and force pushes and deletion are off. On `main`, an extra CI job fails any PR whose source isn't this repo's `staging` branch (GitHub can't restrict a PR's source branch by itself).
+- **Naming:** a PR into `staging` or `main` is titled for everything it brings since the branch last moved (the whole `git log origin/<base>..<head>` range, e.g. `v1 build: M0–M4, M6 and M5 Phase A`), never for its newest commit. Its body lists that range by milestone and card. The title becomes the squash commit's subject, so it is passed explicitly when merging.
 - **GitHub Environments:** `staging` and `production`. `production` is limited to `main`, so prod secrets never reach another branch.
 - **Today:** `staging` exists at the same commit as `main` (`052dc1f`). The build is on `v1` and reaches `staging` through a PR.
 
