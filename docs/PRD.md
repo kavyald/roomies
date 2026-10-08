@@ -2,7 +2,7 @@
 
 **Status:** v1 scope (2026-09-28). Simplified to five concepts: needs, chores, tasks, polls, runs.
 **Owner:** Kavya
-**Companions:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FRONTEND.md](./FRONTEND.md) · [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) · [mockup.html](./mockup.html)
+**Companions:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FRONTEND.md](./FRONTEND.md) · [mockup v1](./archive/mockup-v1.html)
 
 > Decisions are marked **[DECIDED]**. The ones you answered directly are tagged *(owner)*. §13 lists what's deliberately **not** in v1, and §14 is the decision log.
 
@@ -118,7 +118,7 @@ Every item has:
 | feelings | one current feeling + note per member (§7) |
 | done | who and when |
 
-- **[DECIDED]** Deleting is archiving. Archived items can be restored for 30 days.
+- **[DECIDED]** (owner, D30) Removing an item is called **Delete**. It asks first ("Delete this? You can undo it right after."), and the toast offers Undo. The row is kept for history (soft delete), and a deleted item opened from the activity log can be brought back. There's no archive list and no time limit.
 - **[DECIDED]** Any member can edit any item. Edits go to the activity log.
 
 ---
@@ -129,7 +129,8 @@ Every item has:
 
 - **Adding:** a title is enough ("tomatoes"). Optional: room, who's getting it, needed by, note ("the oat one, not almond").
 - **Urgency comes from feelings**, not a separate flag. **[DECIDED] (owner)** 😰 "we're on the last roll" does what a "needed soon" toggle would, and it says why. Needs with a feeling sort to the top of the list. A needed-by date also raises priority.
-- **Adding something that's already on the list** doesn't duplicate it. The app points to the existing one.
+- **Adding something that's already on the list** doesn't duplicate it. The app points to the existing one. "Already on the list" means the same title for the same owner: the house's "Milk" and Kavya's "Milk" are two needs.
+- **For me or for the house** (T45, owner): a need is the house's unless whoever adds it picks **Me** (a House / Me toggle beside "We need…" and on the need form; the last choice is remembered on that phone). It's a label only: costs, the equal split, Spent this month and Splitwise don't change. Everyone sees personal needs ("For Kavya"), anyone can get one or put it on a run, and priority treats them like any need. Anyone can change whose it is on the detail; it shows in Activity.
 - **Clearing a need:**
   - **Got it:** check it off directly.
   - **On a run:** it's checked off when the run finishes (§6.5).
@@ -152,6 +153,7 @@ Every item has:
 - **Optional "Handled by":** pick a **contact** (super, landlord, provider) when someone outside the house needs to do it. The task shows "Handled by: Super," the contact's number (copy button), and appears under the *Outside help* filter.
   - **Setting it:** when adding the task, or **any time later** from the task's detail ("Needs outside help?" / "Change"). You can pick an existing contact, **add someone new** right there (name + optional phone, saved to Contacts), or switch back to "One of us." **[DECIDED] (owner)**
   - Planning a visit or adding it to a contact's list also sets it.
+  - **While the task is on a request or visit, "Handled by" follows that run.** To change it, move the task (Move to…, Back to the pool…, Hand to…); "Who's handling it?" says so and opens the run.
 - **"Handled by" is who *should* handle it.** Whether they've actually taken it on is tracked by the **request** and **visit** it's on (§6.5): *on the landlord list · not sent* → *sent to landlord · 2 days ago* → *landlord visit · Thu 10:00* → *fixed*.
 - **"Add to Landlord list"** on a task with a contact puts it on that contact's unsent request (starting one if needed).
 - Tasks can have a date (shows on the calendar) and an assignee.
@@ -161,8 +163,8 @@ Every item has:
 - **A question + 2 or more options.** It's either **about an item** ("Which vacuum?" on the Vacuum need, "Keep it?" on the Vacuum need after it arrives) or **standalone** ("House name?").
 - Options have a label and an optional note (e.g. a link or a price: "Dyson V8, $189").
 - **[DECIDED] (owner) Anyone can add options while the poll is open**, not just at creation. Existing votes stay. People who already voted can switch to the new option. Each option shows who added it. Duplicate labels are rejected, and once the poll closes, options are locked.
-- **Voting:** each member picks one option and can change their vote until the poll closes.
-- **Closing:** anyone can close it, or it closes at an optional deadline.
+- **Voting:** each member picks one option and can change their vote, or take it back, until the poll closes.
+- **Closing:** anyone can close it, or it closes at an optional deadline. Anyone can change or clear the deadline while it's open, and anyone can reopen a closed poll: the votes stay, the result goes away until it closes again, and a deadline that has already passed comes off.
 - **[DECIDED] (owner) Result:** the option with the most votes wins. **If the top options are tied, the result is "Tie,"** the app does nothing automatically, and the house talks it out (in feeling notes or in person).
 - Open polls show on Home with how many people have voted.
 - Polls don't change other items. Acting on a result ("buy the Dyson," "return it") is a new task or need someone adds.
@@ -197,20 +199,22 @@ A run is **a batch of items handled together**. There are three kinds:
 - **Bulk by design:** one reply usually covers several tasks, so every action works on a selection.
 - **A request closes on its own** once nothing is left on it.
 - **History:** each task keeps a history of every request and visit it passed through, with the notes ("Sent to landlord by text → Moved to Landlord visit · Sending a plumber → Fixed").
-- The same actions work in batches and visits too (e.g. move an item from Wren's run to Saturday's run).
+- The same actions work in batches and visits too (e.g. move an item from Wren's run to Saturday's run). In a batch they sit behind **Move or put back…**, since a tap on a row there marks it done.
 
 **Visits and batches**
 - **Planning a visit** directly (when they've already agreed): Tasks → Requests & visits → **+ New** → *They've agreed (visit)*. It's also created by "Move to a visit → New visit."
 - **Requests and visits hold tasks only.** Needs and chores stay in batches.
 - **Finishing:** mark things done or fixed as you go, then **Finish**. Anything left goes back to the pool with the note "Not done this time."
-- **Batches** ask **"Did you spend money?"** on finish, which records one cost (§6.6).
+- **Batches** have an optional **Spent** amount beside **Finish** ("Did you spend money?" without a separate step): an amount records one cost paid by you (who paid can be changed), and leaving it empty records none (§6.6).
+- **Fewer taps:** *Start a run* opens with every open need not already on a run checked, and in a batch tapping an item marks it done (tap again to put it back on the run). A grocery run (start, get 3 things, finish with $40) is about 6 taps.
 - While open, items show **"On Kavya's run"** or **"Sent to Landlord · 2 days ago"** so nobody doubles up. **An item can be on only one open run at a time.**
 - Runs with a date show in Coming up and on the calendar.
 
 ### 6.6 Money (costs)
 
 - **[DECIDED]** Money is a **cost record**: an amount, who paid, an optional note, and what it was for (an item or a run). Nothing requires one.
-- **Adding one:** "Add cost" on any item, or "Did you spend money?" when finishing a run.
+- **Adding one:** "Add cost" on any item, or the **Spent** amount beside a batch's **Finish**.
+- **Changing one:** any member can **edit** a cost (amount, who paid, note) or **remove** it ("Remove this cost?"), from the item's Costs section or the run's sheet. A removed cost stops counting toward Spent this month; the activity log keeps the edit or removal.
 - **Split** is equal among all members in v1.
 - **Open Splitwise** copies "{title} — ${amount}" and opens Splitwise. **[DECIDED] (owner)** There's no Splitwise API in v1.
 - The House tab shows **"Spent this month: $X · your share $Y"**.
@@ -227,7 +231,7 @@ A run is **a batch of items handled together**. There are three kinds:
 
 - **Opt-in.** A roommate adds a feeling to an item only when they think the house should know how they feel about it. Nobody is prompted. **(owner)**
 - **About the item, never the person.** There's no per-person mood, and avatars never show feelings. **(owner)**
-- **One current feeling + an optional note** (≤ 280 chars) per member per item. Changing it moves the old one to an **Earlier** list, so the conversation isn't lost. **(owner)** Feeling notes replace comments.
+- **One current feeling + an optional note** (≤ 280 chars) per member per item. Changing it moves the old one to an **Earlier** list, so the conversation isn't lost (adding or editing the note keeps it the same feeling). **(owner)** Feeling notes replace comments.
 - **Always named.** There's no anonymous option. **(owner)**
 - When someone adds 😰 or 😤, the item's assignee gets a notification.
 
@@ -269,14 +273,14 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 
 - **House → Settings → Feeling weights**: one row per feeling with its emoji, name, and a number (−20 to +40, in steps of 5), plus **Reset to defaults**.
 - **One setting for the whole house.** **Any member** can change it. **(owner)**
-- Saving re-ranks the feed for everyone, is logged, and shows a card on Home ("Maya set 😰 Anxious to +30").
+- Saving re-ranks the feed for everyone, is logged, and shows a card on Home ("Maya set 😰 Anxious to +30"). Everyone else also gets a push ("Maya set 😰 to +30", §11, D32).
 - The other parts of the formula are fixed in v1.
 
 ---
 
 ## 9. Activity log
 
-- A reverse-chronological record of every change: items added, edited, done, or archived; feelings; poll votes and results; runs started and finished; costs added; members joining; settings changed.
+- A reverse-chronological record of every change: items added, edited, done, or deleted (and brought back); feelings; poll votes and results; runs started and finished; costs added; members joining; settings changed.
 - **[DECIDED]** Written in the same transaction as the change, so it's always complete.
 - **[DECIDED] (owner) It's the only place history lives.** An item's path through requests and visits, Earlier feelings, votes and cost edits are all read back from it. It's append-only: undo adds a new entry ("reopened") and never erases one. A bulk action (moving 3 tasks) shows as one line. Details and the full event list are in Architecture §6.4.
 
@@ -292,7 +296,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
   - is **not** tied to a specific email **(owner)**. Whoever opens it can join, which is why joins notify everyone.
 - **Joining:** open the link → enter name + email → type the 6-digit code → pick your bedroom → you're in. **(owner)** It's instant, with no admin approval.
 - **Signing in later:** enter your email → type the code. This only works for emails that already have an account.
-- **Roles:** `admin` (manage invites, remove members, delete the house) and `member` (everything else, including settings). **(owner)**
+- **Roles:** `admin` (manage invites, remove members) and `member` (everything else, including settings). **(owner)**
 - **Moving out:** an admin (or the person themselves) marks a member as moved out. They lose access, and their name stays on past items.
 - **Deleting your account:** removes your email and profile. Your name on past items becomes "Former roommate."
 - **Access guarantee:** nobody outside the house can read or write its data, and this is enforced at the database layer.
@@ -310,9 +314,15 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 | Someone started a run ("Add anything?") | everyone | on |
 | A run with a date is tomorrow (delivery, visit) | everyone | on |
 | Someone joined | everyone | on |
+| Someone moved out, or your role changed | everyone / that member | on |
+| The feeling weights changed (D32) | everyone but whoever changed them | on |
+| A new option on a poll you voted on (D32) | people who already voted | on |
+| You're the new point person on a run (D32) | that person, unless they picked themselves | on |
+| Tasks moved into a visit you're the point person for (D32) | that person, once per move, unless they moved them | on |
 
 - **Web Push** only, which requires adding the app to the Home Screen on iOS. The email digest fallback comes later (§13).
 - Quiet hours per person (default 10pm–8am), with per-category toggles in personal settings.
+- Everything about notifications sits in one **Notifications** section of personal settings: this device's status with its one button (turn on / blocked / add to Home Screen first), a switch per category with a line saying when you get it, and quiet hours as one row. House → Settings links to it.
 
 ---
 
@@ -326,8 +336,9 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 | **M3: Polls & runs** | Polls, runs (grocery, order, visit, event), costs, calendar | A grocery run, a poll, and a super visit can each be completed locally |
 | **M4: Notifications & polish** | Push, reminders, polish, end-to-end tests | Reminders and push work locally, and the E2E suite is green in CI |
 | **M5: Hosting & launch** | The external services: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production | Everyone is on production from their phones |
+| **M6: Usability & personal needs** | Fewer taps (swipe, simpler item views, quicker runs), needs for one person or the house, the gaps chosen from the docs↔code audit (D35), docs that match the build | Every action hits its tap target, item views fit at 375pt without scrolling, and personal needs work end to end |
 
-The details are in [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md).
+M6 is built locally before launch, so production waits on its test task (Q6). The tasks are on the **roomies** board in Weyve.
 
 ---
 
@@ -372,7 +383,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D16 | Runs batch any needs, tasks, and chores. Visits are runs with a contact. | Owner |
 | D17 | Polls stand alone or attach to an item | Owner |
 | D18 | Items are stored in one table with per-category columns (Architecture §6) | Owner |
-| D19 | "Handled by" can be set or changed on any task at any time, including adding a new contact inline | Owner |
+| D19 | "Handled by" can be set or changed on any task at any time, including adding a new contact inline; on a request or visit it follows the run (D35) | Owner |
 | D20 | Anyone can add poll options until the poll closes | Owner |
 | D21 | Runs have three kinds: batch, request (gathering → sent → closed), visit (contact has taken it on) | Owner |
 | D22 | Recording a reply = bulk actions on tasks in a run: move to a visit/run, back to the pool with a note, hand to another contact, done. No reply form. | Owner |
@@ -383,5 +394,11 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D27 | Heads-ups and the calendar icon are v2 (design parked in §13) | Owner |
 | D28 | Sign-in codes come from a house Gmail address, and the app lives at a `*.vercel.app` URL. No custom domain in v1. | Owner |
 | D29 | Everything that needs an outside account is its own, later milestone (M5). M0–M4 are built and checked entirely on one Mac. | Owner |
+| D30 | Removing an item is called "Delete" in the app. The row stays for history and the toast offers Undo. No archive list, no 30-day window (T62). | Owner |
+| D31 | House → Rooms is a compact grid grouped Bedrooms / Bathrooms / Spaces (T60) | Owner |
+| D32 | Extra pushes: feeling weights changed, a new poll option, a new point person, tasks moved into a visit (T59) | Owner |
+| D33 | Offline shows the offline page only. No cached data. | Owner |
+| D34 | Not building: deleting the house, a move-in checklist, a "Handled 💛" toast, adding or archiving rooms, a room's element setting, item counts on rooms | Owner |
+| D35 | Built from the docs↔code audit: conflict detection on edits, "Handled by" follows the run, an app-wide CSP, `security_events`, undo "Did it", poll withdraw / reopen / deadline, run rename and point person, cost edit and remove, poll and run deep links, notification settings in one section (T50–T58, T61) | Owner |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.

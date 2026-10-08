@@ -1,0 +1,723 @@
+'use client'
+
+import { BarChart3, Copy, ShoppingCart } from 'lucide-react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { Avatar } from '@/components/ui/Avatar'
+import { Button } from '@/components/ui/Button'
+import { RoomChip } from '@/components/ui/Chip'
+import { DisclosureGroup } from '@/components/ui/Disclosure'
+import { OverflowMenu } from '@/components/ui/OverflowMenu'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Sheet } from '@/components/ui/Sheet'
+import { useCelebrate, useToast } from '@/components/ui/Toast'
+import { useCopy } from '@/components/house/useCopy'
+import {
+  useAddToRequest,
+  useArchiveItem,
+  useContacts,
+  useCreateItem,
+  useEditItem,
+  useHouse,
+  useItem,
+  useMarkDone,
+  useMembers,
+  useProfiles,
+  useReopenItem,
+  useRestoreItem,
+  useRooms,
+  CHANGED_MEANWHILE,
+} from '@/lib/client/hooks'
+import { useNow } from '@/lib/client/use-now'
+import { useAppClient } from '@/lib/client/provider'
+import { relativeTime } from '@/lib/domain/format'
+import type { HouseId, ItemId, PollId, RunId } from '@/lib/domain/ids'
+import { ItemCosts } from '@/components/costs/ItemCosts'
+import { ItemPolls } from '@/components/polls/ItemPolls'
+import { NewPollSheet } from '@/components/polls/NewPollSheet'
+import { PollSheet } from '@/components/polls/PollSheet'
+import { RunSheet } from '@/components/runs/RunSheet'
+import { StartRunSheet } from '@/components/runs/StartRunSheet'
+import { ItemRunPath } from '@/components/runs/ItemRunPath'
+import { useCardContext } from './useCardContext'
+import { useDidIt } from './useDidIt'
+import { isOpen, type Category, type Item, type ItemPatch } from '@/lib/domain/items'
+import type { LocalDate, LocalTime } from '@/lib/domain/time'
+import { HouseFeels } from './Feelings'
+import { HandledByPicker } from './HandledByPicker'
+import { ItemForm, toNewItem, valuesFrom, type ItemFormValues } from './ItemForm'
+import { CATEGORY, scheduleLabel, whenLabel } from './meta'
+import { WhyHere } from './WhyHere'
+
+type Sheets = {
+  /** The "+" sheet: the picker, or straight to one kind's form. */
+  openAdd(category?: Category): void
+  /** An item's detail sheet; `note` opens it on the note editor for my feeling. */
+  openItem(id: ItemId, opts?: { note?: boolean }): void
+  openRun(id: RunId): void
+  startRun(): void
+  openPoll(id: PollId): void
+  newPoll(about?: { id: ItemId; title: string }): void
+}
+const SheetsContext = createContext<Sheets>({
+  openAdd: () => {},
+  openItem: () => {},
+  openRun: () => {},
+  startRun: () => {},
+  openPoll: () => {},
+  newPoll: () => {},
+})
+
+/** Opens the "+" sheet or an item's detail sheet from anywhere in the house. */
+export const useItemSheets = (): Sheets => useContext(SheetsContext)
+
+const PROBLEM: Record<string, string> = {
+  empty_title: 'Give it a title.',
+  title_too_long: 'That title is a bit long. Keep it under 120 characters.',
+  unknown_member: "That roommate isn't in the house anymore.",
+  unknown_room: "That room isn't there anymore.",
+  unknown_contact: "That contact isn't there anymore.",
+  bad_repeat: 'Pick between 1 and 365 days.',
+  on_a_run: "It's on a request or visit. Move it there to change who's handling it.",
+  // Someone saved it first (ARCHITECTURE §7.5); the house's data refetches with this.
+  conflict: CHANGED_MEANWHILE,
+}
+const oops = "Couldn't reach the house. Check your connection and try again."
+
+export function ItemSheetsProvider({
+  houseId,
+  children,
+}: {
+  houseId: HouseId
+  children: ReactNode
+}) {
+  const [adding, setAdding] = useState<{ category?: Category } | null>(null)
+  const [open, setOpen] = useState<{ id: ItemId; note?: boolean } | null>(null)
+  const [runId, setRunId] = useState<RunId | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [pollId, setPollId] = useState<PollId | null>(null)
+  const [newPoll, setNewPoll] = useState<{ about?: { id: ItemId; title: string } } | null>(null)
+  const sheets = useMemo<Sheets>(
+    () => ({
+      openAdd: (category) => setAdding({ category }),
+      openItem: (id, opts) => {
+        setRunId(null)
+        setOpen({ id, note: opts?.note })
+      },
+      openRun: (id) => {
+        setOpen(null)
+        setRunId(id)
+      },
+      startRun: () => setStarting(true),
+      openPoll: (id) => {
+        setOpen(null)
+        setPollId(id)
+      },
+      newPoll: (about) => {
+        setOpen(null)
+        setNewPoll({ about })
+      },
+    }),
+    [],
+  )
+  return (
+    <SheetsContext.Provider value={sheets}>
+      {children}
+      {adding && (
+        <AddSheet
+          houseId={houseId}
+          initialCategory={adding.category}
+          onClose={() => setAdding(null)}
+          onOpen={(id) => {
+            setAdding(null)
+            setOpen({ id })
+          }}
+          onPoll={() => {
+            setAdding(null)
+            setNewPoll({})
+          }}
+          onRun={() => {
+            setAdding(null)
+            setStarting(true)
+          }}
+        />
+      )}
+      {open && (
+        <ItemDetailSheet
+          key={open.id}
+          houseId={houseId}
+          id={open.id}
+          noteFirst={open.note}
+          onClose={() => setOpen(null)}
+        />
+      )}
+      {runId && <RunSheet houseId={houseId} runId={runId} onClose={() => setRunId(null)} />}
+      {pollId && (
+        <PollSheet
+          houseId={houseId}
+          pollId={pollId}
+          onClose={() => setPollId(null)}
+          onOpenItem={(id) => {
+            setPollId(null)
+            setOpen({ id })
+          }}
+        />
+      )}
+      {newPoll && (
+        <NewPollSheet
+          houseId={houseId}
+          about={newPoll.about}
+          onClose={() => setNewPoll(null)}
+          onCreated={(id) => {
+            setNewPoll(null)
+            setPollId(id)
+          }}
+        />
+      )}
+      {starting && (
+        <StartRunSheet
+          houseId={houseId}
+          onClose={() => setStarting(false)}
+          onStarted={(id) => {
+            setStarting(false)
+            setRunId(id)
+          }}
+        />
+      )}
+    </SheetsContext.Provider>
+  )
+}
+
+// ---- the "+" sheet ------------------------------------------------------------------------------
+
+function AddSheet({
+  houseId,
+  initialCategory,
+  onClose,
+  onOpen,
+  onPoll,
+  onRun,
+}: {
+  houseId: HouseId
+  initialCategory?: Category
+  onClose: () => void
+  onOpen: (id: ItemId) => void
+  onPoll: () => void
+  onRun: () => void
+}) {
+  const [category, setCategory] = useState<Category | null>(initialCategory ?? null)
+  const create = useCreateItem(houseId)
+  const toast = useToast()
+
+  /** Adds it; true once the house has it (added, or pointed at the one already there). */
+  const save = async (v: ItemFormValues): Promise<boolean> => {
+    if (!category) return false
+    const r = await create.mutateAsync(toNewItem(category, v))
+    if (r.ok) {
+      toast('Added.', { label: 'Open', onClick: () => onOpen(r.value.id) })
+      return true
+    }
+    if (r.error === 'duplicate_need' && r.detail?.existingId) {
+      toast("That's already on the list.", {
+        label: 'Open',
+        onClick: () => onOpen(r.detail!.existingId as ItemId),
+      })
+      return true
+    }
+    toast(PROBLEM[r.error] ?? oops)
+    return false
+  }
+
+  if (!category) {
+    const tiles: {
+      key: Category | 'poll' | 'run'
+      label: string
+      blurb: string
+      icon: typeof ShoppingCart
+      soon?: boolean
+    }[] = [
+      { key: 'need', label: 'A need', blurb: 'Something to buy', icon: CATEGORY.need.icon },
+      { key: 'chore', label: 'A chore', blurb: 'Ongoing upkeep', icon: CATEGORY.chore.icon },
+      { key: 'task', label: 'A task', blurb: 'A one-off', icon: CATEGORY.task.icon },
+      { key: 'poll', label: 'A poll', blurb: 'A question', icon: BarChart3 },
+      { key: 'run', label: 'A run', blurb: 'A batch', icon: ShoppingCart },
+    ]
+    return (
+      <Sheet open onOpenChange={(o) => !o && onClose()} title="Add something">
+        <div className="grid grid-cols-2 gap-2.5">
+          {tiles.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              disabled={t.soon}
+              onClick={() =>
+                t.key === 'poll' ? onPoll() : t.key === 'run' ? onRun() : setCategory(t.key)
+              }
+              className="sticker grid gap-2 rounded-[20px] bg-paper px-3.5 py-4 text-left font-extrabold shadow-[inset_0_0_0_1.5px_var(--line),0_2px_0_var(--line)] disabled:opacity-50"
+            >
+              <t.icon aria-hidden className="size-[26px] text-accent-ink" />
+              {t.label}
+              <small className="text-[0.78rem] font-semibold text-ink-soft">{t.blurb}</small>
+            </button>
+          ))}
+        </div>
+      </Sheet>
+    )
+  }
+
+  return (
+    <Sheet open onOpenChange={(o) => !o && onClose()} title={CATEGORY[category].article}>
+      <SegmentedControl
+        wide
+        label="What are you adding?"
+        value={category}
+        onChange={setCategory}
+        options={[
+          { value: 'need', label: 'Need' },
+          { value: 'chore', label: 'Chore' },
+          { value: 'task', label: 'Task' },
+        ]}
+      />
+      <ItemForm
+        houseId={houseId}
+        category={category}
+        initial={valuesFrom()}
+        submitLabel="Add"
+        busy={create.isPending}
+        onSubmit={async (v) => {
+          if (await save(v)) onClose()
+        }}
+        onAddAnother={save}
+        askWhose
+      />
+      <button
+        type="button"
+        onClick={() => setCategory(null)}
+        className="min-h-11 justify-self-center text-sm font-bold text-accent-ink"
+      >
+        A poll or a run instead?
+      </button>
+    </Sheet>
+  )
+}
+
+// ---- the detail sheet -----------------------------------------------------------------------------
+
+/** What changed between the item and the form, as a patch (null clears a field). */
+const patchFrom = (item: Item, v: ItemFormValues): ItemPatch => {
+  const before = valuesFrom(item)
+  const p: Record<string, unknown> = {}
+  if (v.title.trim() !== item.title) p.title = v.title
+  if (v.note !== before.note) p.note = v.note.trim() ? v.note : null
+  if (v.roomId !== before.roomId) p.roomId = v.roomId || null
+  if (v.assignee !== before.assignee) p.assignee = v.assignee || null
+  if (v.date !== before.date || v.time !== before.time) {
+    p.when = v.date
+      ? { date: v.date as LocalDate, ...(v.time && { time: v.time as LocalTime }) }
+      : null
+  }
+  if (v.priority !== before.priority) p.priority = v.priority
+  if (item.category === 'chore') {
+    const next = v.repeat === 'every' ? v.repeatDays : null
+    if (next !== item.repeatDays) p.repeatDays = next
+  }
+  if (item.category === 'task' && v.contactId !== before.contactId)
+    p.contactId = v.contactId || null
+  return p as ItemPatch
+}
+
+function ItemDetailSheet({
+  houseId,
+  id,
+  noteFirst,
+  onClose,
+}: {
+  houseId: HouseId
+  id: ItemId
+  /** Opened from "Add a note" after a one-tap feeling. */
+  noteFirst?: boolean
+  onClose: () => void
+}) {
+  const item = useItem(houseId, id)
+  const house = useHouse(houseId)
+  const rooms = useRooms(houseId)
+  const profiles = useProfiles(houseId)
+  const members = useMembers(houseId)
+  const contacts = useContacts(houseId)
+  const now = useNow()
+  const toast = useToast()
+  const celebrate = useCelebrate()
+  const copy = useCopy()
+  const { me } = useAppClient()
+  // The item as it was when Edit was tapped: the form starts from it and saves against its
+  // version, so a change someone makes meanwhile is never quietly undone (§7.5).
+  const [editing, setEditing] = useState<Item | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [pickingHandler, setPickingHandler] = useState(false)
+  const edit = useEditItem(houseId)
+  const done = useMarkDone(houseId)
+  const reopen = useReopenItem(houseId)
+  const did = useDidIt(houseId)
+  const archive = useArchiveItem(houseId)
+  const restore = useRestoreItem(houseId)
+  const cardCtx = useCardContext(houseId)
+  const addToRequest = useAddToRequest(houseId)
+  const { openRun } = useItemSheets()
+  const busy =
+    edit.isPending ||
+    done.isPending ||
+    reopen.isPending ||
+    did.isPending ||
+    archive.isPending ||
+    restore.isPending
+
+  const nameOf = useCallback(
+    (u?: string) =>
+      u ? (profiles.data?.find((p) => p.id === u)?.displayName ?? 'Former roommate') : undefined,
+    [profiles.data],
+  )
+  const elementOf = (u?: string) => {
+    const m = members.data?.find((x) => x.userId === u)
+    return m?.roomId ? rooms.data?.find((r) => r.id === m.roomId)?.element : undefined
+  }
+
+  if (!item) {
+    return (
+      <Sheet open onOpenChange={(o) => !o && onClose()} title="Loading…">
+        <p className="m-0 text-ink-soft">One moment.</p>
+      </Sheet>
+    )
+  }
+
+  const tz = house.data?.settings.timezone ?? 'UTC'
+  const room = item.roomId ? rooms.data?.find((r) => r.id === item.roomId) : undefined
+  const contact =
+    item.category === 'task' && item.contactId
+      ? contacts.data?.find((c) => c.id === item.contactId)
+      : undefined
+  const isDone = item.category !== 'chore' && !!item.done
+  const say = (r: { ok: boolean; error?: string }, success: string, undo?: () => void) =>
+    r.ok
+      ? toast(success, undo && { label: 'Undo', onClick: undo })
+      : toast(PROBLEM[r.error ?? ''] ?? oops)
+
+  if (editing) {
+    return (
+      <Sheet
+        open
+        onOpenChange={(o) => !o && onClose()}
+        title={`Edit ${CATEGORY[item.category].label.toLowerCase()}`}
+      >
+        <ItemForm
+          houseId={houseId}
+          category={item.category}
+          initial={valuesFrom(editing)}
+          expanded
+          submitLabel="Save"
+          busy={busy}
+          onSubmit={async (v) => {
+            const r = await edit.mutateAsync({
+              id: item.id,
+              patch: patchFrom(editing, v),
+              version: editing.version,
+            })
+            if (r.ok || r.error === 'no_change' || r.error === 'conflict') {
+              setEditing(null)
+              if (r.ok) toast('Saved.')
+              else if (r.error === 'conflict') toast(CHANGED_MEANWHILE)
+            } else if (r.error === 'duplicate_need')
+              toast("There's already an open need with that name.")
+            else toast(PROBLEM[r.error] ?? oops)
+          }}
+        />
+      </Sheet>
+    )
+  }
+
+  const rows: [string, React.ReactNode][] = []
+  if (item.category === 'need') {
+    // Whose it is (T45): changeable while it's open, by anyone; recorded as an edit.
+    const owner = item.forMember
+    const whose = !owner ? 'house' : owner === me ? 'me' : 'other'
+    const setWhose = async (w: typeof whose) => {
+      if (w === whose || w === 'other') return
+      const r = await edit.mutateAsync({
+        id: item.id,
+        patch: { forMember: w === 'me' ? me : null },
+        version: item.version,
+      })
+      if (r.ok) toast(w === 'me' ? 'Just for you now.' : 'For the house now.')
+      else if (r.error === 'duplicate_need')
+        toast(
+          w === 'me'
+            ? 'You already have that on the list.'
+            : 'The house already has that on the list.',
+        )
+      else toast(PROBLEM[r.error] ?? oops)
+    }
+    rows.push([
+      'For',
+      isOpen(item) ? (
+        <SegmentedControl
+          key="for"
+          compact
+          label="Who it's for"
+          value={whose}
+          onChange={setWhose}
+          options={[
+            { value: 'house', label: 'House' },
+            { value: 'me', label: 'Me' },
+            ...(whose === 'other' ? [{ value: 'other' as const, label: nameOf(owner)! }] : []),
+          ]}
+        />
+      ) : owner ? (
+        nameOf(owner)
+      ) : (
+        'The house'
+      ),
+    ])
+  }
+  if (room) rows.push(['Room', <RoomChip key="room" name={room.name} element={room.element} />])
+  if (item.category === 'chore') {
+    rows.push([
+      'Last done',
+      item.lastDone
+        ? `${relativeTime(item.lastDone.at, now, tz)} · ${nameOf(item.lastDone.by)}`
+        : 'Not yet',
+    ])
+  }
+  const when = whenLabel(item, now, tz)
+  if (when)
+    rows.push([item.category === 'need' ? 'Needed by' : 'When', when.replace(/^Needed by /, '')])
+  if (item.category !== 'need') {
+    rows.push([
+      "Who's on it",
+      item.assignee ? (
+        <span className="flex items-center gap-2">
+          <Avatar name={nameOf(item.assignee)!} element={elementOf(item.assignee)} size={20} />
+          {nameOf(item.assignee)}
+        </span>
+      ) : (
+        'Anyone'
+      ),
+    ])
+  }
+  if (item.category === 'task') {
+    const change = (label: string) => (
+      <button
+        type="button"
+        className="min-h-11 text-sm font-extrabold text-accent-ink"
+        onClick={() => setPickingHandler((p) => !p)}
+      >
+        {label}
+      </button>
+    )
+    rows.push([
+      'Handled by',
+      contact ? (
+        <span className="flex flex-wrap items-center gap-x-2">
+          {contact.name}
+          {contact.phone && (
+            <>
+              <span className="tabular-nums">{contact.phone}</span>
+              <button
+                type="button"
+                className="flex min-h-11 items-center gap-1 text-sm font-extrabold text-accent-ink"
+                onClick={() => copy(contact.phone!, 'Number copied.')}
+              >
+                <Copy aria-hidden className="size-4" /> Copy
+              </button>
+            </>
+          )}
+          {change('Change')}
+        </span>
+      ) : (
+        <span className="flex flex-wrap items-center gap-x-2">
+          One of us {!item.archivedAt && change('Needs outside help?')}
+        </span>
+      ),
+    ])
+  }
+  const onRun = item.run ? cardCtx.run(item.run.id) : undefined
+  if (item.category === 'task' && contact && !item.run && !item.done && !item.archivedAt) {
+    rows.push([
+      'Ask them',
+      <button
+        key="list"
+        type="button"
+        className="min-h-11 text-left text-sm font-extrabold text-accent-ink"
+        disabled={addToRequest.isPending}
+        onClick={async () => {
+          const r = await addToRequest.mutateAsync({ taskId: item.id })
+          toast(r.ok ? `Added to the ${contact.name} list.` : "Couldn't add it. Try again.")
+        }}
+      >
+        Add to {contact.name} list
+      </button>,
+    ])
+  }
+  if (onRun) {
+    rows.push([
+      'On a run',
+      <span key="run" className="flex flex-wrap items-center gap-x-2">
+        {onRun.label}
+        <button
+          type="button"
+          className="min-h-11 text-sm font-extrabold text-accent-ink"
+          onClick={() => openRun(onRun.run.id)}
+        >
+          Open
+        </button>
+      </span>,
+    ])
+  }
+  if (item.category !== 'chore' && item.done) {
+    rows.push([
+      item.category === 'need' ? 'Got it' : 'Done',
+      `${relativeTime(item.done.at, now, tz)} · ${nameOf(item.done.by)}`,
+    ])
+  }
+
+  const primary: { label: string; quiet?: boolean; run: () => Promise<unknown> } = item.archivedAt
+    ? {
+        label: 'Bring it back',
+        run: async () => say(await restore.mutateAsync(item.id), 'Brought back.'),
+      }
+    : item.category === 'chore'
+      ? {
+          label: 'Did it',
+          run: () => did.didIt(item.id, 'Nice. Marked as done today.'),
+        }
+      : isDone
+        ? {
+            label: 'Not done after all',
+            quiet: true,
+            run: async () => say(await reopen.mutateAsync(item.id), 'Back on the list.'),
+          }
+        : {
+            label: item.category === 'need' ? 'Got it' : 'Done',
+            run: async () =>
+              say(
+                await done.mutateAsync(item.id).then((r) => {
+                  if (r.ok) celebrate()
+                  return r
+                }),
+                item.category === 'need' ? 'Got it. 💛' : 'Done. 💛',
+                () => reopen.mutate(item.id),
+              ),
+          }
+
+  const kind =
+    item.category === 'chore' ? `Chore · ${scheduleLabel(item)}` : CATEGORY[item.category].label
+  const menu = item.archivedAt
+    ? []
+    : [
+        { label: 'Edit', onSelect: () => setEditing(item) },
+        { label: 'Delete', tone: 'soft' as const, onSelect: () => setConfirmDelete(true) },
+      ]
+
+  return (
+    <Sheet
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={item.title}
+      description={item.archivedAt ? `${kind} · Deleted` : kind}
+      actions={<OverflowMenu label="More actions" items={menu} />}
+    >
+      {confirmDelete && !item.archivedAt ? (
+        <DeleteConfirm
+          busy={busy}
+          onKeep={() => setConfirmDelete(false)}
+          onDelete={async () => {
+            // Deleting keeps the row (archived_at) so history still points at it; Undo restores.
+            const r = await archive.mutateAsync(item.id)
+            say(r, 'Deleted.', () => restore.mutate(item.id))
+            if (r.ok) onClose()
+          }}
+        />
+      ) : (
+        <Button
+          block
+          variant={primary.quiet ? 'secondary' : 'primary'}
+          disabled={busy}
+          onClick={primary.run}
+        >
+          {primary.label}
+        </Button>
+      )}
+      {rows.length > 0 && (
+        <dl className="m-0 grid grid-cols-[auto_1fr] items-center gap-x-3.5 gap-y-2">
+          {rows.map(([k, val]) => (
+            <div key={k} className="contents">
+              <dt className="text-[0.8rem] font-bold text-ink-soft">{k}</dt>
+              <dd className="m-0 font-semibold">{val}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {item.note && (
+        <p className="m-0 rounded-2xl bg-paper px-3.5 py-3 leading-snug">{item.note}</p>
+      )}
+      {pickingHandler && item.category === 'task' && (
+        <HandledByPicker
+          houseId={houseId}
+          task={item}
+          onDone={() => setPickingHandler(false)}
+          onOpenRun={openRun}
+        />
+      )}
+      <HouseFeels
+        houseId={houseId}
+        itemId={item.id}
+        startWithNote={noteFirst}
+        person={(u) => {
+          const name = nameOf(u)
+          return name ? { name, element: elementOf(u) } : undefined
+        }}
+      />
+      <DisclosureGroup>
+        {isOpen(item) && (
+          <WhyHere houseId={houseId} item={item} name={(u) => nameOf(u) ?? 'Former roommate'} />
+        )}
+        <ItemPolls houseId={houseId} item={item} />
+        <ItemCosts houseId={houseId} item={item} />
+        <ItemRunPath houseId={houseId} itemId={item.id} />
+      </DisclosureGroup>
+    </Sheet>
+  )
+}
+
+/** "Delete this?" in place of the primary action, after Delete in the "…" menu (PRD D30). */
+function DeleteConfirm({
+  busy,
+  onKeep,
+  onDelete,
+}: {
+  busy: boolean
+  onKeep: () => void
+  onDelete: () => void
+}) {
+  const first = useRef<HTMLButtonElement>(null)
+  useEffect(() => first.current?.focus(), [])
+  return (
+    <div role="group" aria-label="Delete this?" className="grid gap-2 rounded-2xl bg-paper p-3.5">
+      <p className="m-0 font-semibold">Delete this? You can undo it right after.</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Button ref={first} variant="secondary" disabled={busy} onClick={onKeep}>
+          Keep it
+        </Button>
+        <Button disabled={busy} onClick={onDelete}>
+          Delete
+        </Button>
+      </div>
+    </div>
+  )
+}

@@ -1,7 +1,7 @@
 # Roomies — Frontend & Visual Design Guidance
 
 **Status:** v1 scope (2026-09-28): needs, chores, tasks, polls, runs
-**Companions:** [PRD.md](./PRD.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) (§8 covers frontend code structure) · [mockup.html](./mockup.html) (clickable prototype, open in a browser)
+**Companions:** [PRD.md](./PRD.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) (§8 covers frontend code structure) · [mockup v1](./archive/mockup-v1.html) (original clickable prototype, open in a browser)
 
 > Same convention: **[DECIDED]** = default we'll build with, **[OPEN]** = needs your call. §10 lists every open item.
 
@@ -134,10 +134,10 @@ Inputs are always ≥ 16px, which prevents iOS from zooming in on focus.
 | Concept / state | Icon | Label on chip |
 |---|---|---|
 | Need | `shopping-bag` | Need |
-| Chore | `sparkles` | "As needed" or "About every 7 days" |
+| Chore | `sparkles` | Chore (on Home; the rhythm, "As needed" or "About every 7 days", is plain text on the Chores tab and under the detail's title) |
 | Task | `check-circle` | Task |
 | Task handled by a contact | `phone` | "Handled by: Super" |
-| Poll | `vote` | "Poll · 2/4 voted" |
+| Poll | `bar-chart-3` | "Poll · 2/4 voted" |
 | Run | `shopping-cart` (grocery/order) · `calendar` (visit/event) | "Kavya's run" / "Super visit" |
 | On a run (badge) | same as the run | "On Kavya's run · Sat" |
 | Cost | `receipt` | "$189 · Wren paid" |
@@ -192,7 +192,7 @@ FIRST FLOOR                                         BASEMENT
 | B | Fitness space | common (door to the garden) | neutral |
 | — | Garden | outdoor | neutral |
 
-- Rooms are editable in House → Rooms (rename, reorder, add, archive, set the element color).
+- Rooms can be renamed and reordered in House → Rooms, where they show as a compact grid grouped by type, not floor: **Bedrooms** (bedroom), **Bathrooms** (bath), **Spaces** (common, entry, utility, outdoor). The item room picker uses the same three groups. Rooms aren't added or archived from the app; the seeded 17 are the house.
 
 **[DECIDED] (owner)** Air, Fire, Water, and Earth are the four bedrooms, one per roommate. The craft room is shared. The baths are Bathroom 1 and 2 (upstairs, full) and Bathroom 3 (downstairs, half). The space with the garden door is the Fitness space.
 
@@ -231,10 +231,9 @@ Tabs: **Home · Needs · Chores · Tasks · House**. The calendar opens from Hom
 │ Runs in progress              │  ← "Wren's grocery run · 1/3 · Sat"
 │ Needs attention    Mine | All │
 │ ┌───────────────────────────┐ │
-│ │ ●● Top          😤1       │ │
+│ │ ●● Top [✓ Task]   😤1     │ │
 │ │ Leak under the sink       │ │
-│ │ [✓ Task] [📞 Landlord]    │ │
-│ │ [Kitchen]                 │ │
+│ │ [Kitchen] [📞 Landlord]   │ │
 │ │ (K) Due yesterday         │ │
 │ └───────────────────────────┘ │
 │                          (+)  │
@@ -242,48 +241,48 @@ Tabs: **Home · Needs · Chores · Tasks · House**. The calendar opens from Hom
 └───────────────────────────────┘
 ```
 
-- **Card:** tier chip → title → chips (category, handled-by, room, "On X's run") → meta line (assignee + date or last done + feelings).
-- **Swipe:** right = done, left = share a feeling.
+- **Card:** one line with the tier chip (and, on Home only, the category chip) and the feelings ("😤1 🙏2") → title → at most three chips: "For Kavya" on a personal need (T45), the room, then "On X's run" or, when it isn't on a run, "Handled by: Landlord" → one meta line (the assignee's avatar + the date, or "Last done 9 days ago · Wren"). On the Chores tab the first line shows the chore's rhythm ("About every 7 days") instead of a category. The card's button is named by the title; the rest is its description.
+- **Beside the card:** the check circle (**Done** / **Got it** / **Did it**, whose toast offers **Undo**) and, under it, **🙂+**, which opens the emoji tray under the card (§5.2). Neither sits inside the card's button.
+- **Swipe** (cards here and on Chores and Tasks, and Needs rows): right = finish it (the same as the check circle, with **Undo** in the toast), left = open the emoji tray. Only sideways drags count, so the list still scrolls, and a drag is never a tap. While dragging, the card slides over a strip that says what letting go does ("✓ Done" on the left, "🙂 Feeling" on the right); short of 88px it springs back and nothing happens. The buttons are the non-swipe way for VoiceOver and keyboards, and reduced motion makes the spring back instant.
 - A card appears when someone changes the feeling weights ("Maya set 😰 Anxious to +30").
 
 ### 5.2 Sharing a feeling (the most important interaction)
 
-Tap **🙂+** on a card or detail, or swipe left:
-- "How do you feel about this?" · "Only if it matters to you. The house will see it."
-- Six big emoji buttons: Anxious 😰 · Frustrated 😤 · Confused 😕 · Fine 🙂 · Not a big deal 😌 · Thanks 🙏
-- An optional note, then **Share with the house**. A toast: "Shared. The house can see how you feel. 💛"
-- Tap your own feeling to change or remove it. The old one moves to **Earlier**.
+Two taps from any card: **🙂+** (or a swipe left), then an emoji.
+- The emoji tray, "How do you feel about this?": six buttons, Anxious 😰 · Frustrated 😤 · Confused 😕 · Fine 🙂 · Not a big deal 😌 · Thanks 🙏 (named by their word for VoiceOver; the detail sheet shows the words too, under "Only if it matters to you. The house will see it."). Escape closes it.
+- **Tapping an emoji shares it straight away**; there's no separate Share step. A toast: "Shared. The house can see how you feel. 💛" with **Add a note**, which opens the item on a note box for your feeling (**Save note**). The detail sheet also has **Add a note** / **Edit my note** once you've shared one.
+- Your current one shows pressed; **tapping it again removes it** ("Removed your feeling."). Tapping another changes it, and the old one moves to **Earlier**. Adding or editing the note keeps it the same feeling, so that doesn't add to Earlier; the activity line reads "Kavya added a note to 😰 about Lemons".
 
 ### 5.3 Add sheet (+)
 
-1. Pick one of five tiles: **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch).
-2. Title (autofocused) + **Add**. Optional fields by type:
+1. On **Needs, Chores or Tasks**, the + opens that kind's form directly. On Home (and House) it asks first: one of five tiles, **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch). The form has a *Need · Chore · Task* switch at the top (the title stays) and **A poll or a run instead?** at the bottom, which goes back to the tiles.
+2. Title (autofocused) + **Add**, or **Add another**, which adds it and keeps the sheet open with the title (and note) cleared and the other fields kept, so three needs in a row take one sheet. Optional fields by type, behind **More options** except a chore's rhythm:
    - **Need:** needed by, room
-   - **Chore:** *As needed* or *About every N days*, room, optional assignee
+   - **Chore:** *As needed* or *About every N days* (always shown, so a repeating chore is +, *About every…*, **Add**), room, optional assignee
    - **Task:** date, room, assignee, **Handled by** (a contact)
    - **Poll:** a question, 2+ options (each with an optional note), an optional deadline. It can be started from an item ("+ Poll about this") or on its own.
    - **Run:** the item picker (below)
 
 ### 5.4 Item detail
 
-A full-height sheet:
-- category chips, title, meta rows (room, assignee, date)
-- **Tasks: "Handled by"** is always shown. It reads *One of us · Needs outside help?* or *Super · (555) 010-2231 · Copy · Change*, and either link opens **Who's handling it?**: One of us, the contacts, or **+ Someone new** (name + optional phone).
-- **Polls about this** (vote inline) + **"+ Poll about this"**
-- **Costs** (+ **Add cost**: amount, who paid, then Open Splitwise)
-- **How the house feels** (current feelings + notes, **Earlier**)
-- **"Why is this here?"** (the score breakdown)
-- **Done** (or **Did it** for a chore)
+A sheet, simplest first, so the title, the primary action and the meta rows fit on a 375pt screen without scrolling:
+- **Header:** the title, with the category under it ("Task", "Chore · About every 7 days", "· Deleted"), and a **…** menu beside Close holding **Edit** and **Delete**. Delete asks first, in place of the primary action: "Delete this? You can undo it right after." · **Keep it** / **Delete**. Deleting closes the sheet with a "Deleted." toast and **Undo** (PRD D30); a deleted item opened from Activity has no menu.
+- **The primary action** at the top: **Done** (task) · **Got it** (need) · **Did it** (chore); **Not done after all** once it's done; **Bring it back** when deleted (opened from Activity).
+- **Meta rows:** Room · Last done (chores) · When / Needed by · Who's on it · Handled by (tasks) · Ask them · On a run · Done/Got it. Then the note.
+- **Tasks: "Handled by"** is always shown. It reads *One of us · Needs outside help?* or *Super · (555) 010-2231 · Copy · Change*, and either link opens **Who's handling it?**: One of us, the contacts, or **+ Someone new** (name + optional phone). On a request or visit it reads *It's on the Landlord request. Move it to change who's handling it.* with **Open the Landlord request** instead, because "Handled by" follows the run (PRD §6.3).
+- **How the house feels** stays open (current feelings + notes, **Earlier**, **🙂+ Share a feeling**): it's the core interaction.
+- **Tap-to-open sections**, closed by default, each a row with a short summary: **Why is this here?** (the tier; open, the score breakdown) · **Polls** (how many; open, the polls and **+ Poll about this**) · **Costs** (the total, "$42.00"; open, each cost with Open Splitwise and a **…** menu to **Edit** (amount, who paid, note) or **Remove** ("Remove this cost?"), and **Add cost**: amount, who paid) · **History** (how many steps; open, the item's path through runs). Each section is a named region, and its row says whether it's open, so they work with VoiceOver.
 
 ### 5.5 Needs tab
 
-- The shared list. Needs with a feeling come first (by priority), then newest. Each row has a check circle (**Got it**), the title, an optional note, its feeling emoji, and badges ("On Wren's run", "Poll", "$189"). There's no Soon toggle: a 😰 or 😤 feeling is how someone says "we need this soon."
-- An add field at the top: "We need…". Adding something already on the list points to the existing one.
-- **Start a run**: a sheet with a checklist of open needs (*Select all* / *Clear*; needs with a feeling show their emoji and are listed first), an optional title ("Amazon order"), and an optional date → **Start run**.
+- The shared list. Needs with a feeling come first (by priority), then newest. Each row has a check circle (**Got it**, with **Undo** in the toast), the title, an optional note, its feeling emoji, badges ("On Wren's run", "Poll", "$189"), and **🙂+** at the end, which opens the emoji tray under the row. Rows swipe like cards (§5.1): right = Got it, left = the tray. There's no Soon toggle: a 😰 or 😤 feeling is how someone says "we need this soon."
+- An add field at the top: "We need…", with a **House / Me** toggle beside it (remembered on this device; the need form has the same toggle). Adding something already on the list (same title, same owner) points to the existing one.
+- A personal need carries a **"For Kavya"** chip here, on Home cards and on run rows. The detail sheet has a **For** row (House / Me, plus the owner's name if it's someone else's) to change it: "Just for you now." / "For the house now."
+- **Start a run**: a sheet with a checklist of open needs that aren't on a run yet, **all checked to start** (uncheck what you won't get; *Select all* / *Clear*; needs with a feeling show their emoji and are listed first). An optional title ("Amazon order") and date sit behind **More options** → **Start run · 3 things**. A usual grocery run (start, get 3 things, finish with $40) is about 6 taps.
 
 ### 5.6 Chores tab
 
-- Chore cards sorted by how overdue they are against their rhythm (as-needed chores last), each with "Last done 9 days ago · Wren" and a one-tap **Did it**.
+- Chore cards sorted by how overdue they are against their rhythm (as-needed chores last), each with "Last done 9 days ago · Wren" and a one-tap **Did it**. Its toast (here, on Home, and in the detail sheet) offers **Undo**, which puts the chore back to its last done before; if someone has done it again since, it says "It's been done again since. Nothing to undo."
 
 ### 5.7 Tasks tab
 
@@ -298,22 +297,26 @@ A full-height sheet:
 ### 5.8 Poll sheet
 
 - The question, and what it's about (a link to the item) if anything.
-- Options as big rows with vote counts and voter avatars. Tap to vote, tap another to change.
+- Options as big rows with vote counts and voter avatars. Tap to vote, tap another to change, tap yours again to take your vote back (a hint says so once you've voted).
 - **Add an option** (label + optional note) is at the bottom while the poll is open. Each option shows who added it, and people who already voted can switch.
-- "2 of 4 voted · closes Fri." **Close poll** shows the result: "Dyson V8 wins (3–1)," or **"It's a tie. Talk it out?"**
+- "2 of 4 voted · closes Fri." While it's open, a deadline row ("Closes Fri" · **Change**, or "No deadline" · **Add a deadline**) opens a date field with **Save**, **No deadline** and **Cancel**.
+- **Close poll** shows the result: "Dyson V8 wins (3–1)," or **"It's a tie. Talk it out?"** A closed poll has **Reopen poll** instead.
 
 ### 5.9 Run sheet (batch, request, visit)
 
-- **Header:** point person or runner, the contact (for requests and visits), and the date (a visit shows *Change / Set a date*).
+- **Header:** point person or runner, the contact (for requests and visits), and the date (a visit shows *Change / Set a date*). While the run is going, *Change* hands it to another roommate and *Rename* edits its name (empty, or *Use "Kavya's run"*, goes back to the usual name).
 - **Request stage line:** "Gathering: not sent yet" or "Sent 2 days ago by text · no reply recorded yet."
-- **Rows:** every item that's been on the run. Pending ones have a **selection checkbox**, and resolved ones show where they went ("Moved → Landlord visit", "Back in the pool · that one's on us", "✓ Fixed").
+- **Rows:** every item that's been on the run, and resolved ones show where they went ("Moved → Landlord visit", "Back in the pool · that one's on us", "✓ Fixed").
+  - **Batches:** tapping a row marks it done right away (no select-then-Done). A done row stays checked and struck through ("✓ Done · tap to put it back"); tapping it again reopens the item and puts it back on the run, so a mis-tap is one more tap. **Move or put back…** switches the rows to selection checkboxes for the actions below (*Cancel* switches back).
+  - **Requests and visits:** pending rows have a **selection checkbox**, since their actions are moves.
 - **Selection actions** (a row of buttons that apply to the selected items; *Select all* first):
   - **Move to a visit…** (primary on requests) / **Move to…** (other kinds): pick an open run or a **new visit** with the same contact (optional date), plus an optional note. Requests and visits only accept tasks, so a selection that includes needs or chores only offers batches.
   - **Back to the pool…**: a note, and "Change *Handled by* to One of us" (checked by default for requests and visits)
   - **Hand to…**: another contact or **+ Someone new**, plus an optional note. The items join that contact's unsent list.
   - **Done** / **Fixed**
 - **Request buttons:** *Add more* and **Send request** while gathering. Send opens the composed message with **Copy message**, a "Sent by" picker, and **Mark as sent**.
-- **Batch and visit button:** **Finish** (anything left goes back to the pool). Batches then ask "Did you spend money?"
+- **Batch and visit button:** **Finish** (anything left goes back to the pool). A batch has an optional **Spent** amount beside it: empty finishes with no cost; an amount records one cost on the run, paid by you (*Who paid* appears once there's an amount, to change it). The toast says "Finished. $40.00 noted." with **Open Splitwise**.
+- **Spent · $42.50:** the run's costs, once it has any, each with Open Splitwise and the same **…** menu (Edit / Remove) as an item's Costs.
 - A footnote on requests: "Recording their reply is just moving tasks." 
 
 ### 5.10 Calendar
@@ -322,10 +325,13 @@ A full-height sheet:
 
 ### 5.11 House tab
 
+- **Settings → Notifications**: one row that opens your settings (`/me`). The device control lives there, not here.
 - **Settings → Feeling weights**: six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, **Save for the house**. "One setting for the whole house. Anyone can change it."
 - **Spent this month**: total and your share.
-- **Rooms** grouped by floor, with open-item counts. Tap a room to see its items.
-- **Contacts** with Copy number. **Roommates**. **Invite link** (admins). **Activity**.
+- **Rooms** as small squares, four to a row at 375pt so all 17 fit in about one screen, under three headings: **Bedrooms** (each square in its element's fill with its element icon), **Bathrooms** and **Spaces** (neutral, with an icon for the kind: bath, sofa, door, washing machine, trees). Each square shows an icon and the name; VoiceOver reads the name and kind ("Fire, bedroom"). Tap one for a small sheet: rename it, or **Move earlier** / **Move later** within its group (the order is `sort_order`).
+- **Contacts** with Copy number. **Roommates**. **Invite link** (admins).
+- **Your settings** (`/me`, from your avatar): one **Notifications** section that fits on a 375pt screen, as a single card. First this device's status line with its one button ("Turn on notifications" when it's off; otherwise a line saying it's on, blocked in the browser, or that Roomies needs adding to the Home Screen first). Then the six categories as compact switch rows, each a short name (Handed to me, Coming due, Feelings on my things, Polls, Runs, People) with a one-line "you get this when…" under it; VoiceOver reads the name and the line as its description. Last, quiet hours as one row, "Quiet 10pm–8am": tap it to edit From / Until inline, with an on/off switch beside it (never inside it). Then **Appearance** (Auto · Light · Dark).
+- **Activity**: everything that happened in the house, newest first, one line per action (a bulk move is one line), under day headings ("Today", "Yesterday", "Mon, Sep 28"). Each line has the person's avatar, the sentence ("Kavya felt 😰 about Lemons"), and a topic icon and word with the time. A filter row (All · Items · Polls & runs · Money · House) narrows it, and **Show earlier** loads older history. A line about an item, run or poll opens its sheet in place.
 
 ### 5.12 Join, sign-in, empty states
 
@@ -336,10 +342,8 @@ A full-height sheet:
 
 ## 6. Delight (kept small)
 
-- **Mark an item done:** the checkbox fills with a quick spring and a short burst of 5–6 small dots in the completer's element color (≤ 500ms).
-- **A Top item gets resolved:** the card fades out with a gentle "Handled 💛" toast.
-- **Move-in checklist done:** a one-time full-screen card, "You're all moved in," with a confetti burst in all four element colors.
-- Everything respects `prefers-reduced-motion`, falling back to a simple fade.
+- **Finishing something** (Got it, Done, Did it): a burst of 10 small dots, in plum and the four element inks, flies out in an upward half-ring just above the toast and fades in about 650ms. It's decorative and hidden from screen readers.
+- Everything respects `prefers-reduced-motion`: transitions and animations become instant, and the burst doesn't show at all.
 - **[DECIDED] (owner)** No unlockable decorations or reward loop.
 
 ---
@@ -353,17 +357,19 @@ A full-height sheet:
 | Overdue chore or task | "This one's been waiting a couple days" | "OVERDUE" · "You missed this" |
 | Due today | "Today's the day" | "DUE" |
 | Planning a visit | "Who's coming?" | "Create external request" |
-| Someone shares 😰 | "Maya's feeling anxious about Radiator clanking" | "Maya flagged Radiator" |
+| Someone shares 😰 | "Maya felt 😰 about Radiator clanking" | "Maya's feeling anxious about Radiator clanking" · "Maya flagged Radiator" |
 | Push: assigned | "You're on trash this week 🗑️" | "New assignment" |
 | Poll tie | "It's a tie (1–1). Talk it out?" | "Vote failed" |
 | Network error | "Couldn't reach the house. Check your connection and try again." | "Error 500" |
+| Someone saved or moved it first | "Someone just changed this. Here's the latest." | "Conflict: version mismatch" |
 | Invite expired | "This invite has expired. Ask a roommate for a fresh link." | "Invalid token" |
-| Archive confirm | "Archive this? You can bring it back for 30 days." | "Are you sure?" |
+| Delete confirm | "Delete this? You can undo it right after." | "Are you sure?" · "Archive this? You can bring it back for 30 days." |
 
 Rules:
 - Use people's names in copy, never their room name. The element shows up in the avatar color, not the words.
 - Describe the *item's* state, never a person's failure.
 - Sentence case. Plain numbers ("$62.40 · due Oct 3").
+- **[DECIDED] (owner)** Feelings always show as their emoji, never as a word in a sentence ("felt 😰", not "feeling anxious"). The emoji is the feeling everywhere: chips, the feeling picker, the activity log.
 
 ---
 
@@ -375,9 +381,9 @@ Rules:
 | `--ease-out` | `cubic-bezier(.22,1,.36,1)` | Sheets, transitions |
 | `--dur-fast` | 120ms | Press states |
 | `--dur-base` | 240ms | Sheets, toggles |
-| `--dur-slow` | 480ms | Completion burst |
+| `--dur-slow` | 480ms | Longer transitions (the completion burst runs its own 650ms) |
 
-Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss. Reduced motion leaves only fades.
+Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss. Reduced motion makes transitions and animations instant.
 
 ---
 
@@ -386,13 +392,13 @@ Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss. 
 | Concern | Decision |
 |---|---|
 | Tokens | CSS variables in `app/globals.css` for `:root`, `[data-theme=dark]`, and `@media (prefers-color-scheme: dark)`, exposed to Tailwind v4 via `@theme`. Element colors are tokens (`--air-fill`, `--air-ink`, ...), and components take an `element` prop instead of raw hex. No raw hex values in components. |
-| Components | `components/ui/`: `Card`, `Button`, `Chip` (type / room / tier), `Avatar` (initials + element), `Sheet`, `TabBar`, `ListRow`, `SegmentedControl`, `Toast`, `EmptyState`, `FeelingPicker`, `RoomPicker`, `ComingUpStrip`, `MonthCalendar`, `NeedsList`, `PollSheet`, `RunPicker`, `RunChecklist`, `PlanVisitSheet`, `SpentSheet`, `FeelingWeights`. Radix / Vaul for accessible sheet behavior. |
+| Components | The kit in `components/ui/`: `Card`, `Button`, `Chip` (plus `RoomChip` and `TierChip`), `Avatar` (initials + element), `Sheet` (with an `actions` slot beside Close), `OverflowMenu` (the **…** menu), `Disclosure` + `DisclosureGroup` (tap-to-open sections), `TabBar`, `ListRow`, `SegmentedControl`, `Swipeable` (swipe right / left on a card or row), `Toast` (and the completion burst; one message at a time, above the **+** button, or at the top over the dimmed page while a sheet is open, so it never covers a sheet's buttons), `EmptyState`; see it at `/dev/kit` in light and dark. Feature components live in their own folders (`components/items`, `polls`, `runs`, `costs`, `calendar`, `home`, `needs`, `chores`, `tasks`, `house`, `activity`, …). Sheets use Vaul (which brings its own Radix Dialog for the focus trap and labels); the app doesn't use Radix directly. |
 | Data | `rooms` table (see Architecture §6), `items.room_id` (optional), `house_members.room_id` for the member's bedroom, which drives their color. No per-user avatar config. |
-| Animation | CSS transitions + Framer Motion for sheets and list reordering only |
+| Animation | CSS transitions and keyframes only (Vaul animates the sheets). No Framer Motion. |
 | Safe areas | `env(safe-area-inset-*)` on the tab bar, "+" button, and sheets. `viewport-fit=cover`. |
 | Performance | Home interactive in < 2s on a mid-range iPhone over 4G. No web font on iOS. |
 | Accessibility | WCAG AA (verified above), emoji have text labels, avatars have labels ("Maya, Fire room"), no color-only meaning (element icons + tier words), a VoiceOver pass per milestone |
-| Visual QA | Playwright screenshots at 375pt and 430pt widths, light + dark |
+| Visual QA | axe on every screen in light and dark on the iPhone 15 profile (`e2e/m4-a11y.spec.ts`), plus the by-eye check at 375pt in light and dark from each task's definition of done. No screenshot comparisons. |
 
 ---
 

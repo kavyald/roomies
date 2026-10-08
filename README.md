@@ -2,7 +2,7 @@
 
 A shared, phone-first hub for a house of roommates: what we need to buy, what needs doing, what we need to decide, and how everyone feels about it.
 
-> **Status: planning.** The product, architecture, and visual design are specified, and a clickable prototype exists. No app code yet. Building starts with task T01 in the [implementation plan](docs/IMPLEMENTATION_PLAN.md).
+> **Status: M0–M4 and M6 built** on the `v1` branch: everything runs locally. **M5 (hosting and launch) is in progress**: first the deploy tooling and security work on `v1`, then a PR into `staging`, then the hosted accounts. The plan is [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Tasks are planned and tracked on the **roomies** board in Weyve.
 
 ## The problem
 
@@ -31,10 +31,10 @@ It's a PWA for iPhone Safari: roommates open a link, add it to their Home Screen
 
 ## Try the prototype
 
-[`docs/mockup.html`](docs/mockup.html) is a clickable iPhone prototype with sample data. Open it in any browser:
+[`docs/archive/mockup-v1.html`](docs/archive/mockup-v1.html) is the original clickable iPhone prototype with sample data. Open it in any browser:
 
 ```bash
-open docs/mockup.html
+open docs/archive/mockup-v1.html
 ```
 
 Things to try: vote on "Which vacuum?", record the landlord's reply on the Landlord request (Tasks tab), finish a grocery run and log the cost, change a feeling weight under House → Settings, and check House → Activity.
@@ -47,13 +47,14 @@ Things to try: vote on "Which vacuum?", record the landlord's reply on the Landl
 | [Architecture](docs/ARCHITECTURE.md) | Stack, auth and row-level security, the data model and domain types, the function catalog, the activity log schema, jobs, and ops |
 | [Frontend](docs/FRONTEND.md) | Visual language (inspired by Focus Friend), color system, the apartment's rooms, screens, copy voice, and motion |
 | [Testing](docs/TESTING.md) | Test layers, tools, commands, CI, and what each milestone's test task proves |
-| [Implementation plan](docs/IMPLEMENTATION_PLAN.md) | 47 tasks across 6 milestones with sizes, dependencies, a dependency graph, and the critical path |
+| [Deployment](docs/DEPLOYMENT.md) | The M5 plan: branches (`staging` and `main`), staging vs prod, what goes into Supabase, Vercel and GitHub, the security rules for a public repo, and the order of the steps |
+| [Architecture guide](docs/architecture-guide.html) | An interactive field guide to the build: layers, the system map, journeys and decisions |
 
-## Planned stack
+## Stack
 
 - **Next.js** (App Router) + TypeScript + Tailwind, installable as a **PWA**
 - **Supabase**: Postgres with row-level security, email-code auth, Realtime, and pg_cron
-- **Vercel** for hosting (a `*.vercel.app` URL), a house **Gmail** for sign-in emails, **Web Push** for notifications
+- **Vercel** for hosting (two projects: staging and production), a house **Gmail** for sign-in emails, **Web Push** for notifications, **Sentry** for error reports
 - **Ports & adapters** with dependency injection: a pure domain layer, use cases with injected dependencies, and adapters for Supabase, Postgres (Kysely), and push. See [Architecture §4.1](docs/ARCHITECTURE.md).
 
 Everything targets free tiers for one house of 2–8 people.
@@ -67,31 +68,30 @@ Everything targets free tiers for one house of 2–8 people.
 | **M2 Items** | Needs, chores, tasks, feelings, priority feed, feeling weights |
 | **M3 Polls, runs & calendar** | Polls, runs, requests and visits, costs, calendar |
 | **M4 Notifications & polish** | Web push, reminders, polish, end-to-end tests |
-| **M5 Hosting & launch** | Everything that needs an outside account: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production |
+| **M5 Hosting & launch** | Deploy tooling and security hardening first (server-only database writes, repo secret scanning), then everything that needs an outside account: hosted Supabase, the Gmail sender, Sentry, Vercel, staging, iPhone checks, production |
+| **M6 Usability & personal needs** | Fewer taps (swipe, simpler item views, quicker runs), needs for one person or the house, the gaps from the docs↔code audit, docs that match the build |
 
-Roughly 61 working days for one person, including a test task at the end of each milestone. M0–M4 run entirely on one Mac with no accounts; M5 is where the sign-ups happen. The critical path runs through the core plumbing, items, runs, and requests and visits. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
+Each milestone ends with a test task. M0–M4 and M6 run entirely on one Mac with no accounts; M5 is where the sign-ups happen, and launch waits for M6. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
 
-Tasks are also tracked on the **roomies** board in Weyve.
+The tasks, their dependencies and progress are on the **roomies** board in Weyve.
 
-## Tests
+## Run it and test it
 
-*Planned: lands with task Q0.* One command runs the whole suite (typecheck, lint, unit, use-case, component, contract, row-level security, and end-to-end tests on the iPhone profile):
+Everything runs on one Mac with no accounts; it needs Node 22, pnpm 10, and Docker Desktop running (for local Supabase).
+
+```bash
+pnpm install && pnpm supabase start && pnpm env:local && pnpm dev
+```
+
+Sign in as `owner@roomies.test`; the 6-digit code arrives in Mailpit at http://127.0.0.1:54324.
+
+One command runs the whole suite, stopping at the first failure:
 
 ```bash
 pnpm install && pnpm test:all
 ```
 
-It needs no accounts, only Docker Desktop running for local Supabase. See [docs/TESTING.md](docs/TESTING.md).
-
-## Updating the plan
-
-The implementation plan is generated from one task list, so the tables, the graph, and the critical path always agree:
-
-```bash
-python3 scripts/generate_plan.py docs/IMPLEMENTATION_PLAN.md
-```
-
-Edit the task list in [`scripts/generate_plan.py`](scripts/generate_plan.py), then rerun. The script fails if a dependency points at an unknown or later task.
+It resets the local database, then runs typecheck, lint, formatting, unit, use-case and component tests (with coverage targets), contract and row-level-security tests against local Supabase, and the end-to-end journeys on the iPhone 15 profile (including axe on every screen, light and dark). It takes a few minutes. The pieces run on their own too: `pnpm test`, `pnpm test:db`, `pnpm test:e2e`. See [docs/TESTING.md](docs/TESTING.md).
 
 ## Repo layout
 
@@ -100,9 +100,8 @@ docs/
   PRD.md                  product requirements (v1 scope)
   ARCHITECTURE.md         system design and data model
   FRONTEND.md             visual design and screens
-  IMPLEMENTATION_PLAN.md  generated task plan
   TESTING.md              test suite plan
-  mockup.html             clickable prototype
-scripts/
-  generate_plan.py        source of truth for the task plan
+  DEPLOYMENT.md           hosting and launch plan (M5): branches, staging vs prod, the steps
+  architecture-guide.html interactive field guide to the build
+  archive/mockup-v1.html  the original clickable prototype
 ```
