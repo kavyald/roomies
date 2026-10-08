@@ -1,6 +1,6 @@
 // Points the local pg_cron jobs at a local app: stores its URL (as Docker sees it) and CRON_SECRET
 // from .env.local in the local Supabase Vault. Usage: pnpm cron:local [port]  (default 3000).
-// Local only; hosted projects set these two Vault secrets in the dashboard (E3).
+// Local only; for a hosted project use pnpm cron:vault (scripts/cron-vault.mjs, E3).
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 

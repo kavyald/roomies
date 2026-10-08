@@ -22,7 +22,7 @@ proxy.ts                     Next 16's middleware: sets the page CSP (nonce), re
 ```
 
 - **Run it:** `pnpm supabase start`, then `pnpm env:local` (writes `.env.local` from `supabase status`), then `pnpm dev`. For scheduled jobs, `pnpm cron:local <port>` points the local pg_cron schedule at that dev server (it stores the URL and `CRON_SECRET` in the local Vault; a DB reset clears them). Sign in as `owner@roomies.test`; the code arrives in Mailpit at http://127.0.0.1:54324.
-- **Test it:** `pnpm test` (unit + coverage), `pnpm test:db`, `pnpm test:e2e`, or `pnpm test:all` for everything (a few minutes; resets the local DB).
+- **Test it:** `pnpm test` (unit + coverage), `pnpm test:db`, `pnpm test:e2e`, or `pnpm test:all` for everything (a few minutes; resets the local DB). `pnpm test:smoke` is the short smoke suite for a deployed site (`BASE_URL`; without it, a local production build); it isn't part of `test:all`. Deploy tooling (T72): `.github/workflows/deploy.yml` and `backup.yml` stay off until the owner sets `DEPLOY_ENABLED` / `BACKUP_ENABLED`, and `pnpm cron:vault set|check` points a hosted project's jobs at its app (TESTING §5, ARCHITECTURE §9).
 - **Surprises so far** (details in each task's Weyve card notes):
   - Next 16: `middleware.ts` is now `proxy.ts`, request APIs are async only, and `next dev` refuses a second dev server in the same folder. `AGENTS.md` holds the Next agent block so `next dev` leaves this file alone; read `node_modules/next/dist/docs/` before using a Next API.
   - TypeScript stays on 5.9 (typescript-eslint caps it), ESLint on 9.

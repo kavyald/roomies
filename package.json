@@ -19,7 +19,9 @@
     "test:e2e": "playwright test",
     "test:all": "sh scripts/test-all.sh",
     "env:local": "node scripts/env-local.mjs",
-    "cron:local": "node scripts/cron-local.mjs"
+    "cron:local": "node scripts/cron-local.mjs",
+    "cron:vault": "node scripts/cron-vault.mjs",
+    "test:smoke": "playwright test -c playwright.smoke.config.ts"
   },
   "packageManager": "pnpm@10.18.0",
   "engines": {

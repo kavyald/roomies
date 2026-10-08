@@ -89,12 +89,13 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 | `NEXT_PUBLIC_SENTRY_ENVIRONMENT` | `staging` / `production` |
 | `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` | The same in both |
 
-`roomies-prod` is set to skip building any branch but `main`.
+`roomies-prod` skips building any branch but `main`: it sets `ROOMIES_BUILD_ONLY_BRANCH=main`, which `vercel.json`'s Ignored Build Step (`scripts/vercel-ignore-build.sh`) reads.
 
 ### GitHub secrets
 
-- In the `staging` environment: what the deploy workflow needs to reach roomies-staging, and the smoke suite's credentials.
-- In the `production` environment: what the deploy workflow needs to reach roomies-prod, and what the backup workflow needs (the database URL and the public half of the backup key).
+- In the `staging` environment: `SUPABASE_DB_URL` for the deploy workflow (roomies-staging's `postgres` user, session pooler, percent-encoded), and the smoke suite's `SMOKE_SUPABASE_URL`, `SMOKE_SERVICE_ROLE_KEY` and `SMOKE_EMAIL`.
+- In the `production` environment: `SUPABASE_DB_URL` for the deploy workflow (roomies-prod), and for the backup workflow `PROD_DB_URL` and `BACKUP_CERT` (the public half of the backup key, an OpenSSL certificate; `scripts/backup.sh` shows how to make the pair).
+- Repository variables `DEPLOY_ENABLED` and `BACKUP_ENABLED` turn the two workflows on (E2, E5).
 - The private half of the backup key stays with the owner, never on GitHub.
 
 ### Sentry
@@ -126,12 +127,12 @@ All of the app is built. These deploy pieces aren't, and none of them needs an a
 
 | Piece | For |
 |---|---|
-| The deploy workflow: `supabase db push` on push to `staging` and to `main`, off until E2 turns it on | E2, E5 |
-| The CI check that PRs into `main` come from `staging` | E2 |
-| `vercel.json` (`regions: ["iad1"]`), plus a way for `roomies-prod` to skip non-`main` builds | E2 |
-| Setting the hosted Vault secrets and checking the jobs (`scripts/cron-local.mjs` only works locally) | E3 |
-| The smoke suite: `pnpm test:smoke`, `e2e/smoke.spec.ts`, sign-in through the admin API, the smoke house, a read-only mode | Q5 |
-| The encrypted weekly backup workflow and a restore script | E5 |
+| ✅ Built (T72): the deploy workflow (`.github/workflows/deploy.yml`): `supabase db push` on push to `staging` and to `main`, off until E2 sets the repository variable `DEPLOY_ENABLED` to `true` | E2, E5 |
+| ✅ Built (T72): the CI check that PRs into `main` come from `staging` (the `source` job in `ci.yml`) | E2 |
+| ✅ Built (T72): `vercel.json` (`regions: ["iad1"]`), plus an Ignored Build Step: `roomies-prod` sets `ROOMIES_BUILD_ONLY_BRANCH=main` and skips every other branch | E2 |
+| ✅ Built (T72): `pnpm cron:vault set` stores the hosted Vault secrets, `pnpm cron:vault check` shows the jobs' last runs and responses (`scripts/cron-vault.mjs`) | E3 |
+| ✅ Built (T72): the smoke suite: `pnpm test:smoke`, `e2e/smoke.spec.ts`, sign-in through the admin API, the smoke house, a read-only mode (TESTING §5) | Q5 |
+| ✅ Built (T72): the encrypted weekly backup workflow (`backup.yml`, off until `BACKUP_ENABLED`) and `scripts/restore.sh` (ARCHITECTURE §9) | E5 |
 | A deliberate error for the Sentry check, on a throwaway preview branch so it never reaches `staging` | E2 |
 
 **To check on the first deploy** (none of this shows up locally):
@@ -200,7 +201,7 @@ The repo is public, so anyone can read the schema, every RLS policy and the role
 - **New tables:** grant writes to `app_writer`, never to `authenticated`. The grant-guard test fails otherwise. Publishing a table to Realtime is a deliberate decision; the guard expects only `activity_events`.
 - **Secrets:** the `app_server` password bypasses RLS (it can switch to `service_role`), so treat it like the service-role key: Vercel only, never in chat, screenshots or logs. A secret that was ever committed or shown is **rotated**; removing it from git history doesn't help, since clones and forks keep it.
 - **Security fixes:** fix through a new migration (drop and recreate the policy); never edit an applied migration. A fix is public as soon as it's pushed, so take it straight through `staging` to `main`, and keep the commit message plain.
-- **CI on a public repo:** no `pull_request_target`, and no secrets in workflows a fork's PR can trigger. Never print connection strings, query results or data in workflow logs, and never upload dumps as artifacts (D8).
+- **CI on a public repo:** no `pull_request_target`, and no secrets in workflows a fork's PR can trigger. Never print connection strings, query results or data in workflow logs, and never upload a dump that isn't encrypted (D8).
 
 **Accepted, not fixed**
 

@@ -1,0 +1,49 @@
+# Migrations on deploy (DEPLOYMENT D5, ARCHITECTURE §9): `supabase db push` on every push to
+# `staging` (→ roomies-staging) and to `main` (→ roomies-prod). Vercel builds the same commit at the
+# same time, so a migration must work with the code already running (add first, remove later).
+#
+# Off until E2: every job needs the repository variable DEPLOY_ENABLED = true. The connection
+# string is the environment secret SUPABASE_DB_URL (the `postgres` user, session pooler,
+# percent-encoded); GitHub masks it, and nothing here prints it or any query result.
+name: Deploy
+
+on:
+  push:
+    branches: [staging, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One migration run per branch at a time, in order; never cancel one halfway.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: migrate (${{ github.ref_name }})
+    if: >-
+      vars.DEPLOY_ENABLED == 'true' &&
+      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    # `production` is limited to `main` in the repo settings, so prod secrets never reach another branch.
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: supabase db push
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "SUPABASE_DB_URL isn't set in the ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} environment." >&2
+            exit 1
+          fi
+          pnpm supabase db push --db-url "$SUPABASE_DB_URL"
