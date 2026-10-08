@@ -2,7 +2,7 @@
 
 A shared, phone-first hub for a house of roommates: what we need to buy, what needs doing, what we need to decide, and how everyone feels about it.
 
-> **Status: M0–M4 and M6 built** on the `v1` branch: everything runs locally. M5 (hosting and launch) is next. Tasks are planned and tracked on the **roomies** board in Weyve.
+> **Status: M0–M4 and M6 built** on the `v1` branch: everything runs locally. **M5 (hosting and launch) is in progress**: first the deploy tooling and security work on `v1`, then a PR into `staging`, then the hosted accounts. The plan is [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Tasks are planned and tracked on the **roomies** board in Weyve.
 
 ## The problem
 
@@ -47,12 +47,14 @@ Things to try: vote on "Which vacuum?", record the landlord's reply on the Landl
 | [Architecture](docs/ARCHITECTURE.md) | Stack, auth and row-level security, the data model and domain types, the function catalog, the activity log schema, jobs, and ops |
 | [Frontend](docs/FRONTEND.md) | Visual language (inspired by Focus Friend), color system, the apartment's rooms, screens, copy voice, and motion |
 | [Testing](docs/TESTING.md) | Test layers, tools, commands, CI, and what each milestone's test task proves |
+| [Deployment](docs/DEPLOYMENT.md) | The M5 plan: branches (`staging` and `main`), staging vs prod, what goes into Supabase, Vercel and GitHub, the security rules for a public repo, and the order of the steps |
+| [Architecture guide](docs/architecture-guide.html) | An interactive field guide to the build: layers, the system map, journeys and decisions |
 
 ## Stack
 
 - **Next.js** (App Router) + TypeScript + Tailwind, installable as a **PWA**
 - **Supabase**: Postgres with row-level security, email-code auth, Realtime, and pg_cron
-- **Vercel** for hosting (a `*.vercel.app` URL), a house **Gmail** for sign-in emails, **Web Push** for notifications
+- **Vercel** for hosting (two projects: staging and production), a house **Gmail** for sign-in emails, **Web Push** for notifications, **Sentry** for error reports
 - **Ports & adapters** with dependency injection: a pure domain layer, use cases with injected dependencies, and adapters for Supabase, Postgres (Kysely), and push. See [Architecture §4.1](docs/ARCHITECTURE.md).
 
 Everything targets free tiers for one house of 2–8 people.
@@ -66,7 +68,7 @@ Everything targets free tiers for one house of 2–8 people.
 | **M2 Items** | Needs, chores, tasks, feelings, priority feed, feeling weights |
 | **M3 Polls, runs & calendar** | Polls, runs, requests and visits, costs, calendar |
 | **M4 Notifications & polish** | Web push, reminders, polish, end-to-end tests |
-| **M5 Hosting & launch** | Everything that needs an outside account: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production |
+| **M5 Hosting & launch** | Deploy tooling and security hardening first (server-only database writes, repo secret scanning), then everything that needs an outside account: hosted Supabase, the Gmail sender, Sentry, Vercel, staging, iPhone checks, production |
 | **M6 Usability & personal needs** | Fewer taps (swipe, simpler item views, quicker runs), needs for one person or the house, the gaps from the docs↔code audit, docs that match the build |
 
 Each milestone ends with a test task. M0–M4 and M6 run entirely on one Mac with no accounts; M5 is where the sign-ups happen, and launch waits for M6. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
