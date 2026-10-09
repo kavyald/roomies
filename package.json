@@ -32,6 +32,7 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "@tanstack/react-query": "^5.104.0",
+    "@vercel/functions": "^3.9.11",
     "kysely": "^0.29.6",
     "lucide-react": "^1.48.0",
     "next": "16.3.7",

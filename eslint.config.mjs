@@ -67,7 +67,7 @@ const testsReachEverything = {
 // `no-restricted-imports` entry built from these pieces.
 
 const INFRA =
-  'Only lib/adapters and lib/compose.ts may use Supabase, Kysely, pg, web-push, or Sentry.'
+  'Only lib/adapters and lib/compose.ts may use Supabase, Kysely, pg, web-push, Sentry, or @vercel/functions.'
 const infraPackages = [
   {
     group: [
@@ -79,6 +79,8 @@ const infraPackages = [
       'web-push',
       '@sentry/*',
       '@sentry/*/*',
+      '@vercel/functions',
+      '@vercel/functions/*',
     ],
     message: INFRA,
   },

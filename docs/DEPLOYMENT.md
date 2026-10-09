@@ -167,7 +167,7 @@ The code changes come first, all on `v1`. The PR into `staging` opens only once 
 4. The GitHub Environments `staging` and `production` with their secrets.
 
 ### Phase C: staging live
-1. **E2:** set up `roomies-staging`. Done when merging into `staging` migrates and deploys it, a deliberate error reaches Sentry with the right environment and release and no personal data, and a PR gets a preview deploy.
+1. **E2:** set up `roomies-staging`. Done when merging into `staging` migrates and deploys it, a deliberate error reaches Sentry with the right environment and release and no personal data, Sentry shows no dropped events for that window (T79), and a PR gets a preview deploy.
 2. **E3:** the staging Vault secrets. `tick` runs every 15 minutes, and a reminder arrives.
 3. **Q5:** the smoke suite runs after each staging deploy and fails the check when the journey breaks.
 4. **E4:** the iPhone checks (TESTING §7) on the **staging URL**, not a preview (previews sit behind Vercel's login, and push subscriptions are tied to one site): install, a real code, push, VoiceOver, dark mode, and the smoke suite.
