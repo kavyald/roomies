@@ -1,8 +1,12 @@
 name: CI
 
+# A working branch is checked through its PR (TESTING §5): pushing the branch or an archive/* tag
+# runs nothing. workflow_dispatch runs it by hand (`gh workflow run CI --ref <branch>`).
 on:
   push:
+    branches: [staging, main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -46,8 +50,11 @@ jobs:
       - run: pnpm format:check
       - run: pnpm test
 
+  # Every PR and by hand, not after a merge (the PR just ran it). Required on PRs into main only;
+  # on PRs into staging it reports but doesn't block (DEPLOYMENT §3).
   full:
     name: full (database + end-to-end on local Supabase)
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -61,7 +68,21 @@ jobs:
       # Local Supabase in Docker (TESTING.md §5); services the tests don't use stay off.
       - run: pnpm supabase start -x studio,logflare,vector,imgproxy,edge-runtime,storage-api,supavisor
       - run: node scripts/env-local.mjs
-      - run: pnpm exec playwright install --with-deps webkit
+      # WebKit is cached per Playwright version; the system libraries come from apt every run.
+      # A stalled download once held the job for its full 30 minutes, hence the step timeout.
+      - id: playwright
+        run: echo "version=$(pnpm exec playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-webkit-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps webkit
+        timeout-minutes: 5
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps webkit
+        timeout-minutes: 5
       - run: pnpm test:db
       - run: pnpm test:e2e
       - if: failure()

@@ -5,7 +5,7 @@ description: Run several Weyve cards at once with builder agents in their own wo
 
 # parallel-build
 
-You're the orchestrator: you pick the work, launch builder agents, merge their branches into the build branch (named in CLAUDE.md), and stop cleanly before a usage limit. Builders build; you own Weyve status, the slow tests, screenshots and merges.
+You're the orchestrator: you pick the work, launch builder agents, merge their branches into the build branch (the chunk's branch, chosen with `/branching`; builder branches are internal and never pushed or PR'd), and stop cleanly before a usage limit. Builders build; you own Weyve status, the slow tests, screenshots and merges.
 
 ## 1. Plan the fan-out
 - `find_tasks` with `ready: true`, then group the cards into dependency chains.
