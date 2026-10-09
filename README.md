@@ -2,7 +2,7 @@
 
 A shared, phone-first hub for a house of roommates: what we need to buy, what needs doing, what we need to decide, and how everyone feels about it.
 
-> **Status: M0–M4 and M6 built** and merged into `staging`: everything runs locally. **M5 (hosting and launch) is in progress**: the deploy tooling, security work and the PR into `staging` are done (Phase A); next come the hosted accounts. The plan is [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Tasks are planned and tracked on the **roomies** board in Weyve.
+> **Status: M0–M4 and M6 built** and merged into `staging`: everything runs locally. **M5 (hosting and launch) is in progress**: the deploy tooling, security work and the PR into `staging` are done (Phase A), and hosted Supabase with the Gmail sender is set up (E1); next come Sentry and Vercel. The plan is [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Tasks are planned and tracked on the **roomies** board in Weyve.
 
 ## The problem
 

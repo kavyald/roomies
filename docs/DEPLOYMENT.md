@@ -69,10 +69,10 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 | Project | `roomies-staging`, ref `reubjjgndigvthldvzos`, us-east-1 | `roomies-prod`, ref `iqkriekufaebhvptjzhv`, us-east-1 |
 | Gmail SMTP | ✅ saved | ✅ saved |
 | Migrations | ✅ all 25 pushed (the T73 four on 2026-10-08) | ✅ all 25 pushed by hand (2026-10-08, E1: the `app_server` role comes from a migration, so its password couldn't be set before). From then on the deploy workflow pushes new ones on each merge into `main` |
-| Auth settings: sign-ups off, 6-digit code, 10 minutes, the code template from `supabase/templates/code.html` | To do (E1) | To do (E1) |
+| Auth settings: sign-ups off, 6-digit code, 10 minutes, the code template from `supabase/templates/code.html` | ✅ (E1) | ✅ (E1) |
 | `app_server` password | Its own: at least 32 random characters | A different one, same length |
 | `app_writer` role | Created by a migration; no password, never logs in | The same |
-| Enforce SSL (Database settings) | On (E1) | On (E1) |
+| Enforce SSL (Database settings) | ✅ On (E1) | ✅ On (E1) |
 | Network restrictions | Off for now (decided 2026-10-08, E1). Vercel functions and GitHub Actions connect from IPs that change, and a fixed IP needs Vercel's paid Secure Compute, so an allow-list would break deploys. The database is protected by Enforce SSL, the per-project `app_server` password (Vercel only), the grants and RLS, and MFA on every account. Revisit if the app moves to a plan with fixed outgoing IPs. | The same |
 | Site URL / redirect URLs | The staging URL, plus a wildcard for preview URLs | The prod URL |
 | Vault: `roomies_app_url`, `roomies_cron_secret` | Staging URL and secret (E3) | Prod URL and secret (E5) |
@@ -208,3 +208,4 @@ The repo is public, so anyone can read the schema, every RLS policy and the role
 **Accepted, not fixed**
 
 - Injected script or a stolen session can still call the app's server actions. Server-only writes limit that to real actions, validated and recorded in Activity under that person's name. The page CSP (`proxy.ts`) is the defense against XSS.
+- Sign-in enumeration (accepted 2026-10-09, E1): with the public anon key, Supabase's `/auth/v1/otp` answers an unknown email with 422 `otp_disabled` and a known one with 200 (supabase/auth#1547), so anyone can check whether an email has an account; the app's own form always answers the same. **Fix if picked up:** turn on Supabase's CAPTCHA (Cloudflare Turnstile) on both projects, send codes from the server with the service-role client (admin requests skip the CAPTCHA), and give `requestCode` its own per-IP limit in `rate_limits`.
