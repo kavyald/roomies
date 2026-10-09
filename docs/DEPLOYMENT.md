@@ -68,7 +68,7 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 |---|---|---|
 | Project | `roomies-staging`, ref `reubjjgndigvthldvzos`, us-east-1 | `roomies-prod`, ref `iqkriekufaebhvptjzhv`, us-east-1 |
 | Gmail SMTP | ✅ saved | ✅ saved |
-| Migrations | ✅ all 25 pushed (the T73 four on 2026-10-08) | Pushed by the deploy workflow on the first merge into `main` |
+| Migrations | ✅ all 25 pushed (the T73 four on 2026-10-08) | ✅ all 25 pushed by hand (2026-10-08, E1: the `app_server` role comes from a migration, so its password couldn't be set before). From then on the deploy workflow pushes new ones on each merge into `main` |
 | Auth settings: sign-ups off, 6-digit code, 10 minutes, the code template from `supabase/templates/code.html` | To do (E1) | To do (E1) |
 | `app_server` password | Its own: at least 32 random characters | A different one, same length |
 | `app_writer` role | Created by a migration; no password, never logs in | The same |
