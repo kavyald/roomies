@@ -48,14 +48,14 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 
 | Branch | What it is | How it changes |
 |---|---|---|
-| a working branch | Where tasks are built, one commit per task; short-lived, cut from `staging` | Commits; deleted once its PR is squash-merged into `staging` (tip tagged `archive/<branch>` first) |
+| a working branch | Where a themed chunk of tasks is built, one commit per task; cut from `staging`, one PR per chunk (the `branching` skill) | Commits; deleted once its PR is squash-merged into `staging` (tip tagged `archive/<branch>` first) |
 | `staging` | What runs on staging | Only by merging a PR, with CI green |
 | `main` | **Production** | Only by merging a PR from `staging` |
 
-- **Branch protection** on `staging` and `main`: a PR is required, `fast` and `full` must pass, and force pushes and deletion are off. On `main`, an extra CI job fails any PR whose source isn't this repo's `staging` branch (GitHub can't restrict a PR's source branch by itself).
+- **Branch protection** on `staging` and `main`: a PR is required and `fast` must pass; on `main`, `full` must pass too (on PRs into `staging` it runs but doesn't block; owner, 2026-10-09). Force pushes and deletion are off. On `main`, an extra CI job fails any PR whose source isn't this repo's `staging` branch (GitHub can't restrict a PR's source branch by itself).
 - **Naming:** a PR into `staging` or `main` is titled for everything it brings since the branch last moved (the whole `git log origin/<base>..<head>` range), never for its newest commit. The title is plain words about what changed, with no task IDs (e.g. `Keep invite and setup tokens out of Sentry's request path`); its body lists that range by milestone and card, IDs included. The title becomes the squash commit's subject, so it is passed explicitly when merging.
 - **GitHub Environments:** `staging` and `production`. `production` is limited to `main`, so prod secrets never reach another branch.
-- **After a merge:** once a working branch's PR is squash-merged into `staging`, its tip is tagged `archive/<branch>` (so the hashes on the Weyve cards still resolve), and the branch is deleted locally and on GitHub. The next batch of work starts from a fresh branch off `staging`.
+- **After a merge:** once a working branch's PR is squash-merged into `staging`, its tip is tagged `archive/<branch>` (so the hashes on the Weyve cards still resolve), and the branch is deleted locally and on GitHub. The next chunk starts from a fresh branch off `staging`, unless it fits a working branch that's still open (the `branching` skill asks).
 - **Today:** `staging` has the build (`6e6c4a2`, PR #2); `main` is still at `052dc1f`. `v1` was deleted after that merge, and its history is the `archive/v1` tag.
 
 ---
