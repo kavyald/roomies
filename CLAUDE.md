@@ -109,7 +109,7 @@ A task is finished when its card's "Done when" holds **and** all of these do:
    ```
    Git must use `121595788+kavyald@users.noreply.github.com`, because GitHub rejects pushes that expose a private email.
 5. **Push the working branch once per milestone**, after its Q task passes and `pnpm test:all` is green.
-   - **PRs into `staging` or `main` are named for their whole range** (`git log origin/<base>..<head>`), not the newest commit; the body lists it by milestone and card. Pass the title as the squash subject (`gh pr merge --squash --subject`), then tag and delete the branch (see Branches).
+   - **PRs into `staging` or `main` are named for their whole range** (`git log origin/<base>..<head>`), not the newest commit, in plain words a person can read: what changed, **never a task ID** (no `T77`, `E2`, `M5` in the title; owner, 2026-10-09). The body lists the range by milestone and card, IDs included. Pass the title as the squash subject (`gh pr merge --squash --subject`), then tag and delete the branch (see Branches). Commits on the working branch still start with their ID (step 4).
 6. Log judgment calls, deviations and blockers on the task's Weyve card with `append_note` ("Decision YYYY-MM-DD: what. Why: why."). If you deviate from ARCHITECTURE.md, update the doc and its decision log in the same commit.
 
 ### Parallel builds and stops
