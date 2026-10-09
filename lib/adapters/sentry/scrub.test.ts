@@ -125,6 +125,27 @@ describe('scrubEvent', () => {
     expect(s.request?.url).toBe('https://x.app/setup/[token]')
   })
 
+  it("hides the token, query and emails in contexts (onRequestError's nextjs.request_path)", () => {
+    const s = scrubEvent({
+      type: undefined,
+      contexts: {
+        nextjs: {
+          request_path: '/join/sekrit3?ref=ana@roomies.test',
+          router_path: '/join/[token]',
+          route_type: 'render',
+        },
+        culture: { locale: 'en-US', note: 'from /setup/sekrit4 by bo@example.com' },
+        app: { app_memory: 1024 },
+      },
+    })
+    expect(s.contexts).toEqual({
+      nextjs: { request_path: '/join/[token]', router_path: '/join/[token]', route_type: 'render' },
+      culture: { locale: 'en-US', note: 'from /setup/[token] by [email]' },
+      app: { app_memory: 1024 },
+    })
+    expect(JSON.stringify(s)).not.toMatch(/sekrit|roomies\.test|example\.com/)
+  })
+
   it('leaves an event without a request or exception alone', () => {
     expect(scrubEvent({ type: undefined, message: 'tick' })).toMatchObject({
       message: 'tick',
