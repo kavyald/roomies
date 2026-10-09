@@ -815,7 +815,7 @@ $('#prlist').innerHTML = PR.map((p,i)=>'<div class="pr"><span class="k">'+String
 
 /* ---------------- Gaps ---------------- */
 const GAPS = [
- ['In progress','M5: hosting and launch','E1 is done (staging and prod Supabase projects with all migrations, the Gmail sender, auth settings, SSL, MFA). Still to come: Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is wired in (A28) but stays off until E6 sets a DSN; it ships with the first Vercel build (E2 waits on E6). E5 now also waits on Q6, since M6 is built first.','Weyve cards E1–E5 and Q5 (M5)'],
+ ['In progress','M5: hosting and launch','E1 is done (staging and prod Supabase projects with all migrations, the Gmail sender, auth settings, SSL, MFA). Still to come: Vercel deploys, pg_cron pointed at Vercel, real-iPhone checks, the remote smoke suite, backups and uptime pings. Sentry is wired in (A28) and its project exists (E6); it stays off until E2 puts the DSN into Vercel, so it ships with the first Vercel build. E5 now also waits on Q6, since M6 is built first.','Weyve cards E1–E5 and Q5 (M5)'],
  ['Misplaced','Nil-UUID system actor, four copies','The same “Roomies itself” actor is built separately in setup.ts, push.ts, jobs.ts and invites.ts.','lib/app/{setup,push,jobs,invites}.ts'],
  ['Misplaced','Behavior in the composition root','sendNotificationsNow (running a use case, logging) lives in compose.ts, which should only wire adapters.','lib/compose.ts']
 ];

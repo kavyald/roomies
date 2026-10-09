@@ -102,7 +102,7 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 
 ### Sentry
 
-One project, split by environment. Reports are scrubbed before sending (ARCHITECTURE §5.3): no user, bodies, cookies, headers, query strings, emails, or setup and invite tokens.
+One project, split by environment (created in E6, 2026-10-09, with Sentry's data scrubber on and IP addresses not stored; the DSN, org and project slugs and an organization auth token go into Vercel in E2). Reports are scrubbed before sending (ARCHITECTURE §5.3): no user, bodies, cookies, headers, query strings, emails, or setup and invite tokens.
 
 ---
 
