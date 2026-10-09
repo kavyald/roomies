@@ -68,12 +68,12 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 |---|---|---|
 | Project | `roomies-staging`, ref `reubjjgndigvthldvzos`, us-east-1 | `roomies-prod`, ref `iqkriekufaebhvptjzhv`, us-east-1 |
 | Gmail SMTP | ✅ saved | ✅ saved |
-| Migrations | ✅ all 21 pushed (2026-10-05) | Pushed by the deploy workflow on the first merge into `main` |
+| Migrations | 21 of 25 pushed (2026-10-05); the four T73 migrations (`20261008000100`–`0400`) go next (E1) | Pushed by the deploy workflow on the first merge into `main` |
 | Auth settings: sign-ups off, 6-digit code, 10 minutes, the code template from `supabase/templates/code.html` | To do (E1) | To do (E1) |
 | `app_server` password | Its own: at least 32 random characters | A different one, same length |
 | `app_writer` role | Created by a migration; no password, never logs in | The same |
 | Enforce SSL (Database settings) | On (E1) | On (E1) |
-| Network restrictions | Decide in E1 and write it down here (Vercel's and GitHub's IPs change, so an allow-list is probably impractical) | The same decision |
+| Network restrictions | Off for now (decided 2026-10-08, E1). Vercel functions and GitHub Actions connect from IPs that change, and a fixed IP needs Vercel's paid Secure Compute, so an allow-list would break deploys. The database is protected by Enforce SSL, the per-project `app_server` password (Vercel only), the grants and RLS, and MFA on every account. Revisit if the app moves to a plan with fixed outgoing IPs. | The same |
 | Site URL / redirect URLs | The staging URL, plus a wildcard for preview URLs | The prod URL |
 | Vault: `roomies_app_url`, `roomies_cron_secret` | Staging URL and secret (E3) | Prod URL and secret (E5) |
 | Accounts | Test accounts and the smoke house | Roommates only, through `/setup` and invites. No test account. |
