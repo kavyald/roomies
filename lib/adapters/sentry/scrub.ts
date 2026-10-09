@@ -44,12 +44,34 @@ export const scrubBreadcrumb = (b: Breadcrumb): Breadcrumb | null => {
   return null
 }
 
+type Contexts = NonNullable<ErrorEvent['contexts']>
+
+/** Strings in contexts lose emails and tokens; nextjs.request_path (onRequestError's raw path) also its query. */
+const scrubContexts = (contexts: Contexts): Contexts =>
+  Object.fromEntries(
+    Object.entries(contexts).map(([name, context]) => [
+      name,
+      context &&
+        Object.fromEntries(
+          Object.entries(context).map(([key, v]) => [
+            key,
+            typeof v !== 'string'
+              ? v
+              : name === 'nextjs' && key === 'request_path'
+                ? withoutQuery(v)
+                : redact(v),
+          ]),
+        ),
+    ]),
+  )
+
 export const scrubEvent = (event: ErrorEvent): ErrorEvent => {
   const { request } = event
   return {
     ...event,
     user: undefined,
     extra: undefined,
+    contexts: event.contexts && scrubContexts(event.contexts),
     message: event.message && redact(event.message),
     transaction: event.transaction && withoutQuery(event.transaction),
     request: request && {
