@@ -1,4 +1,5 @@
-import { captureRequestError, startErrorReporting } from './lib/adapters/sentry'
+import { startErrorReporting } from './lib/adapters/sentry'
+import { captureRequestError } from './lib/adapters/sentry/server'
 import { checkConfigAtStartup, errorReportingConfig } from './lib/config'
 
 export function register() {

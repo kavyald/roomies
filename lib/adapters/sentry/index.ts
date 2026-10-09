@@ -1,6 +1,7 @@
 // Error reporting to Sentry (ARCHITECTURE A28). One module for the server, the edge runtime and the
 // browser: @sentry/nextjs picks the right SDK for each. Errors only (no tracing, no replay), so
 // nothing is sampled from normal requests. Without a DSN nothing starts and every call is a no-op.
+// The server-only reporters live in ./server, so the browser bundle never pulls in @vercel/functions.
 
 import * as Sentry from '@sentry/nextjs'
 import { scrubBreadcrumb, scrubEvent } from './scrub'
@@ -23,11 +24,3 @@ export const sentryOptions = (config: SentryConfig, tunnel?: string) => ({
 export const startErrorReporting = (config: SentryConfig | null, tunnel?: string): void => {
   if (config) Sentry.init(sentryOptions(config, tunnel))
 }
-
-/** An error the app caught and answered for itself (an action's 'unexpected', a failed job). */
-export const reportError = (e: unknown, where: string): void => {
-  Sentry.captureException(e, { tags: { where } })
-}
-
-/** Next's onRequestError hook: errors thrown while rendering, in route handlers and in actions. */
-export const captureRequestError = Sentry.captureRequestError
