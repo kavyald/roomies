@@ -48,14 +48,15 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 
 | Branch | What it is | How it changes |
 |---|---|---|
-| a working branch | Where tasks are built, one commit per task | Commits |
+| a working branch | Where tasks are built, one commit per task; short-lived, cut from `staging` | Commits; deleted once its PR is squash-merged into `staging` (tip tagged `archive/<branch>` first) |
 | `staging` | What runs on staging | Only by merging a PR, with CI green |
 | `main` | **Production** | Only by merging a PR from `staging` |
 
 - **Branch protection** on `staging` and `main`: a PR is required, `fast` and `full` must pass, and force pushes and deletion are off. On `main`, an extra CI job fails any PR whose source isn't this repo's `staging` branch (GitHub can't restrict a PR's source branch by itself).
 - **Naming:** a PR into `staging` or `main` is titled for everything it brings since the branch last moved (the whole `git log origin/<base>..<head>` range, e.g. `v1 build: M0–M4, M6 and M5 Phase A`), never for its newest commit. Its body lists that range by milestone and card. The title becomes the squash commit's subject, so it is passed explicitly when merging.
 - **GitHub Environments:** `staging` and `production`. `production` is limited to `main`, so prod secrets never reach another branch.
-- **Today:** `staging` exists at the same commit as `main` (`052dc1f`). The build is on `v1` and reaches `staging` through a PR.
+- **After a merge:** once a working branch's PR is squash-merged into `staging`, its tip is tagged `archive/<branch>` (so the hashes on the Weyve cards still resolve), and the branch is deleted locally and on GitHub. The next batch of work starts from a fresh branch off `staging`.
+- **Today:** `staging` has the build (`6e6c4a2`, PR #2); `main` is still at `052dc1f`. `v1` was deleted after that merge, and its history is the `archive/v1` tag.
 
 ---
 
@@ -157,7 +158,7 @@ The code changes come first, all on `v1`. The PR into `staging` opens only once 
 3. Turn on GitHub secret scanning and push protection, and run a gitleaks scan over the full history. Rotate anything it finds (§8).
 4. Open the PR from `v1` into `staging` and get CI (`fast` and `full`) green.
 5. Turn on branch protection on `staging` and `main` (owner's go-ahead), so the PR merges under the rules in §3.
-6. **Squash and merge** the PR into `staging`. That's the end of Phase A. `staging` gets the build as one commit; the per-task history stays on `v1`, which is where the commit hashes on the Weyve cards point.
+6. **Squash and merge** the PR into `staging`. That's the end of Phase A. `staging` gets the build as one commit; the per-task history stays on `v1`, which is where the commit hashes on the Weyve cards point. Once merged, `v1` was tagged `archive/v1` and deleted (§3).
 
 ### Phase B: the owner's accounts
 1. **E1:** turn on MFA for GitHub, Supabase, Vercel, Sentry and the house Gmail. On each Supabase project, set the `app_server` password (at least 32 random characters, unique per project), the auth settings and Enforce SSL, and decide on network restrictions (§4). Add a test account on **staging only**, check that a code reaches a real inbox there, and check on both projects that an unknown email gets nothing.
