@@ -48,13 +48,15 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 
 | Branch | What it is | How it changes |
 |---|---|---|
-| a working branch | Where tasks are built, one commit per task | Commits |
+| a working branch | Where tasks are built, one commit per task; short-lived, cut from `staging` | Commits; deleted once its PR is squash-merged into `staging` (tip tagged `archive/<branch>` first) |
 | `staging` | What runs on staging | Only by merging a PR, with CI green |
 | `main` | **Production** | Only by merging a PR from `staging` |
 
 - **Branch protection** on `staging` and `main`: a PR is required, `fast` and `full` must pass, and force pushes and deletion are off. On `main`, an extra CI job fails any PR whose source isn't this repo's `staging` branch (GitHub can't restrict a PR's source branch by itself).
+- **Naming:** a PR into `staging` or `main` is titled for everything it brings since the branch last moved (the whole `git log origin/<base>..<head>` range, e.g. `v1 build: M0–M4, M6 and M5 Phase A`), never for its newest commit. Its body lists that range by milestone and card. The title becomes the squash commit's subject, so it is passed explicitly when merging.
 - **GitHub Environments:** `staging` and `production`. `production` is limited to `main`, so prod secrets never reach another branch.
-- **Today:** `staging` exists at the same commit as `main` (`052dc1f`). The build is on `v1` and reaches `staging` through a PR.
+- **After a merge:** once a working branch's PR is squash-merged into `staging`, its tip is tagged `archive/<branch>` (so the hashes on the Weyve cards still resolve), and the branch is deleted locally and on GitHub. The next batch of work starts from a fresh branch off `staging`.
+- **Today:** `staging` has the build (`6e6c4a2`, PR #2); `main` is still at `052dc1f`. `v1` was deleted after that merge, and its history is the `archive/v1` tag.
 
 ---
 
@@ -66,12 +68,12 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 |---|---|---|
 | Project | `roomies-staging`, ref `reubjjgndigvthldvzos`, us-east-1 | `roomies-prod`, ref `iqkriekufaebhvptjzhv`, us-east-1 |
 | Gmail SMTP | ✅ saved | ✅ saved |
-| Migrations | ✅ all 21 pushed (2026-10-05) | Pushed by the deploy workflow on the first merge into `main` |
-| Auth settings: sign-ups off, 6-digit code, 10 minutes, the code template from `supabase/templates/code.html` | To do (E1) | To do (E1) |
+| Migrations | ✅ all 25 pushed (the T73 four on 2026-10-08); T76's grants migration (the 26th) goes in through the deploy workflow when its PR merges | ✅ all 25 pushed by hand (2026-10-08, E1: the `app_server` role comes from a migration, so its password couldn't be set before). From then on the deploy workflow pushes new ones on each merge into `main`, starting with T76's |
+| Auth settings: sign-ups off, 6-digit code, 10 minutes, the code template from `supabase/templates/code.html` | ✅ (E1) | ✅ (E1) |
 | `app_server` password | Its own: at least 32 random characters | A different one, same length |
 | `app_writer` role | Created by a migration; no password, never logs in | The same |
-| Enforce SSL (Database settings) | On (E1) | On (E1) |
-| Network restrictions | Decide in E1 and write it down here (Vercel's and GitHub's IPs change, so an allow-list is probably impractical) | The same decision |
+| Enforce SSL (Database settings) | ✅ On (E1) | ✅ On (E1) |
+| Network restrictions | Off for now (decided 2026-10-08, E1). Vercel functions and GitHub Actions connect from IPs that change, and a fixed IP needs Vercel's paid Secure Compute, so an allow-list would break deploys. The database is protected by Enforce SSL, the per-project `app_server` password (Vercel only), the grants and RLS, and MFA on every account. Revisit if the app moves to a plan with fixed outgoing IPs. | The same |
 | Site URL / redirect URLs | The staging URL, plus a wildcard for preview URLs | The prod URL |
 | Vault: `roomies_app_url`, `roomies_cron_secret` | Staging URL and secret (E3) | Prod URL and secret (E5) |
 | Accounts | Test accounts and the smoke house | Roommates only, through `/setup` and invites. No test account. |
@@ -100,7 +102,7 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 
 ### Sentry
 
-One project, split by environment. Reports are scrubbed before sending (ARCHITECTURE §5.3): no user, bodies, cookies, headers, query strings, emails, or setup and invite tokens.
+One project, split by environment (created in E6, 2026-10-09, with Sentry's data scrubber on and IP addresses not stored; the DSN, org and project slugs and an organization auth token go into Vercel in E2). Reports are scrubbed before sending (ARCHITECTURE §5.3): no user, bodies, cookies, headers, query strings, emails, or setup and invite tokens.
 
 ---
 
@@ -156,7 +158,7 @@ The code changes come first, all on `v1`. The PR into `staging` opens only once 
 3. Turn on GitHub secret scanning and push protection, and run a gitleaks scan over the full history. Rotate anything it finds (§8).
 4. Open the PR from `v1` into `staging` and get CI (`fast` and `full`) green.
 5. Turn on branch protection on `staging` and `main` (owner's go-ahead), so the PR merges under the rules in §3.
-6. **Squash and merge** the PR into `staging`. That's the end of Phase A. `staging` gets the build as one commit; the per-task history stays on `v1`, which is where the commit hashes on the Weyve cards point.
+6. **Squash and merge** the PR into `staging`. That's the end of Phase A. `staging` gets the build as one commit; the per-task history stays on `v1`, which is where the commit hashes on the Weyve cards point. Once merged, `v1` was tagged `archive/v1` and deleted (§3).
 
 ### Phase B: the owner's accounts
 1. **E1:** turn on MFA for GitHub, Supabase, Vercel, Sentry and the house Gmail. On each Supabase project, set the `app_server` password (at least 32 random characters, unique per project), the auth settings and Enforce SSL, and decide on network restrictions (§4). Add a test account on **staging only**, check that a code reaches a real inbox there, and check on both projects that an unknown email gets nothing.
@@ -198,7 +200,7 @@ The repo is public, so anyone can read the schema, every RLS policy and the role
 
 **Rules**
 
-- **New tables:** grant writes to `app_writer`, never to `authenticated`. The grant-guard test fails otherwise. Publishing a table to Realtime is a deliberate decision; the guard expects only `activity_events`.
+- **New tables:** grant writes to `app_writer`, never to `authenticated`. Reads for `authenticated` and everything for `service_role` come from the default privileges that T76's migration sets, the same locally and hosted (A31). The grant-guard test fails otherwise. Publishing a table to Realtime is a deliberate decision; the guard expects only `activity_events`.
 - **Secrets:** the `app_server` password bypasses RLS (it can switch to `service_role`), so treat it like the service-role key: Vercel only, never in chat, screenshots or logs. A secret that was ever committed or shown is **rotated**; removing it from git history doesn't help, since clones and forks keep it.
 - **Security fixes:** fix through a new migration (drop and recreate the policy); never edit an applied migration. A fix is public as soon as it's pushed, so take it straight through `staging` to `main`, and keep the commit message plain.
 - **CI on a public repo:** no `pull_request_target`, and no secrets in workflows a fork's PR can trigger. Never print connection strings, query results or data in workflow logs, and never upload a dump that isn't encrypted (D8).
@@ -206,3 +208,4 @@ The repo is public, so anyone can read the schema, every RLS policy and the role
 **Accepted, not fixed**
 
 - Injected script or a stolen session can still call the app's server actions. Server-only writes limit that to real actions, validated and recorded in Activity under that person's name. The page CSP (`proxy.ts`) is the defense against XSS.
+- Sign-in enumeration (accepted 2026-10-09, E1): with the public anon key, Supabase's `/auth/v1/otp` answers an unknown email with 422 `otp_disabled` and a known one with 200 (supabase/auth#1547), so anyone can check whether an email has an account; the app's own form always answers the same. **Fix if picked up:** turn on Supabase's CAPTCHA (Cloudflare Turnstile) on both projects, send codes from the server with the service-role client (admin requests skip the CAPTCHA), and give `requestCode` its own per-IP limit in `rate_limits`.
