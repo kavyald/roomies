@@ -68,7 +68,7 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 |---|---|---|
 | Project | `roomies-staging`, ref `reubjjgndigvthldvzos`, us-east-1 | `roomies-prod`, ref `iqkriekufaebhvptjzhv`, us-east-1 |
 | Gmail SMTP | ✅ saved | ✅ saved |
-| Migrations | ✅ all 25 pushed (the T73 four on 2026-10-08) | ✅ all 25 pushed by hand (2026-10-08, E1: the `app_server` role comes from a migration, so its password couldn't be set before). From then on the deploy workflow pushes new ones on each merge into `main` |
+| Migrations | ✅ all 25 pushed (the T73 four on 2026-10-08); T76's grants migration (the 26th) goes in through the deploy workflow when its PR merges | ✅ all 25 pushed by hand (2026-10-08, E1: the `app_server` role comes from a migration, so its password couldn't be set before). From then on the deploy workflow pushes new ones on each merge into `main`, starting with T76's |
 | Auth settings: sign-ups off, 6-digit code, 10 minutes, the code template from `supabase/templates/code.html` | ✅ (E1) | ✅ (E1) |
 | `app_server` password | Its own: at least 32 random characters | A different one, same length |
 | `app_writer` role | Created by a migration; no password, never logs in | The same |
@@ -200,7 +200,7 @@ The repo is public, so anyone can read the schema, every RLS policy and the role
 
 **Rules**
 
-- **New tables:** grant writes to `app_writer`, never to `authenticated`. The grant-guard test fails otherwise. Publishing a table to Realtime is a deliberate decision; the guard expects only `activity_events`.
+- **New tables:** grant writes to `app_writer`, never to `authenticated`. Reads for `authenticated` and everything for `service_role` come from the default privileges that T76's migration sets, the same locally and hosted (A31). The grant-guard test fails otherwise. Publishing a table to Realtime is a deliberate decision; the guard expects only `activity_events`.
 - **Secrets:** the `app_server` password bypasses RLS (it can switch to `service_role`), so treat it like the service-role key: Vercel only, never in chat, screenshots or logs. A secret that was ever committed or shown is **rotated**; removing it from git history doesn't help, since clones and forks keep it.
 - **Security fixes:** fix through a new migration (drop and recreate the policy); never edit an applied migration. A fix is public as soon as it's pushed, so take it straight through `staging` to `main`, and keep the commit message plain.
 - **CI on a public repo:** no `pull_request_target`, and no secrets in workflows a fork's PR can trigger. Never print connection strings, query results or data in workflow logs, and never upload a dump that isn't encrypted (D8).

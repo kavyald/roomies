@@ -88,6 +88,55 @@ describe('grant guard', () => {
     expect(rows).toEqual([])
   })
 
+  // Hosted projects don't grant these by default the way the local CLI does (T76), so they are
+  // granted explicitly; a table missing here works locally and is refused on staging.
+  it('authenticated reads every member table, and service_role reads and writes them', async () => {
+    const { rows } = await asOwner((db) =>
+      db.query<{ name: string; grantee: string; privs: string[] }>(
+        `select table_name as name, grantee,
+                array_agg(privilege_type::text order by privilege_type) as privs
+         from information_schema.role_table_grants
+         where table_schema = 'public' and grantee in ('authenticated', 'service_role')
+           and privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+         group by table_name, grantee`,
+      ),
+    )
+    const grants = (grantee: string) =>
+      Object.fromEntries(rows.filter((r) => r.grantee === grantee).map((r) => [r.name, r.privs]))
+    const memberTables = Object.keys(APP_WRITER)
+
+    expect(grants('authenticated')).toEqual(
+      Object.fromEntries(memberTables.map((t) => [t, ['SELECT']])),
+    )
+    expect(grants('service_role')).toEqual({
+      ...Object.fromEntries(memberTables.map((t) => [t, ['DELETE', 'INSERT', 'SELECT', 'UPDATE']])),
+      activity_events: ['INSERT', 'SELECT'],
+      rate_limits: ['DELETE', 'INSERT', 'SELECT', 'UPDATE'],
+      security_events: ['DELETE', 'INSERT', 'SELECT'],
+    })
+  })
+
+  it('tables created later give members reads and jobs everything (default privileges)', async () => {
+    const { rows } = await asOwner((db) =>
+      db.query<{ grantee: string; priv: string }>(
+        `select a.grantee::regrole::text as grantee, a.privilege_type as priv
+         from pg_default_acl d, aclexplode(d.defaclacl) a
+         where d.defaclnamespace = 'public'::regnamespace
+           and d.defaclrole = 'postgres'::regrole and d.defaclobjtype = 'r'
+           and a.grantee in ('authenticated'::regrole, 'service_role'::regrole)
+           and a.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+         order by 1, 2`,
+      ),
+    )
+    expect(rows).toEqual([
+      { grantee: 'authenticated', priv: 'SELECT' },
+      { grantee: 'service_role', priv: 'DELETE' },
+      { grantee: 'service_role', priv: 'INSERT' },
+      { grantee: 'service_role', priv: 'SELECT' },
+      { grantee: 'service_role', priv: 'UPDATE' },
+    ])
+  })
+
   it('app_writer holds exactly the writes members need', async () => {
     const { rows } = await asOwner((db) =>
       db.query<{ name: string; privs: string[] }>(
