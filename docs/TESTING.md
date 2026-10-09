@@ -77,12 +77,12 @@ It needs **no accounts**, only Docker Desktop running for local Supabase. CI run
 
 | Job | Runs | When |
 |---|---|---|
-| **fast** | `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` | Every push and PR |
-| **full** | `pnpm supabase start` with the services the tests don't use left off (Studio, Logflare, Vector, imgproxy, Edge Runtime, Storage, Supavisor; Docker comes with Actions), `.env.local` from it, Playwright's WebKit, then `pnpm test:db` and `pnpm test:e2e` | Every push and PR |
+| **fast** | `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` | Every PR, every push to `staging` and `main`, and by hand |
+| **full** | `pnpm supabase start` with the services the tests don't use left off (Studio, Logflare, Vector, imgproxy, Edge Runtime, Storage, Supavisor; Docker comes with Actions), `.env.local` from it, Playwright's WebKit (cached per Playwright version), then `pnpm test:db` and `pnpm test:e2e` | Every PR, every push to `staging` and `main`, and by hand |
 | **source** | Fails a PR into `main` unless it comes from this repo's `staging` branch (`scripts/pr-source.ts`, DEPLOYMENT §3); passes every other PR | Every PR |
 | **smoke** (from M5, Q5) | `pnpm test:smoke` against staging | After each staging deploy |
 
-`fast` and `full` are required checks on `staging` and `main`, and `source` on `main`. When `full` fails, the Playwright report and test results (traces, screenshots) are uploaded.
+`fast` and `full` are required checks on `staging` and `main`, and `source` on `main`. A branch's pushes are checked through its PR, so each change runs once; tag pushes (`archive/*`) run nothing, and a branch with no PR yet runs by hand with `gh workflow run CI --ref <branch>`. When `full` fails, the Playwright report and test results (traces, screenshots) are uploaded.
 
 **The smoke suite** can't use `e2e/support.ts` (it mints tokens with the local secret and reads codes from Mailpit), so it signs in through Supabase's admin API: it types `SMOKE_EMAIL` into the sign-in form, then fills a fresh code from `generateLink`. The first run creates the smoke account and its "Smoke house" with the service-role key (`SMOKE_SUPABASE_URL`, `SMOKE_SERVICE_ROLE_KEY`). Signed out, it checks the sign-in page and its nonce CSP, that `/h/*` needs a session, the manifest, and that `/api/cron/*` refuses a request without the secret. Signed in, it adds a need, gets it, and finds both lines in Activity. Against prod it runs with `SMOKE_READ_ONLY=1`: prod has no test account, so only the signed-out checks run, and it refuses to write to the prod project. It keeps no traces or screenshots, since CI artifacts on a public repo are public. On staging, `SMOKE_EMAIL` should be a real inbox (a plus address of the house Gmail), since the form sends it a code too.
 
