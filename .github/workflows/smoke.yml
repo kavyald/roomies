@@ -1,0 +1,64 @@
+# The smoke suite after each staging deploy (Q5, TESTING §5, DEPLOYMENT §5): when Vercel reports a
+# successful production deploy of the roomies-staging project, `pnpm test:smoke` runs against the
+# staging site. A broken journey fails this run, which shows as a failed check on the commit.
+#
+# Vercel posts the deployment status; this file is read from the deployed commit. The suite runs
+# against the stable staging URL, since the deploy's own URL is behind Vercel's login (D4).
+# Migrations run in the Deploy workflow at the same time and usually finish before Vercel's build.
+#
+# Secrets (the `staging` environment): SMOKE_SUPABASE_URL, SMOKE_SERVICE_ROLE_KEY, SMOKE_EMAIL.
+# Public repo: no artifacts (traces and screenshots are off in playwright.smoke.config.ts anyway).
+name: Smoke
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-staging
+  cancel-in-progress: true
+
+jobs:
+  staging:
+    name: smoke (staging)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment.environment == 'Production' &&
+       startsWith(github.event.deployment_status.environment_url, 'https://roomies-staging-'))
+    runs-on: ubuntu-24.04
+    environment: staging
+    timeout-minutes: 15
+    env:
+      BASE_URL: https://roomies-staging.vercel.app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # WebKit (the iPhone profile) is cached per Playwright version, as in CI's `full` job.
+      - id: playwright
+        run: echo "version=$(pnpm exec playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-webkit-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps webkit
+        timeout-minutes: 5
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps webkit
+        timeout-minutes: 5
+      - name: pnpm test:smoke
+        env:
+          SMOKE_SUPABASE_URL: ${{ secrets.SMOKE_SUPABASE_URL }}
+          SMOKE_SERVICE_ROLE_KEY: ${{ secrets.SMOKE_SERVICE_ROLE_KEY }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+        run: pnpm test:smoke

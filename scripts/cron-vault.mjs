@@ -8,9 +8,10 @@
 //                           CRON_SECRET set) a tick sent straight to the app
 //
 // Everything comes from env, so no secret lands in shell history:
-//   VAULT_DB_URL  the project's `postgres` connection string (session pooler, port 5432). pg checks
-//                 the certificate: add `sslrootcert=<path to the project's CA certificate>` (from
-//                 the dashboard's Database settings) to the URL.
+//   VAULT_DB_URL  the project's `postgres` connection string (session pooler, port 5432), with the
+//                 password percent-encoded. `sslmode=require&uselibpqcompat=true` encrypts without
+//                 checking the certificate (what E3 used); `sslmode=verify-full&sslrootcert=<path to
+//                 the project's CA certificate>` (Database settings) also checks it (DEPLOYMENT §5).
 //   APP_URL       the site's https URL, no trailing slash (the one CRON_SECRET belongs to)
 //   CRON_SECRET   the same value as the Vercel project's CRON_SECRET
 // It never prints the connection string, a secret or any row of house data.
@@ -26,15 +27,23 @@ const fail = (message) => {
 
 if (command !== 'set' && command !== 'check') fail('Usage: pnpm cron:vault set|check')
 if (!VAULT_DB_URL) fail('Set VAULT_DB_URL to the project’s postgres connection string.')
+// pg falls back to its own parsing for a URL that doesn't parse, and can then wait on the wrong host.
+if (!URL.canParse(VAULT_DB_URL)) fail('VAULT_DB_URL isn’t a valid URL: percent-encode the password.')
 if (APP_URL && !/^https:\/\/[^/]+$/.test(APP_URL)) fail('APP_URL must be https://host, no path.')
 if (CRON_SECRET && CRON_SECRET.length < 32) fail('CRON_SECRET must be at least 32 characters.')
 
-const client = new pg.Client({ connectionString: VAULT_DB_URL })
+// Time limits, so a wrong host or a stuck query fails with a message instead of hanging.
+const client = new pg.Client({
+  connectionString: VAULT_DB_URL,
+  connectionTimeoutMillis: 10_000,
+  query_timeout: 15_000,
+})
 try {
   await client.connect()
 } catch (e) {
   fail(`Couldn't connect: ${e instanceof Error ? e.message.replaceAll(VAULT_DB_URL, '<url>') : e}`)
 }
+console.log('Connected.')
 
 try {
   if (command === 'set') {

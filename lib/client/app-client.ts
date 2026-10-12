@@ -309,6 +309,8 @@ export type AppCommands = {
     endpoint: string
     keys: { p256dh: string; auth: string }
   }): Promise<CommandResult<true, 'invalid_subscription' | 'not_found'>>
+  /** Whether the server has this browser on for me (T84). */
+  isPushSubscriptionSaved(input: { endpoint: string }): Promise<CommandResult<boolean, never>>
   updateMySettings(input: {
     theme?: Theme
     quietHours?: { start: string; end: string } | null

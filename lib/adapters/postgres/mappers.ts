@@ -4,11 +4,12 @@ import type { Selectable } from 'kysely'
 import type { StoredActivityRow } from '../../domain/events'
 import { feelingWeightsFrom, type Feeling } from '../../domain/feelings'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
-import { asId } from '../../domain/ids'
+import { asId, type UserId } from '../../domain/ids'
 import type { Done, Item, Version } from '../../domain/items'
 import type { Cost } from '../../domain/costs'
 import type { Cents } from '../../domain/money'
 import type { Poll, PollOption } from '../../domain/polls'
+import type { PushSubscription } from '../../domain/push'
 import type { Run } from '../../domain/runs'
 import {
   instant,
@@ -32,6 +33,7 @@ import type {
   PollOptionsTable,
   PollsTable,
   PollVotesTable,
+  PushSubscriptionsTable,
   RoomsTable,
   RunsTable,
 } from './schema'
@@ -532,4 +534,15 @@ export const feelingToRow = (houseId: string, f: Feeling) => ({
   kind: f.kind,
   note: f.note ?? null,
   updated_at: toDate(f.at),
+})
+
+export const pushSubToDomain = (r: Selectable<PushSubscriptionsTable>): PushSubscription => ({
+  id: r.id,
+  userId: r.user_id as UserId,
+  endpoint: r.endpoint,
+  keys: { p256dh: r.p256dh, auth: r.auth },
+  ...(r.user_agent && { userAgent: r.user_agent }),
+  createdAt: toInstant(r.created_at),
+  ...(r.last_ok_at && { lastOkAt: toInstant(r.last_ok_at) }),
+  ...(r.gone_at && { goneAt: toInstant(r.gone_at) }),
 })

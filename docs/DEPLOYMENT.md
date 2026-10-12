@@ -1,6 +1,6 @@
 # Roomies deployment plan (M5)
 
-**Status:** Plan, decided with the owner on 2026-10-05, 2026-10-06 and 2026-10-08 (§8, security). Nothing here is deployed yet. The tasks are the M5 cards on the Weyve **roomies** board (E1–E6, Q5).  
+**Status:** Plan, decided with the owner on 2026-10-05, 2026-10-06 and 2026-10-08 (§8, security). Staging is live (E1–E3, E6); prod comes with E5. The tasks are the M5 cards on the Weyve **roomies** board (E1–E6, Q5).  
 **Companions:** [ARCHITECTURE.md](./ARCHITECTURE.md) §9 (environments, CI/CD, ops) and A18, A19, A28 · [TESTING.md](./TESTING.md) §5 (CI) and §7 (iPhone checklist)
 
 Where this plan differs from those docs (branches, the second Vercel project, the migration flow), this plan is newer. The docs get updated when the work it describes is built.
@@ -75,7 +75,7 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 | Enforce SSL (Database settings) | ✅ On (E1) | ✅ On (E1) |
 | Network restrictions | Off for now (decided 2026-10-08, E1). Vercel functions and GitHub Actions connect from IPs that change, and a fixed IP needs Vercel's paid Secure Compute, so an allow-list would break deploys. The database is protected by Enforce SSL, the per-project `app_server` password (Vercel only), the grants and RLS, and MFA on every account. Revisit if the app moves to a plan with fixed outgoing IPs. | The same |
 | Site URL / redirect URLs | The staging URL, plus a wildcard for preview URLs | The prod URL |
-| Vault: `roomies_app_url`, `roomies_cron_secret` | Staging URL and secret (E3) | Prod URL and secret (E5) |
+| Vault: `roomies_app_url`, `roomies_cron_secret` | ✅ Staging URL and secret (E3, 2026-10-11) | Prod URL and secret (E5) |
 | Accounts | Test accounts and the smoke house | Roommates only, through `/setup` and invites. No test account. |
 
 `supabase/seed.sql` is local only and never runs on a hosted project. Auth settings are set by hand in the dashboard, not with `supabase config push`, because `config.toml` has localhost URLs and no SMTP block and could overwrite the Gmail settings.
@@ -117,7 +117,7 @@ One project, split by environment (created in E6, 2026-10-09, with Sentry's data
 | `close-polls` | hourly, at :05 | Closes polls past their deadline |
 | `tick` | every 15 min | Does nothing; proves the schedule reaches the app |
 
-Until a project's Vault has the app URL and secret, its jobs run but send nothing.
+Until a project's Vault has the app URL and secret, its jobs run but send nothing. `pnpm cron:vault set` stores them and `pnpm cron:vault check` shows whether the jobs reach the app. Its `VAULT_DB_URL` is the project's `postgres` user on the session pooler (`postgres.<ref>@aws-0-us-east-1.pooler.supabase.com:5432`, the host the dashboard's Connect → Session pooler shows) with `sslmode=require&uselibpqcompat=true`, the same TLS setting as Vercel's `DATABASE_URL`. Percent-encode the password: an unencoded one makes the URL unparseable, and the connection then times out (the script gives up after 10 seconds). The GitHub `SUPABASE_DB_URL` secret is the same URL without the query string, since the Supabase CLI doesn't know `uselibpqcompat`; if the `postgres` password is reset, both must change.
 
 **The smoke suite** (Q5) is a short Playwright journey run against a deployed site after each deploy: sign in to a dedicated smoke house, add a need, see it on Needs, finish it, check Activity. It gets the sign-in code from Supabase's admin API (there's no Mailpit on staging). Against prod it runs read-only. The full e2e suite can't run against a deployed site: `e2e/support.ts` mints tokens with the local secret, writes to the local database, reads codes from Mailpit and uses `@roomies.test` addresses.
 
@@ -134,6 +134,7 @@ All of the app is built. These deploy pieces aren't, and none of them needs an a
 | ✅ Built (T72): `vercel.json` (`regions: ["iad1"]`), plus an Ignored Build Step: `roomies-prod` sets `ROOMIES_BUILD_ONLY_BRANCH=main` and skips every other branch | E2 |
 | ✅ Built (T72): `pnpm cron:vault set` stores the hosted Vault secrets, `pnpm cron:vault check` shows the jobs' last runs and responses (`scripts/cron-vault.mjs`) | E3 |
 | ✅ Built (T72): the smoke suite: `pnpm test:smoke`, `e2e/smoke.spec.ts`, sign-in through the admin API, the smoke house, a read-only mode (TESTING §5) | Q5 |
+| ✅ Built (Q5): `.github/workflows/smoke.yml` runs it after each staging deploy (TESTING §5) | Q5 |
 | ✅ Built (T72): the encrypted weekly backup workflow (`backup.yml`, off until `BACKUP_ENABLED`) and `scripts/restore.sh` (ARCHITECTURE §9) | E5 |
 | A deliberate error for the Sentry check, on a throwaway preview branch so it never reaches `staging` | E2 |
 
@@ -168,7 +169,7 @@ The code changes come first, all on `v1`. The PR into `staging` opens only once 
 
 ### Phase C: staging live
 1. **E2:** set up `roomies-staging`. Done when merging into `staging` migrates and deploys it, a deliberate error reaches Sentry with the right environment and release and no personal data, Sentry shows no dropped events for that window (T79), and a PR gets a preview deploy.
-2. **E3:** the staging Vault secrets. `tick` runs every 15 minutes, and a reminder arrives.
+2. **E3:** the staging Vault secrets. `tick` runs every 15 minutes, and a reminder arrives. Vault set and pg_cron reaching the app (200s) on 2026-10-11.
 3. **Q5:** the smoke suite runs after each staging deploy and fails the check when the journey breaks.
 4. **E4:** the iPhone checks (TESTING §7) on the **staging URL**, not a preview (previews sit behind Vercel's login, and push subscriptions are tied to one site): install, a real code, push, VoiceOver, dark mode, and the smoke suite.
 

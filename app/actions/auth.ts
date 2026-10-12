@@ -1,10 +1,11 @@
 'use server'
 
-import { redirect } from 'next/navigation'
-import { authForRequest } from '@/lib/compose'
+import { makeForgetPushSubscription } from '@/lib/app/push'
+import { authForRequest, depsForRequest, logUnexpected } from '@/lib/compose'
 import { err, ok, type Result } from '@/lib/domain/result'
 import { codeSchema, emailSchema } from '@/lib/schemas/auth'
-import { requestSupabase } from '@/lib/server/session'
+import { pushEndpointSchema } from '@/lib/schemas/push'
+import { currentUserId, requestSupabase } from '@/lib/server/session'
 
 /**
  * Sends a sign-in code if the email has an account. The answer is the same either way, so the
@@ -34,8 +35,27 @@ export async function verifyCode(
   return error ? err('wrong_code') : ok(undefined)
 }
 
-export async function signOut(): Promise<void> {
+/**
+ * Signs out. `input.endpoint` is this browser's push endpoint, if it had one: it stops getting
+ * your notifications (T84), so the next person on a shared phone doesn't see them. Answers rather
+ * than redirecting, so the browser unsubscribes only once this went through.
+ */
+export async function signOut(input?: unknown): Promise<Result<void, 'unexpected'>> {
+  const push = pushEndpointSchema.safeParse(input)
+  const userId = push.success ? await currentUserId() : null
+  if (push.success && userId) {
+    const actor = { kind: 'user', userId } as const
+    try {
+      await makeForgetPushSubscription(depsForRequest({ actor }))(actor, push.data.endpoint)
+    } catch (e) {
+      logUnexpected('action')(e)
+    }
+  }
   const sb = await requestSupabase()
-  await sb.auth.signOut()
-  redirect('/sign-in')
+  const { error } = await sb.auth.signOut()
+  if (error) {
+    logUnexpected('action')(error)
+    return err('unexpected')
+  }
+  return ok(undefined)
 }

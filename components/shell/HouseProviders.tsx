@@ -31,7 +31,7 @@ import {
   removeCostAction,
 } from '@/app/actions/costs'
 import { setNotificationEnabledAction, updateMySettingsAction } from '@/app/actions/me'
-import { savePushSubscriptionAction } from '@/app/actions/push'
+import { isPushSubscriptionSavedAction, savePushSubscriptionAction } from '@/app/actions/push'
 import {
   addPollOptionAction,
   closePollAction,
@@ -130,6 +130,7 @@ export function HouseProviders({
       removeCost: (input) => removeCostAction(houseId, input),
       copiedToSplitwise: (input) => copiedToSplitwiseAction(houseId, input),
       savePushSubscription: (input) => savePushSubscriptionAction(houseId, input),
+      isPushSubscriptionSaved: (input) => isPushSubscriptionSavedAction(houseId, input),
       updateMySettings: (input) => updateMySettingsAction(houseId, input),
       setNotificationEnabled: (input) => setNotificationEnabledAction(houseId, input),
     }),

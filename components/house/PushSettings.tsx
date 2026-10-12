@@ -5,7 +5,12 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useAppClient } from '@/lib/client/provider'
-import { pushState, subscribeThisBrowser, type PushState } from '@/lib/client/push'
+import {
+  pushState,
+  subscribeThisBrowser,
+  thisBrowsersEndpoint,
+  type PushState,
+} from '@/lib/client/push'
 
 const LINES: Record<PushState, string> = {
   on: 'On for this device.',
@@ -27,11 +32,21 @@ export function PushSettings() {
 
   useEffect(() => {
     let live = true
-    void pushState().then((s) => live && setState(s))
+    void (async () => {
+      let s = await pushState()
+      // "On" only if the server has this browser for me too (T84): after someone else used this
+      // phone, or if saving it never went through, it's "off", so the button saves it again.
+      if (s === 'on') {
+        const endpoint = await thisBrowsersEndpoint()
+        const saved = endpoint ? await commands.isPushSubscriptionSaved({ endpoint }) : null
+        if (saved?.ok && !saved.value) s = 'off'
+      }
+      if (live) setState(s)
+    })()
     return () => {
       live = false
     }
-  }, [])
+  }, [commands])
 
   if (!state) return null
 

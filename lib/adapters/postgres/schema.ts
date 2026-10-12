@@ -227,6 +227,7 @@ export type NotificationsOutboxTable = {
   sent_at: Timestamp | null
   error: string | null
   dedupe_key: string | null
+  attempts: Generated<number>
 }
 
 export type DB = {

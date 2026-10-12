@@ -70,3 +70,29 @@ export const subscribeThisBrowser = async (
     return { ok: false, reason: 'failed' }
   }
 }
+
+/** This browser's push endpoint, if it has a subscription (no waiting on a service worker). */
+export const thisBrowsersEndpoint = async (): Promise<string | undefined> => {
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration()
+    return (await reg?.pushManager.getSubscription())?.endpoint
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Before signing out (T84): unsubscribes this browser, so nobody gets pushes on it until they turn
+ * them on again, and returns the endpoint so the server stops sending to it too.
+ */
+export const unsubscribeThisBrowser = async (): Promise<string | undefined> => {
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration()
+    const sub = await reg?.pushManager.getSubscription()
+    if (!sub) return undefined
+    await sub.unsubscribe().catch(() => false)
+    return sub.endpoint
+  } catch {
+    return undefined
+  }
+}
