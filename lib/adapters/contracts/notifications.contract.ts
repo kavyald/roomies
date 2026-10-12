@@ -168,6 +168,74 @@ export const notificationsContract = (
       expect(after.map((m) => m.title)).toEqual(['Later'])
     })
 
+    it('only the system puts a message off for a retry, counting the try (T84)', async () => {
+      const { house, member } = await seedHouse(h)
+      const retryAt = instant(T.epochMs + 5 * 60 * 1000)
+      await h.uow.run(asMember(house.id, member), (r) =>
+        r.notifications.enqueue([
+          {
+            userId: member,
+            houseId: house.id,
+            category: 'people',
+            title: 'Retry me',
+            body: '',
+            url: '/',
+            sendAfter: T,
+          },
+        ]),
+      )
+      const sys = system(house.id)
+      const mine = async (at = T) =>
+        (await h.uow.run(sys, (r) => r.notifications.pending(at, 1000))).filter(
+          (m) => m.houseId === house.id,
+        )
+      const [m] = await mine()
+      expect(m).toMatchObject({ title: 'Retry me', attempts: 0 })
+      await expect(
+        h.uow.run(asMember(house.id, member), (r) =>
+          r.notifications.retryLater(m!.id, retryAt, 1, 'push_failed'),
+        ),
+      ).rejects.toBeInstanceOf(Error)
+      await h.uow.run(sys, (r) => r.notifications.retryLater(m!.id, retryAt, 1, 'push_failed'))
+      expect(await mine()).toEqual([])
+      expect(await mine(retryAt)).toEqual([expect.objectContaining({ id: m!.id, attempts: 1 })])
+      await h.uow.run(sys, (r) => r.notifications.markSent(m!.id, retryAt, null))
+      expect(await mine(retryAt)).toEqual([])
+    })
+
+    it('a browser moves to whoever turns notifications on with it; signing out forgets it (T84)', async () => {
+      const { house, admin, member } = await seedHouse(h)
+      const sub = (userId: typeof member, p256dh = 'p') => ({
+        id: h.ids.newId<'item'>() as string,
+        userId,
+        endpoint,
+        keys: { p256dh, auth: 'a' },
+        createdAt: T,
+      })
+      const endpoint = `https://push.example/${h.ids.newId()}`
+      const sys = system(house.id)
+      const owners = async () =>
+        (await h.uow.run(sys, (r) => r.pushSubscriptions.forUsers([member, admin]))).map((x) => [
+          x.userId,
+          x.keys.p256dh,
+        ])
+      await h.uow.run(asMember(house.id, member), (r) => r.pushSubscriptions.save(sub(member)))
+      // A member can't take someone else's browser...
+      await expect(
+        h.uow.run(asMember(house.id, admin), (r) => r.pushSubscriptions.save(sub(admin))),
+      ).rejects.toBeInstanceOf(AccessDenied)
+      // ...nor forget it.
+      await h.uow.run(asMember(house.id, admin), (r) => r.pushSubscriptions.forget(endpoint, T))
+      expect(await owners()).toEqual([[member, 'p']])
+      // The system moves it (the device proved it holds the endpoint).
+      await h.uow.run(sys, (r) => r.pushSubscriptions.save(sub(admin, 'p2')))
+      expect(await owners()).toEqual([[admin, 'p2']])
+      await h.uow.run({ kind: 'user', userId: admin }, (r) =>
+        r.pushSubscriptions.forget(endpoint, T),
+      )
+      expect(await owners()).toEqual([])
+    })
+
     it('a reminder with the same dedupe key is written once', async () => {
       const { house, member } = await seedHouse(h)
       const key = `due:${h.ids.newId()}`

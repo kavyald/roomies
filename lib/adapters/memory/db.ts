@@ -51,7 +51,7 @@ export type MemoryState = {
   polls: Map<PollId, Poll>
   costs: Cost[]
   prefs: Map<string, boolean>
-  outbox: (OutboxMessage & { id: number; sentAt?: Instant; error?: string })[]
+  outbox: (OutboxMessage & { id: number; sentAt?: Instant; error?: string; attempts?: number })[]
   pushSubs: Map<string, PushSubscription>
   activity: StoredActivityRow[]
 }
@@ -340,7 +340,7 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
           .filter((m) => !m.sentAt && m.sendAfter.epochMs <= now.epochMs)
           .filter((m) => a.kind === 'system' || m.userId === uid(a))
           .slice(0, limit)
-          .map(({ sentAt: _s, error: _e, ...m }) => m),
+          .map(({ sentAt: _s, error: _e, ...m }) => ({ ...m, attempts: m.attempts ?? 0 })),
       markSent: async (id, at, error) => {
         if (a.kind !== 'system') deny('notifications_outbox')
         const m = s.outbox.find((x) => x.id === id)
@@ -349,20 +349,33 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
           if (error) m.error = error
         }
       },
+      retryLater: async (id, at, attempts, error) => {
+        if (a.kind !== 'system') deny('notifications_outbox')
+        const m = s.outbox.find((x) => x.id === id)
+        if (m) Object.assign(m, { sendAfter: at, attempts, error })
+      },
     },
     pushSubscriptions: {
       save: async (sub) => {
         if (a.kind !== 'system' && sub.userId !== uid(a)) deny('push_subscriptions')
         const same = [...s.pushSubs.values()].find((x) => x.endpoint === sub.endpoint)
-        if (same && same.userId !== sub.userId) deny('push_subscriptions')
+        // "update own": only the system moves a browser to someone else (T84).
+        if (same && same.userId !== sub.userId && a.kind !== 'system') deny('push_subscriptions')
         if (same) {
-          const { goneAt: _g, ...rest } = same
+          const { goneAt: _g, lastOkAt: _o, ...rest } = same
           s.pushSubs.set(same.id, {
             ...rest,
+            userId: sub.userId,
             keys: sub.keys,
             ...(sub.userAgent && { userAgent: sub.userAgent }),
+            ...(same.userId === sub.userId && same.lastOkAt && { lastOkAt: same.lastOkAt }),
           })
         } else s.pushSubs.set(sub.id, sub)
+      },
+      forget: async (endpoint, at) => {
+        for (const x of s.pushSubs.values())
+          if (x.endpoint === endpoint && (a.kind === 'system' || x.userId === uid(a)))
+            s.pushSubs.set(x.id, { ...x, goneAt: at })
       },
       forUsers: async (userIds) =>
         [...s.pushSubs.values()].filter(

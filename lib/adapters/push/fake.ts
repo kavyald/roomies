@@ -18,10 +18,10 @@ export const fakePush = (): FakePush => {
     gone,
     failing,
     send: async (sub: PushSubscription, payload: string): Promise<PushOutcome> => {
-      if (gone.has(sub.endpoint)) return 'gone'
-      if (failing.has(sub.endpoint)) return 'failed'
+      if (gone.has(sub.endpoint)) return { kind: 'gone' }
+      if (failing.has(sub.endpoint)) return { kind: 'failed' }
       sent.push({ endpoint: sub.endpoint, payload: JSON.parse(payload) })
-      return 'sent'
+      return { kind: 'sent' }
     },
   }
 }

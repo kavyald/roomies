@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { asMember } from '../adapters/contracts/unit-of-work.contract'
 import { depsForTest } from '../compose'
 import type { UserId } from '../domain/ids'
-import { plusMs, MS_PER_HOUR } from '../domain/time'
+import { plusMs, MS_PER_HOUR, MS_PER_MINUTE } from '../domain/time'
 import { sampleHouse } from '../testing/sample-house'
 import { makeCreateItem, makeEditItem } from './items'
-import { makeSavePushSubscription, makeSendNotifications } from './push'
+import {
+  makeForgetPushSubscription,
+  makeIsPushSubscriptionSaved,
+  makeSavePushSubscription,
+  makeSendNotifications,
+} from './push'
 
 const setup = async () => {
   const deps = depsForTest()
@@ -21,7 +26,22 @@ const setup = async () => {
     await makeEditItem(deps)(as('Kavya'), { id: r.value.id, patch: { assignee: s.people[who] } })
     return r.value
   }
-  return { deps, s, as, subscribe, assignTo, send: makeSendNotifications(deps) }
+  const forget = (who: keyof typeof s.people, endpoint: string) =>
+    makeForgetPushSubscription(deps)({ kind: 'user', userId: s.people[who] }, endpoint)
+  const isSaved = (who: keyof typeof s.people, endpoint: string) =>
+    makeIsPushSubscriptionSaved(deps)(as(who), endpoint)
+  const later = (ms: number) => deps.clock.set(plusMs(deps.clock.now(), ms))
+  return {
+    deps,
+    s,
+    as,
+    subscribe,
+    forget,
+    isSaved,
+    later,
+    assignTo,
+    send: makeSendNotifications(deps),
+  }
 }
 
 describe('sending notifications', () => {
@@ -32,7 +52,7 @@ describe('sending notifications', () => {
     const latch = await t.assignTo('Wren')
     expect(await t.send()).toEqual({
       ok: true,
-      value: { messages: 1, delivered: 1, droppedSubscriptions: 0 },
+      value: { messages: 1, delivered: 1, retrying: 0, droppedSubscriptions: 0 },
     })
     expect(t.deps.push.sent).toEqual(
       ['https://push.example/wren-phone', 'https://push.example/wren-laptop'].map((endpoint) => ({
@@ -72,12 +92,6 @@ describe('sending notifications', () => {
     await t.send()
     expect(t.deps.uow.state.outbox.at(-1)).toMatchObject({ error: 'no_subscription' })
 
-    await t.subscribe('Sam', 'https://push.example/sam')
-    t.deps.push.failing.add('https://push.example/sam')
-    await t.assignTo('Sam')
-    await t.send()
-    expect(t.deps.uow.state.outbox.at(-1)).toMatchObject({ error: 'push_failed' })
-
     // At 11pm the message waits for 8am.
     t.deps.clock.set(plusMs(t.deps.clock.now(), 11 * MS_PER_HOUR))
     await t.subscribe('Wren', 'https://push.example/wren')
@@ -97,5 +111,91 @@ describe('sending notifications', () => {
     // The same browser again refreshes it rather than adding a second.
     expect((await t.subscribe('Wren', 'https://push.example/a')).ok).toBe(true)
     expect(t.deps.uow.state.pushSubs.size).toBe(1)
+  })
+})
+
+describe('a shared phone (T84)', () => {
+  const phone = 'https://push.example/shared-phone'
+
+  it("signing out stops that browser getting your pushes; the next person's go to it", async () => {
+    const t = await setup()
+    await t.subscribe('Wren', phone)
+    expect(await t.isSaved('Wren', phone)).toEqual({ ok: true, value: true })
+    expect(await t.forget('Wren', phone)).toEqual({ ok: true, value: true })
+    expect(await t.isSaved('Wren', phone)).toEqual({ ok: true, value: false })
+
+    expect(await t.subscribe('Sam', phone)).toEqual({ ok: true, value: true })
+    await t.assignTo('Wren')
+    await t.assignTo('Sam')
+    await t.send()
+    expect(
+      t.deps.push.sent.map((x) => [x.endpoint, (x.payload as { title: string }).title]),
+    ).toEqual([[phone, 'For you: Fix the latch']])
+    // Wren's went nowhere (that phone isn't hers any more); Sam's reached it.
+    const [toWren, toSam] = t.deps.uow.state.outbox.slice(-2)
+    expect(toWren).toMatchObject({ userId: t.s.people.Wren, error: 'no_subscription' })
+    expect(toSam).toMatchObject({ userId: t.s.people.Sam })
+    expect(toSam?.error).toBeUndefined()
+  })
+
+  it('turning notifications on moves the browser to you, even if nobody signed out', async () => {
+    const t = await setup()
+    await t.subscribe('Wren', phone)
+    expect(await t.subscribe('Sam', phone)).toEqual({ ok: true, value: true })
+    expect(t.deps.uow.state.pushSubs.size).toBe(1)
+    expect(await t.isSaved('Wren', phone)).toEqual({ ok: true, value: false })
+    expect(await t.isSaved('Sam', phone)).toEqual({ ok: true, value: true })
+  })
+
+  it("forgetting touches only your own browsers, and only a house's members save one", async () => {
+    const t = await setup()
+    await t.subscribe('Wren', phone)
+    await t.forget('Sam', phone)
+    expect(await t.isSaved('Wren', phone)).toEqual({ ok: true, value: true })
+
+    const stranger = t.deps.ids.newId<'user'>() as UserId
+    expect(
+      await makeSavePushSubscription(t.deps)(
+        { kind: 'member', userId: stranger, houseId: t.s.house.id },
+        { subscription: { endpoint: phone, keys: { p256dh: 'p', auth: 'a' } } },
+      ),
+    ).toEqual({ ok: false, error: 'not_found' })
+    expect(await t.isSaved('Wren', phone)).toEqual({ ok: true, value: true })
+  })
+})
+
+describe('passing push failures (T84)', () => {
+  it('a 5xx is tried again after 5 minutes and delivered then', async () => {
+    const t = await setup()
+    await t.subscribe('Sam', 'https://push.example/sam')
+    t.deps.push.failing.add('https://push.example/sam')
+    await t.assignTo('Sam')
+    expect(await t.send()).toMatchObject({ value: { messages: 1, delivered: 0, retrying: 1 } })
+    expect(t.deps.uow.state.outbox.at(-1)).toMatchObject({ attempts: 1, error: 'push_failed' })
+    expect(t.deps.uow.state.outbox.at(-1)?.sentAt).toBeUndefined()
+
+    // Not before its time; then the push service is back.
+    t.later(4 * MS_PER_MINUTE)
+    expect(await t.send()).toMatchObject({ value: { messages: 0 } })
+    t.deps.push.failing.clear()
+    t.later(MS_PER_MINUTE)
+    expect(await t.send()).toMatchObject({ value: { messages: 1, delivered: 1, retrying: 0 } })
+    expect(t.deps.push.sent.map((x) => x.endpoint)).toEqual(['https://push.example/sam'])
+    expect(t.deps.uow.state.outbox.at(-1)?.sentAt).toBeDefined()
+  })
+
+  it('gives up after 5 minutes, 30 minutes and 2 hours, keeping why', async () => {
+    const t = await setup()
+    await t.subscribe('Sam', 'https://push.example/sam')
+    t.deps.push.failing.add('https://push.example/sam')
+    await t.assignTo('Sam')
+    for (const wait of [0, 5 * MS_PER_MINUTE, 30 * MS_PER_MINUTE, 2 * MS_PER_HOUR]) {
+      t.later(wait)
+      expect(await t.send()).toMatchObject({ value: { messages: 1, delivered: 0 } })
+    }
+    expect(t.deps.uow.state.outbox.at(-1)).toMatchObject({ attempts: 3, error: 'push_failed' })
+    expect(t.deps.uow.state.outbox.at(-1)?.sentAt).toBeDefined()
+    t.later(6 * MS_PER_HOUR)
+    expect(await t.send()).toMatchObject({ value: { messages: 0 } })
   })
 })

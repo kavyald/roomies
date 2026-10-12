@@ -533,7 +533,7 @@ const LAYERS = [
   { name:'notifications.ts · reminders.ts · push.ts', desc:'who hears what', fns:[
     ['notificationsFor(events, people, context, now)','Pure: returns outbox rows, respecting toggles and quiet hours.'],
     ['remindersFor · choreDueDate','Day-before and day-of reminders with dedupe keys, so reruns enqueue nothing.'],
-    ['isQuiet · sendAfter · deliver · pushPayload · deliveryResult','Quiet hours hold a message until they end.'] ]},
+    ['isQuiet · sendAfter · deliver · pushPayload · afterAttempt','Quiet hours hold a message until they end; a passing push failure is tried again (5 min, 30 min, 2 h).'] ]},
   { name:'calendar · invites · members · setup · time', desc:'the rest', fns:[
     ['calendarEntries · comingUp · byDay · monthGrid','Built from items and runs already loaded; no separate calendar query.'],
     ['validateInvite · createInvite · acceptInvite · openBedrooms','Expired / revoked / used_up as typed errors.'],

@@ -322,6 +322,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 
 - **Web Push** only, which requires adding the app to the Home Screen on iOS. The email digest fallback comes later (§13).
 - Quiet hours per person (default 10pm–8am), with per-category toggles in personal settings.
+- Notifications follow the person, not the phone: signing out stops that device getting yours, and turning them on moves the device to whoever is signed in (T84). If the push service is briefly down, a notification is tried again after 5 minutes, 30 minutes and 2 hours before it's given up.
 - Everything about notifications sits in one **Notifications** section of personal settings: this device's status with its one button (turn on / blocked / add to Home Screen first), a switch per category with a line saying when you get it, and quiet hours as one row. House → Settings links to it.
 
 ---

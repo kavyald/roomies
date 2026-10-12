@@ -160,12 +160,19 @@ export interface NotificationRepo {
   pending(now: Instant, limit: number): Promise<PendingMessage[]>
   /** Done with a message: delivered (error null) or given up on, with why. */
   markSent(id: number, at: Instant, error: string | null): Promise<void>
+  /** No browser took it this time: try again at `at`, counting the try (T84). System only. */
+  retryLater(id: number, at: Instant, attempts: number, error: string): Promise<void>
 }
 
 /** Browsers that turned notifications on. */
 export interface PushSubscriptionRepo {
-  /** Adds this browser, or refreshes it (same endpoint) for the same person. */
+  /**
+   * Adds this browser, or refreshes it (same endpoint). A browser saved under someone else moves to
+   * `sub.userId`, which only the system may do (T84: the device proved it holds the endpoint).
+   */
   save(sub: PushSubscription): Promise<void>
+  /** This browser signed out: stop sending to it (your own browsers only). */
+  forget(endpoint: string, at: Instant): Promise<void>
   /** Their browsers that still work. */
   forUsers(userIds: readonly UserId[]): Promise<PushSubscription[]>
   markOk(id: string, at: Instant): Promise<void>

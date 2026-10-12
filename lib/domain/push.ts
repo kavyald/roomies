@@ -3,7 +3,7 @@
 import type { OutboxMessage } from './notifications'
 import type { UserId } from './ids'
 import { err, ok, type Result } from './result'
-import type { Instant } from './time'
+import { MS_PER_HOUR, MS_PER_MINUTE, plusMs, type Instant } from './time'
 
 export type PushSubscription = {
   readonly id: string
@@ -22,11 +22,17 @@ export type BrowserSubscription = {
   readonly keys: { readonly p256dh: string; readonly auth: string }
 }
 
-/** A message waiting in the outbox. */
-export type PendingMessage = OutboxMessage & { readonly id: number }
+/** A message waiting in the outbox; `attempts` counts the tries that found no browser working. */
+export type PendingMessage = OutboxMessage & { readonly id: number; readonly attempts: number }
 
-/** What a push service said about one delivery. */
-export type PushOutcome = 'sent' | 'gone' | 'failed'
+/**
+ * What a push service said about one delivery. `failed` is anything but gone (5xx, 429, a timeout,
+ * no network), with how long it asked us to wait when it said (429 / 503 Retry-After).
+ */
+export type PushOutcome =
+  | { readonly kind: 'sent' }
+  | { readonly kind: 'gone' }
+  | { readonly kind: 'failed'; readonly retryAfterMs?: number }
 
 /** Checks what the browser sent before storing it. */
 export const newSubscription = (
@@ -56,15 +62,38 @@ export const newSubscription = (
 export const pushPayload = (m: PendingMessage): string =>
   JSON.stringify({ title: m.title, body: m.body, url: m.url, tag: `${m.category}:${m.url}` })
 
+/** How long to wait before trying a message again, after each try where no browser worked. */
+export const RETRY_DELAYS_MS = [5 * MS_PER_MINUTE, 30 * MS_PER_MINUTE, 2 * MS_PER_HOUR] as const
+
+/** A push service's Retry-After is honored up to this. */
+export const MAX_RETRY_AFTER_MS = 6 * MS_PER_HOUR
+
+/** What to do with a message after one try: done (delivered, or why not), or try again later. */
+export type AfterAttempt =
+  | { readonly kind: 'done'; readonly error: string | null }
+  | { readonly kind: 'retry'; readonly at: Instant; readonly error: 'push_failed' }
+
 /**
- * How a message went: sent if any browser took it; otherwise the reason, so it isn't retried
- * forever ("no_subscription" when they haven't turned notifications on anywhere).
+ * Delivered if any browser took it. Otherwise final when there's nothing to retry ("no_subscription"
+ * when they haven't turned notifications on anywhere, "subscriptions_gone"), and a passing failure
+ * (5xx, 429, a timeout) is tried again after 5 minutes, 30 minutes and 2 hours, or later if the
+ * push service asked, then given up on as "push_failed". `retriesSoFar` is the message's attempts.
  */
-export const deliveryResult = (outcomes: readonly PushOutcome[]): string | null =>
-  outcomes.includes('sent')
-    ? null
-    : outcomes.length === 0
-      ? 'no_subscription'
-      : outcomes.every((o) => o === 'gone')
-        ? 'subscriptions_gone'
-        : 'push_failed'
+export const afterAttempt = (
+  outcomes: readonly PushOutcome[],
+  retriesSoFar: number,
+  now: Instant,
+): AfterAttempt => {
+  const done = (error: string | null): AfterAttempt => ({ kind: 'done', error })
+  if (outcomes.some((o) => o.kind === 'sent')) return done(null)
+  if (outcomes.length === 0) return done('no_subscription')
+  if (outcomes.every((o) => o.kind === 'gone')) return done('subscriptions_gone')
+  const delay = RETRY_DELAYS_MS[retriesSoFar]
+  if (delay === undefined) return done('push_failed')
+  const asked = Math.max(...outcomes.map((o) => (o.kind === 'failed' && o.retryAfterMs) || 0))
+  return {
+    kind: 'retry',
+    at: plusMs(now, Math.max(delay, Math.min(asked, MAX_RETRY_AFTER_MS))),
+    error: 'push_failed',
+  }
+}

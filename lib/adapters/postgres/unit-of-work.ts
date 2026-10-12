@@ -68,7 +68,8 @@ type PgError = { code?: string; constraint?: string; message?: string }
  * Updates the row if this actor can see it, and inserts it otherwise. A plain upsert
  * (`insert … on conflict do update`) also applies SELECT policies to the new row, which would
  * block legitimate first writes such as setting up the house before you're its member.
- * A primary-key clash on the insert means the row exists but isn't yours to change.
+ * A primary-key clash on the insert means the row exists but isn't yours to change; so does a
+ * push subscription's endpoint (a browser saved under someone else, T84).
  */
 const save = async (
   update: () => Promise<{ numUpdatedRows: bigint }>,
@@ -80,7 +81,10 @@ const save = async (
     await insert()
   } catch (e) {
     const pe = e as PgError
-    if (pe.code === UNIQUE_VIOLATION && pe.constraint?.endsWith('_pkey')) {
+    if (
+      pe.code === UNIQUE_VIOLATION &&
+      (pe.constraint?.endsWith('_pkey') || pe.constraint === 'push_subscriptions_endpoint_key')
+    ) {
       throw new AccessDenied(`Not allowed to change this row (${pe.constraint})`)
     }
     throw e
@@ -497,6 +501,7 @@ const reposFor = (trx: Trx): Repos => {
           body: r.body,
           url: r.url,
           sendAfter: toInstant(r.send_after),
+          attempts: r.attempts,
         })),
       markSent: async (id, at, error) => {
         const r = await trx
@@ -506,21 +511,39 @@ const reposFor = (trx: Trx): Repos => {
           .executeTakeFirst()
         if (Number(r.numUpdatedRows) === 0) throw new AccessDenied('notifications_outbox')
       },
+      retryLater: async (id, at, attempts, error) => {
+        const r = await trx
+          .updateTable('notifications_outbox')
+          .set({ send_after: toDate(at), attempts, error })
+          .where('id', '=', String(id) as never)
+          .where('sent_at', 'is', null)
+          .executeTakeFirst()
+        if (Number(r.numUpdatedRows) === 0) throw new AccessDenied('notifications_outbox')
+      },
     },
     pushSubscriptions: {
       save: async (sub) => {
+        // By endpoint alone: a member's update sees only their own rows ("update own"), so a
+        // browser saved under someone else falls through to the insert and clashes on the
+        // endpoint (AccessDenied); the system's update moves it to `sub.userId` (T84).
         await save(
           () =>
             trx
               .updateTable('push_subscriptions')
-              .set({
+              .set((eb) => ({
+                user_id: sub.userId,
                 p256dh: sub.keys.p256dh,
                 auth: sub.keys.auth,
                 user_agent: sub.userAgent ?? null,
                 gone_at: null,
-              })
+                last_ok_at: eb
+                  .case()
+                  .when('user_id', '=', sub.userId)
+                  .then(eb.ref('last_ok_at'))
+                  .else(null)
+                  .end(),
+              }))
               .where('endpoint', '=', sub.endpoint)
-              .where('user_id', '=', sub.userId)
               .executeTakeFirst(),
           () =>
             trx
@@ -568,6 +591,14 @@ const reposFor = (trx: Trx): Repos => {
           .updateTable('push_subscriptions')
           .set({ gone_at: toDate(at) })
           .where('id', '=', id)
+          .execute()
+      },
+      // "update own" limits a member to their own browsers.
+      forget: async (endpoint, at) => {
+        await trx
+          .updateTable('push_subscriptions')
+          .set({ gone_at: toDate(at) })
+          .where('endpoint', '=', endpoint)
           .execute()
       },
     },
