@@ -3,7 +3,8 @@
 
 import type { AppDeps } from './ports'
 import { actorUser, type Actor, type HouseActor } from '../domain/actor'
-import { asId, type HouseId } from '../domain/ids'
+import { asId, type HouseId, type UserId } from '../domain/ids'
+import { DEFAULT_QUIET_HOURS, sendAfter } from '../domain/notifications'
 import {
   afterAttempt,
   newSubscription,
@@ -20,9 +21,10 @@ const ROOMIES: Actor = {
 }
 
 /**
- * "Turn on notifications": remember this browser for me. If it was saved under someone else (they
- * signed out without it being forgotten), it moves to me, so it's saved as the system (T84):
- * holding the endpoint and its keys is the proof it's this device.
+ * "Turn on notifications": remember this browser for me. If it's saved under someone else (they
+ * didn't sign out on it), it moves to me only when the keys match, since the same browser hands back
+ * the same subscription (T84); knowing the endpoint alone isn't enough. Moving it is a system write,
+ * so the membership check runs in the same transaction.
  */
 export const makeSavePushSubscription =
   ({ uow, clock, ids }: Pick<AppDeps, 'uow' | 'clock' | 'ids'>) =>
@@ -36,13 +38,20 @@ export const makeSavePushSubscription =
       userAgent: input.userAgent,
     })
     if (!r.ok) return r
-    // The system write skips RLS, so membership is checked first, as the member.
-    const member = await uow.run(actor, (repos) => repos.members.get(actor.houseId, userId))
-    if (!member?.status.active) return err('not_found')
-    await uow.run({ kind: 'system', houseId: actor.houseId }, (repos) =>
-      repos.pushSubscriptions.save(r.value),
-    )
-    return ok(true as const)
+    const sub = r.value
+    return uow.run({ kind: 'system', houseId: actor.houseId }, async (repos) => {
+      const member = await repos.members.get(actor.houseId, userId)
+      if (!member?.status.active) return err('not_found')
+      const saved = await repos.pushSubscriptions.byEndpoint(sub.endpoint)
+      const someoneElses = saved && saved.userId !== userId && !saved.goneAt
+      if (
+        someoneElses &&
+        (saved.keys.p256dh !== sub.keys.p256dh || saved.keys.auth !== sub.keys.auth)
+      )
+        return err('not_found')
+      await repos.pushSubscriptions.save(sub)
+      return ok(true as const)
+    })
   }
 
 /** Signing out: stop sending to this browser (T84). Only your own browsers are touched. */
@@ -61,8 +70,8 @@ export const makeIsPushSubscriptionSaved =
     uow.run(actor, async (repos): Promise<Result<boolean, never>> => {
       const userId = actorUser(actor)
       if (!userId) return ok(false)
-      const mine = await repos.pushSubscriptions.forUsers([userId])
-      return ok(mine.some((s) => s.endpoint === endpoint))
+      const saved = await repos.pushSubscriptions.byEndpoint(endpoint)
+      return ok(saved?.userId === userId && !saved.goneAt)
     })
 
 export const SEND_BATCH = 100
@@ -81,6 +90,17 @@ export const makeSendNotifications =
       let delivered = 0
       let retrying = 0
       let dropped = 0
+      const houseTz = new Map<string, Promise<string | undefined>>()
+      const quietFor = async (userId: UserId, houseId: HouseId) => {
+        if (!houseTz.has(houseId))
+          houseTz.set(
+            houseId,
+            repos.houses.get(houseId).then((h) => h?.settings.timezone),
+          )
+        const [p, houseZone] = await Promise.all([repos.profiles.get(userId), houseTz.get(houseId)])
+        const tz = p?.timezone ?? houseZone
+        return tz ? { tz, quiet: p?.quietHours ?? DEFAULT_QUIET_HOURS } : null
+      }
       for (const m of pending) {
         const subs = await repos.pushSubscriptions.forUsers([m.userId])
         const outcomes: PushOutcome[] = []
@@ -96,7 +116,10 @@ export const makeSendNotifications =
         const next = afterAttempt(outcomes, m.attempts, now)
         if (next.kind === 'retry') {
           retrying++
-          await repos.notifications.retryLater(m.id, next.at, m.attempts + 1, next.error)
+          // A retry waits out their quiet hours too, as the first try did (T84).
+          const q = await quietFor(m.userId, m.houseId)
+          const at = q ? sendAfter(next.at, q.tz, q.quiet) : next.at
+          await repos.notifications.retryLater(m.id, at, m.attempts + 1, next.error)
         } else {
           if (!next.error) delivered++
           await repos.notifications.markSent(m.id, now, next.error)

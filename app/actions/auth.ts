@@ -1,6 +1,5 @@
 'use server'
 
-import { redirect } from 'next/navigation'
 import { makeForgetPushSubscription } from '@/lib/app/push'
 import { authForRequest, depsForRequest, logUnexpected } from '@/lib/compose'
 import { err, ok, type Result } from '@/lib/domain/result'
@@ -38,9 +37,10 @@ export async function verifyCode(
 
 /**
  * Signs out. `input.endpoint` is this browser's push endpoint, if it had one: it stops getting
- * your notifications (T84), so the next person on a shared phone doesn't see them.
+ * your notifications (T84), so the next person on a shared phone doesn't see them. Answers rather
+ * than redirecting, so the browser unsubscribes only once this went through.
  */
-export async function signOut(input?: unknown): Promise<void> {
+export async function signOut(input?: unknown): Promise<Result<void, 'unexpected'>> {
   const push = pushEndpointSchema.safeParse(input)
   const userId = push.success ? await currentUserId() : null
   if (push.success && userId) {
@@ -52,6 +52,10 @@ export async function signOut(input?: unknown): Promise<void> {
     }
   }
   const sb = await requestSupabase()
-  await sb.auth.signOut()
-  redirect('/sign-in')
+  const { error } = await sb.auth.signOut()
+  if (error) {
+    logUnexpected('action')(error)
+    return err('unexpected')
+  }
+  return ok(undefined)
 }

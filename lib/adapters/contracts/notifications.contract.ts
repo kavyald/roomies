@@ -201,6 +201,10 @@ export const notificationsContract = (
       expect(await mine(retryAt)).toEqual([expect.objectContaining({ id: m!.id, attempts: 1 })])
       await h.uow.run(sys, (r) => r.notifications.markSent(m!.id, retryAt, null))
       expect(await mine(retryAt)).toEqual([])
+      // A sent message isn't put off again.
+      await expect(
+        h.uow.run(sys, (r) => r.notifications.retryLater(m!.id, retryAt, 2, 'push_failed')),
+      ).rejects.toBeInstanceOf(Error)
     })
 
     it('a browser moves to whoever turns notifications on with it; signing out forgets it (T84)', async () => {
@@ -230,10 +234,24 @@ export const notificationsContract = (
       // The system moves it (the device proved it holds the endpoint).
       await h.uow.run(sys, (r) => r.pushSubscriptions.save(sub(admin, 'p2')))
       expect(await owners()).toEqual([[admin, 'p2']])
+      // By endpoint: a member sees only their own; the system sees any.
+      expect(
+        await h.uow.run(asMember(house.id, member), (r) =>
+          r.pushSubscriptions.byEndpoint(endpoint),
+        ),
+      ).toBeNull()
+      expect(
+        await h.uow.run(asMember(house.id, admin), (r) => r.pushSubscriptions.byEndpoint(endpoint)),
+      ).toMatchObject({ userId: admin, endpoint, keys: { p256dh: 'p2', auth: 'a' } })
       await h.uow.run({ kind: 'user', userId: admin }, (r) =>
         r.pushSubscriptions.forget(endpoint, T),
       )
       expect(await owners()).toEqual([])
+      // Forgetting again keeps when it went.
+      await h.uow.run(sys, (r) => r.pushSubscriptions.forget(endpoint, instant(T.epochMs + 1000)))
+      expect(
+        (await h.uow.run(sys, (r) => r.pushSubscriptions.byEndpoint(endpoint)))?.goneAt,
+      ).toEqual(T)
     })
 
     it('a reminder with the same dedupe key is written once', async () => {

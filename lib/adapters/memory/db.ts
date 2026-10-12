@@ -352,7 +352,8 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
       retryLater: async (id, at, attempts, error) => {
         if (a.kind !== 'system') deny('notifications_outbox')
         const m = s.outbox.find((x) => x.id === id)
-        if (m) Object.assign(m, { sendAfter: at, attempts, error })
+        if (!m || m.sentAt) return deny('notifications_outbox')
+        Object.assign(m, { sendAfter: at, attempts, error })
       },
     },
     pushSubscriptions: {
@@ -372,9 +373,13 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
           })
         } else s.pushSubs.set(sub.id, sub)
       },
+      byEndpoint: async (endpoint) =>
+        [...s.pushSubs.values()].find(
+          (x) => x.endpoint === endpoint && (a.kind === 'system' || x.userId === uid(a)),
+        ) ?? null,
       forget: async (endpoint, at) => {
         for (const x of s.pushSubs.values())
-          if (x.endpoint === endpoint && (a.kind === 'system' || x.userId === uid(a)))
+          if (x.endpoint === endpoint && !x.goneAt && (a.kind === 'system' || x.userId === uid(a)))
             s.pushSubs.set(x.id, { ...x, goneAt: at })
       },
       forUsers: async (userIds) =>

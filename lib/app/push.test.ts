@@ -16,9 +16,9 @@ const setup = async () => {
   const deps = depsForTest()
   const s = await sampleHouse(deps.uow, deps.ids, async () => deps.ids.newId<'user'>() as UserId)
   const as = (who: keyof typeof s.people) => asMember(s.house.id, s.people[who])
-  const subscribe = (who: keyof typeof s.people, endpoint: string) =>
+  const subscribe = (who: keyof typeof s.people, endpoint: string, auth = 'a') =>
     makeSavePushSubscription(deps)(as(who), {
-      subscription: { endpoint, keys: { p256dh: 'p', auth: 'a' } },
+      subscription: { endpoint, keys: { p256dh: 'p', auth } },
     })
   const assignTo = async (who: keyof typeof s.people) => {
     const r = await makeCreateItem(deps)(as('Kavya'), { category: 'task', title: 'Fix the latch' })
@@ -147,6 +147,27 @@ describe('a shared phone (T84)', () => {
     expect(await t.isSaved('Sam', phone)).toEqual({ ok: true, value: true })
   })
 
+  it("knowing someone's endpoint isn't enough to take their browser", async () => {
+    const t = await setup()
+    await t.subscribe('Wren', phone)
+    expect(await t.subscribe('Sam', phone, 'guessed')).toEqual({ ok: false, error: 'not_found' })
+    expect(await t.isSaved('Wren', phone)).toEqual({ ok: true, value: true })
+    // Once Wren signed out on it, it's free for whoever turns it on next.
+    await t.forget('Wren', phone)
+    expect(await t.subscribe('Sam', phone, 'fresh')).toEqual({ ok: true, value: true })
+    expect(await t.isSaved('Sam', phone)).toEqual({ ok: true, value: true })
+  })
+
+  it('signing out again leaves the first sign-out time', async () => {
+    const t = await setup()
+    await t.subscribe('Wren', phone)
+    await t.forget('Wren', phone)
+    const first = [...t.deps.uow.state.pushSubs.values()][0]?.goneAt
+    t.later(MS_PER_HOUR)
+    await t.forget('Wren', phone)
+    expect([...t.deps.uow.state.pushSubs.values()][0]?.goneAt).toEqual(first)
+  })
+
   it("forgetting touches only your own browsers, and only a house's members save one", async () => {
     const t = await setup()
     await t.subscribe('Wren', phone)
@@ -182,6 +203,31 @@ describe('passing push failures (T84)', () => {
     expect(await t.send()).toMatchObject({ value: { messages: 1, delivered: 1, retrying: 0 } })
     expect(t.deps.push.sent.map((x) => x.endpoint)).toEqual(['https://push.example/sam'])
     expect(t.deps.uow.state.outbox.at(-1)?.sentAt).toBeDefined()
+  })
+
+  it('a retry that would land in quiet hours waits for them to end', async () => {
+    const t = await setup()
+    await t.subscribe('Sam', 'https://push.example/sam')
+    t.deps.push.failing.add('https://push.example/sam')
+    // 9:58pm: the 5-minute retry would be 10:03pm, so it waits for 8am.
+    t.later(9 * MS_PER_HOUR + 58 * MS_PER_MINUTE)
+    await t.assignTo('Sam')
+    expect(await t.send()).toMatchObject({ value: { retrying: 1 } })
+    const retry = t.deps.uow.state.outbox.at(-1)?.sendAfter
+    expect(retry?.epochMs).toBe(
+      plusMs(t.deps.clock.now(), 10 * MS_PER_HOUR + 2 * MS_PER_MINUTE).epochMs,
+    )
+  })
+
+  it("a refusal that won't pass isn't tried again, and the browser is kept", async () => {
+    const t = await setup()
+    await t.subscribe('Sam', 'https://push.example/sam')
+    t.deps.push.rejecting.add('https://push.example/sam')
+    await t.assignTo('Sam')
+    expect(await t.send()).toMatchObject({ value: { delivered: 0, retrying: 0 } })
+    expect(t.deps.uow.state.outbox.at(-1)).toMatchObject({ error: 'push_rejected' })
+    expect(t.deps.uow.state.outbox.at(-1)?.sentAt).toBeDefined()
+    expect(await t.isSaved('Sam', 'https://push.example/sam')).toEqual({ ok: true, value: true })
   })
 
   it('gives up after 5 minutes, 30 minutes and 2 hours, keeping why', async () => {

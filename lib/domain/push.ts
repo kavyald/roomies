@@ -26,13 +26,15 @@ export type BrowserSubscription = {
 export type PendingMessage = OutboxMessage & { readonly id: number; readonly attempts: number }
 
 /**
- * What a push service said about one delivery. `failed` is anything but gone (5xx, 429, a timeout,
- * no network), with how long it asked us to wait when it said (429 / 503 Retry-After).
+ * What a push service said about one delivery. `failed` may pass (5xx, 429, a timeout, no network),
+ * with how long it asked us to wait when it said (429 / 503 Retry-After); `rejected` won't (another
+ * 4xx: a bad payload, the VAPID keys don't match), so it isn't retried, but the browser is kept.
  */
 export type PushOutcome =
   | { readonly kind: 'sent' }
   | { readonly kind: 'gone' }
   | { readonly kind: 'failed'; readonly retryAfterMs?: number }
+  | { readonly kind: 'rejected' }
 
 /** Checks what the browser sent before storing it. */
 export const newSubscription = (
@@ -75,9 +77,10 @@ export type AfterAttempt =
 
 /**
  * Delivered if any browser took it. Otherwise final when there's nothing to retry ("no_subscription"
- * when they haven't turned notifications on anywhere, "subscriptions_gone"), and a passing failure
- * (5xx, 429, a timeout) is tried again after 5 minutes, 30 minutes and 2 hours, or later if the
- * push service asked, then given up on as "push_failed". `retriesSoFar` is the message's attempts.
+ * when they haven't turned notifications on anywhere, "subscriptions_gone", "push_rejected"), and a
+ * passing failure (5xx, 429, a timeout) is tried again after 5 minutes, 30 minutes and 2 hours, or
+ * later if the push service asked, then given up on as "push_failed". `retriesSoFar` is the
+ * message's attempts.
  */
 export const afterAttempt = (
   outcomes: readonly PushOutcome[],
@@ -88,6 +91,7 @@ export const afterAttempt = (
   if (outcomes.some((o) => o.kind === 'sent')) return done(null)
   if (outcomes.length === 0) return done('no_subscription')
   if (outcomes.every((o) => o.kind === 'gone')) return done('subscriptions_gone')
+  if (!outcomes.some((o) => o.kind === 'failed')) return done('push_rejected')
   const delay = RETRY_DELAYS_MS[retriesSoFar]
   if (delay === undefined) return done('push_failed')
   const asked = Math.max(...outcomes.map((o) => (o.kind === 'failed' && o.retryAfterMs) || 0))

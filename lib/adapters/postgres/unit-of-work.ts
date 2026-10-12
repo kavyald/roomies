@@ -39,6 +39,7 @@ import {
   memberToRow,
   profileToDomain,
   profileToRow,
+  pushSubToDomain,
   roomToDomain,
   pollOptionToRow,
   pollToDomain,
@@ -69,11 +70,12 @@ type PgError = { code?: string; constraint?: string; message?: string }
  * (`insert … on conflict do update`) also applies SELECT policies to the new row, which would
  * block legitimate first writes such as setting up the house before you're its member.
  * A primary-key clash on the insert means the row exists but isn't yours to change; so does a
- * push subscription's endpoint (a browser saved under someone else, T84).
+ * clash on any of `ownedBy`, unique keys that also pin a row to its owner.
  */
 const save = async (
   update: () => Promise<{ numUpdatedRows: bigint }>,
   insert: () => Promise<unknown>,
+  ownedBy: readonly string[] = [],
 ): Promise<void> => {
   const { numUpdatedRows } = await update()
   if (numUpdatedRows > BigInt(0)) return
@@ -83,7 +85,7 @@ const save = async (
     const pe = e as PgError
     if (
       pe.code === UNIQUE_VIOLATION &&
-      (pe.constraint?.endsWith('_pkey') || pe.constraint === 'push_subscriptions_endpoint_key')
+      (pe.constraint?.endsWith('_pkey') || ownedBy.includes(pe.constraint ?? ''))
     ) {
       throw new AccessDenied(`Not allowed to change this row (${pe.constraint})`)
     }
@@ -558,7 +560,16 @@ const reposFor = (trx: Trx): Repos => {
                 created_at: toDate(sub.createdAt),
               })
               .execute(),
+          ['push_subscriptions_endpoint_key'],
         )
+      },
+      byEndpoint: async (endpoint) => {
+        const r = await trx
+          .selectFrom('push_subscriptions')
+          .selectAll()
+          .where('endpoint', '=', endpoint)
+          .executeTakeFirst()
+        return r ? pushSubToDomain(r) : null
       },
       forUsers: async (userIds) =>
         userIds.length === 0
@@ -570,15 +581,7 @@ const reposFor = (trx: Trx): Repos => {
                 .where('user_id', 'in', [...userIds])
                 .where('gone_at', 'is', null)
                 .execute()
-            ).map((r) => ({
-              id: r.id,
-              userId: r.user_id as UserId,
-              endpoint: r.endpoint,
-              keys: { p256dh: r.p256dh, auth: r.auth },
-              ...(r.user_agent && { userAgent: r.user_agent }),
-              createdAt: toInstant(r.created_at),
-              ...(r.last_ok_at && { lastOkAt: toInstant(r.last_ok_at) }),
-            })),
+            ).map(pushSubToDomain),
       markOk: async (id, at) => {
         await trx
           .updateTable('push_subscriptions')
@@ -599,6 +602,7 @@ const reposFor = (trx: Trx): Repos => {
           .updateTable('push_subscriptions')
           .set({ gone_at: toDate(at) })
           .where('endpoint', '=', endpoint)
+          .where('gone_at', 'is', null)
           .execute()
       },
     },

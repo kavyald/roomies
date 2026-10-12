@@ -17,6 +17,7 @@ const keys = { p256dh: 'p', auth: 'a' }
 const sent: PushOutcome = { kind: 'sent' }
 const gone: PushOutcome = { kind: 'gone' }
 const failed: PushOutcome = { kind: 'failed' }
+const rejected: PushOutcome = { kind: 'rejected' }
 
 describe('push', () => {
   it('stores a real https subscription, and refuses anything else', () => {
@@ -64,6 +65,11 @@ describe('push', () => {
       kind: 'done',
       error: 'subscriptions_gone',
     })
+    expect(afterAttempt([gone, rejected], 0, now)).toEqual({ kind: 'done', error: 'push_rejected' })
+  })
+
+  it('a refusal beside a passing failure is still tried again', () => {
+    expect(afterAttempt([rejected, failed], 0, instant(0))).toMatchObject({ kind: 'retry' })
   })
 
   it('a passing failure is tried again after 5 min, 30 min and 2 h, then given up on', () => {

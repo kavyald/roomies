@@ -168,10 +168,12 @@ export interface NotificationRepo {
 export interface PushSubscriptionRepo {
   /**
    * Adds this browser, or refreshes it (same endpoint). A browser saved under someone else moves to
-   * `sub.userId`, which only the system may do (T84: the device proved it holds the endpoint).
+   * `sub.userId`, which only the system may do (T84; the use case checks the keys match first).
    */
   save(sub: PushSubscription): Promise<void>
-  /** This browser signed out: stop sending to it (your own browsers only). */
+  /** The browser with this endpoint, gone or not (a member sees only their own). */
+  byEndpoint(endpoint: string): Promise<PushSubscription | null>
+  /** This browser signed out: stop sending to it (your own browsers only; gone ones stay as they were). */
   forget(endpoint: string, at: Instant): Promise<void>
   /** Their browsers that still work. */
   forUsers(userIds: readonly UserId[]): Promise<PushSubscription[]>
