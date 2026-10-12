@@ -88,8 +88,8 @@ Owner guidance:
 - (none yet)
 
 ### ../CLAUDE.md
-Governs: how Claude works in this repo. "Current state" (which milestones are done, what runs locally, the repo tree, the surprises list), the Weyve rules (task IDs, milestones, tags, edges, the card-update table), the definition of done, how to build (branches, docs-check, commit and push rules), and the architecture rules summary.
-Notes: check it fully, not lightly. Flag a diff that makes any statement in it wrong: a milestone or card finished without updating "Current state", a new top-level folder or `lib/` module missing from the tree, a new gotcha worth a "Surprises" bullet, a changed command, a branch or push rule that the workflow no longer follows, or an RLS addition beyond the base pattern that isn't in the list. Its architecture rules summarize ARCHITECTURE §4.1; if they drift apart, that's a finding on both. Changes to its process rules (Weyve, branches, commits) are type (c).
+Governs: how Claude works in this repo. "The codebase" (what runs locally, the hosted projects, the repo tree, the surprises list; task status is on Weyve, not here), the Weyve rules (task IDs, milestones, tags, edges, the card-update table), the definition of done, how to build (branches, docs-check, commit and push rules), and the architecture rules summary.
+Notes: check it fully, not lightly. Flag a diff that makes any statement in it wrong: a new top-level folder or `lib/` module missing from the tree, a new gotcha worth a "Surprises" bullet, a changed command, a branch or push rule that the workflow no longer follows, or an RLS addition beyond the base pattern that isn't in the list. Its architecture rules summarize ARCHITECTURE §4.1; if they drift apart, that's a finding on both. Changes to its process rules (Weyve, branches, commits) are type (c).
 Owner guidance:
 - (none yet)
 
