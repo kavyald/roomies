@@ -1,6 +1,6 @@
 # Roomies deployment plan (M5)
 
-**Status:** Plan, decided with the owner on 2026-10-05, 2026-10-06 and 2026-10-08 (§8, security). Nothing here is deployed yet. The tasks are the M5 cards on the Weyve **roomies** board (E1–E6, Q5).  
+**Status:** Plan, decided with the owner on 2026-10-05, 2026-10-06 and 2026-10-08 (§8, security). Staging is live (E1–E3, E6); prod comes with E5. The tasks are the M5 cards on the Weyve **roomies** board (E1–E6, Q5).  
 **Companions:** [ARCHITECTURE.md](./ARCHITECTURE.md) §9 (environments, CI/CD, ops) and A18, A19, A28 · [TESTING.md](./TESTING.md) §5 (CI) and §7 (iPhone checklist)
 
 Where this plan differs from those docs (branches, the second Vercel project, the migration flow), this plan is newer. The docs get updated when the work it describes is built.
@@ -134,6 +134,7 @@ All of the app is built. These deploy pieces aren't, and none of them needs an a
 | ✅ Built (T72): `vercel.json` (`regions: ["iad1"]`), plus an Ignored Build Step: `roomies-prod` sets `ROOMIES_BUILD_ONLY_BRANCH=main` and skips every other branch | E2 |
 | ✅ Built (T72): `pnpm cron:vault set` stores the hosted Vault secrets, `pnpm cron:vault check` shows the jobs' last runs and responses (`scripts/cron-vault.mjs`) | E3 |
 | ✅ Built (T72): the smoke suite: `pnpm test:smoke`, `e2e/smoke.spec.ts`, sign-in through the admin API, the smoke house, a read-only mode (TESTING §5) | Q5 |
+| ✅ Built (Q5): `.github/workflows/smoke.yml` runs it after each staging deploy (TESTING §5) | Q5 |
 | ✅ Built (T72): the encrypted weekly backup workflow (`backup.yml`, off until `BACKUP_ENABLED`) and `scripts/restore.sh` (ARCHITECTURE §9) | E5 |
 | A deliberate error for the Sentry check, on a throwaway preview branch so it never reaches `staging` | E2 |
 
