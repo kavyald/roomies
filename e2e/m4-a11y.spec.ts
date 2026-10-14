@@ -77,6 +77,17 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()
       await check(page, path)
     }
+    // House → Rooms: the sheet, then a room open to edit in place (T66).
+    await page.goto(`${h}/house`)
+    await page.getByRole('list', { name: 'Rooms' }).getByRole('button').click()
+    const rooms = page.getByRole('dialog', { name: 'Rooms' })
+    await expect(rooms.getByRole('list', { name: 'Bedrooms' })).toBeVisible()
+    await check(page, 'rooms sheet')
+    await rooms.getByRole('button', { name: 'Fire, bedroom', exact: true }).click()
+    await expect(rooms.getByRole('group', { name: 'Edit Fire, bedroom' })).toBeVisible()
+    await check(page, 'rooms sheet (editing)')
+    await page.keyboard.press('Escape')
+    await expect(rooms).toBeHidden()
     // The emoji tray on a row, and + on Needs (straight to a need, with Add another).
     await page.goto(`${h}/needs`)
     await page.getByRole('button', { name: 'Share a feeling: Olive oil' }).click()

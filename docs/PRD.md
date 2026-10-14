@@ -395,7 +395,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D28 | Sign-in codes come from a house Gmail address, and the app lives at a `*.vercel.app` URL. No custom domain in v1. | Owner |
 | D29 | Everything that needs an outside account is its own, later milestone (M5). M0–M4 are built and checked entirely on one Mac. | Owner |
 | D30 | Removing an item is called "Delete" in the app. The row stays for history and the toast offers Undo. No archive list, no 30-day window (T62). | Owner |
-| D31 | House → Rooms is a compact grid grouped Bedrooms / Bathrooms / Spaces (T60) | Owner |
+| D31 | House → Rooms is one row that opens a sheet of plain names grouped Bedrooms / Bathrooms / Spaces, renamed in place (T66; T60's grid had icons) | Owner |
 | D32 | Extra pushes: feeling weights changed, a new poll option, a new point person, tasks moved into a visit (T59) | Owner |
 | D33 | Offline shows the offline page only. No cached data. | Owner |
 | D34 | Not building: deleting the house, a move-in checklist, a "Handled 💛" toast, adding or archiving rooms, a room's element setting, item counts on rooms | Owner |

@@ -47,8 +47,9 @@ export function HouseScreen({ houseId }: { houseId: HouseId }) {
       <SectionTitle>Contacts</SectionTitle>
       <ContactsSection houseId={houseId} />
 
-      <SectionTitle>Rooms</SectionTitle>
-      <RoomsSection houseId={houseId} />
+      <div className="mt-6">
+        <RoomsSection houseId={houseId} />
+      </div>
 
       <SectionTitle>Settings</SectionTitle>
       <div className="grid gap-3">

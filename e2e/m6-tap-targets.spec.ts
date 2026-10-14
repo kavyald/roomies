@@ -167,18 +167,26 @@ test.describe('at 375pt', () => {
         await expect(page.getByRole('dialog', { name: title })).toBeHidden()
       }
 
-      // The rooms grid (T60) and notification settings (T61): nothing runs off the side, and axe.
+      // House, its Rooms sheet (T66) and notification settings (T61): nothing runs off the side,
+      // and axe.
       await page.goto(`${h}/house`)
+      const roomsRow = page.getByRole('list', { name: 'Rooms' }).getByRole('button')
+      await expect(roomsRow).toBeVisible()
+      await fitsSideways(page, 'house')
+      await roomsRow.click()
+      const rooms = page.getByRole('dialog', { name: 'Rooms' })
       for (const group of ['Bedrooms', 'Bathrooms', 'Spaces']) {
-        const grid = page.getByRole('list', { name: group })
-        await expect(grid).toBeVisible()
-        for (const room of await grid.getByRole('button').all()) {
+        const list = rooms.getByRole('list', { name: group })
+        await expect(list).toBeVisible()
+        for (const room of await list.getByRole('button').all()) {
           const box = (await room.boundingBox())!
           expect(box.x + box.width).toBeLessThanOrEqual(375)
           expect(box.height).toBeGreaterThanOrEqual(44)
         }
       }
-      await fitsSideways(page, 'house')
+      await fitsSideways(page, 'rooms sheet')
+      await page.keyboard.press('Escape')
+      await expect(rooms).toBeHidden()
       await page.goto(`${h}/me/notifications`)
       await expect(page.getByRole('group', { name: 'Tell me when' })).toBeVisible()
       // Reachable, not above the fold: how much fits depends on the fallback font (Linux CI wraps
