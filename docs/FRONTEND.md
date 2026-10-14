@@ -289,7 +289,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 - **Requests & visits** at the top. Unsent lists come first ("Landlord request · not sent yet · 2 tasks"), then sent requests ("Sent 2 days ago by text · waiting on 3"), then visits ("Landlord visit · Thu 10:00 · 2 to look at").
 - Filters: *Mine / All / Outside help*.
 - **+ New** (in the Requests & visits header, which replaces the old Plan a visit button) opens **New request or visit**:
-  - **Ask someone (request):** a contact (or + Someone new) → a checklist of open tasks, with that contact's pre-checked (optional, since it can start empty) → **Start list**. It opens the request, ready for *Add more* or *Send request*.
+  - **Ask someone (request):** a contact (or + Someone new) → a checklist of open tasks, with that contact's pre-checked (optional, since it can start empty; changing the contact keeps every tick and adds the new contact's tasks, T87) → **Start list**. It opens the request, ready for *Add more* or *Send request*.
   - **They've agreed (visit):** a contact → tasks → an optional date → **Plan visit**.
 - The section always shows. With nothing open it's just the heading and **+ New**, with no empty state (T82), so starting a request stays one tap away (or "Add to {Contact} list" on a task).
 - A task with a contact but no run shows **"Add to {Contact} list"** on its detail.
