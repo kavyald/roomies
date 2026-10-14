@@ -74,8 +74,8 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 | `app_writer` role | Created by a migration; no password, never logs in | The same |
 | Enforce SSL (Database settings) | ✅ On (E1) | ✅ On (E1) |
 | Network restrictions | Off for now (decided 2026-10-08, E1). Vercel functions and GitHub Actions connect from IPs that change, and a fixed IP needs Vercel's paid Secure Compute, so an allow-list would break deploys. The database is protected by Enforce SSL, the per-project `app_server` password (Vercel only), the grants and RLS, and MFA on every account. Revisit if the app moves to a plan with fixed outgoing IPs. | The same |
-| Site URL / redirect URLs | The staging URL, plus a wildcard for preview URLs | The prod URL |
-| Vault: `roomies_app_url`, `roomies_cron_secret` | ✅ Staging URL and secret (E3, 2026-10-11) | Prod URL and secret (E5) |
+| Site URL / redirect URLs | The staging URL, plus a wildcard for preview URLs | ✅ `https://our-roomies.vercel.app` and `https://our-roomies.vercel.app/**` (E5, 2026-10-14) |
+| Vault: `roomies_app_url`, `roomies_cron_secret` | ✅ Staging URL and secret (E3, 2026-10-11) | `https://our-roomies.vercel.app` and prod's secret (E5, after the first `main` deploy) |
 | Accounts | Test accounts and the smoke house | Roommates only, through `/setup` and invites. No test account. |
 
 `supabase/seed.sql` is local only and never runs on a hosted project. Auth settings are set by hand in the dashboard, not with `supabase config push`, because `config.toml` has localhost URLs and no SMTP block and could overwrite the Gmail settings.
@@ -91,7 +91,7 @@ staging ──PR──► main ──► Vercel roomies-prod ──► Supabase 
 | `NEXT_PUBLIC_SENTRY_ENVIRONMENT` | `staging` / `production` |
 | `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` | The same in both |
 
-`roomies-prod` skips building any branch but `main`: it sets `ROOMIES_BUILD_ONLY_BRANCH=main`, which `vercel.json`'s Ignored Build Step (`scripts/vercel-ignore-build.sh`) reads.
+`roomies-prod` serves `https://our-roomies.vercel.app` (E5, 2026-10-14: `roomies.vercel.app` and `roomies-app.vercel.app` belong to other people). It skips building any branch but `main`: it sets `ROOMIES_BUILD_ONLY_BRANCH=main`, which `vercel.json`'s Ignored Build Step (`scripts/vercel-ignore-build.sh`) reads.
 
 ### GitHub secrets
 
