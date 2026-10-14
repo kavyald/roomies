@@ -337,8 +337,9 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 | **M4: Notifications & polish** | Push, reminders, polish, end-to-end tests | Reminders and push work locally, and the E2E suite is green in CI |
 | **M5: Hosting & launch** | The external services: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production | Everyone is on production from their phones |
 | **M6: Usability & personal needs** | Fewer taps (swipe, simpler item views, quicker runs), needs for one person or the house, the gaps chosen from the docs↔code audit (D35), docs that match the build | Every action hits its tap target, item views fit at 375pt without scrolling, and personal needs work end to end |
+| **M7: Simpler screens** | Tabs Home, Needs, Tasks, Chores, Admin; Home as one priority list; check-to-save sheets; icon buttons for edit and delete; Appearance apart from Notifications; rooms renamed from one sheet; no monthly cost total | Every M7 screen passes axe at 375pt in light and dark, and the M7 journeys pass |
 
-M6 is built locally before launch, so production waits on its test task (Q6). The tasks are on the **roomies** board in Weyve.
+M6 and M7 are built locally before launch, so production waits on M7's test task (Q7). Work after launch (dates and times, undo, run history, speed, money) is M8. The tasks are on the **roomies** board in Weyve.
 
 ---
 
