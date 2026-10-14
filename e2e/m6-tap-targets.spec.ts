@@ -179,9 +179,13 @@ test.describe('at 375pt', () => {
         const list = rooms.getByRole('list', { name: group })
         await expect(list).toBeVisible()
         for (const room of await list.getByRole('button').all()) {
-          const box = (await room.boundingBox())!
-          expect(box.x + box.width).toBeLessThanOrEqual(375)
-          expect(box.height).toBeGreaterThanOrEqual(44)
+          // Layout size, not boundingBox: the sheet may still be animating open (a transform).
+          const { right, height } = await room.evaluate((el: HTMLElement) => ({
+            right: el.offsetLeft + el.offsetWidth,
+            height: el.offsetHeight,
+          }))
+          expect(right).toBeLessThanOrEqual(375)
+          expect(height).toBeGreaterThanOrEqual(44)
         }
       }
       await fitsSideways(page, 'rooms sheet')

@@ -70,7 +70,7 @@ function RoomsSheet({ houseId, onClose }: { houseId: HouseId; onClose: () => voi
                       type="button"
                       aria-label={`${r.name}, ${roomKindLabel(r.kind)}`}
                       onClick={() => setEditing(r.id)}
-                      className="flex min-h-11 w-full items-center px-3.5 py-2.5 text-left font-bold"
+                      className="flex min-h-[max(2.75rem,44px)] w-full items-center px-3.5 py-2.5 text-left font-bold"
                     >
                       {r.name}
                     </button>
