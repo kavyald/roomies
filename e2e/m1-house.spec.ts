@@ -43,7 +43,8 @@ test('rooms are one row that opens a sheet in three groups, and a room can be re
   await expect(bedrooms.getByRole('button', { name: 'Fire, bedroom', exact: true })).toBeVisible()
   await expect(sheet.getByRole('list', { name: 'Bathrooms' }).getByRole('button')).toHaveCount(3)
   await expect(sheet.getByRole('list', { name: 'Spaces' }).getByRole('button')).toHaveCount(10)
-  await expect(sheet.getByRole('list').locator('svg')).toHaveCount(0) // plain names, no room icons
+  // Plain names, no room icons: the only mark on a row is the edit pencil (T68).
+  await expect(sheet.getByRole('list').locator('svg:not(.lucide-pencil)')).toHaveCount(0)
 
   const spaces = sheet.getByRole('list', { name: 'Spaces' })
   await spaces.getByRole('button', { name: 'Craft room, shared space', exact: true }).click()

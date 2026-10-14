@@ -81,9 +81,14 @@ for (const colorScheme of ['light', 'dark'] as const) {
     }
     // Admin → Rooms: the sheet, then a room open to edit in place (T66).
     await page.goto(`${h}/admin`)
-    await page.getByRole('list', { name: 'Rooms' }).getByRole('button').click()
     const rooms = page.getByRole('dialog', { name: 'Rooms' })
-    await expect(rooms.getByRole('list', { name: 'Bedrooms' })).toBeVisible()
+    // Under a full parallel run the first tap can land before the page hydrates; tap again.
+    await expect(async () => {
+      if (!(await rooms.isVisible())) {
+        await page.getByRole('list', { name: 'Rooms' }).getByRole('button').click()
+      }
+      await expect(rooms.getByRole('list', { name: 'Bedrooms' })).toBeVisible({ timeout: 2000 })
+    }).toPass()
     await check(page, 'rooms sheet')
     await rooms.getByRole('button', { name: 'Fire, bedroom', exact: true }).click()
     await expect(rooms.getByRole('group', { name: 'Edit Fire, bedroom' })).toBeVisible()

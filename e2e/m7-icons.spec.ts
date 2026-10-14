@@ -60,6 +60,7 @@ test('icon buttons: Select all toggles, one Pencil edits, Edit and Delete are di
   }
   await page.keyboard.press('Escape')
   await expect(detail).toBeHidden()
+  await expect(page).toHaveURL(new RegExp(`${h}$`))
 
   // Start a run: Select all is pressed while everything's checked, and clears them.
   await page.goto(`${h}/needs`)
@@ -86,6 +87,7 @@ test('icon buttons: Select all toggles, one Pencil edits, Edit and Delete are di
   }
   await page.keyboard.press('Escape')
   await expect(sheet).toBeHidden()
+  await expect(page).toHaveURL(new RegExp(`${h}$`)) // a deep-linked sheet closes back to Home
 
   // A poll's deadline is changed with the Pencil.
   await page.goto(`${h}/p/${poll}`)
@@ -95,6 +97,7 @@ test('icon buttons: Select all toggles, one Pencil edits, Edit and Delete are di
   await isTapTarget(deadline)
   await page.keyboard.press('Escape')
   await expect(pollSheet).toBeHidden()
+  await expect(page).toHaveURL(new RegExp(`${h}$`))
 
   // Admin: a contact row ends with the Pencil (it opens the editor) and copies with an icon.
   await page.goto(`${h}/admin`)

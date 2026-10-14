@@ -59,6 +59,8 @@ test('a sheet dismisses by Escape, the Close handle, the backdrop, and a swipe d
   await expect(sheet).toBeHidden()
 
   sheet = await openAddSheet(page)
+  // Let the opening slide finish first: under load a drag that starts mid-animation is ignored.
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
   const heading = (await sheet.getByRole('heading', { name: 'Add something' }).boundingBox())!
   await page.mouse.move(heading.x + 20, heading.y + 5)
   await page.mouse.down()
