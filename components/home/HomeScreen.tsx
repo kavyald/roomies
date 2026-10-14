@@ -1,6 +1,7 @@
 'use client'
 
-import { Heart } from 'lucide-react'
+import { CalendarDays, Heart } from 'lucide-react'
+import Link from 'next/link'
 import { useState } from 'react'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { ItemCard } from '@/components/items/ItemCard'
@@ -24,7 +25,6 @@ import type { HouseId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
 import { homeFeed, type FeedFilter } from '@/lib/domain/priority'
 import { visitDateOf } from '@/lib/domain/runs'
-import { ComingUp } from './ComingUp'
 import { OpenPolls } from './OpenPolls'
 import { RunsInProgress } from './RunsInProgress'
 import { WeightsChangedCard } from './WeightsChangedCard'
@@ -34,9 +34,12 @@ const EMPTY: Record<FeedFilter, string> = {
   mine: "Nothing's on you right now.",
 }
 
+/** The list has no visible heading (T81); this is its name for VoiceOver and tests. */
+const LIST_NAME = 'By priority'
+
 /**
- * Home (FRONTEND §5.1): Needs attention, ranked by priority (PRD §8.1). Coming up, polls and runs
- * join in M3.
+ * Home (FRONTEND §5.1): open polls, runs, then one list ranked by priority (PRD §8.1), which also
+ * takes in tasks and needs dated this week (T81). The calendar is a link beside Mine | All.
  */
 export function HomeScreen({ houseId }: { houseId: HouseId }) {
   const { me } = useAppClient()
@@ -91,14 +94,10 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   return (
     <div className="grid gap-4">
       <WeightsChangedCard houseId={houseId} />
-      <ComingUp houseId={houseId} />
       <OpenPolls houseId={houseId} />
       <RunsInProgress houseId={houseId} />
-      <section aria-labelledby="needs-attention" className="grid gap-3">
+      <div className="grid gap-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 id="needs-attention" className="m-0 text-lg font-extrabold">
-            Needs attention
-          </h2>
           <SegmentedControl
             label="Whose items"
             value={filter}
@@ -108,11 +107,17 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
               { value: 'all', label: 'All' },
             ]}
           />
+          <Link
+            href={`/h/${houseId}/calendar`}
+            className="flex min-h-11 items-center gap-1.5 text-sm font-extrabold text-accent-ink"
+          >
+            <CalendarDays aria-hidden className="size-4" /> Calendar
+          </Link>
         </div>
         {feed.length === 0 ? (
           <EmptyState icon={Heart}>{EMPTY[filter]}</EmptyState>
         ) : (
-          <ul aria-label="Needs attention" className="m-0 grid list-none gap-3 p-0">
+          <ul aria-label={LIST_NAME} className="m-0 grid list-none gap-3 p-0">
             {feed.map(({ item, tier }) => {
               const feelings = feelingsBy.get(item.id)
               return (
@@ -133,7 +138,7 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
             })}
           </ul>
         )}
-      </section>
+      </div>
     </div>
   )
 }

@@ -342,7 +342,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
             <tr><td class="mono">/sign-in</td><td>Email → 6-digit code (one field, iOS one-time-code autofill)</td></tr>
             <tr><td class="mono">/setup/[token]</td><td>One-time house creation; dead once a house exists</td></tr>
             <tr><td class="mono">/join/[token]</td><td>Name, email, code, pick your bedroom</td></tr>
-            <tr><td class="mono">/h/[id]</td><td>Home: Coming up, Open polls, Runs in progress, ranked feed (Mine / All)</td></tr>
+            <tr><td class="mono">/h/[id]</td><td>Home: Open polls, Runs in progress, one ranked list (Mine / All) with a Calendar link</td></tr>
             <tr><td class="mono">/h/[id]/needs · chores · tasks</td><td>The three item tabs; Tasks also holds Requests &amp; visits</td></tr>
             <tr><td class="mono">/h/[id]/house</td><td>Feeling weights, rooms, contacts, roommates, invites, spent this month</td></tr>
             <tr><td class="mono">/h/[id]/activity · calendar · me</td><td>History log, month calendar, personal settings</td></tr>
@@ -535,7 +535,7 @@ const LAYERS = [
     ['remindersFor · choreDueDate','Day-before and day-of reminders with dedupe keys, so reruns enqueue nothing.'],
     ['isQuiet · sendAfter · deliver · pushPayload · afterAttempt','Quiet hours hold a message until they end; a passing push failure is tried again (5 min, 30 min, 2 h).'] ]},
   { name:'calendar · invites · members · setup · time', desc:'the rest', fns:[
-    ['calendarEntries · comingUp · byDay · monthGrid','Built from items and runs already loaded; no separate calendar query.'],
+    ['calendarEntries · comingUp · homeRuns · byDay · monthGrid','Built from items and runs already loaded; no separate calendar query.'],
     ['validateInvite · createInvite · acceptInvite · openBedrooms','Expired / revoked / used_up as typed errors.'],
     ['moveOut · setRole · anonymizeProfile · setupHouse · safeEqual','“Former roommate” keeps history intact.'],
     ['localDateOf · instantAt · startOfDay · calendarDaysBetween','Hand-written time zone and DST handling, tested across both DST nights.'] ]}

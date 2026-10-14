@@ -224,12 +224,10 @@ Tabs: **Home · Needs · Chores · Tasks · House**. The calendar opens from Hom
 ```
 ┌───────────────────────────────┐
 │ Home                    (KD)  │  ← your avatar → personal settings
-│ Coming up              All ›  │  ← next 7 days: dated tasks, needs, runs
-│ [Thu 10:00 Super visit]       │
-│ [Sat Wren's grocery run]      │
 │ Open polls                    │  ← "Which vacuum? · 2/4 voted"
-│ Runs in progress              │  ← "Wren's grocery run · 1/3 · Sat"
-│ Needs attention    Mine | All │
+│ Runs in progress              │  ← open batches + visits this week
+│ [Thu 10:00 Super visit]       │     ("Wren's grocery run · 1/3 · Sat")
+│ Mine | All        📅 Calendar │  ← no heading: one list by priority
 │ ┌───────────────────────────┐ │
 │ │ ●● Top [✓ Task]   😤1     │ │
 │ │ Leak under the sink       │ │
@@ -244,6 +242,7 @@ Tabs: **Home · Needs · Chores · Tasks · House**. The calendar opens from Hom
 - **Card:** one line with the tier chip (and, on Home only, the category chip) and the feelings ("😤1 🙏2") → title → at most three chips: "For Kavya" on a personal need (T45), the room, then "On X's run" or, when it isn't on a run, "Handled by: Landlord" → one meta line (the assignee's avatar + the date, or "Last done 9 days ago · Wren"). On the Chores tab the first line shows the chore's rhythm ("About every 7 days") instead of a category. The card's button is named by the title; the rest is its description.
 - **Beside the card:** the check circle (**Done** / **Got it** / **Did it**, whose toast offers **Undo**) and, under it, **🙂+**, which opens the emoji tray under the card (§5.2). Neither sits inside the card's button.
 - **Swipe** (cards here and on Chores and Tasks, and Needs rows): right = finish it (the same as the check circle, with **Undo** in the toast), left = open the emoji tray. Only sideways drags count, so the list still scrolls, and a drag is never a tap. While dragging, the card slides over a strip that says what letting go does ("✓ Done" on the left, "🙂 Feeling" on the right); short of 88px it springs back and nothing happens. The buttons are the non-swipe way for VoiceOver and keyboards, and reduced motion makes the spring back instant.
+- **One list (T81):** there's no "Coming up" or "Needs attention" heading. Everything that needs attention and every open task or need dated in the next 7 days sit in one list ranked by priority (PRD §8.1), each once; a dated card still shows its date on its meta line. VoiceOver names the list "By priority". Dated runs live in **Runs in progress** (every open batch, plus visits dated this week), and **📅 Calendar** beside *Mine | All* opens the month calendar (§5.10).
 - A card appears when someone changes the feeling weights ("Maya set 😰 Anxious to +30").
 
 ### 5.2 Sharing a feeling (the most important interaction)

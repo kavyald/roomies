@@ -36,7 +36,7 @@ test('a roommate who is not an admin sets 😰 to +40, and the feed re-ranks for
     return page
   }
   const kavya = await open(owner.email)
-  const feed = kavya.getByRole('list', { name: 'Needs attention' }).getByRole('listitem')
+  const feed = kavya.getByRole('list', { name: 'By priority' }).getByRole('listitem')
   await expect(feed.first()).toContainText('Replace hallway bulb')
   await expect(feed.nth(1)).toContainText('Toilet paper')
 

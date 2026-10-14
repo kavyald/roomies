@@ -274,4 +274,29 @@ describe('homeFeed', () => {
   it('Mine shows only what is assigned to me', () => {
     expect(feed('mine').map((e) => e.item.title)).toEqual(['Leak'])
   })
+
+  it('takes in open tasks and needs dated this week (what Coming up showed), each once (T81)', () => {
+    const visit = { id: asId<'run'>('v') as RunId, kind: 'visit' as const }
+    const dated: Item[] = [
+      task('Super fixes the sink', { run: visit, when: { date: day(5) } }), // visit too far for the feed
+      task('Super paints', { run: visit, when: { date: day(7) } }), // past the week
+      task('Super, undated', { run: visit }),
+      task('Super, last week', { run: visit, when: { date: day(-1) } }),
+      task('Done already', { run: visit, when: { date: day(1) }, done: { at: NOW, by: me } }),
+      need('Milk', { when: { date: day(2) } }), // in the feed and this week: once
+      chore('Mop', { repeatDays: null, lastDone: { at: at(-1), by: me } }),
+    ]
+    const list = homeFeed(dated, () => [], {
+      weights: DEFAULT_FEELING_WEIGHTS,
+      now: NOW,
+      tz: TZ,
+      filter: 'all',
+      me,
+      visitDate: () => day(5),
+    })
+    expect(list.map((e) => `${e.item.title} ${e.score}`)).toEqual([
+      'Milk 40',
+      'Super fixes the sink 30',
+    ])
+  })
 })

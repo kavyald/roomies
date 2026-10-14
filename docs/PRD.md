@@ -92,7 +92,7 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 
 | Tab | Contents |
 |---|---|
-| **Home** | **Coming up** (the next 7 days of dated items and runs; tap for the calendar), **Open polls**, **Runs in progress**, then the ranked **Needs attention** feed (*Mine / All*) |
+| **Home** | **Open polls**, **Runs in progress** (open batches, plus visits dated in the next 7 days), then one unlabeled list ranked by priority (*Mine / All*): the feed (§8.1) plus any task or need dated in the next 7 days, each once. A **Calendar** link beside *Mine / All* opens the month calendar. |
 | **Needs** | The shared list of things to buy. Needs with a feeling come first. **Start a run** from here. |
 | **Chores** | Chores, sorted by what's due for a go, with "last done" |
 | **Tasks** | **Requests & visits** (unsent and sent requests, planned visits) with **+ New** (start a request or plan a visit), then tasks with filters *Mine / All / Outside help* |
@@ -208,7 +208,7 @@ A run is **a batch of items handled together**. There are three kinds:
 - **Batches** have an optional **Spent** amount beside **Finish** ("Did you spend money?" without a separate step): an amount records one cost paid by you (who paid can be changed), and leaving it empty records none (§6.6).
 - **Fewer taps:** *Start a run* opens with every open need not already on a run checked, and in a batch tapping an item marks it done (tap again to put it back on the run). A grocery run (start, get 3 things, finish with $40) is about 6 taps.
 - While open, items show **"On Kavya's run"** or **"Sent to Landlord · 2 days ago"** so nobody doubles up. **An item can be on only one open run at a time.**
-- Runs with a date show in Coming up and on the calendar.
+- Runs with a date show on the calendar; open batches and visits dated in the next 7 days also show on Home under Runs in progress.
 
 ### 6.6 Money (costs)
 
@@ -222,7 +222,7 @@ A run is **a batch of items handled together**. There are three kinds:
 ### 6.7 Calendar
 
 - Shows **anything with a date**: tasks, needs with a needed-by date, and runs (grocery runs, deliveries, visits, party setup).
-- **Coming up** (Home) shows the next 7 days. The full calendar is a month grid with a day list.
+- Home takes in the next 7 days (dated tasks and needs join its ranked list, dated runs show under Runs in progress) and links to the calendar. The full calendar is a month grid with a day list.
 - A plain heads-up ("Jo's parents staying Sat") is a **task with a date** in v1.
 
 ---
@@ -267,7 +267,7 @@ clamped to 0–100
 
 Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (20–44), **Low** (< 20). Tapping it shows **"Why is this here?"**, the breakdown (e.g. "Due tomorrow +25, 😰 Maya +20").
 
-**What's in the feed:** tasks that aren't done, **except tasks on a visit** (the contact has taken them on). Those come back only if someone shares a feeling or the visit is within 3 days. Chores past their rhythm, or with a feeling. Needs with a feeling or a needed-by date within 7 days. Polls and runs have their own sections on Home.
+**What's in the feed:** tasks that aren't done, **except tasks on a visit** (the contact has taken them on). Those come back only if someone shares a feeling or the visit is within 3 days. Chores past their rhythm, or with a feeling. Needs with a feeling or a needed-by date within 7 days. Polls and runs have their own sections on Home. Home's list also takes in any open task or need dated in the next 7 days, so nothing with a date this week drops off Home.
 
 ### 8.2 Settings: feeling weights **[DECIDED] (owner)**
 

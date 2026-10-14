@@ -641,7 +641,7 @@ select changes, actor_id, at from activity_events
 
 ### 7.1 Priority
 
-- **One pure function:** `scorePriority(item, feelings, weights, now, tz): { score, tier, breakdown }`. `weights` comes from `HouseSettings.feelingWeights`, and `now` is an argument. It runs in the browser (`homeFeed`, the Home screen's Needs attention) and in tests with a fixed clock.
+- **One pure function:** `scorePriority(item, feelings, weights, now, tz): { score, tier, breakdown }`. `weights` comes from `HouseSettings.feelingWeights`, and `now` is an argument. It runs in the browser (`homeFeed`, the Home screen's one list) and in tests with a fixed clock.
 - **`isInFeed(item, feelings, now, tz, { visitDate })`** applies the PRD §8.1 rules: tasks not done (except those on a visit, unless there's a feeling or the visit is within 3 days), chores past their rhythm or with a feeling, and needs with a feeling or needed-by within 7 days.
 - **Never stored**, because it depends on today's date.
 
@@ -661,7 +661,7 @@ select changes, actor_id, at from activity_events
 | `needList` / `choreList` / `taskList` | `(items, feelingScore?)` / `(items, now, tz)` / `(items, filter: 'mine' \| 'all' \| 'outside', me)` | The Needs, Chores and Tasks screens' order and filters; `isChoreDue`, `choreLateness`, `daysSinceDone` back them |
 | `scorePriority` | `(i: Item, f: Feeling[], w: FeelingWeights, now, tz) → { score, tier, breakdown }` | PRD §8.1; `describePart` words the breakdown ("Why is this here?") |
 | `isInFeed` | `(i: Item, f: Feeling[], now, tz, { visitDate? }) → boolean` | PRD §8.1 rules (§7.1) |
-| `homeFeed` | `(items, feelingsOf, { weights, now, tz, filter: 'mine' \| 'all', me, visitDate? }) → FeedEntry[]` | Needs attention: in-feed items, highest score first, then the sooner date, then the newest |
+| `homeFeed` | `(items, feelingsOf, { weights, now, tz, filter: 'mine' \| 'all', me, visitDate? }) → FeedEntry[]` | Home's one list (T81): in-feed items plus open tasks and needs dated in the next 7 days (`isComingUp`), each once; highest score first, then the sooner date, then the newest |
 | **Feelings and weights** (`feelings.ts`, `weights.ts`) | | |
 | `setFeeling` | `(current: Feeling \| null, next: { kind, note? } \| null, ctx: { itemId, by, now, actionId }) → Result<{ feeling \| null; events }, 'no_change' \| 'note_too_long'>` | The event carries `previous`; `earlierFeelings(rows)` reads them back, leaving out a version whose note was added or edited on the same feeling |
 | `isValidWeight` / `stepWeight` | `(n) → boolean` / `(n, ±1) → number` | −20…+40, steps of 5 |
@@ -705,7 +705,7 @@ select changes, actor_id, at from activity_events
 | `createContact` / `editContact` / `removeContact` | `(input, houseId, by, id, actionId)` / `(c, patch, by, actionId)` / `(c, by, now, actionId)` | Removing archives (activity rows point at contacts) |
 | `updateSettings` | `(p: Profile, patch: SettingsPatch) → Result<Profile, 'bad_time' \| 'no_change'>` | Theme and quiet hours |
 | **Calendar** (`calendar.ts`) | | |
-| `calendarEntries` / `comingUp` | `(items, runs, from, to) → CalendarEntry[]` / `(items, runs, today)` | Open tasks, needs with a needed-by date, and batches and visits with a date; Coming up is the next 7 days. `byDay`, `monthRange`, `shiftMonth`, `monthGrid` lay out the month. |
+| `calendarEntries` / `comingUp` / `isComingUp` / `homeRuns` | `(items, runs, from, to) → CalendarEntry[]` / `(items, runs, today)` / `(item, today) → boolean` / `(runs, today) → (Batch \| Visit)[]` | Open tasks, needs with a needed-by date, and batches and visits with a date; `comingUp` is the next 7 days, `isComingUp` asks it of one item (Home's list takes those in), and `homeRuns` is Home's Runs in progress (open batches plus visits this week). `byDay`, `monthRange`, `shiftMonth`, `monthGrid` lay out the month. |
 | **Activity and notifications** (`events.ts`, `activity.ts`, `notifications.ts`, `reminders.ts`, `push.ts`) | | |
 | `activityRowFor` | `(e: DomainEvent, houseId, at) → ActivityRow` | Subjects become typed columns; `payload` holds extras only |
 | `activityLine` / `activityFeed` | `(rows sharing an action_id, names: ActivityNames, viewer: { isAdmin }) → FeedLine \| null` / `(rows, names, viewer) → FeedLine[]` | `names` comes from `activityNames(subjects, house)` (A24). Hidden kinds are left out, and admin-only kinds show only to admins. One line per action, newest first. `pageAtActionBoundary` keeps an action on one page. |

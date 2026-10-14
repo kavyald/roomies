@@ -7,22 +7,21 @@ import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { useHouse, useItems, useRunActivity, useRuns } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import { describeWhen } from '@/lib/domain/format'
+import { homeRuns } from '@/lib/domain/calendar'
 import type { HouseId } from '@/lib/domain/ids'
-import { isRunOpen, runLedger, runProgress, runSteps, type Run } from '@/lib/domain/runs'
+import { runLedger, runProgress, runSteps, type Run } from '@/lib/domain/runs'
+import { localDateOf } from '@/lib/domain/time'
 
-/** Home's "Runs in progress" (FRONTEND §5.1): "Wren's grocery run · 1/3 · Sat". */
+/**
+ * Home's "Runs in progress" (FRONTEND §5.1): "Wren's grocery run · 1/3 · Sat". Every open batch,
+ * plus visits dated this week (they were in Coming up before T81).
+ */
 export function RunsInProgress({ houseId }: { houseId: HouseId }) {
   const runs = useRuns(houseId)
-  const open = (runs.data ?? [])
-    .filter((r) => r.kind === 'batch' && isRunOpen(r))
-    .sort((a, b) => {
-      const da = a.kind !== 'request' ? a.when?.date : undefined
-      const db = b.kind !== 'request' ? b.when?.date : undefined
-      if (da && db && da !== db) return da.localeCompare(db)
-      if (da && !db) return -1
-      if (db && !da) return 1
-      return a.createdAt.epochMs - b.createdAt.epochMs
-    })
+  const house = useHouse(houseId)
+  const now = useNow()
+  if (!house.data) return null
+  const open = homeRuns(runs.data ?? [], localDateOf(now, house.data.settings.timezone))
   if (open.length === 0) return null
   return (
     <section aria-labelledby="runs-in-progress" className="grid gap-2.5">

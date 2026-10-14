@@ -16,7 +16,7 @@ import { HomeScreen } from './HomeScreen'
 
 afterEach(cleanup)
 
-describe('HomeScreen: Needs attention', () => {
+describe('HomeScreen: one list by priority', () => {
   it('ranks by priority with tier chips, leaves out what needs no attention, and filters to Mine', async () => {
     const deps = depsForTest()
     const { house, admin, member } = await seedHouse({
@@ -60,7 +60,7 @@ describe('HomeScreen: Needs attention', () => {
       </AppClientProvider>,
     )
 
-    const feed = await screen.findByRole('list', { name: 'Needs attention' })
+    const feed = await screen.findByRole('list', { name: 'By priority' })
     const cards = await within(feed).findAllByRole('listitem')
     expect(cards.map((c) => c.textContent)).toEqual([
       // Tier and category on one line with the feelings, then the title.
@@ -109,7 +109,7 @@ describe('live updates', () => {
       title: 'Bleed the radiators',
     })
     expect(r.ok).toBe(true)
-    const feed = await screen.findByRole('list', { name: 'Needs attention' })
+    const feed = await screen.findByRole('list', { name: 'By priority' })
     expect(within(feed).getByText('Bleed the radiators')).toBeTruthy()
   })
 })
@@ -156,6 +156,8 @@ describe('the visit rule (PRD §8.1)', () => {
       await r.runs.save(later)
       await r.items.save(task('Fix the leak', soon))
       await r.items.save(task('Paint the hall', later))
+      // Dated this week (what Coming up showed): it joins the list even though its visit is far.
+      await r.items.save({ ...task('Check the boiler', later), when: { date: addDays(today, 5) } })
     })
     render(
       <AppClientProvider
@@ -165,8 +167,14 @@ describe('the visit rule (PRD §8.1)', () => {
         <HomeScreen houseId={house.id} />
       </AppClientProvider>,
     )
-    const feed = await screen.findByRole('list', { name: 'Needs attention' })
+    const feed = await screen.findByRole('list', { name: 'By priority' })
     expect(await within(feed).findByText('Fix the leak')).toBeTruthy()
     expect(within(feed).queryByText('Paint the hall')).toBeNull()
+    expect(within(feed).getAllByText('Check the boiler')).toHaveLength(1)
+    // One list: no Coming up or Needs attention headings; the calendar is a link.
+    expect(screen.queryByRole('heading', { name: /Coming up|Needs attention/ })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Calendar' }).getAttribute('href')).toBe(
+      `/h/${house.id}/calendar`,
+    )
   })
 })

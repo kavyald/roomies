@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { byDay, calendarEntries, comingUp, monthGrid, monthRange, shiftMonth } from './calendar'
+import {
+  byDay,
+  calendarEntries,
+  comingUp,
+  homeRuns,
+  isComingUp,
+  monthGrid,
+  monthRange,
+  shiftMonth,
+} from './calendar'
 import { asId, type ContactId, type HouseId, type ItemId, type RunId, type UserId } from './ids'
 import type { Item } from './items'
 import type { Run } from './runs'
@@ -83,6 +92,36 @@ describe('calendar', () => {
       'Groceries',
     ])
     expect(names(comingUp(items, runs, d('2026-10-14')))).toEqual(['Later'])
+  })
+
+  it('isComingUp: an open task or need dated in the coming week (T81)', () => {
+    const today = d('2026-09-30')
+    expect(items.filter((i) => isComingUp(i, today)).map((i) => i.title)).toEqual([
+      'Leak',
+      'Paint',
+      'Milk',
+    ])
+    expect(isComingUp(items[0]!, d('2026-10-02'))).toBe(false) // past is not coming up
+  })
+
+  it('homeRuns: open batches (any date) and open visits this week, dated soonest first (T81)', () => {
+    const more: Run[] = [
+      ...runs,
+      run('far visit', {
+        kind: 'visit',
+        contactId: asId<'contact'>('super') as ContactId,
+        when: { date: d('2026-10-20') },
+      }),
+      run('undated visit', { kind: 'visit', contactId: asId<'contact'>('super') as ContactId }),
+      run('request', { kind: 'request', contactId: asId<'contact'>('super') as ContactId }),
+      run('older', { createdAt: instant(-1) } as Partial<Run>),
+    ]
+    expect(homeRuns(more, d('2026-09-30')).map((r) => r.title ?? r.id)).toEqual([
+      'visit',
+      'Groceries',
+      'older',
+      'undated',
+    ])
   })
 
   it('groups by day', () => {

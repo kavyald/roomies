@@ -14,7 +14,7 @@ test('an as-needed chore shows on Home only after someone shares a feeling, and 
   await anItem(owner, { category: 'chore', title: 'Descale the kettle' }) // as needed
 
   await page.goto(`/h/${owner.houseId}`)
-  const feed = page.getByRole('list', { name: 'Needs attention' })
+  const feed = page.getByRole('list', { name: 'By priority' })
   const cards = feed.getByRole('listitem')
   await expect(cards).toHaveCount(1)
   await expect(cards.first()).toContainText('High')
