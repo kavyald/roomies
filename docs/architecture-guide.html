@@ -246,8 +246,10 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
       <div class="ms done" role="listitem"><b>M4</b><span>Notifications</span></div>
       <div class="ms todo" role="listitem"><b>M5</b><span>Hosting &amp; launch</span></div>
       <div class="ms done" role="listitem"><b>M6</b><span>Usability &amp; personal needs</span></div>
+      <div class="ms done" role="listitem"><b>M7</b><span>Simpler screens</span></div>
+      <div class="ms todo" role="listitem"><b>M8</b><span>After launch</span></div>
     </div>
-    <p class="small soft">M0–M4 are done and passed <code>pnpm test:all</code> at Q4; T40 (the Activity tab's first pass) and T41 (the join name field) landed after. M6 (T42–T63 + Q6) is complete; <code>pnpm test:all</code> passed at Q6 (<code>7623de6</code>); it was built locally before launch, so E5 waits on Q6. That leaves only M5's six cards on the Weyve board. M5 (E1–E5 + Q5) needs your Supabase, Gmail and Vercel accounts, so the app so far has only run on your Mac against local Supabase in Docker.</p>
+    <p class="small soft">M0–M4 are done and passed <code>pnpm test:all</code> at Q4; T40 (the Activity tab's first pass) and T41 (the join name field) landed after. M6 (T42–T63 + Q6) is complete; <code>pnpm test:all</code> passed at Q6 (<code>7623de6</code>); M7 (simpler screens: T64–T68, T80–T82, T87, T90 + Q7) is the last milestone before launch, so E5 now waits on Q7: tabs Home, Needs, Tasks, Chores, Admin; Home as one priority list; check-to-save sheets that swipe closed; icon buttons through one <code>IconButton</code>. M8 (dates, undo, run history, speed, money) comes after launch. M5 (E1–E5 + Q5) needs your Supabase, Gmail and Vercel accounts, so the app so far has only run on your Mac against local Supabase in Docker.</p>
     <div class="stats">
       <div class="stat"><b>~20k</b><span>lines of app code (tests excluded)</span></div>
       <div class="stat"><b>87</b><span>test files, plus 29 Playwright journeys</span></div>
@@ -342,9 +344,9 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
             <tr><td class="mono">/sign-in</td><td>Email → 6-digit code (one field, iOS one-time-code autofill)</td></tr>
             <tr><td class="mono">/setup/[token]</td><td>One-time house creation; dead once a house exists</td></tr>
             <tr><td class="mono">/join/[token]</td><td>Name, email, code, pick your bedroom</td></tr>
-            <tr><td class="mono">/h/[id]</td><td>Home: Coming up, Open polls, Runs in progress, ranked feed (Mine / All)</td></tr>
+            <tr><td class="mono">/h/[id]</td><td>Home: Open polls, Runs in progress, one ranked list (Mine / All) with a Calendar link</td></tr>
             <tr><td class="mono">/h/[id]/needs · chores · tasks</td><td>The three item tabs; Tasks also holds Requests &amp; visits</td></tr>
-            <tr><td class="mono">/h/[id]/house</td><td>Feeling weights, rooms, contacts, roommates, invites, spent this month</td></tr>
+            <tr><td class="mono">/h/[id]/admin</td><td>Roommates, invites, contacts, feeling weights, activity, rooms (/house redirects here)</td></tr>
             <tr><td class="mono">/h/[id]/activity · calendar · me</td><td>History log, month calendar, personal settings</td></tr>
             <tr><td class="mono">/h/[id]/i/[itemId]</td><td>Deep link that opens an item's sheet over Home</td></tr>
             <tr><td class="mono">/h/[id]/p/[pollId] · r/[runId]</td><td>Deep links (poll and run notifications) that open a poll's or run's sheet over Home, or say it isn't there</td></tr>
@@ -434,7 +436,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
     <div class="list" id="advlist"></div>
   </section>
 
-  <footer>Built from <code>docs/</code> (PRD, ARCHITECTURE, FRONTEND, TESTING) and a read of the source on <code>v1</code> at <code>21ecdb5</code> (Q4); file references point at that commit. Updated 1 Oct 2026 for T40 (A24), 2 Oct 2026 for M6 and the owner's decisions D30–D35, and 3 Oct 2026 for Q6 (M6 complete). The implementation plan and build log it first drew on were retired on 1 Oct; tasks and their decisions now live on the Weyve cards.</footer>
+  <footer>Built from <code>docs/</code> (PRD, ARCHITECTURE, FRONTEND, TESTING) and a read of the source on <code>v1</code> at <code>21ecdb5</code> (Q4); file references point at that commit. Updated 1 Oct 2026 for T40 (A24), 2 Oct 2026 for M6 and the owner's decisions D30–D35, 3 Oct 2026 for Q6 (M6 complete), and 14 Oct 2026 for Q7 (M7 complete). The implementation plan and build log it first drew on were retired on 1 Oct; tasks and their decisions now live on the Weyve cards.</footer>
 </div>
 
 <dialog class="sheet" id="sheet" aria-labelledby="sheet-title">
@@ -523,7 +525,7 @@ const LAYERS = [
   { name:'polls.ts · costs.ts · money.ts', desc:'decisions and money', fns:[
     ['createPoll · vote · addPollOption · closePoll · tally · resultOf','Most votes wins; a tie is { tie }; no votes is { noVotes } (D3).'],
     ['withdrawVote · reopenPoll · setPollDeadline','Votes stay on reopen; a passed deadline comes off with it.'],
-    ['addCost · monthlySpend · splitwiseText','Integer cents, equal split among active members.'],
+    ['addCost · editCost · splitwiseText','Integer cents; removed costs stay as history (activeCosts).'],
     ['editCost · removeCost · activeCosts','Amount, who paid and note change; removed costs stop counting.'],
     ['parseCents · formatCents · splitEqually','Money never touches floats.'] ]},
   { name:'events.ts · activity.ts', desc:'history', fns:[
@@ -535,7 +537,7 @@ const LAYERS = [
     ['remindersFor · choreDueDate','Day-before and day-of reminders with dedupe keys, so reruns enqueue nothing.'],
     ['isQuiet · sendAfter · deliver · pushPayload · afterAttempt','Quiet hours hold a message until they end; a passing push failure is tried again (5 min, 30 min, 2 h).'] ]},
   { name:'calendar · invites · members · setup · time', desc:'the rest', fns:[
-    ['calendarEntries · comingUp · byDay · monthGrid','Built from items and runs already loaded; no separate calendar query.'],
+    ['calendarEntries · comingUp · homeRuns · byDay · monthGrid','Built from items and runs already loaded; no separate calendar query.'],
     ['validateInvite · createInvite · acceptInvite · openBedrooms','Expired / revoked / used_up as typed errors.'],
     ['moveOut · setRole · anonymizeProfile · setupHouse · safeEqual','“Former roommate” keeps history intact.'],
     ['localDateOf · instantAt · startOfDay · calendarDaysBetween','Hand-written time zone and DST handling, tested across both DST nights.'] ]}
@@ -568,7 +570,7 @@ const LAYERS = [
     ['useLiveHouse','ChangeFeed → keysForTable → invalidateQueries.'],
     ['push.ts · install.ts · use-now.ts','Web Push subscribe, Home Screen install detection, a ticking “now”.'] ]},
   { name:'components/', desc:'95 files', fns:[
-    ['ui/','Button, Card, Chip, Avatar, Sheet (vaul), OverflowMenu, Disclosure, Swipeable, TabBar, ListRow, SegmentedControl, Toast, EmptyState. Contrast and copy are unit-tested.'],
+    ['ui/','Button, Card, Chip, Avatar, Sheet (vaul; a header check saves, no X), IconButton, Disclosure, Swipeable, TabBar, ListRow, SegmentedControl, Toast, EmptyState. Contrast and copy are unit-tested.'],
     ['items/ · runs/ · polls/ · costs/','ItemSheets (600 lines) and RunSheet (560) are the two heaviest screens.'],
     ['home/ · needs/ · chores/ · tasks/ · house/ · me/ · calendar/ · activity/','One folder per tab or screen.'],
     ['shell/','AppShell, HouseProviders, InstallGuide, ServiceWorker (production only), ThemeSync, DeepLinks (OpenPoll, OpenRun).'] ]}

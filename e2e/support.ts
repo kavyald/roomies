@@ -60,13 +60,13 @@ export const dismissInstallGuide = async (page: Page) => {
   await expect(guide).toBeHidden()
 }
 
-/** Signs in as a fresh owner and opens their House tab. */
+/** Signs in as a fresh owner and opens their Admin tab. */
 export const ownerOnHouseTab = async (page: Page) => {
   const owner = await anOwner('Kavya')
   await signIn(page, owner.email)
   await expect(page).toHaveURL(new RegExp(`/h/${owner.houseId}$`))
   await dismissInstallGuide(page)
-  await page.goto(`/h/${owner.houseId}/house`)
+  await page.goto(`/h/${owner.houseId}/admin`)
   return owner
 }
 

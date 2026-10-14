@@ -1,6 +1,7 @@
 // Priority and the Home feed (PRD §8.1, ARCHITECTURE §7.1). Pure: weights, `now` and the house's
 // time zone are arguments, so the feed, jobs and tests all score the same way.
 
+import { isComingUp } from './calendar'
 import { FEELING_META, type Feeling, type FeelingKind, type FeelingWeights } from './feelings'
 import type { UserId } from './ids'
 import type { Item, Priority } from './items'
@@ -130,8 +131,9 @@ export type FeedFilter = 'mine' | 'all'
 export type FeedEntry = { readonly item: Item } & Score
 
 /**
- * Needs attention: what's in the feed, highest score first; ties go to the sooner date, then the
- * newest. Mine = assigned to me.
+ * Home's one list (T81): what's in the feed plus any open task or need dated in the coming week
+ * (what "Coming up" used to show), each once, highest score first; ties go to the sooner date,
+ * then the newest. Mine = assigned to me.
  */
 export const homeFeed = (
   items: readonly Item[],
@@ -147,7 +149,11 @@ export const homeFeed = (
 ): FeedEntry[] =>
   items
     .filter((i) => ctx.filter === 'all' || i.assignee === ctx.me)
-    .filter((i) => isInFeed(i, feelingsOf(i), ctx.now, ctx.tz, { visitDate: ctx.visitDate }))
+    .filter(
+      (i) =>
+        isInFeed(i, feelingsOf(i), ctx.now, ctx.tz, { visitDate: ctx.visitDate }) ||
+        isComingUp(i, localDateOf(ctx.now, ctx.tz)),
+    )
     .map((item) => ({
       item,
       ...scorePriority(item, feelingsOf(item), ctx.weights, ctx.now, ctx.tz),

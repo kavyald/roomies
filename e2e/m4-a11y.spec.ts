@@ -36,6 +36,8 @@ const check = async (page: Page, screen: string) => {
 
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`every screen passes axe in ${colorScheme}`, async ({ page }) => {
+    // One long sweep over every screen; under a full parallel run it outgrows the 60s default.
+    test.slow()
     await page.emulateMedia({ colorScheme })
     cspViolations = await watchCsp(page)
     const signInPage = await page.goto('/sign-in')
@@ -66,15 +68,33 @@ for (const colorScheme of ['light', 'dark'] as const) {
       ['/needs', 'Needs'],
       ['/chores', 'Chores'],
       ['/tasks', 'Tasks'],
-      ['/house', 'House'],
+      ['/admin', 'Admin'],
       ['/activity', 'Activity'],
       ['/calendar', 'Calendar'],
       ['/me', 'You'],
+      ['/me/notifications', 'Notifications'],
+      ['/me/appearance', 'Appearance'],
     ] as const) {
       await page.goto(h + path)
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()
       await check(page, path)
     }
+    // Admin → Rooms: the sheet, then a room open to edit in place (T66).
+    await page.goto(`${h}/admin`)
+    const rooms = page.getByRole('dialog', { name: 'Rooms' })
+    // Under a full parallel run the first tap can land before the page hydrates; tap again.
+    await expect(async () => {
+      if (!(await rooms.isVisible())) {
+        await page.getByRole('list', { name: 'Rooms' }).getByRole('button').click()
+      }
+      await expect(rooms.getByRole('list', { name: 'Bedrooms' })).toBeVisible({ timeout: 2000 })
+    }).toPass()
+    await check(page, 'rooms sheet')
+    await rooms.getByRole('button', { name: 'Fire, bedroom', exact: true }).click()
+    await expect(rooms.getByRole('group', { name: 'Edit Fire, bedroom' })).toBeVisible()
+    await check(page, 'rooms sheet (editing)')
+    await page.keyboard.press('Escape')
+    await expect(rooms).toBeHidden()
     // The emoji tray on a row, and + on Needs (straight to a need, with Add another).
     await page.goto(`${h}/needs`)
     await page.getByRole('button', { name: 'Share a feeling: Olive oil' }).click()

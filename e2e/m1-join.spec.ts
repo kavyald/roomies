@@ -7,13 +7,13 @@ test('the owner invites, and a roommate joins with a code and picks their room',
 }) => {
   const owner = await anOwner('Kavya')
 
-  // The owner, in their own browser, makes an invite link on the House tab.
+  // The owner, in their own browser, makes an invite link on the Admin tab.
   const ownerCtx = await browser.newContext()
   const ownerPage = await ownerCtx.newPage()
   await signIn(ownerPage, owner.email)
   await expect(ownerPage).toHaveURL(new RegExp(`/h/${owner.houseId}$`))
   await dismissInstallGuide(ownerPage)
-  await ownerPage.goto(`/h/${owner.houseId}/house`)
+  await ownerPage.goto(`/h/${owner.houseId}/admin`)
   await ownerPage.getByRole('button', { name: 'Make an invite link' }).click()
   const inviteSection = ownerPage.getByRole('region', { name: 'Invite link' })
   await expect(inviteSection).toContainText('for up to 4 people') // four free bedrooms
@@ -40,7 +40,7 @@ test('the owner invites, and a roommate joins with a code and picks their room',
   await dismissInstallGuide(maya)
 
   // Maya sees the house, and herself in Fire.
-  await maya.goto(`/h/${owner.houseId}/house`)
+  await maya.goto(`/h/${owner.houseId}/admin`)
   const roommates = maya.getByRole('list', { name: 'Roommates' })
   await expect(roommates.getByRole('button', { name: /Maya, Fire room/ })).toBeVisible()
   await expect(roommates).toContainText('Kavya')
@@ -53,7 +53,7 @@ test('the owner invites, and a roommate joins with a code and picks their room',
   await expect(feed).not.toContainText('Maya moved into Fire')
 
   // The link keeps working for the other open rooms, and says how many are used.
-  await ownerPage.goto(`/h/${owner.houseId}/house`)
+  await ownerPage.goto(`/h/${owner.houseId}/admin`)
   await expect(ownerPage.getByRole('list', { name: 'Invite links' })).toContainText('1 of 4 used')
 
   // The owner removes Maya; she loses access right away.
@@ -66,7 +66,7 @@ test('the owner invites, and a roommate joins with a code and picks their room',
   await sheet.getByRole('button', { name: 'Remove Maya' }).click()
   await expect(ownerPage.getByRole('list', { name: 'Roommates' })).not.toContainText('Maya')
 
-  await maya.goto(`/h/${owner.houseId}/house`)
+  await maya.goto(`/h/${owner.houseId}/admin`)
   await expect(maya).toHaveURL(/\/$/)
   await expect(
     maya.getByText("You're no longer a member of this house.", { exact: false }),

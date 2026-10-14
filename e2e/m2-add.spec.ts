@@ -59,7 +59,7 @@ test('a task gets its details from "More options", and the detail sheet shows th
   await expect(detail.getByRole('button', { name: 'Not done after all' })).toBeVisible()
 })
 
-test('the detail sheet keeps Edit and Delete in its "…" menu, and the extras closed', async ({
+test('the detail sheet shows Edit and Delete as header icons, and the extras closed', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
@@ -71,7 +71,9 @@ test('the detail sheet keeps Edit and Delete in its "…" menu, and the extras c
     .click()
   let detail = page.getByRole('dialog', { name: 'Descale the kettel' })
   await expect(detail.getByRole('button', { name: 'Done', exact: true })).toBeVisible()
-  await expect(detail.getByRole('button', { name: 'Edit' })).toHaveCount(0)
+  // Edit and Delete are the Pencil and Trash2 icons in the header (T68), not behind a menu.
+  await expect(detail.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+  await expect(detail.getByRole('button', { name: 'More actions' })).toHaveCount(0)
 
   // Costs is a closed section: a named region with a row that opens it.
   const costs = detail.getByRole('region', { name: 'Costs' })
@@ -82,31 +84,19 @@ test('the detail sheet keeps Edit and Delete in its "…" menu, and the extras c
   await expect(costsRow).toHaveAttribute('aria-expanded', 'true')
   await expect(costs.getByRole('button', { name: 'Add cost' })).toBeVisible()
 
-  // Escape closes just the menu, not the sheet.
-  const more = detail.getByRole('button', { name: 'More actions' })
-  await more.click()
-  await expect(detail.getByRole('menuitem', { name: 'Edit' })).toBeFocused()
-  await page.keyboard.press('Escape')
-  await expect(detail.getByRole('menu')).toHaveCount(0)
-  await expect(more).toBeFocused()
-  await expect(detail).toBeVisible()
-
-  await more.click()
-  await detail.getByRole('menuitem', { name: 'Edit' }).click()
+  await detail.getByRole('button', { name: 'Edit', exact: true }).click()
   await page.getByLabel('What needs doing?').fill('Descale the kettle')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible()
   detail = page.getByRole('dialog', { name: 'Descale the kettle' })
 
   // Delete (PRD D30): asks first, then the toast offers Undo; nothing promises a window.
-  await detail.getByRole('button', { name: 'More actions' }).click()
-  await detail.getByRole('menuitem', { name: 'Delete' }).click()
+  await detail.getByRole('button', { name: 'Delete', exact: true }).click()
   const confirm = detail.getByRole('group', { name: 'Delete this?' })
   await expect(confirm).toContainText('You can undo it right after.')
   await confirm.getByRole('button', { name: 'Keep it' }).click()
   await expect(confirm).toBeHidden()
-  await detail.getByRole('button', { name: 'More actions' }).click()
-  await detail.getByRole('menuitem', { name: 'Delete' }).click()
+  await detail.getByRole('button', { name: 'Delete', exact: true }).click()
   await detail
     .getByRole('group', { name: 'Delete this?' })
     .getByRole('button', { name: 'Delete' })
@@ -124,8 +114,7 @@ test('the detail sheet keeps Edit and Delete in its "…" menu, and the extras c
   // Deleted again, it can still be opened from Activity and brought back.
   await card.click()
   detail = page.getByRole('dialog', { name: 'Descale the kettle' })
-  await detail.getByRole('button', { name: 'More actions' }).click()
-  await detail.getByRole('menuitem', { name: 'Delete' }).click()
+  await detail.getByRole('button', { name: 'Delete', exact: true }).click()
   await detail
     .getByRole('group', { name: 'Delete this?' })
     .getByRole('button', { name: 'Delete' })
@@ -140,6 +129,7 @@ test('the detail sheet keeps Edit and Delete in its "…" menu, and the extras c
     .click()
   detail = page.getByRole('dialog', { name: 'Descale the kettle' })
   await expect(detail).toContainText('Task · Deleted')
+  await expect(detail.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0)
   await detail.getByRole('button', { name: 'Bring it back' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Brought back.' })).toBeVisible()
   await expect(detail).not.toContainText('Deleted')

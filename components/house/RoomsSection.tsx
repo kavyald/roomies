@@ -1,30 +1,54 @@
 'use client'
 
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { ArrowDown, ArrowUp, DoorOpen, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { Field } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
+import { IconMark } from '@/components/ui/IconButton'
+import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
-import { cn } from '@/components/ui/cn'
-import { elementClasses } from '@/components/ui/elements'
 import { useMoveRoom, useRenameRoom, useRooms } from '@/lib/client/hooks'
 import type { Room } from '@/lib/domain/house'
-import type { HouseId } from '@/lib/domain/ids'
+import type { HouseId, RoomId } from '@/lib/domain/ids'
 import { ROOM_GROUPS, roomGroup, roomsInGroup } from '@/lib/domain/rooms'
-import { ROOM_GROUP_LABEL, RoomIcon, roomKindLabel } from './room-labels'
+import { ROOM_GROUP_LABEL, roomKindLabel } from './room-labels'
 
 /**
- * Rooms as small squares, grouped by what they are (FRONTEND §5.11): Bedrooms in their element's
- * colors, then Bathrooms, then Spaces. Tap one to rename it or move it within its group.
+ * House → Rooms (FRONTEND §5.11): one row that opens a sheet of the rooms by group, as plain
+ * names. Tap a name to rename it or move it within its group, in place.
  */
 export function RoomsSection({ houseId }: { houseId: HouseId }) {
   const rooms = useRooms(houseId)
-  const [open, setOpen] = useState<Room | null>(null)
+  const [open, setOpen] = useState(false)
+  const count = rooms.data?.length ?? 0
+  return (
+    <>
+      <ListGroup label="Rooms">
+        <ListRow
+          leading={<DoorOpen aria-hidden className="size-5 text-ink-soft" />}
+          title="Rooms"
+          subtitle={count ? `${count} rooms · rename or reorder` : 'Rename or reorder'}
+          onClick={() => setOpen(true)}
+        />
+      </ListGroup>
+      {open && <RoomsSheet houseId={houseId} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+function RoomsSheet({ houseId, onClose }: { houseId: HouseId; onClose: () => void }) {
+  const rooms = useRooms(houseId)
+  const [editing, setEditing] = useState<RoomId | null>(null)
   const all = rooms.data ?? []
 
   return (
-    <div className="grid gap-3">
+    <Sheet
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Rooms"
+      description="Tap a room to rename it or move it within its group."
+    >
       {ROOM_GROUPS.map((group) => {
         const here = roomsInGroup(all, group)
         if (here.length === 0) return null
@@ -34,42 +58,43 @@ export function RoomsSection({ houseId }: { houseId: HouseId }) {
             <h3 className="m-0 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
               {label}
             </h3>
-            <ul aria-label={label} className="m-0 grid list-none grid-cols-4 gap-2 p-0">
+            <ul
+              aria-label={label}
+              className="m-0 grid list-none overflow-hidden rounded-2xl border-[1.5px] border-outline p-0"
+            >
               {here.map((r) => (
-                <li key={r.id}>
-                  <button
-                    type="button"
-                    aria-label={`${r.name}, ${roomKindLabel(r.kind)}`}
-                    onClick={() => setOpen(r)}
-                    className={cn(
-                      'sticker flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-2xl border-[1.5px] border-outline p-1 text-center',
-                      r.element ? elementClasses(r.element) : 'bg-card text-ink',
-                    )}
-                  >
-                    <RoomIcon room={r} className="size-5 flex-none" />
-                    <span className="line-clamp-2 text-[0.75rem] leading-tight font-bold break-words hyphens-auto">
-                      {r.name}
-                    </span>
-                  </button>
+                <li key={r.id} className="border-b-[1.5px] border-line bg-card last:border-b-0">
+                  {editing === r.id ? (
+                    <RoomEditor houseId={houseId} room={r} onDone={() => setEditing(null)} />
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={`${r.name}, ${roomKindLabel(r.kind)}`}
+                      onClick={() => setEditing(r.id)}
+                      className="flex min-h-[max(2.75rem,44px)] w-full items-center gap-2 py-1.5 pr-2 pl-3.5 text-left font-bold"
+                    >
+                      <span className="min-w-0 flex-1">{r.name}</span>
+                      <IconMark icon={Pencil} />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
           </section>
         )
       })}
-      {open && <RoomSheet houseId={houseId} room={open} onClose={() => setOpen(null)} />}
-    </div>
+    </Sheet>
   )
 }
 
-function RoomSheet({
+function RoomEditor({
   houseId,
   room,
-  onClose,
+  onDone,
 }: {
   houseId: HouseId
   room: Room
-  onClose: () => void
+  onDone: () => void
 }) {
   const rename = useRenameRoom(houseId)
   const move = useMoveRoom(houseId)
@@ -78,14 +103,14 @@ function RoomSheet({
   const group = ROOM_GROUP_LABEL[roomGroup(room.kind)].toLowerCase()
 
   const save = async () => {
-    if (name.trim() === room.name) return onClose()
+    if (name.trim() === room.name) return onDone()
     const r = await rename.mutateAsync({ roomId: room.id, name })
     if (!r.ok)
       return toast(
         r.error === 'empty_name' ? 'Give the room a name.' : "Couldn't rename it. Try again.",
       )
     toast('Renamed.')
-    onClose()
+    onDone()
   }
   const nudge = async (direction: 'up' | 'down') => {
     const r = await move.mutateAsync({ roomId: room.id, direction })
@@ -96,19 +121,35 @@ function RoomSheet({
   }
 
   return (
-    <Sheet open onOpenChange={(o) => !o && onClose()} title={room.name}>
-      <Field id="room-name" label="Name" value={name} onChange={(e) => setName(e.target.value)} />
-      <Button block disabled={rename.isPending} onClick={save}>
-        Save
-      </Button>
+    <div
+      role="group"
+      aria-label={`Edit ${room.name}, ${roomKindLabel(room.kind)}`}
+      className="grid gap-2 bg-paper p-3.5"
+    >
+      <Field
+        id="room-name"
+        label="Name"
+        value={name}
+        autoFocus
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void save()
+        }}
+      />
       <div className="grid grid-cols-2 gap-2">
+        <Button variant="secondary" disabled={rename.isPending} onClick={onDone}>
+          Cancel
+        </Button>
+        <Button disabled={rename.isPending} onClick={save}>
+          Save
+        </Button>
         <Button variant="secondary" disabled={move.isPending} onClick={() => nudge('up')}>
-          <ArrowLeft aria-hidden className="size-4" /> Move earlier
+          <ArrowUp aria-hidden className="size-4" /> Move earlier
         </Button>
         <Button variant="secondary" disabled={move.isPending} onClick={() => nudge('down')}>
-          Move later <ArrowRight aria-hidden className="size-4" />
+          <ArrowDown aria-hidden className="size-4" /> Move later
         </Button>
       </div>
-    </Sheet>
+    </div>
   )
 }

@@ -1,6 +1,8 @@
+import { Pencil } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { IconMark } from './IconButton'
 
-/** Rows grouped in one rounded box (House tab lists, settings). */
+/** Rows grouped in one rounded box (Admin tab lists, settings). */
 export function ListGroup({ children, label }: { children: ReactNode; label?: string }) {
   return (
     <div
@@ -19,6 +21,7 @@ export function ListRow({
   subtitle,
   trailing,
   onClick,
+  editable = false,
 }: {
   leading?: ReactNode
   title: ReactNode
@@ -26,6 +29,8 @@ export function ListRow({
   /** A control beside the row (e.g. "Copy number"): kept outside the row's own button. */
   trailing?: ReactNode
   onClick?: () => void
+  /** The row opens an editor: it ends with the edit Pencil (T68), as part of its own button. */
+  editable?: boolean
 }) {
   const body = (
     <>
@@ -50,6 +55,7 @@ export function ListRow({
           onClick={onClick}
         >
           {body}
+          {editable && <IconMark icon={Pencil} />}
         </button>
       ) : (
         <div className="flex flex-1 items-center gap-3 py-3 pl-3.5">{body}</div>

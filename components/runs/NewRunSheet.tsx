@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Field } from '@/components/auth/fields'
-import { Button } from '@/components/ui/Button'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { Sheet } from '@/components/ui/Sheet'
+import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { useItems, usePlanVisit, useStartRequest } from '@/lib/client/hooks'
 import type { HouseId, ItemId, RunId } from '@/lib/domain/ids'
@@ -40,12 +39,14 @@ export function NewRunSheet({
   const tasks = (items.data ?? []).filter(
     (i): i is Task => i.category === 'task' && !i.done && !i.archivedAt && !i.run,
   )
-  // Choosing a contact pre-checks the tasks they already handle.
+  // Choosing a contact also ticks the tasks they already handle. Ticks already made stay (T87):
+  // changing "Who" adds the new contact's tasks and never clears the selection.
   const chosen = contact.choice
   useEffect(() => {
     if (!chosen) return
+    const theirs = tasks.filter((t) => t.contactId === chosen).map((t) => t.id)
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPicked(new Set(tasks.filter((t) => t.contactId === chosen).map((t) => t.id)))
+    setPicked((p) => new Set([...p, ...theirs]))
     // Only when the contact changes, not on every refetch of the tasks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chosen])
@@ -54,7 +55,8 @@ export function NewRunSheet({
   const submit = async () => {
     const contactId = await contact.resolve()
     if (!contactId) return
-    const itemIds = [...picked]
+    // Only tasks still open and off a run (one may have moved since it was ticked).
+    const itemIds = tasks.filter((t) => picked.has(t.id)).map((t) => t.id)
     const r =
       mode === 'request'
         ? await startRequest.mutateAsync({ contactId, itemIds })
@@ -136,9 +138,12 @@ export function NewRunSheet({
           />
         </div>
       )}
-      <Button block disabled={busy || !contact.ready} onClick={submit}>
-        {mode === 'request' ? 'Start list' : 'Plan visit'}
-      </Button>
+      <SheetSave
+        label={mode === 'request' ? 'Start list' : 'Plan visit'}
+        busy={busy}
+        disabled={!contact.ready}
+        onSave={submit}
+      />
     </Sheet>
   )
 }

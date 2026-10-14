@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 import { asOwner } from '../lib/testing/db'
 import { aRoommate, anItem, ownerOnHouseTab } from './support'
 
-test('a cost on an item is edited, then removed, and Spent this month and Activity follow (T57)', async ({
+test('a cost on an item is edited, then removed, and Activity follows (T57); House shows no monthly total (T64)', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
@@ -17,7 +17,8 @@ test('a cost on an item is edited, then removed, and Spent this month and Activi
     ),
   )
   await page.reload()
-  await expect(page.getByLabel('Spent this month')).toContainText('Spent this month: $189.00')
+  await expect(page.getByRole('heading', { name: 'Roommates' })).toBeVisible()
+  await expect(page.getByText(/Spent this month/)).toHaveCount(0)
 
   await page.goto(`/h/${owner.houseId}/needs`)
   await page
@@ -30,8 +31,8 @@ test('a cost on an item is edited, then removed, and Spent this month and Activi
   await expect(costs).toContainText('$189.00 · You paid · Dyson')
 
   // Edit: the amount and who paid; the note clears.
-  await costs.getByRole('button', { name: 'More for $189.00' }).click()
-  await page.getByRole('menuitem', { name: 'Edit' }).click()
+  // Edit and Remove are the row's Pencil and Trash2 icons (T68).
+  await costs.getByRole('button', { name: 'Edit $189.00' }).click()
   const edit = costs.getByRole('group', { name: 'Edit cost' })
   await expect(edit.getByLabel('Amount')).toHaveValue('189.00')
   await edit.getByLabel('Amount').fill('200')
@@ -43,17 +44,15 @@ test('a cost on an item is edited, then removed, and Spent this month and Activi
   await expect(costs).not.toContainText('Dyson')
 
   // Remove, after a confirm.
-  await costs.getByRole('button', { name: 'More for $200.00' }).click()
-  await page.getByRole('menuitem', { name: 'Remove' }).click()
+  await costs.getByRole('button', { name: 'Remove $200.00' }).click()
   const confirm = costs.getByRole('group', { name: 'Remove this cost?' })
-  await expect(confirm).toContainText('$200.00 stops counting toward Spent this month')
+  await expect(confirm).toContainText(
+    'Remove this cost? $200.00 comes off, and Activity keeps a note of it.',
+  )
   await confirm.getByRole('button', { name: 'Remove' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Removed $200.00.' })).toBeVisible()
   await expect(costs).not.toContainText('$200.00')
   await page.keyboard.press('Escape')
-
-  await page.getByRole('link', { name: 'House' }).click()
-  await expect(page.getByLabel('Spent this month')).toContainText('Spent this month: $0.00')
 
   await page.goto(`/h/${owner.houseId}/activity`)
   await expect(

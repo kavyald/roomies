@@ -1,6 +1,6 @@
 'use client'
 
-import { BarChart3, Copy, ShoppingCart } from 'lucide-react'
+import { BarChart3, Copy, Pencil, ShoppingCart, Trash2 } from 'lucide-react'
 import {
   createContext,
   useCallback,
@@ -15,7 +15,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { RoomChip } from '@/components/ui/Chip'
 import { DisclosureGroup } from '@/components/ui/Disclosure'
-import { OverflowMenu } from '@/components/ui/OverflowMenu'
+import { IconButton } from '@/components/ui/IconButton'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet } from '@/components/ui/Sheet'
 import { useCelebrate, useToast } from '@/components/ui/Toast'
@@ -511,14 +511,14 @@ function ItemDetailSheet({
     ])
   }
   if (item.category === 'task') {
-    const change = (label: string) => (
-      <button
-        type="button"
-        className="min-h-11 text-sm font-extrabold text-accent-ink"
+    // Editing who's handling it is the same Pencil as every other edit (T68).
+    const changeHandler = (
+      <IconButton
+        icon={Pencil}
+        label="Change who's handling it"
+        aria-expanded={pickingHandler}
         onClick={() => setPickingHandler((p) => !p)}
-      >
-        {label}
-      </button>
+      />
     )
     rows.push([
       'Handled by',
@@ -528,20 +528,27 @@ function ItemDetailSheet({
           {contact.phone && (
             <>
               <span className="tabular-nums">{contact.phone}</span>
-              <button
-                type="button"
-                className="flex min-h-11 items-center gap-1 text-sm font-extrabold text-accent-ink"
+              <IconButton
+                icon={Copy}
+                label={`Copy ${contact.name}'s number`}
                 onClick={() => copy(contact.phone!, 'Number copied.')}
-              >
-                <Copy aria-hidden className="size-4" /> Copy
-              </button>
+              />
             </>
           )}
-          {change('Change')}
+          {changeHandler}
         </span>
       ) : (
         <span className="flex flex-wrap items-center gap-x-2">
-          One of us {!item.archivedAt && change('Needs outside help?')}
+          One of us{' '}
+          {!item.archivedAt && (
+            <button
+              type="button"
+              className="min-h-11 text-sm font-extrabold text-accent-ink"
+              onClick={() => setPickingHandler((p) => !p)}
+            >
+              Needs outside help?
+            </button>
+          )}
         </span>
       ),
     ])
@@ -617,12 +624,6 @@ function ItemDetailSheet({
 
   const kind =
     item.category === 'chore' ? `Chore · ${scheduleLabel(item)}` : CATEGORY[item.category].label
-  const menu = item.archivedAt
-    ? []
-    : [
-        { label: 'Edit', onSelect: () => setEditing(item) },
-        { label: 'Delete', tone: 'soft' as const, onSelect: () => setConfirmDelete(true) },
-      ]
 
   return (
     <Sheet
@@ -630,7 +631,20 @@ function ItemDetailSheet({
       onOpenChange={(o) => !o && onClose()}
       title={item.title}
       description={item.archivedAt ? `${kind} · Deleted` : kind}
-      actions={<OverflowMenu label="More actions" items={menu} />}
+      actions={
+        // Edit and Delete sit in the header as icons (T68); a deleted item has neither.
+        !item.archivedAt && (
+          <>
+            <IconButton icon={Pencil} label="Edit" onClick={() => setEditing(item)} />
+            <IconButton
+              icon={Trash2}
+              label="Delete"
+              aria-expanded={confirmDelete}
+              onClick={() => setConfirmDelete(true)}
+            />
+          </>
+        )
+      }
     >
       {confirmDelete && !item.archivedAt ? (
         <DeleteConfirm

@@ -80,8 +80,6 @@ test('finishing takes one tap without swiping, and a grocery run about six', asy
   ).toBeVisible()
   expect(t.count).toBe(6)
   await expect(needs.getByRole('listitem')).toHaveCount(0)
-  await page.goto(`${h}/house`)
-  await expect(page.getByLabel('Spent this month')).toContainText('$40.00')
 })
 
 /** Fills in every meta row an item can show, so each sheet is at its tallest. */
@@ -169,19 +167,31 @@ test.describe('at 375pt', () => {
         await expect(page.getByRole('dialog', { name: title })).toBeHidden()
       }
 
-      // The rooms grid (T60) and notification settings (T61): nothing runs off the side, and axe.
-      await page.goto(`${h}/house`)
+      // Admin, its Rooms sheet (T66) and notification settings (T61): nothing runs off the side,
+      // and axe.
+      await page.goto(`${h}/admin`)
+      const roomsRow = page.getByRole('list', { name: 'Rooms' }).getByRole('button')
+      await expect(roomsRow).toBeVisible()
+      await fitsSideways(page, 'house')
+      await roomsRow.click()
+      const rooms = page.getByRole('dialog', { name: 'Rooms' })
       for (const group of ['Bedrooms', 'Bathrooms', 'Spaces']) {
-        const grid = page.getByRole('list', { name: group })
-        await expect(grid).toBeVisible()
-        for (const room of await grid.getByRole('button').all()) {
-          const box = (await room.boundingBox())!
-          expect(box.x + box.width).toBeLessThanOrEqual(375)
-          expect(box.height).toBeGreaterThanOrEqual(44)
+        const list = rooms.getByRole('list', { name: group })
+        await expect(list).toBeVisible()
+        for (const room of await list.getByRole('button').all()) {
+          // Layout size, not boundingBox: the sheet may still be animating open (a transform).
+          const { right, height } = await room.evaluate((el: HTMLElement) => ({
+            right: el.offsetLeft + el.offsetWidth,
+            height: el.offsetHeight,
+          }))
+          expect(right).toBeLessThanOrEqual(375)
+          expect(height).toBeGreaterThanOrEqual(44)
         }
       }
-      await fitsSideways(page, 'house')
-      await page.goto(`${h}/me`)
+      await fitsSideways(page, 'rooms sheet')
+      await page.keyboard.press('Escape')
+      await expect(rooms).toBeHidden()
+      await page.goto(`${h}/me/notifications`)
       await expect(page.getByRole('group', { name: 'Tell me when' })).toBeVisible()
       // Reachable, not above the fold: how much fits depends on the fallback font (Linux CI wraps
       // more lines than SF Pro Rounded). Only item views must fit without scrolling (PRD §12).

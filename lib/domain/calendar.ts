@@ -35,12 +35,44 @@ export const calendarEntries = (
   )
 }
 
-/** Coming up on Home: today and the six days after it. */
+/** The coming week: today and the six days after it. */
 export const comingUp = (
   items: readonly Item[],
   runs: readonly Run[],
   today: LocalDate,
 ): CalendarEntry[] => calendarEntries(items, runs, today, addDays(today, 6))
+
+/**
+ * Whether an item is an open task or need dated in the coming week. Home's one list takes these
+ * in alongside the feed (T81), so nothing with a date this week drops off Home.
+ */
+export const isComingUp = (item: Item, today: LocalDate): boolean =>
+  comingUp([item], [], today).length > 0
+
+const runDate = (r: Batch | Visit) => r.when?.date
+
+/**
+ * The runs Home lists (T81): every open batch, plus open visits dated in the coming week. Dated
+ * ones first, soonest first; then the rest, oldest first.
+ */
+export const homeRuns = (runs: readonly Run[], today: LocalDate): (Batch | Visit)[] => {
+  const week = new Set(
+    comingUp([], runs, today).flatMap((e) => (e.kind === 'run' ? [e.run.id] : [])),
+  )
+  return runs
+    .filter(
+      (r): r is Batch | Visit =>
+        isRunOpen(r) && (r.kind === 'batch' || (r.kind === 'visit' && week.has(r.id))),
+    )
+    .sort((a, b) => {
+      const da = runDate(a)
+      const db = runDate(b)
+      if (da && db && da !== db) return da.localeCompare(db)
+      if (da && !db) return -1
+      if (db && !da) return 1
+      return a.createdAt.epochMs - b.createdAt.epochMs
+    })
+}
 
 /** Entries grouped by day, for the month grid's dots and the day list. */
 export const byDay = (

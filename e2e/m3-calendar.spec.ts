@@ -49,20 +49,22 @@ test('dated items and runs show on the right days, and tapping one opens it', as
     )
   })
 
-  // Home: the next 7 days, in order; tapping one opens it.
+  // Home (T81): the dated items this week sit in the one list by priority, with their dates, and
+  // the dated run sits under Runs in progress; tapping one opens it.
   await page.goto(`/h/${owner.houseId}`)
-  const coming = page.getByRole('list', { name: 'Coming up' }).getByRole('listitem')
-  await expect(coming).toHaveCount(3)
-  await expect(coming.nth(0)).toContainText('Plumber comes')
-  await expect(coming.nth(0)).toContainText('Tomorrow 10:00')
-  await expect(coming.nth(1)).toContainText('Groceries')
-  await expect(coming.nth(2)).toContainText('Paper towels')
-  await coming.nth(0).getByRole('button').click()
+  await expect(page.getByRole('heading', { name: /Coming up|Needs attention/ })).toHaveCount(0)
+  const ranked = page.getByRole('list', { name: 'By priority' })
+  const plumber = ranked.getByRole('listitem').filter({ hasText: 'Plumber comes' })
+  await expect(plumber).toHaveCount(1)
+  await expect(plumber).toContainText('Due tomorrow 10:00')
+  await expect(ranked.getByRole('listitem').filter({ hasText: 'Paper towels' })).toHaveCount(1)
+  await expect(page.getByRole('region', { name: 'Runs in progress' })).toContainText('Groceries')
+  await plumber.getByRole('button', { name: 'Plumber comes', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Plumber comes' })).toBeVisible()
   await page.keyboard.press('Escape')
 
   // The month calendar: pick the run's day, open it.
-  await page.getByRole('link', { name: 'All' }).click()
+  await page.getByRole('link', { name: 'Calendar' }).click()
   await expect(page).toHaveURL(/\/calendar$/)
   const pick = async (ymd: string) => {
     for (let i = 0; i < 3; i++) {

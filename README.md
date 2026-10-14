@@ -2,7 +2,7 @@
 
 A shared, phone-first hub for a house of roommates: what we need to buy, what needs doing, what we need to decide, and how everyone feels about it.
 
-> **Status: M0–M4 and M6 built** and merged into `staging`: everything runs locally. **M5 (hosting and launch) is in progress**: the deploy tooling, security work and the PR into `staging` are done (Phase A), hosted Supabase with the Gmail sender is set up (E1), and so is the Sentry project (E6); next comes Vercel. The plan is [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Tasks are planned and tracked on the **roomies** board in Weyve.
+> **Status: M0–M4, M6 and M7 built** and merged into `staging`: everything runs locally. **M5 (hosting and launch) is in progress**: the deploy tooling, security work and the PR into `staging` are done (Phase A), hosted Supabase with the Gmail sender is set up (E1), and so is the Sentry project (E6); next comes Vercel. The plan is [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Tasks are planned and tracked on the **roomies** board in Weyve.
 
 ## The problem
 
@@ -37,7 +37,7 @@ It's a PWA for iPhone Safari: roommates open a link, add it to their Home Screen
 open docs/archive/mockup-v1.html
 ```
 
-Things to try: vote on "Which vacuum?", record the landlord's reply on the Landlord request (Tasks tab), finish a grocery run and log the cost, change a feeling weight under House → Settings, and check House → Activity.
+Things to try: vote on "Which vacuum?", record the landlord's reply on the Landlord request (Tasks tab), finish a grocery run and log the cost, change a feeling weight under Admin → Feeling weights, and check Admin → Activity.
 
 ## Docs
 
@@ -70,8 +70,10 @@ Everything targets free tiers for one house of 2–8 people.
 | **M4 Notifications & polish** | Web push, reminders, polish, end-to-end tests |
 | **M5 Hosting & launch** | Deploy tooling and security hardening first (server-only database writes, repo secret scanning), then everything that needs an outside account: hosted Supabase, the Gmail sender, Sentry, Vercel, staging, iPhone checks, production |
 | **M6 Usability & personal needs** | Fewer taps (swipe, simpler item views, quicker runs), needs for one person or the house, the gaps from the docs↔code audit, docs that match the build |
+| **M7 Simpler screens** | Tabs Home, Needs, Tasks, Chores, Admin; Home as one list in priority order; check-to-save sheets that swipe closed; icon buttons for edit and delete; Appearance apart from Notifications; rooms renamed from one sheet; no monthly cost total |
+| **M8 After launch** | Easier dates and times, undo and redo, run history, faster loads, money done properly with Splitwise |
 
-Each milestone ends with a test task. M0–M4 and M6 run entirely on one Mac with no accounts; M5 is where the sign-ups happen, and launch waits for M6. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
+Each milestone ends with a test task. Everything except M5 runs on one Mac with no accounts; M5 is where the sign-ups happen, and launch waits for M7. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
 
 The tasks, their dependencies and progress are on the **roomies** board in Weyve.
 

@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { ListChecks, Pencil } from 'lucide-react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Avatar, initials } from './Avatar'
 import { TierChip } from './Chip'
 import { Disclosure } from './Disclosure'
-import { OverflowMenu } from './OverflowMenu'
+import { IconButton } from './IconButton'
+import { ListGroup, ListRow } from './ListRow'
 import { SegmentedControl } from './SegmentedControl'
 import { ToastProvider, useCelebrate } from './Toast'
 import { useState } from 'react'
@@ -110,38 +112,43 @@ describe('Disclosure', () => {
   })
 })
 
-describe('OverflowMenu', () => {
-  it('opens a menu, moves with arrow keys, and closes on Escape back to its button', async () => {
-    const edit = vi.fn()
-    render(
-      <OverflowMenu
-        label="More actions"
-        items={[
-          { label: 'Edit', onSelect: edit },
-          { label: 'Delete', onSelect: () => {} },
-        ]}
-      />,
-    )
-    const button = screen.getByRole('button', { name: 'More actions' })
+describe('IconButton', () => {
+  it('is named by its label, toggles with aria-pressed, and is disabled while busy', async () => {
+    function Toggle() {
+      const [on, setOn] = useState(false)
+      return (
+        <IconButton
+          icon={ListChecks}
+          label="Select all"
+          aria-pressed={on}
+          tone={on ? 'accent' : 'neutral'}
+          onClick={() => setOn((o) => !o)}
+        />
+      )
+    }
+    render(<Toggle />)
+    const button = screen.getByRole('button', { name: 'Select all' })
+    expect(button.getAttribute('aria-pressed')).toBe('false')
     await userEvent.click(button)
-    expect(button.getAttribute('aria-expanded')).toBe('true')
-    expect(document.activeElement?.textContent).toBe('Edit')
-    await userEvent.keyboard('{ArrowDown}')
-    expect(document.activeElement?.textContent).toBe('Delete')
-    await userEvent.keyboard('{ArrowDown}')
-    expect(document.activeElement?.textContent).toBe('Edit')
-    await userEvent.keyboard('{Escape}')
-    expect(screen.queryByRole('menu')).toBeNull()
-    expect(document.activeElement).toBe(button)
-
-    await userEvent.click(button)
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
-    expect(edit).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('menu')).toBeNull()
+    expect(button.getAttribute('aria-pressed')).toBe('true')
+    cleanup()
+    render(<IconButton icon={Pencil} label="Edit" busy />)
+    const busy = screen.getByRole('button', { name: 'Edit' })
+    expect(busy).toHaveProperty('disabled', true)
+    expect(busy.getAttribute('aria-busy')).toBe('true')
   })
+})
 
-  it('shows nothing when there is nothing to do', () => {
-    const { container } = render(<OverflowMenu items={[]} />)
-    expect(container.innerHTML).toBe('')
+describe('ListRow', () => {
+  it('shows the edit Pencil inside its own button when editable, without a second control', () => {
+    render(
+      <ListGroup label="Contacts">
+        <ListRow title="Super" subtitle="(555) 010-2231" editable onClick={() => {}} />
+      </ListGroup>,
+    )
+    const buttons = screen.getAllByRole('button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]!.querySelector('svg.lucide-pencil')).not.toBeNull()
+    expect(buttons[0]!.textContent).toBe('Super(555) 010-2231')
   })
 })

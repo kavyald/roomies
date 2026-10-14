@@ -1,10 +1,11 @@
 'use client'
 
 import { ChevronDown } from 'lucide-react'
-import { useRef, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { SheetSave } from '@/components/ui/Sheet'
 import { useContacts, useMembers, useProfiles, useRooms } from '@/lib/client/hooks'
 import type { ContactId, HouseId, RoomId, UserId } from '@/lib/domain/ids'
 import type { Category, Item, NewItem, Priority } from '@/lib/domain/items'
@@ -66,6 +67,7 @@ const Label = ({ htmlFor, children }: { htmlFor: string; children: React.ReactNo
 /**
  * Title first (FRONTEND §5.3): a title and "Add" is enough. A chore's "How often?" always shows;
  * the other optional fields sit behind "More options" when adding, and are all shown when editing.
+ * It lives in a Sheet: the header check (SheetSave, named by `submitLabel`) submits it (T80).
  * "Add another" (when adding) keeps the sheet open: it clears the title and note for the next one
  * and keeps the rest (room, date, who).
  */
@@ -97,6 +99,7 @@ export function ItemForm({
   const showWhose = askWhose && category === 'need'
   const withWhose = (x: ItemFormValues) => (showWhose ? { ...x, forMe: whose === 'me' } : x)
   const titleRef = useRef<HTMLInputElement>(null)
+  const formId = useId()
   const [expanded, setExpanded] = useState(startExpanded)
   const rooms = useRooms(houseId)
   const members = useMembers(houseId)
@@ -125,7 +128,7 @@ export function ItemForm({
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-3.5">
+    <form id={formId} onSubmit={submit} className="grid gap-3.5">
       <div className="grid gap-1.5">
         <Label htmlFor="item-title">{titleLabel}</Label>
         <input
@@ -296,18 +299,10 @@ export function ItemForm({
         </>
       )}
 
-      {onAddAnother ? (
-        <div className="grid grid-cols-2 gap-2">
-          <Button type="submit" disabled={busy || !v.title.trim()}>
-            {submitLabel}
-          </Button>
-          <Button variant="secondary" disabled={busy || !v.title.trim()} onClick={another}>
-            Add another
-          </Button>
-        </div>
-      ) : (
-        <Button type="submit" block disabled={busy || !v.title.trim()}>
-          {submitLabel}
+      <SheetSave form={formId} label={submitLabel} busy={busy} disabled={!v.title.trim()} />
+      {onAddAnother && (
+        <Button variant="secondary" block disabled={busy || !v.title.trim()} onClick={another}>
+          Add another
         </Button>
       )}
     </form>

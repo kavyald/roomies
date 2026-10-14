@@ -6,7 +6,7 @@ import { depsForTest } from '@/lib/compose'
 import { AppClientProvider, makeQueryClient } from '@/lib/client/provider'
 import type { UserId } from '@/lib/domain/ids'
 import { fakeAppClient } from '@/lib/testing/app-client'
-import { HouseScreen } from './HouseScreen'
+import { AdminScreen } from './AdminScreen'
 
 afterEach(cleanup)
 
@@ -23,7 +23,7 @@ const setup = async () => {
 
 const renderAs = (
   deps: Awaited<ReturnType<typeof setup>>['deps'],
-  houseId: Parameters<typeof HouseScreen>[0]['houseId'],
+  houseId: Parameters<typeof AdminScreen>[0]['houseId'],
   userId: UserId,
 ) =>
   render(
@@ -31,11 +31,11 @@ const renderAs = (
       client={fakeAppClient(deps.uow, asMember(houseId, userId))}
       queryClient={makeQueryClient()}
     >
-      <HouseScreen houseId={houseId} />
+      <AdminScreen houseId={houseId} />
     </AppClientProvider>,
   )
 
-describe('HouseScreen (reads through useX hooks with a fake AppClient)', () => {
+describe('AdminScreen (reads through useX hooks with a fake AppClient)', () => {
   it('lists roommates with their room colors and the house contacts', async () => {
     const { deps, house, admin, member } = await setup()
     const waterId = deps.ids.newId<'room'>()
@@ -83,5 +83,19 @@ describe('HouseScreen (reads through useX hooks with a fake AppClient)', () => {
     renderAs(deps, house.id, stranger)
     expect(await screen.findByText('Your roommates will show up here once they join.')).toBeTruthy()
     expect(screen.getByText('No contacts yet. Add the super or the landlord.')).toBeTruthy()
+  })
+
+  it('puts Feeling weights, then Activity, above Rooms, untitled, with no Notifications row (T67)', async () => {
+    const { deps, house, member } = await setup()
+    renderAs(deps, house.id, member)
+    const weights = await screen.findByRole('button', { name: /^Feeling weights/ })
+    const activity = screen.getByRole('link', { name: 'Activity' })
+    const rooms = within(await screen.findByRole('list', { name: 'Rooms' })).getByRole('button')
+    const follows = (a: Element, b: Element) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(follows(weights, activity)).toBe(true)
+    expect(follows(activity, rooms)).toBe(true)
+    expect(screen.queryByRole('link', { name: 'Notifications' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: /Settings|History|Money/ })).toBeNull()
   })
 })

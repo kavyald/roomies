@@ -3,8 +3,7 @@
 import { Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import { Field, inputClass } from '@/components/auth/fields'
-import { Button } from '@/components/ui/Button'
-import { Sheet } from '@/components/ui/Sheet'
+import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { useCreatePoll, useHouse } from '@/lib/client/hooks'
 import type { HouseId, ItemId, PollId } from '@/lib/domain/ids'
@@ -131,9 +130,12 @@ export function NewPollSheet({
         value={deadline}
         onChange={(e) => setDeadline(e.target.value)}
       />
-      <Button block disabled={create.isPending || !question.trim()} onClick={submit}>
-        Start poll
-      </Button>
+      <SheetSave
+        label="Start poll"
+        busy={create.isPending}
+        disabled={!question.trim()}
+        onSave={submit}
+      />
     </Sheet>
   )
 }

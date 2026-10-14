@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { asMember } from '../adapters/contracts/unit-of-work.contract'
 import { depsForTest } from '../compose'
-import { monthlySpend, monthOf } from '../domain/costs'
+import { activeCosts } from '../domain/costs'
 import type { ItemId, UserId } from '../domain/ids'
 import type { Cents } from '../domain/money'
 import { sampleHouse } from '../testing/sample-house'
@@ -17,7 +17,7 @@ const setup = async () => {
 }
 
 describe('costs', () => {
-  it('finishing a grocery run with $42.50 records one cost on the run, and Spent this month', async () => {
+  it('finishing a grocery run with $42.50 records one cost on the run', async () => {
     const { deps, s, as } = await setup()
     const milk = await makeCreateItem(deps)(as('Wren'), { category: 'need', title: 'Milk' })
     if (!milk.ok) throw new Error(milk.error)
@@ -34,11 +34,6 @@ describe('costs', () => {
     })
     const costs = deps.uow.state.costs
     expect(costs).toHaveLength(1)
-    const tz = s.house.settings.timezone
-    expect(monthlySpend(costs, 4, monthOf(deps.clock.now(), tz), tz)).toEqual({
-      total: 4250,
-      share: 1063,
-    })
     expect(deps.uow.state.activity.map((a) => a.kind).slice(-3)).toEqual([
       'run.item_returned',
       'run.finished',
@@ -80,7 +75,7 @@ describe('costs', () => {
     })
   })
 
-  it('any member edits a cost or removes it, and Spent this month follows', async () => {
+  it('any member edits a cost or removes it, and only active costs count', async () => {
     const { deps, s, as } = await setup()
     const vacuum = await makeCreateItem(deps)(as('Wren'), { category: 'need', title: 'Vacuum' })
     if (!vacuum.ok) throw new Error(vacuum.error)
@@ -91,9 +86,7 @@ describe('costs', () => {
     })
     if (!cost.ok) throw new Error(cost.error)
     const costId = cost.value.id
-    const tz = s.house.settings.timezone
-    const month = monthOf(deps.clock.now(), tz)
-    const spent = () => monthlySpend(deps.uow.state.costs, 4, month, tz).total
+    const spent = () => activeCosts(deps.uow.state.costs).reduce((sum, c) => sum + c.amount, 0)
 
     const edit = makeEditCost(deps)
     const edited = await edit(as('Sam'), { costId, amount: 20000 as Cents, paidBy: s.people.Sam })

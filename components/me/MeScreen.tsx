@@ -1,27 +1,46 @@
 'use client'
 
+import { Bell, ChevronRight, SunMoon } from 'lucide-react'
+import Link from 'next/link'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Avatar } from '@/components/ui/Avatar'
-import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { useToast } from '@/components/ui/Toast'
-import { useProfiles, useUpdateMySettings } from '@/lib/client/hooks'
+import { useProfiles } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
-import type { Theme } from '@/lib/domain/house'
 import type { HouseId } from '@/lib/domain/ids'
-import { DEFAULT_QUIET_HOURS } from '@/lib/domain/notifications'
-import { NotificationsSection } from './NotificationsSection'
+import { THEME_LABEL } from './theme'
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="mt-6 mb-2.5 text-[1.0625rem] font-extrabold">{children}</h2>
+function SettingsLink({
+  href,
+  icon,
+  title,
+  value,
+}: {
+  href: string
+  icon: React.ReactNode
+  title: string
+  value?: string
+}) {
+  return (
+    <Link
+      href={href}
+      className="sticker flex min-h-11 items-center gap-3 rounded-[20px] border-[1.5px] border-outline bg-card px-3.5 py-3 font-bold"
+    >
+      {icon}
+      <span className="flex-1">{title}</span>
+      {value && <span className="font-semibold text-ink-soft">{value}</span>}
+      <ChevronRight aria-hidden className="size-5 text-ink-soft" />
+    </Link>
+  )
 }
 
-/** Personal settings (FRONTEND §5.11, PRD §11): notifications in one section, and theme. */
+/**
+ * Your settings (FRONTEND §5.11, PRD §11): two separate entries, Notifications and Appearance,
+ * each its own page (T65), so the theme never reads as a notification setting.
+ */
 export function MeScreen({ houseId }: { houseId: HouseId }) {
   const { me } = useAppClient()
   const profiles = useProfiles(houseId)
-  const update = useUpdateMySettings(houseId)
   const ctx = useCardContext(houseId)
-  const toast = useToast()
   const mine = profiles.data?.find((p) => p.id === me)
 
   if (!mine) return <p className="text-ink-soft">Loading…</p>
@@ -34,24 +53,19 @@ export function MeScreen({ houseId }: { houseId: HouseId }) {
         <p className="m-0 text-lg font-extrabold">{mine.displayName}</p>
       </div>
 
-      <SectionTitle>Notifications</SectionTitle>
-      <NotificationsSection houseId={houseId} quiet={mine.quietHours ?? DEFAULT_QUIET_HOURS} />
-
-      <SectionTitle>Appearance</SectionTitle>
-      <SegmentedControl
-        label="Theme"
-        wide
-        value={mine.theme}
-        onChange={async (theme: Theme) => {
-          const r = await update.mutateAsync({ theme })
-          if (!r.ok && r.error !== 'no_change') toast("Couldn't change the theme. Try again.")
-        }}
-        options={[
-          { value: 'auto', label: 'Auto' },
-          { value: 'light', label: 'Light' },
-          { value: 'dark', label: 'Dark' },
-        ]}
-      />
+      <nav aria-label="Settings" className="mt-6 grid gap-3">
+        <SettingsLink
+          href={`/h/${houseId}/me/notifications`}
+          icon={<Bell aria-hidden className="size-5 text-ink-soft" />}
+          title="Notifications"
+        />
+        <SettingsLink
+          href={`/h/${houseId}/me/appearance`}
+          icon={<SunMoon aria-hidden className="size-5 text-ink-soft" />}
+          title="Appearance"
+          value={THEME_LABEL[mine.theme]}
+        />
+      </nav>
     </>
   )
 }

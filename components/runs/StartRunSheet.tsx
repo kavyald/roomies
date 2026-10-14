@@ -4,8 +4,8 @@ import { ChevronDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Field } from '@/components/auth/fields'
 import { FeelingCounts } from '@/components/items/Feelings'
-import { Button } from '@/components/ui/Button'
-import { Sheet } from '@/components/ui/Sheet'
+import { SelectAll } from './SelectAll'
+import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
 import { useFeelingsByItem, useHouse, useItems, useStartRun } from '@/lib/client/hooks'
@@ -78,14 +78,12 @@ export function StartRunSheet({
         <p className="m-0 text-ink-soft">Everything on the list is already on a run.</p>
       ) : (
         <>
-          <Button
-            variant="secondary"
-            size="small"
-            className="justify-self-start"
-            onClick={() => setSkipped(all ? new Set(needs.map((n) => n.id)) : new Set())}
-          >
-            {all ? 'Clear' : 'Select all'}
-          </Button>
+          <div className="-my-1.5 -ml-1.5 justify-self-start">
+            <SelectAll
+              all={all}
+              onToggle={() => setSkipped(all ? new Set(needs.map((n) => n.id)) : new Set())}
+            />
+          </div>
           <ul aria-label="Open needs" className="m-0 grid list-none gap-1 p-0">
             {needs.map((n) => (
               <li key={n.id}>
@@ -143,11 +141,16 @@ export function StartRunSheet({
           />
         </div>
       )}
-      <Button block disabled={start.isPending || picked.length === 0} onClick={submit}>
-        {picked.length === 0
-          ? 'Start run'
-          : `Start run · ${picked.length} ${picked.length === 1 ? 'thing' : 'things'}`}
-      </Button>
+      <SheetSave
+        label={
+          picked.length === 0
+            ? 'Start run'
+            : `Start run · ${picked.length} ${picked.length === 1 ? 'thing' : 'things'}`
+        }
+        busy={start.isPending}
+        disabled={picked.length === 0}
+        onSave={submit}
+      />
     </Sheet>
   )
 }

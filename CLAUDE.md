@@ -6,11 +6,11 @@ Read this first. It covers the codebase, how the work is planned (on the Weyve b
 
 Which cards are done and what's next is on the Weyve board, not here (`find_tasks`; `ready: true` lists what can start). Hosting follows [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): Supabase `roomies-staging` and `roomies-prod` (us-east-1, Postgres 17, which a T73 migration needs because it revokes MAINTAIN; this folder is linked to staging) and Vercel `roomies-staging` and `roomies-prod`. Hosted `supabase db push` is refused in auto mode, so the owner runs it.
 
-Locally you can do everything in M2 (needs/chores/tasks, feelings, the ranked Home feed, feeling weights, live updates) plus: start a run from Needs and work it (done / move / back to the pool / finish, with an optional "Spent" amount; T44 made Start a run pre-check every need and a batch row one tap), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (Spent this month on House, Open Splitwise), and see Coming up on Home and the month calendar. M4 added notifications: every recorded event can enqueue outbox messages in the same transaction (`withNotifications`), pg_cron calls `/api/cron/<job>` (tick, send-notifications, reminders, close-polls), Web Push goes to browsers that turned it on (production builds only; the service worker doesn't register on `pnpm dev`), and each person has settings at `/h/[houseId]/me` (categories, quiet hours, theme).
+Locally you can do everything: needs/chores/tasks, feelings, the ranked Home feed, feeling weights and live updates; start a run from Needs and work it (done / move / back to the pool / finish, with an optional "Spent" amount; T44 made Start a run pre-check every need and a batch row one tap), ask a contact through a request (Add to Landlord list → Send request → record the reply by moving tasks to a visit), plan visits with a date, run polls (on an item or standalone; ties are ties), record costs (on an item or a run, with Open Splitwise), and see the coming week on Home (dated items in its one ranked list, T81) and the month calendar. Notifications: every recorded event can enqueue outbox messages in the same transaction (`withNotifications`), pg_cron calls `/api/cron/<job>` (tick, send-notifications, reminders, close-polls), Web Push goes to browsers that turned it on (production builds only; the service worker doesn't register on `pnpm dev`), and each person has settings at `/h/[houseId]/me` (Notifications: categories and quiet hours; Appearance: theme; each its own page).
 
 ```
-docs/                        PRD, ARCHITECTURE (decision log A1–A33), FRONTEND, TESTING, DEPLOYMENT (the M5 plan), architecture-guide.html, archive/ (mockup-v1.html; ignored by docs-check)
-app/                         Next.js routes: /sign-in, /setup/[token], /join/[token], / (routes you to your house), /h/[houseId]/{,needs,chores,tasks,house,activity,calendar,me,i/[itemId],p/[pollId],r/[runId]}, /dev/kit, /offline, /monitoring (Sentry tunnel), actions/
+docs/                        PRD, ARCHITECTURE (with its decision log), FRONTEND, TESTING, DEPLOYMENT (the M5 plan), architecture-guide.html, archive/ (mockup-v1.html; ignored by docs-check)
+app/                         Next.js routes: /sign-in, /setup/[token], /join/[token], / (routes you to your house), /h/[houseId]/{,needs,tasks,chores,admin,house (redirects to admin),activity,calendar,me{,/notifications,/appearance},i/[itemId],p/[pollId],r/[runId]}, /dev/kit, /offline, /monitoring (Sentry tunnel), actions/
 components/ui/               the UI kit (see /dev/kit in light + dark); components/shell, house, auth, setup, join, me, activity, items (sheets, cards, feelings), runs, polls, costs, calendar, home, needs, chores, tasks
 lib/domain/                  pure types + functions (ids, time/DST, money, result, actor, house, events, activity, format, rooms, setup, invites, members, items, lists, feelings, priority, weights, runs, polls, costs, calendar)
 lib/app/                     ports.ts + use cases (contacts, session/whereTo, setup, invites, house, items, runs, polls, costs)
@@ -42,6 +42,7 @@ proxy.ts                     Next 16's middleware: sets the page CSP (nonce), re
   - When a member leaves, record the event *before* updating the membership (they can't write the log afterwards).
   - Items and runs carry a `version` (their `updated_at` to the microsecond, A27): saving a copy someone saved since throws `Conflict`, which actions answer as `conflict`. Load before you save; contract round-trips compare with `unversioned(...)`.
   - Never nest a control inside a row button: `ListRow`'s `trailing` sits beside it.
+  - Sheets have no X (T80): a form sheet commits with the header check (`SheetSave`, named by what the old bottom button said: "Save", "Add", "Start poll"), and the drag handle is a button named "Close". In e2e, dismiss with Escape or that handle. Icon-only buttons use `components/ui/IconButton` (px floors: rem sizes measure about 36px in Playwright WebKit).
   - Cards and Needs rows swipe (`components/ui/Swipeable`, pointer events, `touch-action: pan-y`): right finishes, left opens the emoji tray. Each also has a 🙂+ button named "Share a feeling: <title>" beside its own button. In e2e, swipe with `page.mouse` (down, move with `steps`, up); in jsdom, stub `setPointerCapture` (Vaul needs it too).
   - Port 3000 on this Mac is often taken by another project's server; `.claude/launch.json` (untracked) uses auto ports.
   - Jobs locally: `pnpm cron:local <port>` stores the app URL and `CRON_SECRET` in Supabase Vault so pg_cron can reach `pnpm dev`; without it the schedule sends nothing. Postgres `ON CONFLICT` also checks the SELECT policy, so the outbox uses it only for dedupe-keyed (system) rows.
@@ -72,19 +73,11 @@ The tasks are the cards on the Weyve **roomies** project (below). Each card hold
   - **T** cards are features, plumbing and fixes. A new task takes the next free T number on Weyve.
   - **Q** cards are test tasks; each milestone ends with one.
   - **E** cards need outside accounts.
-- **Milestones:**
-  - **M0** Foundations
-  - **M1** House & members
-  - **M2** Items
-  - **M3** Polls, runs & calendar
-  - **M4** Notifications & polish
-  - **M5** Hosting & launch (exit criteria and suggested order are on the E5 card; PRD §12 has every milestone's exit criteria)
-  - **M6** Usability & personal needs (built before launch: E5 depends on Q6)
-- **M0–M4 and M6 run entirely on this Mac**, using local Supabase in Docker with no accounts.
-- **M5 is off limits unless the owner says otherwise.** It needs Supabase, Gmail and Vercel accounts, which only the owner can create.
+- **Milestones** are `M<n>` tags on Weyve. Each card carries its milestone, and the milestone's exit criteria are on its cards (PRD §12 has the original ones); `find_tasks` with the tag lists a milestone.
+- **Everything runs on this Mac**, using local Supabase in Docker with no accounts, **except M5 (Hosting & launch), which is off limits unless the owner says otherwise.** It needs Supabase, Gmail and Vercel accounts, which only the owner can create. Its suggested order is on the E5 card.
 - **Order:** dependencies are hard: don't start a task until everything it depends on is committed. `find_tasks` with `ready: true` lists what can start.
 - **Test tasks:** each milestone's Q task adds the tests that span its tasks (end-to-end journeys, RLS across tables) and keeps `pnpm test:all` green. **A milestone isn't done until its Q task passes**, so a task added to a milestone also becomes a dependency of its Q task.
-- **Tags:** every card has its milestone (`M0`–`M6`) and one topic: `topic:platform`, `topic:ui-shell`, `topic:people`, `topic:items`, `topic:priority`, `topic:coordination`, `topic:activity`, `topic:notifications` or `topic:launch`. Q cards are tagged `tests` instead of a topic, and cards that need outside accounts also carry `external`. Size is in each card's notes. On the canvas, each topic is a lane, ordered left to right by dependency depth; place a new card in its topic's lane.
+- **Tags:** every card has its milestone (`M<n>`) and one topic: `topic:platform`, `topic:ui-shell`, `topic:people`, `topic:items`, `topic:priority`, `topic:coordination`, `topic:activity`, `topic:notifications` or `topic:launch`. Q cards are tagged `tests` instead of a topic, and cards that need outside accounts also carry `external`. Size is in each card's notes. On the canvas, each topic is a lane, ordered left to right by dependency depth; place a new card in its topic's lane.
 - **Edges:** keep only direct dependencies; don't add one that already follows through another path.
 - **Changing the plan:** edit the cards directly (name, WHAT, Done when, tags, dependency edges). There is no generated doc to keep in step.
 

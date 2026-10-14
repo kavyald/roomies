@@ -92,11 +92,11 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 
 | Tab | Contents |
 |---|---|
-| **Home** | **Coming up** (the next 7 days of dated items and runs; tap for the calendar), **Open polls**, **Runs in progress**, then the ranked **Needs attention** feed (*Mine / All*) |
+| **Home** | **Open polls**, **Runs in progress** (open batches, plus visits dated in the next 7 days), then one unlabeled list ranked by priority (*Mine / All*): the feed (§8.1) plus any task or need dated in the next 7 days, each once. A **Calendar** link beside *Mine / All* opens the month calendar. |
 | **Needs** | The shared list of things to buy. Needs with a feeling come first. **Start a run** from here. |
-| **Chores** | Chores, sorted by what's due for a go, with "last done" |
 | **Tasks** | **Requests & visits** (unsent and sent requests, planned visits) with **+ New** (start a request or plan a visit), then tasks with filters *Mine / All / Outside help* |
-| **House** | **Settings** (feeling weights), rooms, contacts, roommates, invite link, activity log |
+| **Chores** | Chores, sorted by what's due for a go, with "last done" |
+| **Admin** | Roommates, invite link (admins), contacts, then untitled: **Feeling weights**, **Activity**, **Rooms**. Everyone sees this tab; only admins get the invite link and roommate controls. |
 
 A floating **"+"** opens a picker (Need / Chore / Task / Poll / Run) and then a short form. Only the title is required.
 
@@ -130,7 +130,7 @@ Every item has:
 - **Adding:** a title is enough ("tomatoes"). Optional: room, who's getting it, needed by, note ("the oat one, not almond").
 - **Urgency comes from feelings**, not a separate flag. **[DECIDED] (owner)** 😰 "we're on the last roll" does what a "needed soon" toggle would, and it says why. Needs with a feeling sort to the top of the list. A needed-by date also raises priority.
 - **Adding something that's already on the list** doesn't duplicate it. The app points to the existing one. "Already on the list" means the same title for the same owner: the house's "Milk" and Kavya's "Milk" are two needs.
-- **For me or for the house** (T45, owner): a need is the house's unless whoever adds it picks **Me** (a House / Me toggle beside "We need…" and on the need form; the last choice is remembered on that phone). It's a label only: costs, the equal split, Spent this month and Splitwise don't change. Everyone sees personal needs ("For Kavya"), anyone can get one or put it on a run, and priority treats them like any need. Anyone can change whose it is on the detail; it shows in Activity.
+- **For me or for the house** (T45, owner): a need is the house's unless whoever adds it picks **Me** (a House / Me toggle beside "We need…" and on the need form; the last choice is remembered on that phone). It's a label only: costs and Splitwise don't change. Everyone sees personal needs ("For Kavya"), anyone can get one or put it on a run, and priority treats them like any need. Anyone can change whose it is on the detail; it shows in Activity.
 - **Clearing a need:**
   - **Got it:** check it off directly.
   - **On a run:** it's checked off when the run finishes (§6.5).
@@ -208,21 +208,20 @@ A run is **a batch of items handled together**. There are three kinds:
 - **Batches** have an optional **Spent** amount beside **Finish** ("Did you spend money?" without a separate step): an amount records one cost paid by you (who paid can be changed), and leaving it empty records none (§6.6).
 - **Fewer taps:** *Start a run* opens with every open need not already on a run checked, and in a batch tapping an item marks it done (tap again to put it back on the run). A grocery run (start, get 3 things, finish with $40) is about 6 taps.
 - While open, items show **"On Kavya's run"** or **"Sent to Landlord · 2 days ago"** so nobody doubles up. **An item can be on only one open run at a time.**
-- Runs with a date show in Coming up and on the calendar.
+- Runs with a date show on the calendar; open batches and visits dated in the next 7 days also show on Home under Runs in progress.
 
 ### 6.6 Money (costs)
 
 - **[DECIDED]** Money is a **cost record**: an amount, who paid, an optional note, and what it was for (an item or a run). Nothing requires one.
 - **Adding one:** "Add cost" on any item, or the **Spent** amount beside a batch's **Finish**.
-- **Changing one:** any member can **edit** a cost (amount, who paid, note) or **remove** it ("Remove this cost?"), from the item's Costs section or the run's sheet. A removed cost stops counting toward Spent this month; the activity log keeps the edit or removal.
-- **Split** is equal among all members in v1.
+- **Changing one:** any member can **edit** a cost (amount, who paid, note) or **remove** it ("Remove this cost?"), from the item's Costs section or the run's sheet. A removed cost leaves the item or run; the activity log keeps the edit or removal.
+- **Splitting** is left to Splitwise; Roomies shows no monthly total or shares (T64; the fuller money feature is T89, after launch).
 - **Open Splitwise** copies "{title} — ${amount}" and opens Splitwise. **[DECIDED] (owner)** There's no Splitwise API in v1.
-- The House tab shows **"Spent this month: $X · your share $Y"**.
 
 ### 6.7 Calendar
 
 - Shows **anything with a date**: tasks, needs with a needed-by date, and runs (grocery runs, deliveries, visits, party setup).
-- **Coming up** (Home) shows the next 7 days. The full calendar is a month grid with a day list.
+- Home takes in the next 7 days (dated tasks and needs join its ranked list, dated runs show under Runs in progress) and links to the calendar. The full calendar is a month grid with a day list.
 - A plain heads-up ("Jo's parents staying Sat") is a **task with a date** in v1.
 
 ---
@@ -267,11 +266,11 @@ clamped to 0–100
 
 Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (20–44), **Low** (< 20). Tapping it shows **"Why is this here?"**, the breakdown (e.g. "Due tomorrow +25, 😰 Maya +20").
 
-**What's in the feed:** tasks that aren't done, **except tasks on a visit** (the contact has taken them on). Those come back only if someone shares a feeling or the visit is within 3 days. Chores past their rhythm, or with a feeling. Needs with a feeling or a needed-by date within 7 days. Polls and runs have their own sections on Home.
+**What's in the feed:** tasks that aren't done, **except tasks on a visit** (the contact has taken them on). Those come back only if someone shares a feeling or the visit is within 3 days. Chores past their rhythm, or with a feeling. Needs with a feeling or a needed-by date within 7 days. Polls and runs have their own sections on Home. Home's list also takes in any open task or need dated in the next 7 days, so nothing with a date this week drops off Home.
 
 ### 8.2 Settings: feeling weights **[DECIDED] (owner)**
 
-- **House → Settings → Feeling weights**: one row per feeling with its emoji, name, and a number (−20 to +40, in steps of 5), plus **Reset to defaults**.
+- **Admin → Feeling weights**: one row per feeling with its emoji, name, and a number (−20 to +40, in steps of 5), plus **Reset to defaults**.
 - **One setting for the whole house.** **Any member** can change it. **(owner)**
 - Saving re-ranks the feed for everyone, is logged, and shows a card on Home ("Maya set 😰 Anxious to +30"). Everyone else also gets a push ("Maya set 😰 to +30", §11, D32).
 - The other parts of the formula are fixed in v1.
@@ -323,7 +322,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 - **Web Push** only, which requires adding the app to the Home Screen on iOS. The email digest fallback comes later (§13).
 - Quiet hours per person (default 10pm–8am), with per-category toggles in personal settings.
 - Notifications follow the person, not the phone: signing out stops that device getting yours, and turning them on moves the device to whoever is signed in (T84). If the push service is briefly down, a notification is tried again after 5 minutes, 30 minutes and 2 hours before it's given up.
-- Everything about notifications sits in one **Notifications** section of personal settings: this device's status with its one button (turn on / blocked / add to Home Screen first), a switch per category with a line saying when you get it, and quiet hours as one row. House → Settings links to it.
+- Everything about notifications sits in one **Notifications** section of personal settings: this device's status with its one button (turn on / blocked / add to Home Screen first), a switch per category with a line saying when you get it, and quiet hours as one row. It is reached only from personal settings (your avatar), not from Admin (T67).
 
 ---
 
@@ -338,8 +337,9 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 | **M4: Notifications & polish** | Push, reminders, polish, end-to-end tests | Reminders and push work locally, and the E2E suite is green in CI |
 | **M5: Hosting & launch** | The external services: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production | Everyone is on production from their phones |
 | **M6: Usability & personal needs** | Fewer taps (swipe, simpler item views, quicker runs), needs for one person or the house, the gaps chosen from the docs↔code audit (D35), docs that match the build | Every action hits its tap target, item views fit at 375pt without scrolling, and personal needs work end to end |
+| **M7: Simpler screens** | Tabs Home, Needs, Tasks, Chores, Admin; Home as one priority list; check-to-save sheets; icon buttons for edit and delete; Appearance apart from Notifications; rooms renamed from one sheet; no monthly cost total | Every M7 screen passes axe at 375pt in light and dark, and the M7 journeys pass |
 
-M6 is built locally before launch, so production waits on its test task (Q6). The tasks are on the **roomies** board in Weyve.
+M6 and M7 are built locally before launch, so production waits on M7's test task (Q7). Work after launch (dates and times, undo, run history, speed, money) is M8. The tasks are on the **roomies** board in Weyve.
 
 ---
 
@@ -396,7 +396,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D28 | Sign-in codes come from a house Gmail address, and the app lives at a `*.vercel.app` URL. No custom domain in v1. | Owner |
 | D29 | Everything that needs an outside account is its own, later milestone (M5). M0–M4 are built and checked entirely on one Mac. | Owner |
 | D30 | Removing an item is called "Delete" in the app. The row stays for history and the toast offers Undo. No archive list, no 30-day window (T62). | Owner |
-| D31 | House → Rooms is a compact grid grouped Bedrooms / Bathrooms / Spaces (T60) | Owner |
+| D31 | Admin → Rooms is one row that opens a sheet of plain names grouped Bedrooms / Bathrooms / Spaces, renamed in place (T66; T60's grid had icons) | Owner |
 | D32 | Extra pushes: feeling weights changed, a new poll option, a new point person, tasks moved into a visit (T59) | Owner |
 | D33 | Offline shows the offline page only. No cached data. | Owner |
 | D34 | Not building: deleting the house, a move-in checklist, a "Handled 💛" toast, adding or archiving rooms, a room's element setting, item counts on rooms | Owner |

@@ -106,6 +106,6 @@ describe('the + sheet (FRONTEND §5.3)', { timeout: 20_000 }, () => {
     expect(addKindFor(base, `${base}/chores`)).toBe('chore')
     expect(addKindFor(base, `${base}/tasks`)).toBe('task')
     expect(addKindFor(base, base)).toBeUndefined()
-    expect(addKindFor(base, `${base}/house`)).toBeUndefined()
+    expect(addKindFor(base, `${base}/admin`)).toBeUndefined()
   })
 })

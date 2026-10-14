@@ -86,7 +86,16 @@ describe('A grocery run in few taps (T44)', () => {
     for (const box of within(needs).getAllByRole('checkbox'))
       expect((box as HTMLInputElement).checked).toBe(true)
     expect(within(start).queryByLabelText('Title (optional)')).toBeNull()
+    // Select all is one icon toggle (T68): pressed while everything's checked; tapping it clears.
+    const all = within(start).getByRole('button', { name: 'Select all' })
+    expect(all.getAttribute('aria-pressed')).toBe('true')
+    await user.click(all)
+    for (const box of within(needs).getAllByRole('checkbox'))
+      expect((box as HTMLInputElement).checked).toBe(false)
+    expect(all.getAttribute('aria-pressed')).toBe('false')
+    await user.click(all)
     await user.click(within(needs).getByRole('checkbox', { name: 'Soap' }))
+    expect(all.getAttribute('aria-pressed')).toBe('false')
     await user.click(within(start).getByRole('button', { name: 'Start run · 3 things' }))
 
     // The batch: a tap is done; a mis-tap is undone by tapping again.

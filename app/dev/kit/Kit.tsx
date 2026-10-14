@@ -1,6 +1,16 @@
 'use client'
 
-import { Check, CheckCircle, Phone, ShoppingBag, Sparkles, Wind } from 'lucide-react'
+import {
+  Check,
+  CheckCircle,
+  ListChecks,
+  Pencil,
+  Phone,
+  ShoppingBag,
+  Sparkles,
+  Trash2,
+  Wind,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -9,9 +19,9 @@ import { Chip, RoomChip, TierChip } from '@/components/ui/Chip'
 import { Disclosure, DisclosureGroup } from '@/components/ui/Disclosure'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
-import { OverflowMenu } from '@/components/ui/OverflowMenu'
+import { IconButton, IconMark } from '@/components/ui/IconButton'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { Sheet } from '@/components/ui/Sheet'
+import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { Swipeable } from '@/components/ui/Swipeable'
 import { ToastProvider, useToast } from '@/components/ui/Toast'
 import { houseTabs } from '@/components/shell/tabs'
@@ -31,12 +41,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Contents() {
   const [scope, setScope] = useState<'mine' | 'all'>('mine')
   const [sheet, setSheet] = useState(false)
+  const [all, setAll] = useState(false)
   const toast = useToast()
   return (
     <div className="grid gap-6">
       <Section title="Type">
         <h1 className="m-0 text-[1.75rem] font-extrabold">Home</h1>
-        <p className="m-0 text-xl font-bold">Needs attention</p>
+        <p className="m-0 text-xl font-bold">Open polls</p>
         <p className="m-0">Body text, 17pt. This one&apos;s been waiting a couple days.</p>
         <p className="m-0 text-[0.8rem] font-medium text-ink-soft">
           Kitchen · Wren · Needed by Fri
@@ -176,15 +187,23 @@ function Contents() {
         </DisclosureGroup>
       </Section>
 
-      <Section title="Overflow menu">
-        <div className="flex justify-end">
-          <OverflowMenu
-            label="More actions"
-            items={[
-              { label: 'Edit', onSelect: () => toast('Edit') },
-              { label: 'Delete', tone: 'soft', onSelect: () => toast('Delete') },
-            ]}
+      <Section title="Icon buttons">
+        <div className="flex gap-1">
+          <IconButton icon={Check} tone="accent" label="Save" onClick={() => toast('Saved.')} />
+          <IconButton icon={Check} tone="accent" label="Saving" busy />
+          <IconButton icon={Check} tone="accent" label="Nothing to save yet" disabled />
+          <IconButton icon={Pencil} label="Edit" onClick={() => toast('Edit')} />
+          <IconButton icon={Trash2} label="Delete" onClick={() => toast('Delete')} />
+          <IconButton
+            icon={ListChecks}
+            label="Select all"
+            aria-pressed={all}
+            tone={all ? 'accent' : 'neutral'}
+            onClick={() => setAll((a) => !a)}
           />
+          <span className="grid size-[max(2.75rem,44px)] place-items-center">
+            <IconMark icon={Pencil} />
+          </span>
         </div>
       </Section>
 
@@ -204,10 +223,8 @@ function Contents() {
         title="How do you feel about this?"
         description="Only if it matters to you. The house will see it."
       >
-        <p className="m-0">Sheet content goes here.</p>
-        <Button block onClick={() => setSheet(false)}>
-          Done
-        </Button>
+        <p className="m-0">Sheet content goes here. The check saves; swipe down to close.</p>
+        <SheetSave onSave={() => setSheet(false)} />
       </Sheet>
     </div>
   )

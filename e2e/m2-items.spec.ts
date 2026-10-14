@@ -50,10 +50,10 @@ test('a duplicate need points to the first, Did it resets a chore, 😰 moves a 
 
   // 3. On Home, sharing 😰 moves the latch above the bulb (25 + 15 + 20 = 60).
   await page.getByRole('link', { name: 'Home' }).click()
-  const feed = page.getByRole('list', { name: 'Needs attention' }).getByRole('listitem')
+  const feed = page.getByRole('list', { name: 'By priority' }).getByRole('listitem')
   await expect(feed.first()).toContainText('Replace hallway bulb')
   await expect(feed.nth(1)).toContainText('Fix the latch')
-  await expect(page.getByRole('list', { name: 'Needs attention' })).not.toContainText(
+  await expect(page.getByRole('list', { name: 'By priority' })).not.toContainText(
     'Take out the trash', // just done, so it's not past its rhythm
   )
   await feed.nth(1).getByRole('button', { name: 'Fix the latch', exact: true }).click()
@@ -68,7 +68,7 @@ test('a duplicate need points to the first, Did it resets a chore, 😰 moves a 
   await expect(feed.first()).toContainText('High')
 
   // 4. Turning 😰 down to −20 re-ranks it below the bulb again (25 + 15 − 20 = 20).
-  await page.getByRole('link', { name: 'House' }).click()
+  await page.getByRole('link', { name: 'Admin' }).click()
   await page.getByRole('button', { name: /^Feeling weights/ }).click()
   const sheet = page.getByRole('dialog', { name: 'Feeling weights' })
   const lower = sheet.getByRole('button', { name: 'Lower Anxious' })

@@ -4,7 +4,6 @@ import {
   addCost,
   copiedToSplitwise,
   editCost,
-  monthlySpend,
   removeCost,
   splitwiseText,
   type Cost,
@@ -78,22 +77,9 @@ describe('addCost', () => {
   })
 })
 
-describe('monthlySpend', () => {
-  it('adds up this month on the house calendar, and splits it equally', () => {
-    const costs = [
-      c(4250, '2026-09-02'),
-      c(1000, '2026-09-30T23:30'), // late on the 30th in New York is October in UTC
-      c(999, '2026-10-01'),
-      c(5000, '2026-08-31'),
-    ]
-    expect(monthlySpend(costs, 4, '2026-09', TZ)).toEqual({ total: 5250, share: 1313 })
-    expect(monthlySpend([], 4, '2026-09', TZ)).toEqual({ total: 0, share: 0 })
-    expect(monthlySpend(costs, 0, '2026-10', TZ)).toEqual({ total: 999, share: 999 })
-  })
-
+describe('activeCosts', () => {
   it('leaves removed costs out', () => {
     const costs = [c(4250, '2026-09-02'), { ...c(1000, '2026-09-03'), removedAt: ctx.now }]
-    expect(monthlySpend(costs, 2, '2026-09', TZ)).toEqual({ total: 4250, share: 2125 })
     expect(activeCosts(costs).map((x) => x.amount)).toEqual([4250])
   })
 })

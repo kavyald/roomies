@@ -15,7 +15,7 @@ import { useSplitwise } from './useSplitwise'
 
 /**
  * "Costs · $189.00" on an item: a closed section with each cost ("$189 · Wren paid", with Open
- * Splitwise and Edit / Remove in its "…" menu) and **Add cost** (FRONTEND §5.4).
+ * Splitwise and the Edit / Remove icons) and **Add cost** (FRONTEND §5.4).
  */
 export function ItemCosts({ houseId, item }: { houseId: HouseId; item: Item }) {
   const costs = useCosts(houseId)

@@ -24,7 +24,10 @@ test('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; 
 
   await page.goto(`/h/${owner.houseId}/tasks`)
   const section = page.getByRole('region', { name: 'Requests & visits' })
-  await expect(section).toContainText('No requests yet.')
+  // T82: with nothing open the section is just its heading and + New, no empty state.
+  await expect(section.getByRole('button', { name: 'New' })).toBeVisible()
+  await expect(section.getByRole('list')).toHaveCount(0)
+  await expect(section).not.toContainText('No requests yet')
 
   // "Add to Landlord list" on each task.
   for (const title of ['Leak under the sink', 'Mold in the bathroom', 'Window latch']) {
@@ -95,7 +98,7 @@ test('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; 
   await expect(history).toContainText('Moved to Landlord visit · Sending a plumber Thu')
 
   // "Handled by" follows the visit (T51): the picker says so and opens the visit instead.
-  await detail.getByRole('button', { name: 'Change', exact: true }).click()
+  await detail.getByRole('button', { name: "Change who's handling it" }).click()
   const picker = detail.getByRole('region', { name: "Who's handling it?" })
   await expect(picker).toContainText(
     "It's on the Landlord visit. Move it to change who's handling it.",
