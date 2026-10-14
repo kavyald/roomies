@@ -1,0 +1,54 @@
+# Weekly encrypted backup of prod (DEPLOYMENT D8, ARCHITECTURE §9). The repo is public, so anyone
+# signed in to GitHub can read this run's log and download its artifacts: the dump is encrypted
+# inside the pipe that makes it (scripts/backup.sh), only the encrypted file is uploaded, and
+# nothing prints the connection string or any data. Restore with scripts/restore.sh and the
+# private key, which stays with the owner.
+#
+# Off until E5: needs the repository variable BACKUP_ENABLED = true, plus two `production`
+# environment secrets: PROD_DB_URL (the `postgres` user, session pooler) and BACKUP_CERT (the
+# public certificate, PEM).
+name: Backup
+
+on:
+  schedule:
+    - cron: '17 7 * * 1' # Mondays 07:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: backup (prod)
+    if: vars.BACKUP_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      # pg_dump must match the server's major version (17).
+      - name: Install pg_dump 17
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common >/dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+          sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+      - name: Dump and encrypt
+        env:
+          DB_URL: ${{ secrets.PROD_DB_URL }}
+          CERT: ${{ secrets.BACKUP_CERT }}
+          PG_DUMP: /usr/lib/postgresql/17/bin/pg_dump
+        run: |
+          printf '%s\n' "$CERT" > "$RUNNER_TEMP/backup-cert.pem"
+          BACKUP_CERT="$RUNNER_TEMP/backup-cert.pem" bash scripts/backup.sh > "roomies-$(date -u +%F).dump.cms"
+          ls -l roomies-*.dump.cms | awk '{print $5 " bytes, encrypted"}'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: roomies-backup
+          path: roomies-*.dump.cms
+          if-no-files-found: error
+          retention-days: 90

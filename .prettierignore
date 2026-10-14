@@ -1,0 +1,8 @@
+docs/
+pnpm-lock.yaml
+.next/
+coverage/
+supabase/.temp/
+*.md
+scripts/
+.claude/

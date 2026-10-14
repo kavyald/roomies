@@ -1,0 +1,200 @@
+@import 'tailwindcss';
+
+/* ---- Design tokens (FRONTEND §3, §8). Components use these names, never raw hex. ----------
+   Light is the default. Dark follows the system unless the page says data-theme="light", and
+   data-theme="dark" forces it (personal setting, T36). Both also work on any subtree, which is
+   how /dev/kit shows the two side by side. */
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --paper: #fbf5ea;
+  --card: #fffdf8;
+  --ink: #3b2f2a;
+  --ink-soft: #6e5e53;
+  --line: #e6d9c4;
+  --neutral-fill: #efe6d6;
+  --neutral-ink: #5e4e43;
+  --accent: #7a3e6e;
+  --on-accent: #ffffff;
+  --accent-ink: #6a3460;
+  --top-fill: #ebd3e6;
+  --top-ink: #6a2f5e;
+  --air-fill: #f7ebc0;
+  --air-ink: #6b5410;
+  --fire-fill: #f6cdb8;
+  --fire-ink: #8a3413;
+  --water-fill: #cfe0f2;
+  --water-ink: #1f4a73;
+  --earth-fill: #d7e6cc;
+  --earth-ink: #3a5a2e;
+  --scrim: rgb(59 47 42 / 0.32);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --paper: #211a16;
+    --card: #2c2420;
+    --ink: #f5ebdd;
+    --ink-soft: #c4b4a4;
+    --line: #3e332d;
+    --neutral-fill: #3a302a;
+    --neutral-ink: #d9cbb8;
+    --accent: #d9a0cb;
+    --on-accent: #211a16;
+    --accent-ink: #d9a0cb;
+    --top-fill: #46283f;
+    --top-ink: #f0cde7;
+    --air-fill: #3d3418;
+    --air-ink: #f2dc8c;
+    --fire-fill: #43261b;
+    --fire-ink: #f4b79c;
+    --water-fill: #1c2f42;
+    --water-ink: #a9cbeb;
+    --earth-fill: #26341f;
+    --earth-ink: #bfd9ae;
+    --scrim: rgb(0 0 0 / 0.5);
+  }
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #211a16;
+  --card: #2c2420;
+  --ink: #f5ebdd;
+  --ink-soft: #c4b4a4;
+  --line: #3e332d;
+  --neutral-fill: #3a302a;
+  --neutral-ink: #d9cbb8;
+  --accent: #d9a0cb;
+  --on-accent: #211a16;
+  --accent-ink: #d9a0cb;
+  --top-fill: #46283f;
+  --top-ink: #f0cde7;
+  --air-fill: #3d3418;
+  --air-ink: #f2dc8c;
+  --fire-fill: #43261b;
+  --fire-ink: #f4b79c;
+  --water-fill: #1c2f42;
+  --water-ink: #a9cbeb;
+  --earth-fill: #26341f;
+  --earth-ink: #bfd9ae;
+  --scrim: rgb(0 0 0 / 0.5);
+}
+
+:root {
+  --outline: color-mix(in srgb, var(--ink) 13%, transparent);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-base: 240ms;
+  --dur-slow: 480ms;
+  --font: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, sans-serif;
+}
+
+/* Tailwind names for the tokens: bg-paper, text-ink-soft, bg-air-fill, border-outline, … */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-outline: var(--outline);
+  --color-neutral-fill: var(--neutral-fill);
+  --color-neutral-ink: var(--neutral-ink);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-top-fill: var(--top-fill);
+  --color-top-ink: var(--top-ink);
+  --color-air-fill: var(--air-fill);
+  --color-air-ink: var(--air-ink);
+  --color-fire-fill: var(--fire-fill);
+  --color-fire-ink: var(--fire-ink);
+  --color-water-fill: var(--water-fill);
+  --color-water-ink: var(--water-ink);
+  --color-earth-fill: var(--earth-fill);
+  --color-earth-ink: var(--earth-ink);
+  --color-scrim: var(--scrim);
+  --font-sans: var(--font);
+  --ease-spring: var(--ease-spring);
+  --ease-soft: var(--ease-out);
+}
+
+/* ---- Base ---------------------------------------------------------------------------------- */
+
+/* Layered, so Tailwind utilities (a later layer) always win over these defaults. */
+@layer base {
+  html {
+    /* iOS Dynamic Type, with rem sizing everywhere (FRONTEND §3.2) */
+    font: -apple-system-body;
+    font-family: var(--font);
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 1.0625rem; /* 17 */
+  }
+
+  :where(button, input, textarea, select) {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* Inputs never below 16px, so iOS doesn't zoom on focus */
+  :where(input, textarea, select) {
+    font-size: max(1rem, 16px);
+  }
+
+  :focus-visible {
+    outline: 2.5px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Sticker edge: pressing collapses it and moves the element down (FRONTEND §3.3, §8) */
+  .sticker {
+    box-shadow: 0 2px 0 var(--sticker-edge, var(--line));
+    transition:
+      transform var(--dur-fast),
+      box-shadow var(--dur-fast);
+  }
+  .sticker:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: 0 0 0 transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Completion burst (T37): dots fly out and fade. Skipped entirely with reduced motion. */
+@keyframes burst {
+  from {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--burst-x), var(--burst-y)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
