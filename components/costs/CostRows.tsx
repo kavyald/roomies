@@ -138,7 +138,7 @@ function RemoveCost({
       className="grid gap-2 rounded-2xl bg-paper p-3.5"
     >
       <p className="m-0 font-semibold">
-        Remove this cost? {amount} stops counting toward Spent this month.
+        Remove this cost? {amount} comes off, and Activity keeps a note of it.
       </p>
       <div className="grid grid-cols-2 gap-2">
         <Button ref={first} variant="secondary" disabled={remove.isPending} onClick={onDone}>

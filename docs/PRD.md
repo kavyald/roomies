@@ -130,7 +130,7 @@ Every item has:
 - **Adding:** a title is enough ("tomatoes"). Optional: room, who's getting it, needed by, note ("the oat one, not almond").
 - **Urgency comes from feelings**, not a separate flag. **[DECIDED] (owner)** 😰 "we're on the last roll" does what a "needed soon" toggle would, and it says why. Needs with a feeling sort to the top of the list. A needed-by date also raises priority.
 - **Adding something that's already on the list** doesn't duplicate it. The app points to the existing one. "Already on the list" means the same title for the same owner: the house's "Milk" and Kavya's "Milk" are two needs.
-- **For me or for the house** (T45, owner): a need is the house's unless whoever adds it picks **Me** (a House / Me toggle beside "We need…" and on the need form; the last choice is remembered on that phone). It's a label only: costs, the equal split, Spent this month and Splitwise don't change. Everyone sees personal needs ("For Kavya"), anyone can get one or put it on a run, and priority treats them like any need. Anyone can change whose it is on the detail; it shows in Activity.
+- **For me or for the house** (T45, owner): a need is the house's unless whoever adds it picks **Me** (a House / Me toggle beside "We need…" and on the need form; the last choice is remembered on that phone). It's a label only: costs and Splitwise don't change. Everyone sees personal needs ("For Kavya"), anyone can get one or put it on a run, and priority treats them like any need. Anyone can change whose it is on the detail; it shows in Activity.
 - **Clearing a need:**
   - **Got it:** check it off directly.
   - **On a run:** it's checked off when the run finishes (§6.5).
@@ -214,10 +214,9 @@ A run is **a batch of items handled together**. There are three kinds:
 
 - **[DECIDED]** Money is a **cost record**: an amount, who paid, an optional note, and what it was for (an item or a run). Nothing requires one.
 - **Adding one:** "Add cost" on any item, or the **Spent** amount beside a batch's **Finish**.
-- **Changing one:** any member can **edit** a cost (amount, who paid, note) or **remove** it ("Remove this cost?"), from the item's Costs section or the run's sheet. A removed cost stops counting toward Spent this month; the activity log keeps the edit or removal.
-- **Split** is equal among all members in v1.
+- **Changing one:** any member can **edit** a cost (amount, who paid, note) or **remove** it ("Remove this cost?"), from the item's Costs section or the run's sheet. A removed cost leaves the item or run; the activity log keeps the edit or removal.
+- **Splitting** is left to Splitwise; Roomies shows no monthly total or shares (T64; the fuller money feature is T89, after launch).
 - **Open Splitwise** copies "{title} — ${amount}" and opens Splitwise. **[DECIDED] (owner)** There's no Splitwise API in v1.
-- The House tab shows **"Spent this month: $X · your share $Y"**.
 
 ### 6.7 Calendar
 

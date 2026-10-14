@@ -1,12 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { aRoommate, ownerOnHouseTab } from './support'
 
-test('a grocery run in about six taps: finishing with $40 records one cost on the run and updates Spent this month', async ({
+test('a grocery run in about six taps: finishing with $40 records one cost on the run', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
   await aRoommate(owner, 'Wren')
-  await expect(page.getByLabel('Spent this month')).toContainText('Spent this month: $0.00')
 
   await page.goto(`/h/${owner.houseId}/needs`)
   const weNeed = page.getByLabel('We need…')
@@ -38,11 +37,6 @@ test('a grocery run in about six taps: finishing with $40 records one cost on th
   await expect(toast).toBeVisible()
   await expect(toast.getByRole('button', { name: 'Open Splitwise' })).toBeVisible()
 
-  await page.getByRole('link', { name: 'House' }).click()
-  await expect(page.getByLabel('Spent this month')).toContainText(
-    'Spent this month: $40.00 · your share $20.00',
-  )
-
   // A cost on an item, paid by someone else.
   await page.goto(`/h/${owner.houseId}/needs`)
   await weNeed.fill('Vacuum')
@@ -65,6 +59,8 @@ test('a grocery run in about six taps: finishing with $40 records one cost on th
     costs.getByRole('button', { name: 'Costs', exact: true }),
   ).toHaveAccessibleDescription('$189.00')
   await page.keyboard.press('Escape')
+  // House shows no monthly total (T64).
   await page.getByRole('link', { name: 'House' }).click()
-  await expect(page.getByLabel('Spent this month')).toContainText('Spent this month: $229.00')
+  await expect(page.getByRole('heading', { name: 'Roommates' })).toBeVisible()
+  await expect(page.getByText(/Spent this month/)).toHaveCount(0)
 })

@@ -326,7 +326,6 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 
 - **Settings → Notifications**: one row that opens your Notifications page (`/me/notifications`). The device control lives there, not here.
 - **Settings → Feeling weights**: six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, **Save for the house**. "One setting for the whole house. Anyone can change it."
-- **Spent this month**: total and your share.
 - **Rooms** as small squares, four to a row at 375pt so all 17 fit in about one screen, under three headings: **Bedrooms** (each square in its element's fill with its element icon), **Bathrooms** and **Spaces** (neutral, with an icon for the kind: bath, sofa, door, washing machine, trees). Each square shows an icon and the name; VoiceOver reads the name and kind ("Fire, bedroom"). Tap one for a small sheet: rename it, or **Move earlier** / **Move later** within its group (the order is `sort_order`).
 - **Contacts** with Copy number. **Roommates**. **Invite link** (admins).
 - **Your settings** (`/me`, from your avatar): your avatar and name, then two separate rows, **Notifications** and **Appearance** (showing the current theme), each opening its own page with a "‹ You" link back (T65). No setting sits on `/me` itself, so the theme never reads as a notification setting.

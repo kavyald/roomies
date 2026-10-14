@@ -692,7 +692,6 @@ select changes, actor_id, at from activity_events
 | `addCost` | `(input: NewCost, ctx: { by, now, id, houseId, actionId }) → Result<{ cost; events }, 'not_positive' \| 'too_large' \| 'note_too_long'>` | Who paid defaults to whoever adds it |
 | `editCost` | `(cost, patch: { amount?, paidBy?, note? (null clears) }, { by, actionId }) → Result<{ cost; events }, 'not_positive' \| 'too_large' \| 'note_too_long' \| 'no_change' \| 'removed'>` | `cost.edited` with `changes` (`amount`, `paid_by`, `note`) |
 | `removeCost` | `(cost, { by, now, actionId }) → Result<{ cost; events }, 'already_removed'>` | Sets `removedAt`; `cost.removed`. No restore (no Undo) |
-| `monthlySpend` | `(costs, members: number, month, tz) → { total: Cents; share: Cents }` | Equal split (`splitEqually`); `monthOf(at, tz)`; removed costs don't count (`activeCosts`) |
 | `splitwiseText` / `copiedToSplitwise` | `(title, amount) → string` / `(cost, { by, actionId }) → DomainEvent` | The copy text, and its `cost.splitwise_copied` event |
 | **House, people and places** (`setup.ts`, `invites.ts`, `members.ts`, `rooms.ts`, `contacts.ts`, `profile.ts`) | | |
 | `setupHouse` | `(input: NewHouse, owner, now, newId, existingProfile?) → Result<{ house; profile; member; rooms; events }, SetupError>` | Default weights, the owner as admin, and the apartment's rooms (`APARTMENT_ROOMS`). `safeEqual` compares the setup token. |

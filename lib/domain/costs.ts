@@ -1,11 +1,11 @@
-// Money (PRD §6.6): a cost is an amount, who paid, an optional note, and what it was for. It's
-// split equally among the house; Splitwise is a copy-and-open, not an API. Pure.
+// Money (PRD §6.6): a cost is an amount, who paid, an optional note, and what it was for.
+// Splitwise is a copy-and-open, not an API. Pure.
 
 import type { DomainEvent, FieldChanges } from './events'
 import type { ActionId, CostId, HouseId, ItemId, RunId, UserId } from './ids'
-import { formatCents, splitEqually, sumCents, type Cents } from './money'
+import { formatCents, type Cents } from './money'
 import { err, ok, type Result } from './result'
-import { localDateOf, type Instant } from './time'
+import type { Instant } from './time'
 
 export type CostFor = { readonly item: ItemId } | { readonly run: RunId }
 
@@ -153,25 +153,6 @@ export const removeCost = (
 
 /** The costs that still count: removed ones are history only. */
 export const activeCosts = (costs: readonly Cost[]): Cost[] => costs.filter((c) => !c.removedAt)
-
-/** "2026-09": the month a cost falls in, on the house's calendar. */
-export const monthOf = (at: Instant, tz: string): string => localDateOf(at, tz).slice(0, 7)
-
-/**
- * "Spent this month: $X · your share $Y" (PRD §6.6): the month's total, split equally among the
- * house's members (a share is the larger of the even split when the cents don't divide).
- */
-export const monthlySpend = (
-  costs: readonly Cost[],
-  members: number,
-  month: string,
-  tz: string,
-): { total: Cents; share: Cents } => {
-  const total = sumCents(
-    costs.filter((c) => !c.removedAt && monthOf(c.createdAt, tz) === month).map((c) => c.amount),
-  )
-  return { total, share: splitEqually(total, Math.max(1, members))[0] ?? (0 as Cents) }
-}
 
 /** What "Open Splitwise" copies: "Groceries — $42.50". */
 export const splitwiseText = (title: string, amount: Cents): string =>

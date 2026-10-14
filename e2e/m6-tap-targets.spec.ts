@@ -80,8 +80,6 @@ test('finishing takes one tap without swiping, and a grocery run about six', asy
   ).toBeVisible()
   expect(t.count).toBe(6)
   await expect(needs.getByRole('listitem')).toHaveCount(0)
-  await page.goto(`${h}/house`)
-  await expect(page.getByLabel('Spent this month')).toContainText('$40.00')
 })
 
 /** Fills in every meta row an item can show, so each sheet is at its tallest. */

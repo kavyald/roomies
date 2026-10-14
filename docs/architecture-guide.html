@@ -344,7 +344,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
             <tr><td class="mono">/join/[token]</td><td>Name, email, code, pick your bedroom</td></tr>
             <tr><td class="mono">/h/[id]</td><td>Home: Open polls, Runs in progress, one ranked list (Mine / All) with a Calendar link</td></tr>
             <tr><td class="mono">/h/[id]/needs · chores · tasks</td><td>The three item tabs; Tasks also holds Requests &amp; visits</td></tr>
-            <tr><td class="mono">/h/[id]/house</td><td>Feeling weights, rooms, contacts, roommates, invites, spent this month</td></tr>
+            <tr><td class="mono">/h/[id]/house</td><td>Feeling weights, rooms, contacts, roommates, invites</td></tr>
             <tr><td class="mono">/h/[id]/activity · calendar · me</td><td>History log, month calendar, personal settings</td></tr>
             <tr><td class="mono">/h/[id]/i/[itemId]</td><td>Deep link that opens an item's sheet over Home</td></tr>
             <tr><td class="mono">/h/[id]/p/[pollId] · r/[runId]</td><td>Deep links (poll and run notifications) that open a poll's or run's sheet over Home, or say it isn't there</td></tr>
@@ -523,7 +523,7 @@ const LAYERS = [
   { name:'polls.ts · costs.ts · money.ts', desc:'decisions and money', fns:[
     ['createPoll · vote · addPollOption · closePoll · tally · resultOf','Most votes wins; a tie is { tie }; no votes is { noVotes } (D3).'],
     ['withdrawVote · reopenPoll · setPollDeadline','Votes stay on reopen; a passed deadline comes off with it.'],
-    ['addCost · monthlySpend · splitwiseText','Integer cents, equal split among active members.'],
+    ['addCost · editCost · splitwiseText','Integer cents; removed costs stay as history (activeCosts).'],
     ['editCost · removeCost · activeCosts','Amount, who paid and note change; removed costs stop counting.'],
     ['parseCents · formatCents · splitEqually','Money never touches floats.'] ]},
   { name:'events.ts · activity.ts', desc:'history', fns:[
