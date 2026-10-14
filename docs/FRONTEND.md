@@ -291,7 +291,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 - **+ New** (in the Requests & visits header, which replaces the old Plan a visit button) opens **New request or visit**:
   - **Ask someone (request):** a contact (or + Someone new) → a checklist of open tasks, with that contact's pre-checked (optional, since it can start empty) → **Start list**. It opens the request, ready for *Add more* or *Send request*.
   - **They've agreed (visit):** a contact → tasks → an optional date → **Plan visit**.
-- The section always shows, with an empty state ("No requests yet. Start one when something needs the landlord or super.").
+- The section always shows. With nothing open it's just the heading and **+ New**, with no empty state (T82), so starting a request stays one tap away (or "Add to {Contact} list" on a task).
 - A task with a contact but no run shows **"Add to {Contact} list"** on its detail.
 
 ### 5.8 Poll sheet

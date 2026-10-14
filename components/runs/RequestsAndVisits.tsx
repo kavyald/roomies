@@ -1,11 +1,10 @@
 'use client'
 
-import { Plus, Send } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Button } from '@/components/ui/Button'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { useHouse, useItems, useRuns } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
@@ -22,7 +21,8 @@ const count = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : 
 
 /**
  * "Requests & visits" at the top of Tasks (FRONTEND §5.7): unsent lists first, then sent requests,
- * then visits, with **+ New** to start one.
+ * then visits, with **+ New** to start one. With none open it's just the heading and **+ New** (T82:
+ * no empty state).
  */
 export function RequestsAndVisits({ houseId }: { houseId: HouseId }) {
   const runs = useRuns(houseId)
@@ -60,11 +60,7 @@ export function RequestsAndVisits({ houseId }: { houseId: HouseId }) {
           <Plus aria-hidden className="size-4" /> New
         </Button>
       </div>
-      {open.length === 0 ? (
-        <EmptyState icon={Send}>
-          No requests yet. Start one when something needs the landlord or super.
-        </EmptyState>
-      ) : (
+      {open.length > 0 && (
         <ListGroup label="Requests & visits">
           {open.map((r) => {
             const Icon = RUN_ICON[r.kind]

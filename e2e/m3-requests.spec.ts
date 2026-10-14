@@ -24,7 +24,10 @@ test('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; 
 
   await page.goto(`/h/${owner.houseId}/tasks`)
   const section = page.getByRole('region', { name: 'Requests & visits' })
-  await expect(section).toContainText('No requests yet.')
+  // T82: with nothing open the section is just its heading and + New, no empty state.
+  await expect(section.getByRole('button', { name: 'New' })).toBeVisible()
+  await expect(section.getByRole('list')).toHaveCount(0)
+  await expect(section).not.toContainText('No requests yet')
 
   // "Add to Landlord list" on each task.
   for (const title of ['Leak under the sink', 'Mold in the bathroom', 'Window latch']) {
