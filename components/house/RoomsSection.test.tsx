@@ -85,8 +85,10 @@ describe('House → Rooms (T66)', () => {
         .map((b) => b.textContent),
     ).toEqual(['Fire', 'Water'])
     expect(within(sheet).queryByRole('list', { name: 'Bathrooms' })).toBeNull()
+    // Plain names: no element icons, only the edit Pencil each row ends with (T68).
     for (const list of within(sheet).getAllByRole('list'))
-      expect(list.querySelector('svg')).toBeNull()
+      for (const svg of list.querySelectorAll('svg'))
+        expect(svg.classList.contains('lucide-pencil')).toBe(true)
 
     const spaces = within(sheet).getByRole('list', { name: 'Spaces' })
     await user.click(within(spaces).getByRole('button', { name: 'Craft room, shared space' }))

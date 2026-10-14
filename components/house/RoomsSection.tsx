@@ -1,9 +1,10 @@
 'use client'
 
-import { ArrowDown, ArrowUp, DoorOpen } from 'lucide-react'
+import { ArrowDown, ArrowUp, DoorOpen, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { Field } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
+import { IconMark } from '@/components/ui/IconButton'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
@@ -70,9 +71,10 @@ function RoomsSheet({ houseId, onClose }: { houseId: HouseId; onClose: () => voi
                       type="button"
                       aria-label={`${r.name}, ${roomKindLabel(r.kind)}`}
                       onClick={() => setEditing(r.id)}
-                      className="flex min-h-[max(2.75rem,44px)] w-full items-center px-3.5 py-2.5 text-left font-bold"
+                      className="flex min-h-[max(2.75rem,44px)] w-full items-center gap-2 py-1.5 pr-2 pl-3.5 text-left font-bold"
                     >
-                      {r.name}
+                      <span className="min-w-0 flex-1">{r.name}</span>
+                      <IconMark icon={Pencil} />
                     </button>
                   )}
                 </li>

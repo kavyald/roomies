@@ -3,10 +3,12 @@
 import {
   Check,
   CheckCircle,
-  MoreHorizontal,
+  ListChecks,
+  Pencil,
   Phone,
   ShoppingBag,
   Sparkles,
+  Trash2,
   Wind,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -17,8 +19,7 @@ import { Chip, RoomChip, TierChip } from '@/components/ui/Chip'
 import { Disclosure, DisclosureGroup } from '@/components/ui/Disclosure'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
-import { IconButton } from '@/components/ui/IconButton'
-import { OverflowMenu } from '@/components/ui/OverflowMenu'
+import { IconButton, IconMark } from '@/components/ui/IconButton'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { Swipeable } from '@/components/ui/Swipeable'
@@ -40,6 +41,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Contents() {
   const [scope, setScope] = useState<'mine' | 'all'>('mine')
   const [sheet, setSheet] = useState(false)
+  const [all, setAll] = useState(false)
   const toast = useToast()
   return (
     <div className="grid gap-6">
@@ -185,24 +187,23 @@ function Contents() {
         </DisclosureGroup>
       </Section>
 
-      <Section title="Overflow menu">
-        <div className="flex justify-end">
-          <OverflowMenu
-            label="More actions"
-            items={[
-              { label: 'Edit', onSelect: () => toast('Edit') },
-              { label: 'Delete', tone: 'soft', onSelect: () => toast('Delete') },
-            ]}
-          />
-        </div>
-      </Section>
-
       <Section title="Icon buttons">
         <div className="flex gap-1">
           <IconButton icon={Check} tone="accent" label="Save" onClick={() => toast('Saved.')} />
           <IconButton icon={Check} tone="accent" label="Saving" busy />
           <IconButton icon={Check} tone="accent" label="Nothing to save yet" disabled />
-          <IconButton icon={MoreHorizontal} label="More" onClick={() => toast('More')} />
+          <IconButton icon={Pencil} label="Edit" onClick={() => toast('Edit')} />
+          <IconButton icon={Trash2} label="Delete" onClick={() => toast('Delete')} />
+          <IconButton
+            icon={ListChecks}
+            label="Select all"
+            aria-pressed={all}
+            tone={all ? 'accent' : 'neutral'}
+            onClick={() => setAll((a) => !a)}
+          />
+          <span className="grid size-[max(2.75rem,44px)] place-items-center">
+            <IconMark icon={Pencil} />
+          </span>
         </div>
       </Section>
 

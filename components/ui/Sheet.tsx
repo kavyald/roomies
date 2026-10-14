@@ -29,7 +29,7 @@ export function Sheet({
   onOpenChange: (open: boolean) => void
   title: string
   description?: string
-  /** Beside the save check: e.g. the "…" menu (OverflowMenu). */
+  /** Beside the save check: icon buttons such as Edit (Pencil) and Delete (Trash2), T68. */
   actions?: ReactNode
   children: ReactNode
 }) {

@@ -1,10 +1,11 @@
 'use client'
 
-import { Phone, Plus } from 'lucide-react'
+import { Copy, Phone, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Field } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { IconButton } from '@/components/ui/IconButton'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
@@ -32,16 +33,14 @@ export function ContactsSection({ houseId }: { houseId: HouseId }) {
               title={c.name}
               subtitle={c.phone}
               onClick={() => setOpen(c)}
+              editable
               trailing={
                 c.phone ? (
-                  <button
-                    type="button"
-                    aria-label={`Copy ${c.name}'s number`}
-                    className="grid min-h-11 place-items-center rounded-full px-3 text-sm font-extrabold text-accent-ink"
+                  <IconButton
+                    icon={Copy}
+                    label={`Copy ${c.name}'s number`}
                     onClick={() => void copy(c.phone!, 'Number copied.')}
-                  >
-                    Copy number
-                  </button>
+                  />
                 ) : undefined
               }
             />

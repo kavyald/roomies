@@ -1,10 +1,11 @@
 'use client'
 
-import { Copy } from 'lucide-react'
+import { Copy, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { Field, inputClass } from '@/components/auth/fields'
 import { useCopy } from '@/components/house/useCopy'
 import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
 import { useToast } from '@/components/ui/Toast'
 import {
   useAddToRun,
@@ -199,7 +200,7 @@ export function SendRequest({
   )
 }
 
-/** A visit's date: "Thu 10:00 · Change" or "Date TBD · Set a date". */
+/** A visit's date: "Thu 10:00" with the edit Pencil, or "Date TBD · Set a date". */
 export function VisitDate({ houseId, run }: { houseId: HouseId; run: Visit }) {
   const house = useHouse(houseId)
   const set = useSetVisitDate(houseId)
@@ -223,15 +224,18 @@ export function VisitDate({ houseId, run }: { houseId: HouseId; run: Visit }) {
     return (
       <p className="m-0 flex flex-wrap items-center gap-x-2 font-bold">
         {run.when ? describeWhen(run.when, now, tz) : 'Date TBD'}
-        {open && (
-          <button
-            type="button"
-            className="min-h-11 text-sm font-extrabold text-accent-ink"
-            onClick={() => setEditing(true)}
-          >
-            {run.when ? 'Change' : 'Set a date'}
-          </button>
-        )}
+        {open &&
+          (run.when ? (
+            <IconButton icon={Pencil} label="Change the date" onClick={() => setEditing(true)} />
+          ) : (
+            <button
+              type="button"
+              className="min-h-11 text-sm font-extrabold text-accent-ink"
+              onClick={() => setEditing(true)}
+            >
+              Set a date
+            </button>
+          ))}
       </p>
     )
   }

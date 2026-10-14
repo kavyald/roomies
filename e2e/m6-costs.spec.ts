@@ -31,8 +31,8 @@ test('a cost on an item is edited, then removed, and Activity follows (T57); Hou
   await expect(costs).toContainText('$189.00 · You paid · Dyson')
 
   // Edit: the amount and who paid; the note clears.
-  await costs.getByRole('button', { name: 'More for $189.00' }).click()
-  await page.getByRole('menuitem', { name: 'Edit' }).click()
+  // Edit and Remove are the row's Pencil and Trash2 icons (T68).
+  await costs.getByRole('button', { name: 'Edit $189.00' }).click()
   const edit = costs.getByRole('group', { name: 'Edit cost' })
   await expect(edit.getByLabel('Amount')).toHaveValue('189.00')
   await edit.getByLabel('Amount').fill('200')
@@ -44,8 +44,7 @@ test('a cost on an item is edited, then removed, and Activity follows (T57); Hou
   await expect(costs).not.toContainText('Dyson')
 
   // Remove, after a confirm.
-  await costs.getByRole('button', { name: 'More for $200.00' }).click()
-  await page.getByRole('menuitem', { name: 'Remove' }).click()
+  await costs.getByRole('button', { name: 'Remove $200.00' }).click()
   const confirm = costs.getByRole('group', { name: 'Remove this cost?' })
   await expect(confirm).toContainText(
     'Remove this cost? $200.00 comes off, and Activity keeps a note of it.',

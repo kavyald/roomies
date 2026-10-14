@@ -26,7 +26,7 @@ test("an existing task is handed to the super later, and shows under Outside hel
   await detail.getByLabel('Phone (optional)').fill('(555) 010-2231')
   await detail.getByRole('button', { name: 'Save and hand it over' }).click()
   await expect(detail).toContainText('Super(555) 010-2231')
-  await expect(detail.getByRole('button', { name: 'Copy' })).toBeVisible()
+  await expect(detail.getByRole('button', { name: "Copy Super's number" })).toBeVisible()
   await page.keyboard.press('Escape')
 
   // It's under Outside help now, marked as the super's.
@@ -37,7 +37,7 @@ test("an existing task is handed to the super later, and shows under Outside hel
 
   // And back to "One of us" takes it off that list.
   await list.getByRole('button', { name: /^Radiator clanking/ }).click()
-  await detail.getByRole('button', { name: 'Change' }).click()
+  await detail.getByRole('button', { name: "Change who's handling it" }).click()
   await detail.getByRole('radio', { name: 'One of us' }).click()
   await expect(detail).toContainText('One of us')
   await page.keyboard.press('Escape')

@@ -9,8 +9,7 @@ test('an edit saved over someone else’s newer one is turned away with the late
   const latch = await anItem(owner, { category: 'task', title: 'Fix the latch' })
   await page.goto(`/h/${owner.houseId}/i/${latch}`)
   const detail = page.getByRole('dialog', { name: 'Fix the latch' })
-  await detail.getByRole('button', { name: 'More actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit' }).click()
+  await detail.getByRole('button', { name: 'Edit', exact: true }).click()
   const edit = page.getByRole('dialog', { name: 'Edit task' })
   await expect(edit.getByLabel('What needs doing?')).toHaveValue('Fix the latch')
 

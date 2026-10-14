@@ -1,10 +1,10 @@
 'use client'
 
-import { Receipt } from 'lucide-react'
+import { Pencil, Receipt, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Button } from '@/components/ui/Button'
-import { OverflowMenu } from '@/components/ui/OverflowMenu'
+import { IconButton } from '@/components/ui/IconButton'
 import { useToast } from '@/components/ui/Toast'
 import { useEditCost, useRemoveCost } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
@@ -15,8 +15,8 @@ import { useCostFields } from './CostForm'
 import { useSplitwise } from './useSplitwise'
 
 /**
- * Costs as rows ("$189.00 · Wren paid · Dyson"), each with Open Splitwise and a "…" menu to edit
- * or remove it (T57). `title` is what Splitwise's line is named after (the item or run).
+ * Costs as rows ("$189.00 · Wren paid · Dyson"), each with Open Splitwise and the Pencil / Trash2
+ * icons to edit or remove it (T57, T68). `title` is what Splitwise's line is named after (the item or run).
  */
 export function CostRows({
   houseId,
@@ -61,12 +61,17 @@ function CostRow({ houseId, cost, title }: { houseId: HouseId; cost: Cost; title
         >
           Open Splitwise
         </button>
-        <OverflowMenu
-          label={`More for ${amount}`}
-          items={[
-            { label: 'Edit', onSelect: () => setMode('edit') },
-            { label: 'Remove', tone: 'soft', onSelect: () => setMode('remove') },
-          ]}
+        <IconButton
+          icon={Pencil}
+          label={`Edit ${amount}`}
+          aria-expanded={mode === 'edit'}
+          onClick={() => setMode(mode === 'edit' ? 'view' : 'edit')}
+        />
+        <IconButton
+          icon={Trash2}
+          label={`Remove ${amount}`}
+          aria-expanded={mode === 'remove'}
+          onClick={() => setMode(mode === 'remove' ? 'view' : 'remove')}
         />
       </div>
       {mode === 'edit' && <EditCost houseId={houseId} cost={cost} onDone={() => setMode('view')} />}

@@ -98,7 +98,7 @@ test('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; 
   await expect(history).toContainText('Moved to Landlord visit · Sending a plumber Thu')
 
   // "Handled by" follows the visit (T51): the picker says so and opens the visit instead.
-  await detail.getByRole('button', { name: 'Change', exact: true }).click()
+  await detail.getByRole('button', { name: "Change who's handling it" }).click()
   const picker = detail.getByRole('region', { name: "Who's handling it?" })
   await expect(picker).toContainText(
     "It's on the Landlord visit. Move it to change who's handling it.",

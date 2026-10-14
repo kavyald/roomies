@@ -1,11 +1,12 @@
 'use client'
 
-import { CalendarClock, Check, Plus } from 'lucide-react'
+import { CalendarClock, Check, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Field } from '@/components/auth/fields'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
@@ -246,15 +247,23 @@ export function PollSheet({
             <span className="flex-1 text-sm font-bold">
               {closesOn ? `Closes ${describeWhen({ date: closesOn }, now, tz)}` : 'No deadline'}
             </span>
-            <button
-              type="button"
-              className="min-h-11 px-1 text-sm font-extrabold text-accent-ink"
-              aria-label={closesOn ? 'Change the deadline' : undefined}
-              disabled={busy}
-              onClick={() => setDeadlineDraft(closesOn ?? '')}
-            >
-              {closesOn ? 'Change' : 'Add a deadline'}
-            </button>
+            {closesOn ? (
+              <IconButton
+                icon={Pencil}
+                label="Change the deadline"
+                disabled={busy}
+                onClick={() => setDeadlineDraft(closesOn)}
+              />
+            ) : (
+              <button
+                type="button"
+                className="min-h-11 px-1 text-sm font-extrabold text-accent-ink"
+                disabled={busy}
+                onClick={() => setDeadlineDraft('')}
+              >
+                Add a deadline
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid gap-2 rounded-2xl bg-paper p-3">

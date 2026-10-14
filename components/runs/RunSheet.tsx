@@ -1,11 +1,12 @@
 'use client'
 
-import { Check } from 'lucide-react'
+import { Check, Pencil } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Field, inputClass } from '@/components/auth/fields'
 import { CATEGORY } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
 import { Sheet } from '@/components/ui/Sheet'
 import { useCelebrate, useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
@@ -47,7 +48,8 @@ import { useSplitwise } from '@/components/costs/useSplitwise'
 import { useContactChoice } from './ContactChoice'
 import { requestStage } from './meta'
 import { AddMore, SendRequest, VisitDate } from './RunExtras'
-import { RunHeader } from './RunHeader'
+import { RunHeader, type HeaderPanel } from './RunHeader'
+import { SelectAll } from './SelectAll'
 import { ForChip } from '@/components/needs/Whose'
 
 type Panel = null | 'move' | 'back' | 'hand'
@@ -132,6 +134,7 @@ function RunSheetFor({
   // Rows whose tap is still being saved (shown in their new state meanwhile).
   const [saving, setSaving] = useState<ReadonlySet<ItemId>>(new Set())
   const [panel, setPanel] = useState<Panel>(null)
+  const [headerPanel, setHeaderPanel] = useState<HeaderPanel>(null)
   const [note, setNote] = useState('')
   const [target, setTarget] = useState<string>('')
   const [visitDate, setVisitDate] = useState('')
@@ -225,7 +228,7 @@ function RunSheetFor({
   )
   const canNewVisit = run.kind !== 'batch' && tasksOnly
 
-  // Who's on it (and Change / Rename) is RunHeader's line, just below.
+  // Who's on it (and Change) is RunHeader's line, just below; Rename is the header's Pencil.
   const header = [
     run.kind === 'request' && requestStage(run, now, tz),
     run.kind === 'batch' && run.when && describeWhen(run.when, now, tz),
@@ -260,8 +263,23 @@ function RunSheetFor({
   }
 
   return (
-    <Sheet open onOpenChange={(o) => !o && onClose()} title={label} description={header}>
-      <RunHeader houseId={houseId} run={run} />
+    <Sheet
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={label}
+      description={header}
+      actions={
+        open && (
+          <IconButton
+            icon={Pencil}
+            label="Rename this run"
+            aria-expanded={headerPanel === 'rename'}
+            onClick={() => setHeaderPanel((p) => (p === 'rename' ? null : 'rename'))}
+          />
+        )
+      }
+    >
+      <RunHeader houseId={houseId} run={run} panel={headerPanel} onPanel={setHeaderPanel} />
       {run.kind === 'visit' && <VisitDate houseId={houseId} run={run} />}
 
       {ledger.length === 0 ? (
@@ -364,15 +382,12 @@ function RunSheetFor({
                 Cancel
               </Button>
             )}
-            <Button
-              variant="secondary"
-              size="small"
-              onClick={() =>
+            <SelectAll
+              all={chosen.length === pending.length}
+              onToggle={() =>
                 setSelected(chosen.length === pending.length ? new Set() : new Set(pending))
               }
-            >
-              {chosen.length === pending.length ? 'Clear' : 'Select all'}
-            </Button>
+            />
             <Button
               variant={run.kind === 'request' ? 'secondary' : 'primary'}
               size="small"
