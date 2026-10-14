@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Field } from '@/components/auth/fields'
-import { Button } from '@/components/ui/Button'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { Sheet } from '@/components/ui/Sheet'
+import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { useItems, usePlanVisit, useStartRequest } from '@/lib/client/hooks'
 import type { HouseId, ItemId, RunId } from '@/lib/domain/ids'
@@ -139,9 +138,12 @@ export function NewRunSheet({
           />
         </div>
       )}
-      <Button block disabled={busy || !contact.ready} onClick={submit}>
-        {mode === 'request' ? 'Start list' : 'Plan visit'}
-      </Button>
+      <SheetSave
+        label={mode === 'request' ? 'Start list' : 'Plan visit'}
+        busy={busy}
+        disabled={!contact.ready}
+        onSave={submit}
+      />
     </Sheet>
   )
 }

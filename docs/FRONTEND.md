@@ -255,7 +255,7 @@ Two taps from any card: **🙂+** (or a swipe left), then an emoji.
 ### 5.3 Add sheet (+)
 
 1. On **Needs, Chores or Tasks**, the + opens that kind's form directly. On Home (and Admin) it asks first: one of five tiles, **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch). The form has a *Need · Chore · Task* switch at the top (the title stays) and **A poll or a run instead?** at the bottom, which goes back to the tiles.
-2. Title (autofocused) + **Add**, or **Add another**, which adds it and keeps the sheet open with the title (and note) cleared and the other fields kept, so three needs in a row take one sheet. Optional fields by type, behind **More options** except a chore's rhythm:
+2. Title (autofocused) + the header check (**Add**), or **Add another**, which adds it and keeps the sheet open with the title (and note) cleared and the other fields kept, so three needs in a row take one sheet. Optional fields by type, behind **More options** except a chore's rhythm:
    - **Need:** needed by, room
    - **Chore:** *As needed* or *About every N days* (always shown, so a repeating chore is +, *About every…*, **Add**), room, optional assignee
    - **Task:** date, room, assignee, **Handled by** (a contact)
@@ -265,7 +265,7 @@ Two taps from any card: **🙂+** (or a swipe left), then an emoji.
 ### 5.4 Item detail
 
 A sheet, simplest first, so the title, the primary action and the meta rows fit on a 375pt screen without scrolling:
-- **Header:** the title, with the category under it ("Task", "Chore · About every 7 days", "· Deleted"), and a **…** menu beside Close holding **Edit** and **Delete**. Delete asks first, in place of the primary action: "Delete this? You can undo it right after." · **Keep it** / **Delete**. Deleting closes the sheet with a "Deleted." toast and **Undo** (PRD D30); a deleted item opened from Activity has no menu.
+- **Header:** the title, with the category under it ("Task", "Chore · About every 7 days", "· Deleted"), and a **…** menu in the header holding **Edit** and **Delete**. Delete asks first, in place of the primary action: "Delete this? You can undo it right after." · **Keep it** / **Delete**. Deleting closes the sheet with a "Deleted." toast and **Undo** (PRD D30); a deleted item opened from Activity has no menu.
 - **The primary action** at the top: **Done** (task) · **Got it** (need) · **Did it** (chore); **Not done after all** once it's done; **Bring it back** when deleted (opened from Activity).
 - **Meta rows:** Room · Last done (chores) · When / Needed by · Who's on it · Handled by (tasks) · Ask them · On a run · Done/Got it. Then the note.
 - **Tasks: "Handled by"** is always shown. It reads *One of us · Needs outside help?* or *Super · (555) 010-2231 · Copy · Change*, and either link opens **Who's handling it?**: One of us, the contacts, or **+ Someone new** (name + optional phone). On a request or visit it reads *It's on the Landlord request. Move it to change who's handling it.* with **Open the Landlord request** instead, because "Handled by" follows the run (PRD §6.3).
@@ -277,7 +277,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 - The shared list. Needs with a feeling come first (by priority), then newest. Each row has a check circle (**Got it**, with **Undo** in the toast), the title, an optional note, its feeling emoji, badges ("On Wren's run", "Poll", "$189"), and **🙂+** at the end, which opens the emoji tray under the row. Rows swipe like cards (§5.1): right = Got it, left = the tray. There's no Soon toggle: a 😰 or 😤 feeling is how someone says "we need this soon."
 - An add field at the top: "We need…", with a **House / Me** toggle beside it (remembered on this device; the need form has the same toggle). Adding something already on the list (same title, same owner) points to the existing one.
 - A personal need carries a **"For Kavya"** chip here, on Home cards and on run rows. The detail sheet has a **For** row (House / Me, plus the owner's name if it's someone else's) to change it: "Just for you now." / "For the house now."
-- **Start a run**: a sheet with a checklist of open needs that aren't on a run yet, **all checked to start** (uncheck what you won't get; *Select all* / *Clear*; needs with a feeling show their emoji and are listed first). An optional title ("Amazon order") and date sit behind **More options** → **Start run · 3 things**. A usual grocery run (start, get 3 things, finish with $40) is about 6 taps.
+- **Start a run**: a sheet with a checklist of open needs that aren't on a run yet, **all checked to start** (uncheck what you won't get; *Select all* / *Clear*; needs with a feeling show their emoji and are listed first). An optional title ("Amazon order") and date sit behind **More options** → the header check (**Start run · 3 things**). A usual grocery run (start, get 3 things, finish with $40) is about 6 taps.
 
 ### 5.6 Chores tab
 
@@ -288,8 +288,8 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 - **Requests & visits** at the top. Unsent lists come first ("Landlord request · not sent yet · 2 tasks"), then sent requests ("Sent 2 days ago by text · waiting on 3"), then visits ("Landlord visit · Thu 10:00 · 2 to look at").
 - Filters: *Mine / All / Outside help*.
 - **+ New** (in the Requests & visits header, which replaces the old Plan a visit button) opens **New request or visit**:
-  - **Ask someone (request):** a contact (or + Someone new) → a checklist of open tasks, with that contact's pre-checked (optional, since it can start empty; changing the contact keeps every tick and adds the new contact's tasks, T87) → **Start list**. It opens the request, ready for *Add more* or *Send request*.
-  - **They've agreed (visit):** a contact → tasks → an optional date → **Plan visit**.
+  - **Ask someone (request):** a contact (or + Someone new) → a checklist of open tasks, with that contact's pre-checked (optional, since it can start empty; changing the contact keeps every tick and adds the new contact's tasks, T87) → the header check (**Start list**). It opens the request, ready for *Add more* or *Send request*.
+  - **They've agreed (visit):** a contact → tasks → an optional date → the header check (**Plan visit**).
 - The section always shows. With nothing open it's just the heading and **+ New**, with no empty state (T82), so starting a request stays one tap away (or "Add to {Contact} list" on a task).
 - A task with a contact but no run shows **"Add to {Contact} list"** on its detail.
 
@@ -325,7 +325,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 ### 5.11 Admin tab
 
 - **Order** (T67, owner): **Roommates**, **Invite a roommate** (admins), **Contacts**, then three untitled rows in this order: **Feeling weights**, **Activity**, **Rooms**. No "Settings", "History" or "Money" titles, and no Notifications row: notifications live only in your settings (`/me`, from your avatar). **Sign out** and **Delete my account** sit at the bottom.
-- **Feeling weights**: six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, **Save for the house**. "One setting for the whole house. Anyone can change it."
+- **Feeling weights**: six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, and the header check saves for the house. "One setting for the whole house. Anyone can change it."
 - **Rooms**: one row (like Feeling weights, T66) that opens a sheet listing the rooms as plain names, no icons, under three headings: **Bedrooms**, **Bathrooms** and **Spaces**. VoiceOver reads each name and kind ("Fire, bedroom"). Tap one to edit it in place: **Name** with **Save** / **Cancel**, and **Move earlier** / **Move later** within its group (the order is `sort_order`).
 - **Contacts** with Copy number. **Roommates**. **Invite link** (admins). **Activity** opens the house log (`/activity`, below).
 - **Your settings** (`/me`, from your avatar): your avatar and name, then two separate rows, **Notifications** and **Appearance** (showing the current theme), each opening its own page with a "‹ You" link back (T65). No setting sits on `/me` itself, so the theme never reads as a notification setting.
@@ -369,6 +369,7 @@ Rules:
 - Use people's names in copy, never their room name. The element shows up in the avatar color, not the words.
 - Describe the *item's* state, never a person's failure.
 - Sentence case. Plain numbers ("$62.40 · due Oct 3").
+- An icon-only button is named by what it does ("Save", "Add", "Start poll", "More actions"); a sheet's check takes the words its bottom button used to show (T80).
 - **[DECIDED] (owner)** Feelings always show as their emoji, never as a word in a sentence ("felt 😰", not "feeling anxious"). The emoji is the feeling everywhere: chips, the feeling picker, the activity log.
 
 ---
@@ -383,7 +384,7 @@ Rules:
 | `--dur-base` | 240ms | Sheets, toggles |
 | `--dur-slow` | 480ms | Longer transitions (the completion burst runs its own 650ms) |
 
-Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss. Reduced motion makes transitions and animations instant.
+Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss (or tap the backdrop, or Escape); there's no X. Reduced motion makes transitions and animations instant.
 
 ---
 
@@ -392,7 +393,7 @@ Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss. 
 | Concern | Decision |
 |---|---|
 | Tokens | CSS variables in `app/globals.css` for `:root`, `[data-theme=dark]`, and `@media (prefers-color-scheme: dark)`, exposed to Tailwind v4 via `@theme`. Element colors are tokens (`--air-fill`, `--air-ink`, ...), and components take an `element` prop instead of raw hex. No raw hex values in components. |
-| Components | The kit in `components/ui/`: `Card`, `Button`, `Chip` (plus `RoomChip` and `TierChip`), `Avatar` (initials + element), `Sheet` (with an `actions` slot beside Close), `OverflowMenu` (the **…** menu), `Disclosure` + `DisclosureGroup` (tap-to-open sections), `TabBar`, `ListRow`, `SegmentedControl`, `Swipeable` (swipe right / left on a card or row), `Toast` (and the completion burst; one message at a time, above the **+** button, or at the top over the dimmed page while a sheet is open, so it never covers a sheet's buttons), `EmptyState`; see it at `/dev/kit` in light and dark. Feature components live in their own folders (`components/items`, `polls`, `runs`, `costs`, `calendar`, `home`, `needs`, `chores`, `tasks`, `house`, `activity`, …). Sheets use Vaul (which brings its own Radix Dialog for the focus trap and labels); the app doesn't use Radix directly. |
+| Components | The kit in `components/ui/`: `Card`, `Button`, `Chip` (plus `RoomChip` and `TierChip`), `Avatar` (initials + element), `Sheet` (T80: no X; swipe down, the backdrop or Escape dismiss it, and the drag handle is a button named "Close" for VoiceOver and keyboards. A form sheet saves with `SheetSave`, a check `IconButton` in the header named by what it does, "Save" / "Add" / "Start poll", rendered anywhere inside the form so the form owns its disabled and busy state; there's no bottom Save. A sheet with nothing to save shows no header button, only its `actions` slot, e.g. the **…** menu. Inline editors inside a detail or list sheet (a room's name, a cost, a run's title, a poll's deadline, a feeling note) keep their own small **Save** / **Cancel**, since the sheet as a whole has nothing to save), `IconButton` (the icon-only round button: a 44pt target with px floors around a 32px circle, accent for a commit and neutral otherwise, a spinner while busy, the app-wide focus ring; new icon-only buttons use it), `OverflowMenu` (the **…** menu), `Disclosure` + `DisclosureGroup` (tap-to-open sections), `TabBar`, `ListRow`, `SegmentedControl`, `Swipeable` (swipe right / left on a card or row), `Toast` (and the completion burst; one message at a time, above the **+** button, or at the top over the dimmed page while a sheet is open, so it never covers a sheet's buttons), `EmptyState`; see it at `/dev/kit` in light and dark. Feature components live in their own folders (`components/items`, `polls`, `runs`, `costs`, `calendar`, `home`, `needs`, `chores`, `tasks`, `house`, `activity`, …). Sheets use Vaul (which brings its own Radix Dialog for the focus trap and labels); the app doesn't use Radix directly. |
 | Data | `rooms` table (see Architecture §6), `items.room_id` (optional), `house_members.room_id` for the member's bedroom, which drives their color. No per-user avatar config. |
 | Animation | CSS transitions and keyframes only (Vaul animates the sheets). No Framer Motion. |
 | Safe areas | `env(safe-area-inset-*)` on the tab bar, "+" button, and sheets. `viewport-fit=cover`. |

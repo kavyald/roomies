@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { Field } from '@/components/auth/fields'
 import { FeelingCounts } from '@/components/items/Feelings'
 import { Button } from '@/components/ui/Button'
-import { Sheet } from '@/components/ui/Sheet'
+import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
 import { useFeelingsByItem, useHouse, useItems, useStartRun } from '@/lib/client/hooks'
@@ -143,11 +143,16 @@ export function StartRunSheet({
           />
         </div>
       )}
-      <Button block disabled={start.isPending || picked.length === 0} onClick={submit}>
-        {picked.length === 0
-          ? 'Start run'
-          : `Start run · ${picked.length} ${picked.length === 1 ? 'thing' : 'things'}`}
-      </Button>
+      <SheetSave
+        label={
+          picked.length === 0
+            ? 'Start run'
+            : `Start run · ${picked.length} ${picked.length === 1 ? 'thing' : 'things'}`
+        }
+        busy={start.isPending}
+        disabled={picked.length === 0}
+        onSave={submit}
+      />
     </Sheet>
   )
 }

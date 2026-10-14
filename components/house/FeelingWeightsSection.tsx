@@ -4,7 +4,7 @@ import { Minus, Plus, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
-import { Sheet } from '@/components/ui/Sheet'
+import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { useHouse, useSetFeelingWeights } from '@/lib/client/hooks'
 import {
@@ -92,9 +92,7 @@ function FeelingWeightsSheet({
           )
         })}
       </ul>
-      <Button block disabled={save.isPending} onClick={submit}>
-        Save
-      </Button>
+      <SheetSave busy={save.isPending} onSave={submit} />
       <Button
         variant="secondary"
         block

@@ -6,7 +6,7 @@ import { Field } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
-import { Sheet } from '@/components/ui/Sheet'
+import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { useAddContact, useContacts, useEditContact, useRemoveContact } from '@/lib/client/hooks'
 import type { Contact } from '@/lib/domain/house'
@@ -119,9 +119,12 @@ function ContactSheet({
         value={note}
         onChange={(e) => setNote(e.target.value)}
       />
-      <Button block disabled={busy || !name.trim()} onClick={save}>
-        {contact ? 'Save' : 'Add'}
-      </Button>
+      <SheetSave
+        label={contact ? 'Save' : 'Add'}
+        busy={busy}
+        disabled={!name.trim()}
+        onSave={save}
+      />
       {contact && (
         <Button
           variant="secondary"

@@ -3,6 +3,7 @@
 import { MoreHorizontal } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { cn } from './cn'
+import { IconButton } from './IconButton'
 
 export type MenuItem = {
   label: string
@@ -53,20 +54,15 @@ export function OverflowMenu({ label = 'More', items }: { label?: string; items:
   if (items.length === 0) return null
   return (
     <div ref={wrap} className="relative" data-keeps-escape={open || undefined}>
-      <button
+      <IconButton
         ref={trigger}
-        type="button"
-        aria-label={label}
+        icon={MoreHorizontal}
+        label={label}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? `${id}-menu` : undefined}
         onClick={() => setOpen((o) => !o)}
-        className="grid size-11 flex-none place-items-center rounded-full text-neutral-ink"
-      >
-        <span className="grid size-8 place-items-center rounded-full bg-neutral-fill">
-          <MoreHorizontal aria-hidden className="size-4" strokeWidth={2.5} />
-        </span>
-      </button>
+      />
       {open && (
         <div
           ref={menu}

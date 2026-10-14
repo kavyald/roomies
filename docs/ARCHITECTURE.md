@@ -844,7 +844,7 @@ app/
 proxy.ts                     -- Next 16's proxy (was middleware): sets the page CSP (fresh nonce), refreshes the session, sends signed-out visitors away from /h/*
 components/
   ui/                        -- Avatar (initials + element), Button, Card, Chip, Disclosure, EmptyState, ListRow,
-                                OverflowMenu, SegmentedControl, Sheet (vaul), Swipeable, TabBar, Toast
+                                IconButton, OverflowMenu, SegmentedControl, Sheet (vaul) + SheetSave, Swipeable, TabBar, Toast
   shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, InstallGuide, ServiceWorker, ThemeSync, DeepLinks (OpenPoll, OpenRun)
   auth/  setup/  join/       -- sign-in, setup and join flows
   home/  needs/  chores/  tasks/  calendar/  activity/  house/  me/   -- one folder per screen

@@ -1,6 +1,14 @@
 'use client'
 
-import { Check, CheckCircle, Phone, ShoppingBag, Sparkles, Wind } from 'lucide-react'
+import {
+  Check,
+  CheckCircle,
+  MoreHorizontal,
+  Phone,
+  ShoppingBag,
+  Sparkles,
+  Wind,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -9,9 +17,10 @@ import { Chip, RoomChip, TierChip } from '@/components/ui/Chip'
 import { Disclosure, DisclosureGroup } from '@/components/ui/Disclosure'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { IconButton } from '@/components/ui/IconButton'
 import { OverflowMenu } from '@/components/ui/OverflowMenu'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { Sheet } from '@/components/ui/Sheet'
+import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { Swipeable } from '@/components/ui/Swipeable'
 import { ToastProvider, useToast } from '@/components/ui/Toast'
 import { houseTabs } from '@/components/shell/tabs'
@@ -188,6 +197,15 @@ function Contents() {
         </div>
       </Section>
 
+      <Section title="Icon buttons">
+        <div className="flex gap-1">
+          <IconButton icon={Check} tone="accent" label="Save" onClick={() => toast('Saved.')} />
+          <IconButton icon={Check} tone="accent" label="Saving" busy />
+          <IconButton icon={Check} tone="accent" label="Nothing to save yet" disabled />
+          <IconButton icon={MoreHorizontal} label="More" onClick={() => toast('More')} />
+        </div>
+      </Section>
+
       <Section title="Empty state">
         <EmptyState icon={Sparkles} action={<Button size="small">Add a chore</Button>}>
           Nothing to do. Enjoy the quiet.
@@ -204,10 +222,8 @@ function Contents() {
         title="How do you feel about this?"
         description="Only if it matters to you. The house will see it."
       >
-        <p className="m-0">Sheet content goes here.</p>
-        <Button block onClick={() => setSheet(false)}>
-          Done
-        </Button>
+        <p className="m-0">Sheet content goes here. The check saves; swipe down to close.</p>
+        <SheetSave onSave={() => setSheet(false)} />
       </Sheet>
     </div>
   )
