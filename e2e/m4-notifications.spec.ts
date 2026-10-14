@@ -49,7 +49,7 @@ test('a 😰 on my task reaches my outbox, a poll I turned off does not, and the
 
   // Kavya turns polls off, and quiet hours off so nothing waits for the morning.
   const kavya = await open(owner.email)
-  await kavya.goto(`/h/${owner.houseId}/me`)
+  await kavya.goto(`/h/${owner.houseId}/me/notifications`)
   const polls = kavya.getByRole('switch', { name: 'Polls' })
   await polls.click()
   await expect(polls).toHaveAttribute('aria-checked', 'false')

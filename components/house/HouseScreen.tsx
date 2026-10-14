@@ -57,7 +57,7 @@ export function HouseScreen({ houseId }: { houseId: HouseId }) {
       <SectionTitle>Settings</SectionTitle>
       <div className="grid gap-3">
         <Link
-          href={`/h/${houseId}/me`}
+          href={`/h/${houseId}/me/notifications`}
           className="sticker flex min-h-11 items-center gap-3 rounded-[20px] border-[1.5px] border-outline bg-card px-3.5 py-3 font-bold"
         >
           <Bell aria-hidden className="size-5 text-ink-soft" />

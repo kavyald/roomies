@@ -181,7 +181,7 @@ test.describe('at 375pt', () => {
         }
       }
       await fitsSideways(page, 'house')
-      await page.goto(`${h}/me`)
+      await page.goto(`${h}/me/notifications`)
       await expect(page.getByRole('group', { name: 'Tell me when' })).toBeVisible()
       // Reachable, not above the fold: how much fits depends on the fallback font (Linux CI wraps
       // more lines than SF Pro Rounded). Only item views must fit without scrolling (PRD §12).

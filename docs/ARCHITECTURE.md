@@ -792,7 +792,7 @@ Immediate notifications (assigned, 😰/😤, new poll or option, run started, n
 ### 7.4 Web Push on iOS
 
 - Requires the PWA to be **installed to the Home Screen** (iOS 16.4+), a user gesture to request permission, and a VAPID key pair.
-- Flow: the user taps "Turn on notifications" (the Notifications section of `/me`; House → Settings links there) → `Notification.requestPermission()` → `pushManager.subscribe({ applicationServerKey })` (`lib/client/push.ts`) → the `savePushSubscriptionAction` server action → the `savePushSubscription` use case → stored in `push_subscriptions` (same endpoint: refreshed, not duplicated). The save runs as the system, in one transaction that first checks you're an active member, so a browser still saved under someone else moves to you when its keys match (T84, A33). "On for this device" shows only when the server has this endpoint for you too (`isPushSubscriptionSaved`); otherwise the row offers the button again.
+- Flow: the user taps "Turn on notifications" (`/me/notifications`, reached from your settings at `/me`; House → Settings links there) → `Notification.requestPermission()` → `pushManager.subscribe({ applicationServerKey })` (`lib/client/push.ts`) → the `savePushSubscriptionAction` server action → the `savePushSubscription` use case → stored in `push_subscriptions` (same endpoint: refreshed, not duplicated). The save runs as the system, in one transaction that first checks you're an active member, so a browser still saved under someone else moves to you when its keys match (T84, A33). "On for this device" shows only when the server has this endpoint for you too (`isPushSubscriptionSaved`); otherwise the row offers the button again.
 - Signing out (T84): the Sign out button sends this browser's endpoint to the `signOut` action, which marks it `gone_at` for you (`forgetPushSubscription`, "push subscriptions update own") and signs out, answering rather than redirecting. Only when that went through does the browser unsubscribe (`pushManager.getSubscription()?.unsubscribe()`) and go to /sign-in; if it didn't, a toast says so and notifications stay as they were.
 - The send-notifications job sends with `web-push` (`PushSender`). A 404/410 response sets `gone_at` on the subscription (`markGone`); nothing is deleted, and gone subscriptions aren't sent to again. 429, 5xx and no answer are passing: if no browser took the message, it's tried again after 5 minutes, 30 minutes and 2 hours (longer if the push service's Retry-After asks, up to 6 hours; a retry that lands in the person's quiet hours waits for them to end), then given up on with `error = 'push_failed'` (`afterAttempt`, T84). Any other 4xx won't pass (`push_rejected`, browser kept). "No subscription" and "all gone" stay final too.
 - The service worker registers only in production builds (`pnpm build && pnpm start`), never on `pnpm dev`.
@@ -834,7 +834,9 @@ app/
     needs/  chores/  tasks/  house/  calendar/  activity/
     i/[itemId]/              -- a link to an item (notifications): opens its sheet over Home
     p/[pollId]/  r/[runId]/  -- links to a poll or a run (notifications): open its sheet over Home, or say it isn't there
-    me/                      -- your settings: theme, quiet hours, notification categories, this device's push
+    me/                      -- your settings: two entries (T65), each its own page
+      notifications/         -- notification categories, quiet hours, this device's push
+      appearance/            -- theme (auto | light | dark)
   dev/kit/                   -- the UI kit in light + dark (not in production builds)
   offline/                   -- the service worker's fallback page
   actions/                   -- server actions, one file per area: auth, setup, invites, items, runs, polls, costs,

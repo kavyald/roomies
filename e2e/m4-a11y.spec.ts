@@ -70,6 +70,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
       ['/activity', 'Activity'],
       ['/calendar', 'Calendar'],
       ['/me', 'You'],
+      ['/me/notifications', 'Notifications'],
+      ['/me/appearance', 'Appearance'],
     ] as const) {
       await page.goto(h + path)
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()
