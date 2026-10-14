@@ -2,7 +2,10 @@
 // later is covered without touching this file (ARCHITECTURE §12: "RLS mistake leaks data").
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { aDbHouse, asOwner, asUser, pool, type TestHouse } from '../../lib/testing/db'
+import { aDbHouse, asOwner, asUser, pool, refused, type TestHouse } from '../../lib/testing/db'
+
+// Members write these but never read them back.
+const WRITE_ONLY = ['feedback']
 
 let a: TestHouse
 let b: TestHouse
@@ -44,10 +47,13 @@ describe('a second house sees nothing of the first', () => {
     for (const reader of [b.member, b.admin]) {
       await asUser(reader, async (db) => {
         for (const { table, col } of tables) {
-          const n = Number(
-            (await db.query(`select count(*) from ${table} where ${col} = $1`, [a.houseId])).rows[0]
-              .count,
-          )
+          const sql = `select count(*) from ${table} where ${col} = $1`
+          // A write-only table (feedback, T91) refuses every read, which isolates it too.
+          if (WRITE_ONLY.includes(table)) {
+            expect(await refused(db, sql, [a.houseId])).toBe('42501')
+            continue
+          }
+          const n = Number((await db.query(sql, [a.houseId])).rows[0].count)
           expect({ reader: reader === b.admin ? 'admin' : 'member', table, n }).toMatchObject({
             n: 0,
           })

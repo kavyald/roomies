@@ -27,6 +27,7 @@ import {
   costChangesToRow,
   costToDomain,
   costToRow,
+  feedbackToRow,
   houseToDomain,
   houseToRow,
   inviteToDomain,
@@ -633,6 +634,12 @@ const reposFor = (trx: Trx): Repos => {
           .set(costChangesToRow(cost))
           .where('id', '=', cost.id)
           .execute()
+      },
+    },
+    // Insert only: members have no SELECT on feedback, so no RETURNING and no update-then-insert.
+    feedback: {
+      add: async (feedback) => {
+        await trx.insertInto('feedback').values(feedbackToRow(feedback)).execute()
       },
     },
     polls: {

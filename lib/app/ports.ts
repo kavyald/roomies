@@ -18,6 +18,7 @@ import type {
   UserId,
 } from '../domain/ids'
 import type { Cost } from '../domain/costs'
+import type { Feedback } from '../domain/feedback'
 import type { NotificationCategory, OutboxMessage } from '../domain/notifications'
 import type { PendingMessage, PushOutcome, PushSubscription } from '../domain/push'
 import type { Poll, PollOption, Vote } from '../domain/polls'
@@ -65,6 +66,8 @@ export interface SecurityLog {
 /** What use cases need from configuration. Secrets for adapters stay in the composition root. */
 export type Config = {
   readonly setupToken: string
+  /** Which build is running (a short commit, or 'dev'): stamped on feedback (T91). */
+  readonly appVersion: string
 }
 
 // ---- write side: repositories inside one transaction ----------------------------
@@ -199,6 +202,11 @@ export interface CostRepo {
   update(cost: Cost): Promise<void>
 }
 
+/** Feedback for the owner (T91): members only add it, in their own name, and read none back. */
+export interface FeedbackRepo {
+  add(feedback: Feedback): Promise<void>
+}
+
 export interface RunRepo {
   get(id: RunId): Promise<Run | undefined>
   listByHouse(houseId: HouseId): Promise<Run[]>
@@ -238,6 +246,7 @@ export interface Repos {
   readonly runs: RunRepo
   readonly polls: PollRepo
   readonly costs: CostRepo
+  readonly feedback: FeedbackRepo
   readonly notifications: NotificationRepo
   readonly pushSubscriptions: PushSubscriptionRepo
   readonly events: EventSink

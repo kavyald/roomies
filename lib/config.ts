@@ -12,6 +12,8 @@ const serverSchema = z.object({
   CRON_SECRET: z.string().min(32, 'must be at least 32 characters'),
   VAPID_PRIVATE_KEY: z.string().min(1),
   VAPID_SUBJECT: z.string().regex(/^(mailto:|https:)/, 'must start with mailto: or https:'),
+  // Set by Vercel on every build; unset locally and in the test suites.
+  VERCEL_GIT_COMMIT_SHA: z.string().optional(),
 })
 
 const publicSchema = z.object({
@@ -31,6 +33,8 @@ export type ServerConfig = {
   /** Web Push (VAPID): the private half signs pushes; the public half is in PublicConfig. */
   readonly vapidPrivateKey: string
   readonly vapidSubject: string
+  /** The deployed commit, short (Vercel's VERCEL_GIT_COMMIT_SHA), or 'dev'. Stamped on feedback. */
+  readonly appVersion: string
 }
 
 /** Values that are safe to ship to the browser. */
@@ -85,6 +89,7 @@ export const loadConfig = (env: Env): EnvConfig => {
     cronSecret: s.CRON_SECRET,
     vapidPrivateKey: s.VAPID_PRIVATE_KEY,
     vapidSubject: s.VAPID_SUBJECT,
+    appVersion: s.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev',
     public: loadPublicConfig(e),
   }
 }

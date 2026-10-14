@@ -27,7 +27,10 @@ import { instant } from './domain/time'
 export type { AppDeps }
 
 /** The slice of the environment that use cases see. */
-export const appConfig = (env: EnvConfig): Config => ({ setupToken: env.setupToken })
+export const appConfig = (env: EnvConfig): Config => ({
+  setupToken: env.setupToken,
+  appVersion: env.appVersion,
+})
 
 /** The signed-in user a request acts for. */
 export type RequestSession = { readonly actor: Actor }
@@ -122,7 +125,7 @@ export const depsForTest = (overrides: Partial<AppDeps> = {}): TestDeps => {
     limiter: memoryRateLimiter(),
     securityLog: memorySecurityLog(),
     push: fakePush(),
-    config: { setupToken: 'test-setup-token-0123456789abcdef0123' },
+    config: { setupToken: 'test-setup-token-0123456789abcdef0123', appVersion: 'test' },
     ...overrides,
   } as TestDeps
 }
