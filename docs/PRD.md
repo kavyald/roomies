@@ -94,9 +94,9 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 |---|---|
 | **Home** | **Open polls**, **Runs in progress** (open batches, plus visits dated in the next 7 days), then one unlabeled list ranked by priority (*Mine / All*): the feed (§8.1) plus any task or need dated in the next 7 days, each once. A **Calendar** link beside *Mine / All* opens the month calendar. |
 | **Needs** | The shared list of things to buy. Needs with a feeling come first. **Start a run** from here. |
-| **Chores** | Chores, sorted by what's due for a go, with "last done" |
 | **Tasks** | **Requests & visits** (unsent and sent requests, planned visits) with **+ New** (start a request or plan a visit), then tasks with filters *Mine / All / Outside help* |
-| **House** | **Settings** (feeling weights), rooms, contacts, roommates, invite link, activity log |
+| **Chores** | Chores, sorted by what's due for a go, with "last done" |
+| **Admin** | Roommates, invite link (admins), contacts, then untitled: **Feeling weights**, **Activity**, **Rooms**. Everyone sees this tab; only admins get the invite link and roommate controls. |
 
 A floating **"+"** opens a picker (Need / Chore / Task / Poll / Run) and then a short form. Only the title is required.
 
@@ -270,7 +270,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 
 ### 8.2 Settings: feeling weights **[DECIDED] (owner)**
 
-- **House → Settings → Feeling weights**: one row per feeling with its emoji, name, and a number (−20 to +40, in steps of 5), plus **Reset to defaults**.
+- **Admin → Feeling weights**: one row per feeling with its emoji, name, and a number (−20 to +40, in steps of 5), plus **Reset to defaults**.
 - **One setting for the whole house.** **Any member** can change it. **(owner)**
 - Saving re-ranks the feed for everyone, is logged, and shows a card on Home ("Maya set 😰 Anxious to +30"). Everyone else also gets a push ("Maya set 😰 to +30", §11, D32).
 - The other parts of the formula are fixed in v1.
@@ -322,7 +322,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 - **Web Push** only, which requires adding the app to the Home Screen on iOS. The email digest fallback comes later (§13).
 - Quiet hours per person (default 10pm–8am), with per-category toggles in personal settings.
 - Notifications follow the person, not the phone: signing out stops that device getting yours, and turning them on moves the device to whoever is signed in (T84). If the push service is briefly down, a notification is tried again after 5 minutes, 30 minutes and 2 hours before it's given up.
-- Everything about notifications sits in one **Notifications** section of personal settings: this device's status with its one button (turn on / blocked / add to Home Screen first), a switch per category with a line saying when you get it, and quiet hours as one row. House → Settings links to it.
+- Everything about notifications sits in one **Notifications** section of personal settings: this device's status with its one button (turn on / blocked / add to Home Screen first), a switch per category with a line saying when you get it, and quiet hours as one row. It is reached only from personal settings (your avatar), not from Admin (T67).
 
 ---
 
@@ -395,7 +395,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D28 | Sign-in codes come from a house Gmail address, and the app lives at a `*.vercel.app` URL. No custom domain in v1. | Owner |
 | D29 | Everything that needs an outside account is its own, later milestone (M5). M0–M4 are built and checked entirely on one Mac. | Owner |
 | D30 | Removing an item is called "Delete" in the app. The row stays for history and the toast offers Undo. No archive list, no 30-day window (T62). | Owner |
-| D31 | House → Rooms is one row that opens a sheet of plain names grouped Bedrooms / Bathrooms / Spaces, renamed in place (T66; T60's grid had icons) | Owner |
+| D31 | Admin → Rooms is one row that opens a sheet of plain names grouped Bedrooms / Bathrooms / Spaces, renamed in place (T66; T60's grid had icons) | Owner |
 | D32 | Extra pushes: feeling weights changed, a new poll option, a new point person, tasks moved into a visit (T59) | Owner |
 | D33 | Offline shows the offline page only. No cached data. | Owner |
 | D34 | Not building: deleting the house, a move-in checklist, a "Handled 💛" toast, adding or archiving rooms, a room's element setting, item counts on rooms | Owner |

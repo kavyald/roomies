@@ -54,11 +54,14 @@ test('personal settings: turn a category off, keep quiet hours, and switch to da
   await expect(page.getByRole('button', { name: 'Quiet 11pm–8am' })).toBeVisible()
 })
 
-test('House → Settings links to the Notifications page', async ({ page }) => {
+test('the old House link lands on Admin, which leaves Notifications to your settings (T67)', async ({
+  page,
+}) => {
   const owner = await ownerOnHouseTab(page)
   await page.goto(`/h/${owner.houseId}/house`)
+  await expect(page).toHaveURL(new RegExp(`/h/${owner.houseId}/admin$`))
+  await expect(page.getByRole('heading', { name: 'Admin', level: 1 })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Activity' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Notifications', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Turn on notifications' })).toHaveCount(0)
-  await page.getByRole('link', { name: 'Notifications', exact: true }).click()
-  await expect(page).toHaveURL(new RegExp(`/h/${owner.houseId}/me/notifications$`))
-  await expect(page.getByRole('heading', { name: 'Notifications', level: 1 })).toBeVisible()
 })

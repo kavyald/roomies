@@ -275,7 +275,7 @@ const draftsFor = (
         category: 'people',
         title: `${nameOf(e.memberId)} joined the house 🏠`,
         body: 'Say hi!',
-        url: `${home}/house`,
+        url: `${home}/admin`,
       })
     case 'member.moved_out':
     case 'member.removed':
@@ -285,7 +285,7 @@ const draftsFor = (
           category: 'people',
           title: `${nameOf(e.memberId)} moved out`,
           body: 'The house list is up to date.',
-          url: `${home}/house`,
+          url: `${home}/admin`,
         },
       )
     case 'member.role_changed': {
@@ -295,7 +295,7 @@ const draftsFor = (
         category: 'people',
         title: role === 'admin' ? "You're now an admin" : "You're now a member",
         body: `${actor} changed your role.`,
-        url: `${home}/house`,
+        url: `${home}/admin`,
       })
     }
     default:

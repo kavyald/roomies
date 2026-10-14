@@ -41,7 +41,7 @@ test('a known email signs in with the code from Mailpit and sees the empty app s
   await expect(guide).toBeHidden()
 
   const tabs = page.getByRole('navigation', { name: 'Tabs' })
-  for (const name of ['Home', 'Needs', 'Chores', 'Tasks', 'House']) {
+  for (const name of ['Home', 'Needs', 'Tasks', 'Chores', 'Admin']) {
     await expect(tabs.getByRole('link', { name })).toBeVisible()
   }
   await expect(tabs.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
@@ -61,8 +61,8 @@ test('a known email signs in with the code from Mailpit and sees the empty app s
   )
   expect(usesSafeArea).toBe(true)
 
-  // The House tab reads the signed-in person's data through RLS; sign out ends the session.
-  await tabs.getByRole('link', { name: 'House' }).click()
+  // The Admin tab reads the signed-in person's data through RLS; sign out ends the session.
+  await tabs.getByRole('link', { name: 'Admin' }).click()
   await expect(page.getByRole('list', { name: 'Roommates' })).toContainText('Kavya')
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/sign-in$/)

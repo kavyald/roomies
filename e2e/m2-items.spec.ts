@@ -68,7 +68,7 @@ test('a duplicate need points to the first, Did it resets a chore, 😰 moves a 
   await expect(feed.first()).toContainText('High')
 
   // 4. Turning 😰 down to −20 re-ranks it below the bulb again (25 + 15 − 20 = 20).
-  await page.getByRole('link', { name: 'House' }).click()
+  await page.getByRole('link', { name: 'Admin' }).click()
   await page.getByRole('button', { name: /^Feeling weights/ }).click()
   const sheet = page.getByRole('dialog', { name: 'Feeling weights' })
   const lower = sheet.getByRole('button', { name: 'Lower Anxious' })

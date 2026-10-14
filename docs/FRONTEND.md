@@ -192,7 +192,7 @@ FIRST FLOOR                                         BASEMENT
 | B | Fitness space | common (door to the garden) | neutral |
 | — | Garden | outdoor | neutral |
 
-- Rooms can be renamed and reordered in House → Rooms (one row that opens a sheet), where they're listed as plain names grouped by type, not floor: **Bedrooms** (bedroom), **Bathrooms** (bath), **Spaces** (common, entry, utility, outdoor). The item room picker uses the same three groups. Rooms aren't added or archived from the app; the seeded 17 are the house.
+- Rooms can be renamed and reordered in Admin → Rooms (one row that opens a sheet), where they're listed as plain names grouped by type, not floor: **Bedrooms** (bedroom), **Bathrooms** (bath), **Spaces** (common, entry, utility, outdoor). The item room picker uses the same three groups. Rooms aren't added or archived from the app; the seeded 17 are the house.
 
 **[DECIDED] (owner)** Air, Fire, Water, and Earth are the four bedrooms, one per roommate. The craft room is shared. The baths are Bathroom 1 and 2 (upstairs, full) and Bathroom 3 (downstairs, half). The space with the garden door is the Fitness space.
 
@@ -217,7 +217,7 @@ FIRST FLOOR                                         BASEMENT
 
 ## 5. Key screens
 
-Tabs: **Home · Needs · Chores · Tasks · House**. The calendar opens from Home.
+Tabs: **Home · Needs · Tasks · Chores · Admin** (T67; everyone sees the tab as "Admin", though only admins get the invite link and roommate controls; `/h/[houseId]/house` redirects to `/admin`). The calendar opens from Home.
 
 ### 5.1 Home
 
@@ -235,7 +235,7 @@ Tabs: **Home · Needs · Chores · Tasks · House**. The calendar opens from Hom
 │ │ (K) Due yesterday         │ │
 │ └───────────────────────────┘ │
 │                          (+)  │
-│ [Home][Needs][Chores][Tasks][House]
+│ [Home][Needs][Tasks][Chores][Admin]
 └───────────────────────────────┘
 ```
 
@@ -254,7 +254,7 @@ Two taps from any card: **🙂+** (or a swipe left), then an emoji.
 
 ### 5.3 Add sheet (+)
 
-1. On **Needs, Chores or Tasks**, the + opens that kind's form directly. On Home (and House) it asks first: one of five tiles, **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch). The form has a *Need · Chore · Task* switch at the top (the title stays) and **A poll or a run instead?** at the bottom, which goes back to the tiles.
+1. On **Needs, Chores or Tasks**, the + opens that kind's form directly. On Home (and Admin) it asks first: one of five tiles, **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch). The form has a *Need · Chore · Task* switch at the top (the title stays) and **A poll or a run instead?** at the bottom, which goes back to the tiles.
 2. Title (autofocused) + **Add**, or **Add another**, which adds it and keeps the sheet open with the title (and note) cleared and the other fields kept, so three needs in a row take one sheet. Optional fields by type, behind **More options** except a chore's rhythm:
    - **Need:** needed by, room
    - **Chore:** *As needed* or *About every N days* (always shown, so a repeating chore is +, *About every…*, **Add**), room, optional assignee
@@ -322,12 +322,12 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 
 - A month grid with dots on days that have something, and the selected day's list below: dated tasks, needs with a needed-by date, and runs. Tap one to open it.
 
-### 5.11 House tab
+### 5.11 Admin tab
 
-- **Settings → Notifications**: one row that opens your Notifications page (`/me/notifications`). The device control lives there, not here.
-- **Settings → Feeling weights**: six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, **Save for the house**. "One setting for the whole house. Anyone can change it."
+- **Order** (T67, owner): **Roommates**, **Invite a roommate** (admins), **Contacts**, then three untitled rows in this order: **Feeling weights**, **Activity**, **Rooms**. No "Settings", "History" or "Money" titles, and no Notifications row: notifications live only in your settings (`/me`, from your avatar). **Sign out** and **Delete my account** sit at the bottom.
+- **Feeling weights**: six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, **Save for the house**. "One setting for the whole house. Anyone can change it."
 - **Rooms**: one row (like Feeling weights, T66) that opens a sheet listing the rooms as plain names, no icons, under three headings: **Bedrooms**, **Bathrooms** and **Spaces**. VoiceOver reads each name and kind ("Fire, bedroom"). Tap one to edit it in place: **Name** with **Save** / **Cancel**, and **Move earlier** / **Move later** within its group (the order is `sort_order`).
-- **Contacts** with Copy number. **Roommates**. **Invite link** (admins).
+- **Contacts** with Copy number. **Roommates**. **Invite link** (admins). **Activity** opens the house log (`/activity`, below).
 - **Your settings** (`/me`, from your avatar): your avatar and name, then two separate rows, **Notifications** and **Appearance** (showing the current theme), each opening its own page with a "‹ You" link back (T65). No setting sits on `/me` itself, so the theme never reads as a notification setting.
 - **Notifications** (`/me/notifications`): one section that fits on a 375pt screen, as a single card. First this device's status line with its one button ("Turn on notifications" when it's off; otherwise a line saying it's on, blocked in the browser, or that Roomies needs adding to the Home Screen first). It says on only when the server has this device for you too, so after someone else used the phone it offers the button again (T84). **Sign out** also turns notifications off on this device, so the next person doesn't get yours. Then the six categories as compact switch rows, each a short name (Handed to me, Coming due, Feelings on my things, Polls, Runs, People) with a one-line "you get this when…" under it; VoiceOver reads the name and the line as its description. Last, quiet hours as one row, "Quiet 10pm–8am": tap it to edit From / Until inline, with an on/off switch beside it (never inside it).
 - **Appearance** (`/me/appearance`): the theme as one segmented control, **Auto · Light · Dark**, saved to your profile settings and applied at once; a line under it says Auto follows your phone.

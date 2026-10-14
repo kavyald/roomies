@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-/** Rows grouped in one rounded box (House tab lists, settings). */
+/** Rows grouped in one rounded box (Admin tab lists, settings). */
 export function ListGroup({ children, label }: { children: ReactNode; label?: string }) {
   return (
     <div

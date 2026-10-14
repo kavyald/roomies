@@ -66,7 +66,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       ['/needs', 'Needs'],
       ['/chores', 'Chores'],
       ['/tasks', 'Tasks'],
-      ['/house', 'House'],
+      ['/admin', 'Admin'],
       ['/activity', 'Activity'],
       ['/calendar', 'Calendar'],
       ['/me', 'You'],
@@ -77,8 +77,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()
       await check(page, path)
     }
-    // House → Rooms: the sheet, then a room open to edit in place (T66).
-    await page.goto(`${h}/house`)
+    // Admin → Rooms: the sheet, then a room open to edit in place (T66).
+    await page.goto(`${h}/admin`)
     await page.getByRole('list', { name: 'Rooms' }).getByRole('button').click()
     const rooms = page.getByRole('dialog', { name: 'Rooms' })
     await expect(rooms.getByRole('list', { name: 'Bedrooms' })).toBeVisible()

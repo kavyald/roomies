@@ -1,4 +1,4 @@
-// House tab use cases: people and rooms (PRD §10, FRONTEND §5.11).
+// Admin tab use cases: people and rooms (PRD §10, FRONTEND §5.11).
 
 import type { AppDeps } from './ports'
 import { actorUser, type HouseActor } from '../domain/actor'

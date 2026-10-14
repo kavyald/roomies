@@ -25,7 +25,7 @@ test('the super and landlord are saved, with their numbers', async ({ page }) =>
   await expect(contacts.getByRole('button', { name: "Copy Super's number" })).toBeVisible()
 })
 
-/** Opens House → Rooms: one row, then a sheet of plain names by group (T66). */
+/** Opens Admin → Rooms: one row, then a sheet of plain names by group (T66). */
 const openRooms = async (page: Page) => {
   const row = page.getByRole('list', { name: 'Rooms' }).getByRole('button')
   await expect(row).toHaveCount(1)

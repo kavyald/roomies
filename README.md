@@ -37,7 +37,7 @@ It's a PWA for iPhone Safari: roommates open a link, add it to their Home Screen
 open docs/archive/mockup-v1.html
 ```
 
-Things to try: vote on "Which vacuum?", record the landlord's reply on the Landlord request (Tasks tab), finish a grocery run and log the cost, change a feeling weight under House → Settings, and check House → Activity.
+Things to try: vote on "Which vacuum?", record the landlord's reply on the Landlord request (Tasks tab), finish a grocery run and log the cost, change a feeling weight under Admin → Feeling weights, and check Admin → Activity.
 
 ## Docs
 

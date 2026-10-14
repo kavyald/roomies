@@ -40,9 +40,9 @@ test('a roommate who is not an admin sets 😰 to +40, and the feed re-ranks for
   await expect(feed.first()).toContainText('Replace hallway bulb')
   await expect(feed.nth(1)).toContainText('Toilet paper')
 
-  // Sam (a member, not an admin) changes the weights on the House tab.
+  // Sam (a member, not an admin) changes the weights on the Admin tab.
   const samPage = await open(sam.email)
-  await samPage.goto(`/h/${owner.houseId}/house`)
+  await samPage.goto(`/h/${owner.houseId}/admin`)
   await samPage.getByRole('button', { name: /^Feeling weights/ }).click()
   const sheet = samPage.getByRole('dialog', { name: 'Feeling weights' })
   await expect(sheet.getByRole('status', { name: 'Anxious weight' })).toHaveText('+20')
