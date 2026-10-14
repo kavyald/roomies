@@ -36,6 +36,8 @@ const check = async (page: Page, screen: string) => {
 
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`every screen passes axe in ${colorScheme}`, async ({ page }) => {
+    // One long sweep over every screen; under a full parallel run it outgrows the 60s default.
+    test.slow()
     await page.emulateMedia({ colorScheme })
     cspViolations = await watchCsp(page)
     const signInPage = await page.goto('/sign-in')
