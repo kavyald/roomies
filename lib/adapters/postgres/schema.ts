@@ -165,6 +165,17 @@ export type CostsTable = {
   removed_at: Timestamp | null
 }
 
+export type FeedbackTable = {
+  id: string
+  house_id: string
+  user_id: string
+  kind: 'bug' | 'idea' | 'praise'
+  message: string
+  app_version: string
+  user_agent: string | null
+  created_at: Timestamp
+}
+
 export type FeelingsTable = {
   item_id: string
   user_id: string
@@ -242,6 +253,7 @@ export type DB = {
   runs: RunsTable
   polls: PollsTable
   costs: CostsTable
+  feedback: FeedbackTable
   poll_options: PollOptionsTable
   poll_votes: PollVotesTable
   activity_events: ActivityEventsTable

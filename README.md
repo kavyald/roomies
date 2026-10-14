@@ -70,7 +70,7 @@ Everything targets free tiers for one house of 2–8 people.
 | **M4 Notifications & polish** | Web push, reminders, polish, end-to-end tests |
 | **M5 Hosting & launch** | Deploy tooling and security hardening first (server-only database writes, repo secret scanning), then everything that needs an outside account: hosted Supabase, the Gmail sender, Sentry, Vercel, staging, iPhone checks, production |
 | **M6 Usability & personal needs** | Fewer taps (swipe, simpler item views, quicker runs), needs for one person or the house, the gaps from the docs↔code audit, docs that match the build |
-| **M7 Simpler screens** | Tabs Home, Needs, Tasks, Chores, Admin; Home as one list in priority order; check-to-save sheets that swipe closed; icon buttons for edit and delete; Appearance apart from Notifications; rooms renamed from one sheet; no monthly cost total |
+| **M7 Simpler screens** | Tabs Home, Needs, Tasks, Chores, Admin; Home as one list in priority order; check-to-save sheets that swipe closed; icon buttons for edit and delete; Appearance apart from Notifications; rooms renamed from one sheet; no monthly cost total; a feedback button on Admin |
 | **M8 After launch** | Easier dates and times, undo and redo, run history, faster loads, money done properly with Splitwise |
 
 Each milestone ends with a test task. Everything except M5 runs on one Mac with no accounts; M5 is where the sign-ups happen, and launch waits for M7. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).

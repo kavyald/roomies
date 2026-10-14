@@ -67,6 +67,7 @@ export const fakeAppClient = (
     isPushSubscriptionSaved: async () => err('unexpected'),
     updateMySettings: async () => err('unexpected'),
     setNotificationEnabled: async () => err('unexpected'),
+    sendFeedback: async () => err('unexpected'),
     ...commands,
   },
 })

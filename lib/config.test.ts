@@ -36,6 +36,12 @@ describe('loadConfig', () => {
       vapidPublicKey: 'public-key',
     })
     expect(c.vapidSubject).toBe('mailto:house@example.com')
+    expect(c.appVersion).toBe('dev')
+  })
+
+  it('names the build by its short commit on Vercel', () => {
+    const c = loadConfig({ ...good, VERCEL_GIT_COMMIT_SHA: '96c2f0d1e2f3a4b5c6d7e8f9' })
+    expect(c.appVersion).toBe('96c2f0d')
   })
 
   it('names every missing variable', () => {

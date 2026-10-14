@@ -24,6 +24,7 @@ import type {
   UserId,
 } from '../../domain/ids'
 import type { Cost } from '../../domain/costs'
+import { MAX_FEEDBACK, type Feedback } from '../../domain/feedback'
 import {
   NOTIFICATION_CATEGORIES,
   type NotificationCategory,
@@ -50,6 +51,7 @@ export type MemoryState = {
   runs: Map<RunId, Run>
   polls: Map<PollId, Poll>
   costs: Cost[]
+  feedback: Feedback[]
   prefs: Map<string, boolean>
   outbox: (OutboxMessage & { id: number; sentAt?: Instant; error?: string; attempts?: number })[]
   pushSubs: Map<string, PushSubscription>
@@ -69,6 +71,7 @@ export const emptyState = (): MemoryState => ({
   runs: new Map(),
   polls: new Map(),
   costs: [],
+  feedback: [],
   prefs: new Map(),
   outbox: [],
   pushSubs: new Map(),
@@ -434,6 +437,18 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         if (f && 'run' in f && !s.runs.has(f.run))
           throw new ConstraintViolation('costs: no such run')
         s.costs.push(cost)
+      },
+    },
+    // "feedback insert own" (T91): an active member, in their own name; members read none back.
+    feedback: {
+      add: async (f) => {
+        if (!isMember(s, a, f.houseId)) deny('feedback')
+        if (a.kind !== 'system' && f.userId !== uid(a)) deny('feedback')
+        if (s.feedback.some((x) => x.id === f.id)) deny('feedback')
+        const len = f.message.trim().length
+        if (len < 1 || f.message.length > MAX_FEEDBACK)
+          throw new ConstraintViolation('feedback: message')
+        s.feedback.push(f)
       },
     },
     polls: {

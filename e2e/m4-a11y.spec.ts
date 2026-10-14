@@ -95,6 +95,12 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await check(page, 'rooms sheet (editing)')
     await page.keyboard.press('Escape')
     await expect(rooms).toBeHidden()
+    // Admin → Send feedback (T91).
+    await page.getByRole('button', { name: 'Send feedback' }).click()
+    await expect(page.getByRole('dialog', { name: 'Feedback' })).toBeVisible()
+    await check(page, 'feedback sheet')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: 'Feedback' })).toBeHidden()
     // The emoji tray on a row, and + on Needs (straight to a need, with Add another).
     await page.goto(`${h}/needs`)
     await page.getByRole('button', { name: 'Share a feeling: Olive oil' }).click()

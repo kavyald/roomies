@@ -224,6 +224,12 @@ A run is **a batch of items handled together**. There are three kinds:
 - Home takes in the next 7 days (dated tasks and needs join its ranked list, dated runs show under Runs in progress) and links to the calendar. The full calendar is a month grid with a day list.
 - A plain heads-up ("Jo's parents staying Sat") is a **task with a date** in v1.
 
+### 6.8 Feedback **[DECIDED] (owner)**
+
+- An icon at the top right of **Admin** (no text; VoiceOver reads "Send feedback") opens a sheet: **Bug 🐞 · Idea 💡 · Praise 💛** (Idea to start), a message, and the header check, **Send**.
+- It goes to the owner, not the house: it's saved for the owner to read in the Supabase dashboard, isn't in the activity log, and notifies nobody. Housemates can't read each other's feedback.
+- Each one carries who sent it, their house, the app version and the browser. No screenshot or page.
+
 ---
 
 ## 7. Feelings
@@ -401,5 +407,6 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D33 | Offline shows the offline page only. No cached data. | Owner |
 | D34 | Not building: deleting the house, a move-in checklist, a "Handled 💛" toast, adding or archiving rooms, a room's element setting, item counts on rooms | Owner |
 | D35 | Built from the docs↔code audit: conflict detection on edits, "Handled by" follows the run, an app-wide CSP, `security_events`, undo "Did it", poll withdraw / reopen / deadline, run rename and point person, cost edit and remove, poll and run deep links, notification settings in one section (T50–T58, T61) | Owner |
+| D36 | A feedback button (bug / idea / praise) at the top right of Admin, saved for the owner in Supabase, with the sender, house, app version and browser (§6.8, T91) | Owner |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.
