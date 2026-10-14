@@ -215,6 +215,9 @@ export const useSetNotificationEnabled = (houseId: HouseId) =>
   ])
 export const useUpdateMySettings = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'updateMySettings'>) => c.updateMySettings(i), ['profiles'])
+/** Nothing in the house changes: members never read feedback back. */
+export const useSendFeedback = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Cmd<'sendFeedback'>) => c.sendFeedback(i), [])
 
 export const usePolls = (houseId: HouseId) => {
   const { queries } = useAppClient()

@@ -7,6 +7,7 @@ import type { Contact, House, Invite, Member, Profile, Room } from '../../domain
 import { asId, type UserId } from '../../domain/ids'
 import type { Done, Item, Version } from '../../domain/items'
 import type { Cost } from '../../domain/costs'
+import type { Feedback } from '../../domain/feedback'
 import type { Cents } from '../../domain/money'
 import type { Poll, PollOption } from '../../domain/polls'
 import type { PushSubscription } from '../../domain/push'
@@ -382,6 +383,19 @@ export const costToRow = (c: Cost) => ({
   created_by: c.createdBy,
   created_at: toDate(c.createdAt),
   removed_at: c.removedAt ? toDate(c.removedAt) : null,
+})
+
+// ---- feedback -----------------------------------------------------------------------------------
+
+export const feedbackToRow = (f: Feedback) => ({
+  id: f.id,
+  house_id: f.houseId,
+  user_id: f.userId,
+  kind: f.kind,
+  message: f.message,
+  app_version: f.appVersion,
+  user_agent: f.userAgent ?? null,
+  created_at: toDate(f.createdAt),
 })
 
 // ---- polls --------------------------------------------------------------------------------------

@@ -30,6 +30,7 @@ import {
   editCostAction,
   removeCostAction,
 } from '@/app/actions/costs'
+import { sendFeedbackAction } from '@/app/actions/feedback'
 import { setNotificationEnabledAction, updateMySettingsAction } from '@/app/actions/me'
 import { isPushSubscriptionSavedAction, savePushSubscriptionAction } from '@/app/actions/push'
 import {
@@ -133,6 +134,7 @@ export function HouseProviders({
       isPushSubscriptionSaved: (input) => isPushSubscriptionSavedAction(houseId, input),
       updateMySettings: (input) => updateMySettingsAction(houseId, input),
       setNotificationEnabled: (input) => setNotificationEnabledAction(houseId, input),
+      sendFeedback: (input) => sendFeedbackAction(houseId, input),
     }),
   )
   return (

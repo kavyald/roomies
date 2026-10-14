@@ -25,6 +25,7 @@ const APP_WRITER: Record<string, string[]> = {
   activity_events: ['INSERT'],
   contacts: ['INSERT', 'UPDATE'],
   costs: ['INSERT'],
+  feedback: ['INSERT'],
   feelings: ['DELETE', 'INSERT', 'UPDATE'],
   house_invites: ['INSERT', 'UPDATE'],
   house_members: ['INSERT', 'UPDATE'],
@@ -40,6 +41,10 @@ const APP_WRITER: Record<string, string[]> = {
   rooms: ['INSERT', 'UPDATE'],
   runs: ['INSERT', 'UPDATE'],
 }
+
+// Tables members write but never read back (T91): no SELECT for authenticated, and the owner only
+// reads and clears them as service_role.
+const WRITE_ONLY = ['feedback']
 
 const WRITES = ['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'TRIGGER', 'MAINTAIN']
 
@@ -103,7 +108,7 @@ describe('grant guard', () => {
     )
     const grants = (grantee: string) =>
       Object.fromEntries(rows.filter((r) => r.grantee === grantee).map((r) => [r.name, r.privs]))
-    const memberTables = Object.keys(APP_WRITER)
+    const memberTables = Object.keys(APP_WRITER).filter((t) => !WRITE_ONLY.includes(t))
 
     expect(grants('authenticated')).toEqual(
       Object.fromEntries(memberTables.map((t) => [t, ['SELECT']])),
@@ -111,6 +116,7 @@ describe('grant guard', () => {
     expect(grants('service_role')).toEqual({
       ...Object.fromEntries(memberTables.map((t) => [t, ['DELETE', 'INSERT', 'SELECT', 'UPDATE']])),
       activity_events: ['INSERT', 'SELECT'],
+      feedback: ['DELETE', 'SELECT'],
       rate_limits: ['DELETE', 'INSERT', 'SELECT', 'UPDATE'],
       security_events: ['DELETE', 'INSERT', 'SELECT'],
     })
@@ -231,6 +237,10 @@ describe('the browser role reads but cannot write', () => {
         [`delete from poll_votes where house_id = $1`, [h.houseId]],
         [`update costs set note = 'x' where house_id = $1`, [h.houseId]],
         [`update profiles set display_name = 'Someone' where id = $1`, [h.member]],
+        [
+          `insert into feedback (id, house_id, user_id, kind, message, app_version) values ($1, $2, $3, 'idea', 'Hi', 'dev')`,
+          [newId(), h.houseId, h.member],
+        ],
       ]
       for (const [sql, params] of attempts) {
         expect({ sql, code: await refused(db, sql, params) }).toEqual({

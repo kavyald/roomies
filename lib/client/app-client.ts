@@ -5,6 +5,7 @@
 import type { ChangeFeed, HouseQueries } from '../app/ports'
 import type { NewContact } from '../domain/contacts'
 import type { ContactPatch } from '../domain/contacts'
+import type { FeedbackKind } from '../domain/feedback'
 import type { Feeling, FeelingKind, FeelingWeights } from '../domain/feelings'
 import type { Contact, House, Invite, Member, Profile, Role, Room, Theme } from '../domain/house'
 import type { NotificationCategory } from '../domain/notifications'
@@ -12,6 +13,7 @@ import type { ReferenceError } from '../app/items'
 import type {
   ContactId,
   CostId,
+  FeedbackId,
   InviteId,
   ItemId,
   OptionId,
@@ -319,6 +321,11 @@ export type AppCommands = {
     category: NotificationCategory
     enabled: boolean
   }): Promise<CommandResult<{ category: NotificationCategory; enabled: boolean }, 'not_found'>>
+  /** A bug, an idea or praise for the owner (T91). */
+  sendFeedback(input: {
+    kind: FeedbackKind
+    message: string
+  }): Promise<CommandResult<{ id: FeedbackId }, 'empty' | 'too_long' | 'not_found'>>
   setFeelingWeights(
     weights: FeelingWeights,
   ): Promise<CommandResult<House, 'not_found' | 'out_of_range' | 'no_change'>>
