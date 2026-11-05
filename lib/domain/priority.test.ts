@@ -11,7 +11,7 @@ import {
   signedPoints,
   tierOf,
 } from './priority'
-import { instantAt, type LocalDate, type LocalTime } from './time'
+import { instantAt, plusMs, type LocalDate, type LocalTime } from './time'
 
 const TZ = 'America/New_York'
 const NOW = instantAt('2026-09-29' as LocalDate, '12:00' as LocalTime, TZ) // Tue
@@ -194,6 +194,18 @@ describe('describePart', () => {
 describe('isInFeed', () => {
   const inFeed = (item: Item, feelings: Feeling[] = [], visit?: LocalDate) =>
     isInFeed(item, feelings, NOW, TZ, { visitDate: () => visit })
+
+  it('a chore goes quiet after it is done, and counts again with a newer feeling (T99)', () => {
+    const c = chore('Dishes', { repeatDays: null })
+    const done = { ...c, lastDone: { at: NOW, by: me } }
+    const old = { ...felt(c, 'frustrated'), at: at(-1) }
+    expect(inFeed(c, [old])).toBe(true)
+    expect(inFeed(done, [old])).toBe(false)
+    expect(score(done, [old])).toBe(score(done))
+    const again = { ...felt(c, 'frustrated'), at: plusMs(NOW, 1000) }
+    expect(inFeed(done, [again])).toBe(true)
+    expect(score(done, [again])).toBeGreaterThan(score(done))
+  })
 
   it('includes open tasks, but not done or archived ones', () => {
     expect(inFeed(task('a'))).toBe(true)

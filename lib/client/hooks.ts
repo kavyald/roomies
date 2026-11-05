@@ -2,7 +2,7 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
-import type { Feeling, FeelingWeights } from '../domain/feelings'
+import { isFeelingActive, type Feeling, type FeelingWeights } from '../domain/feelings'
 import type { NewContact } from '../domain/contacts'
 import type { AppCommands } from './app-client'
 import type { ContactId, HouseId, InviteId, ItemId, RunId } from '../domain/ids'
@@ -336,10 +336,23 @@ export const useCreateContact = (houseId: HouseId) => {
 
 /** The house's current feelings, grouped by item. */
 export const useFeelingsByItem = (houseId: HouseId): ReadonlyMap<string, Feeling[]> => {
-  const feelings = useFeelings(houseId)
+  const feelings = useActiveFeelings(houseId)
   return useMemo(() => {
     const m = new Map<string, Feeling[]>()
-    for (const f of feelings.data ?? []) m.set(f.itemId, [...(m.get(f.itemId) ?? []), f])
+    for (const f of feelings) m.set(f.itemId, [...(m.get(f.itemId) ?? []), f])
     return m
-  }, [feelings.data])
+  }, [feelings])
+}
+
+/** The house's feelings that still count: shared since their item was last taken care of (T99). */
+export const useActiveFeelings = (houseId: HouseId): readonly Feeling[] => {
+  const feelings = useFeelings(houseId)
+  const items = useItems(houseId)
+  return useMemo(() => {
+    const byId = new Map((items.data ?? []).map((i) => [i.id as string, i]))
+    return (feelings.data ?? []).filter((f) => {
+      const item = byId.get(f.itemId)
+      return !item || isFeelingActive(item, f)
+    })
+  }, [feelings.data, items.data])
 }

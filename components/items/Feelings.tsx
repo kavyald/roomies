@@ -7,7 +7,13 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/components/ui/cn'
 import { useToast } from '@/components/ui/Toast'
-import { useFeelings, useHouse, useItemActivity, useSetFeeling } from '@/lib/client/hooks'
+import {
+  useActiveFeelings,
+  useFeelings,
+  useHouse,
+  useItemActivity,
+  useSetFeeling,
+} from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import { useNow } from '@/lib/client/use-now'
 import {
@@ -47,11 +53,11 @@ export function FeelingCounts({ feelings }: { feelings: readonly Feeling[] }) {
   )
 }
 
-/** My current feeling about an item, if I've shared one. */
+/** My current feeling about an item, if I've shared one since it was last taken care of. */
 export const useMyFeeling = (houseId: HouseId, itemId: ItemId): Feeling | undefined => {
   const { me } = useAppClient()
-  const feelings = useFeelings(houseId)
-  return feelings.data?.find((f) => f.itemId === itemId && f.by === me)
+  const feelings = useActiveFeelings(houseId)
+  return feelings.find((f) => f.itemId === itemId && f.by === me)
 }
 
 /** The 🙂+ that opens the emoji tray, beside a card or row (never inside its button). */
@@ -265,6 +271,7 @@ export function HouseFeels({
 }) {
   const { me } = useAppClient()
   const feelings = useFeelings(houseId)
+  const active = useActiveFeelings(houseId)
   const activity = useItemActivity(houseId, itemId)
   const house = useHouse(houseId)
   const now = useNow()
@@ -274,11 +281,15 @@ export function HouseFeels({
   const pick = useRef<HTMLButtonElement>(null)
   const tz = house.data?.settings.timezone ?? 'UTC'
 
-  const current = (feelings.data ?? [])
+  const current = active
     .filter((f) => f.itemId === itemId)
     .sort((a, b) => (a.by === me ? -1 : b.by === me ? 1 : b.at.epochMs - a.at.epochMs))
   const mine = current.find((f) => f.by === me)
-  const earlier = activity.data ? earlierFeelings(activity.data) : []
+  // Feelings gone quiet since the item was taken care of are still part of its story.
+  const quiet = (feelings.data ?? []).filter(
+    (f) => f.itemId === itemId && !current.some((c) => c.by === f.by),
+  )
+  const earlier = [...quiet, ...(activity.data ? earlierFeelings(activity.data) : [])]
 
   const row = (f: Feeling, key: string) => {
     const who = person(f.by)

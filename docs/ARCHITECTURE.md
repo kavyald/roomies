@@ -625,7 +625,7 @@ select changes, actor_id, at from activity_events
 | | `item.assigned` | item, member, `changes` | ✓ | new assignee (not if they took it) |
 | | `item.handled_by_changed` | item, contact, `changes` | ✓ | — |
 | | `chore.done` · `chore.undone` | item (+ run if done on one), `changes {lastDone: [before, after]}` | ◐ · — | — |
-| Feelings | `feeling.set` · `feeling.removed` | item, `changes {previous, next}` | ✓ · — | assignee on 😰/😤 (not their own) |
+| Feelings | `feeling.set` · `feeling.removed` | item, `changes {previous, next}` | ✓ · — | 😰/😤: the assignee of a need or task, or everyone on a chore (not their own, T99) |
 | Polls | `poll.created` · `poll.closed` · `poll.reopened` · `poll.deadline_changed` | poll (+ item, winning option) | ✓ | everyone but whoever did it, on created/closed |
 | | `poll.option_added` | poll, option, note | ✓ | people who already voted, not whoever added it (D32) |
 | | `poll.voted` · `poll.vote_changed` · `poll.vote_withdrawn` | poll, option | ◐ · ◐ · — | — |

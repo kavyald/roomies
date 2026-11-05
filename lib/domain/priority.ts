@@ -2,7 +2,13 @@
 // time zone are arguments, so the feed, jobs and tests all score the same way.
 
 import { isComingUp } from './calendar'
-import { FEELING_META, type Feeling, type FeelingKind, type FeelingWeights } from './feelings'
+import {
+  activeFeelings,
+  FEELING_META,
+  type Feeling,
+  type FeelingKind,
+  type FeelingWeights,
+} from './feelings'
 import type { UserId } from './ids'
 import type { Item, Priority } from './items'
 import { daysSinceDone, isChoreDue } from './lists'
@@ -74,7 +80,7 @@ const dueOf = (item: Item, now: Instant, tz: string): ScorePart | null => {
 
 /**
  * The item's score (PRD §8.1): base(priority) + due pressure + the house's weight for each
- * member's current feeling, clamped to 0–100, with the breakdown behind it.
+ * member's active feeling (shared since the item was last taken care of), clamped to 0–100, with the breakdown behind it.
  */
 export const scorePriority = (
   item: Item,
@@ -88,8 +94,7 @@ export const scorePriority = (
   ]
   const due = dueOf(item, now, tz)
   if (due) breakdown.push(due)
-  for (const f of feelings) {
-    if (f.itemId !== item.id) continue
+  for (const f of activeFeelings(item, feelings)) {
     breakdown.push({ kind: 'feeling', by: f.by, feeling: f.kind, points: weights[f.kind] })
   }
   const raw = breakdown.reduce((sum, p) => sum + p.points, 0)
@@ -111,7 +116,7 @@ export const isInFeed = (
 ): boolean => {
   if (item.archivedAt) return false
   if (item.category !== 'chore' && item.done) return false
-  const felt = feelings.some((f) => f.itemId === item.id)
+  const felt = activeFeelings(item, feelings).length > 0
   const today = localDateOf(now, tz)
   switch (item.category) {
     case 'task': {

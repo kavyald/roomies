@@ -238,7 +238,8 @@ A run is **a batch of items handled together**. There are three kinds:
 - **About the item, never the person.** There's no per-person mood, and avatars never show feelings. **(owner)**
 - **One current feeling + an optional note** (≤ 280 chars) per member per item. Changing it moves the old one to an **Earlier** list, so the conversation isn't lost (adding or editing the note keeps it the same feeling). **(owner)** Feeling notes replace comments.
 - **Always named.** There's no anonymous option. **(owner)**
-- When someone adds 😰 or 😤, the item's assignee gets a notification.
+- When someone adds 😰 or 😤 to a need or a task, its assignee gets a notification. On a chore, every active member but the sharer does (their toggles and quiet hours apply): a chore's feeling is about the chore, never routed to one person. **(owner)**
+- **Feelings go quiet once the chore is taken care of.** A feeling on a chore counts only if it was shared after the chore was last done; sharing again counts again. Undoing Did it, or reopening a need or a task, brings older feelings back, since it was an undo. Nothing is deleted. **(owner)**
 
 | Feeling | Emoji | Default weight | Meaning |
 |---|---|---|---|
@@ -260,7 +261,7 @@ The weights are editable (§8.2).
 The score is computed when the feed is shown, because it depends on today's date.
 
 ```
-score = base(priority) + due_pressure(when or chore rhythm) + Σ feeling_weight(each member's current feeling)
+score = base(priority) + due_pressure(when or chore rhythm) + Σ feeling_weight(each member's active feeling)
 clamped to 0–100
 ```
 
@@ -268,7 +269,7 @@ clamped to 0–100
 |---|---|
 | base | Low 10 · Normal 25 · High 45 · Urgent 70 |
 | due pressure | overdue: +35, +2/day overdue (up to +15 more) · due today: +25 · within 3 days: +15 · within 7 days: +5 · no date: 0. A chore past its "every N days" counts as overdue by the days past. |
-| feelings | from the **feeling weights** setting (§8.2) |
+| feelings | from the **feeling weights** setting (§8.2). Only **active** feelings count: on a chore, those shared after it was last done (§7) |
 
 Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (20–44), **Low** (< 20). Tapping it shows **"Why is this here?"**, the breakdown (e.g. "Due tomorrow +25, 😰 Maya +20").
 
@@ -408,5 +409,6 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D34 | Not building: deleting the house, a move-in checklist, a "Handled 💛" toast, adding or archiving rooms, a room's element setting, item counts on rooms | Owner |
 | D35 | Built from the docs↔code audit: conflict detection on edits, "Handled by" follows the run, an app-wide CSP, `security_events`, undo "Did it", poll withdraw / reopen / deadline, run rename and point person, cost edit and remove, poll and run deep links, notification settings in one section (T50–T58, T61) | Owner |
 | D36 | A feedback button (bug / idea / praise) at the top right of Admin, saved for the owner in Supabase, with the sender, house, app version and browser (§6.8, T91) | Owner |
+| D37 | Feelings on a chore count only if shared after it was last done; 😰/😤 on a chore notifies every active member, not an assignee. Reopening a need or a task is an undo, so its feelings count again (§7, §8.1, T99) | Owner |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.

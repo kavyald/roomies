@@ -290,6 +290,23 @@ describe('items, end to end on the memory adapters', () => {
 })
 
 describe('feelings', () => {
+  it('the same feeling can be shared again after a chore was taken care of (T99)', async () => {
+    let now = TEST_NOW
+    const deps = depsForTest({ clock: { now: () => now } })
+    const s = await sampleHouse(deps.uow, deps.ids, async () => deps.ids.newId<'user'>() as UserId)
+    const as = (who: keyof typeof s.people) => asMember(s.house.id, s.people[who])
+    const feel = makeSetFeeling(deps)
+    const dishes = await makeCreateItem(deps)(as('Kavya'), { category: 'chore', title: 'Dishes' })
+    if (!dishes.ok) throw new Error(dishes.error)
+    const itemId = dishes.value.id
+    await feel(as('Sam'), { itemId, kind: 'frustrated' })
+    now = plusMs(TEST_NOW, 1000)
+    await makeDoChore(deps)(as('Wren'), itemId)
+    now = plusMs(TEST_NOW, 2000)
+    const again = await feel(as('Sam'), { itemId, kind: 'frustrated' })
+    expect(again.ok && again.value?.at).toEqual(now)
+  })
+
   it('shares, changes (keeping the old one in activity), and removes a feeling', async () => {
     const { deps, s, as, create, feel } = await setup()
     const radiator = await create(as('Kavya'), { category: 'task', title: 'Radiator clanking' })

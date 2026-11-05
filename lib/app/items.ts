@@ -3,7 +3,7 @@
 
 import type { AppDeps, Repos } from './ports'
 import { actorUser, type HouseActor } from '../domain/actor'
-import { setFeeling, type Feeling, type FeelingKind } from '../domain/feelings'
+import { isFeelingActive, setFeeling, type Feeling, type FeelingKind } from '../domain/feelings'
 import type { ActionId, ItemId, UserId } from '../domain/ids'
 import {
   archiveItem,
@@ -206,6 +206,7 @@ export const makeSetFeeling =
         by,
         now,
         actionId: ids.newId(),
+        stale: !!current && !isFeelingActive(item, current),
       })
       if (!r.ok) return r
       // Record first: the event holds the feeling being replaced.

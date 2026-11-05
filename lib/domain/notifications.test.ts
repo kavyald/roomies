@@ -121,6 +121,23 @@ describe('notificationsFor', () => {
     })
   })
 
+  it('a 😰 or 😤 on a chore tells everyone but the sharer, never only the assignee (T99)', () => {
+    const chore = ctx({ items: new Map([[leak, { title: 'Dishes', assignee: wren, chore: true }]]) })
+    const msgs = notificationsFor([feeling('frustrated', kavya)], chore)
+    expect(who(msgs)).toEqual([wren, sam])
+    expect(msgs[0]).toMatchObject({
+      category: 'feelings',
+      title: '😤 Kavya feels frustrated about Dishes',
+      body: 'They wanted the house to know.',
+    })
+    expect(notificationsFor([feeling('thanks', kavya)], chore)).toEqual([])
+    const allowOff = ctx({
+      people: [person(kavya, 'Kavya'), person(wren, 'Wren', { off: new Set(['feelings']) })],
+      items: chore.items,
+    })
+    expect(notificationsFor([feeling('anxious', kavya)], allowOff)).toEqual([])
+  })
+
   it("other feelings, your own feeling, and unassigned items don't notify", () => {
     expect(notificationsFor([feeling('thanks', kavya)], ctx())).toEqual([])
     expect(notificationsFor([feeling('anxious', wren)], ctx())).toEqual([])
