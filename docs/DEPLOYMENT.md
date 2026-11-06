@@ -203,6 +203,7 @@ The repo is public, so anyone can read the schema, every RLS policy and the role
 
 - **New tables:** grant writes to `app_writer`, never to `authenticated`. Reads for `authenticated` and everything for `service_role` come from the default privileges that T76's migration sets, the same locally and hosted (A31). The grant-guard test fails otherwise. Publishing a table to Realtime is a deliberate decision; the guard expects only `activity_events`.
 - **Secrets:** the `app_server` password bypasses RLS (it can switch to `service_role`), so treat it like the service-role key: Vercel only, never in chat, screenshots or logs. A secret that was ever committed or shown is **rotated**; removing it from git history doesn't help, since clones and forks keep it.
+- **Removing or tightening (T96's chores):** add first, tighten in the next release. The routines migration leaves `items.room_id`, `assignee_id` and `repeat_days` on chores and `chore_kind` nullable, because the build running while it goes in still uses them; the follow-up card re-runs the backfill and adds the strict checks.
 - **Security fixes:** fix through a new migration (drop and recreate the policy); never edit an applied migration. A fix is public as soon as it's pushed, so take it straight through `staging` to `main`, and keep the commit message plain.
 - **CI on a public repo:** no `pull_request_target`, and no secrets in workflows a fork's PR can trigger. Never print connection strings, query results or data in workflow logs, and never upload a dump that isn't encrypted (D8).
 

@@ -55,7 +55,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     const owner = await anOwner('Kavya')
     const task = await anItem(owner, { category: 'task', title: 'Fix the latch' })
     await anItem(owner, { category: 'need', title: 'Olive oil' })
-    await anItem(owner, { category: 'chore', title: 'Trash', repeatDays: 7, lastDoneDaysAgo: 9 })
+    await anItem(owner, { category: 'chore', title: 'Trash', lastDoneDaysAgo: 9 })
     const seededPoll = await aPoll(owner, 'Movie night?')
     const seededRun = await aRun(owner, 'Groceries')
     await signIn(page, owner.email)

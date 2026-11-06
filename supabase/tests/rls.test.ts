@@ -66,13 +66,14 @@ describe('RLS is on everywhere', () => {
     expect(rows.map((r) => r.relname)).toEqual([])
   })
 
-  it('nothing is deleted except your own current feeling or open vote (history is in activity)', async () => {
+  it("nothing is deleted except your own current feeling or open vote, or a chore's rooms (history is in activity)", async () => {
     const { rows } = await asOwner((db) =>
       db.query(
         `select tablename, policyname from pg_policies where schemaname = 'public' and cmd = 'DELETE' order by tablename`,
       ),
     )
     expect(rows).toEqual([
+      { tablename: 'chore_rooms', policyname: 'chore rooms delete' },
       { tablename: 'feelings', policyname: 'feelings delete own' },
       { tablename: 'poll_votes', policyname: 'poll votes withdraw own while open' },
     ])

@@ -1,5 +1,5 @@
 // M6 exit criteria (PRD §12, Q6): every action hits its tap target, and item views fit at 375pt
-// without scrolling. Swipes, the 🙂+ two-tap feeling and the three-tap repeating chore are in
+// without scrolling. Swipes, the 🙂+ two-tap feeling and the two-tap chore are in
 // m6-fewer-taps; the personal need (title + Me) is in m6-personal-needs.
 import { randomUUID } from 'node:crypto'
 import AxeBuilder from '@axe-core/playwright'
@@ -31,7 +31,7 @@ const tapper = () => {
 test('finishing takes one tap without swiping, and a grocery run about six', async ({ page }) => {
   const owner = await ownerOnHouseTab(page)
   await anItem(owner, { category: 'task', title: 'Fix the latch' })
-  await anItem(owner, { category: 'chore', title: 'Take out the trash', repeatDays: 7 })
+  await anItem(owner, { category: 'chore', title: 'Take out the trash' })
   await anItem(owner, { category: 'need', title: 'Foil' })
   const t = tapper()
   const h = `/h/${owner.houseId}`
@@ -144,10 +144,9 @@ test.describe('at 375pt', () => {
       const chore = await anItem(owner, {
         category: 'chore',
         title: 'Clean the fridge',
-        repeatDays: 7,
         lastDoneDaysAgo: 9,
       })
-      await fillIn(owner, chore, `, assignee_id = '${owner.userId}'`, false)
+      await fillIn(owner, chore, '', false)
       const task = await anItem(owner, { category: 'task', title: 'Fix the radiator valve' })
       await fillIn(owner, task, `, assignee_id = '${owner.userId}', contact_id = '${contact}'`)
 

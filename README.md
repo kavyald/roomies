@@ -15,7 +15,7 @@ Five concepts cover v1:
 | Concept | What it is | Examples |
 |---|---|---|
 | **Need** | Something the house needs to buy. A cost is recorded only if money was spent. | Tomatoes, dish soap, a vacuum |
-| **Chore** | Ongoing upkeep, done by anyone "as needed" or "about every N days" | Wipe the stove, clean Bathroom 3 |
+| **Chore** | Ongoing upkeep: a deep clean on a rotating routine, or everyday upkeep everyone shares | Clean Bathroom 3, the dishes |
 | **Task** | Anything one-off, optionally handled by someone outside the house | Fix the door latch, radiator (super) |
 | **Poll** | A question with options, about an item or on its own | Which vacuum? House name? |
 | **Run** | A batch of items handled together: a grocery run, a **request** to the landlord, or a **visit** from the super | "Wren's grocery run", "Landlord request" |

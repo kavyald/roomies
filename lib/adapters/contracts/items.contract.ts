@@ -54,9 +54,10 @@ export const itemsContract = (name: string, makeHarness: () => Promise<UnitOfWor
         category: 'chore',
         title: 'Trash',
         priority: 'normal',
-        repeatDays: 7,
+        kind: 'deep_clean',
+        icon: 'trash-2',
+        rooms: [],
         lastDone: { at: T, by: admin },
-        assignee: admin,
         createdBy: member,
         createdAt: T,
       }
@@ -80,7 +81,7 @@ export const itemsContract = (name: string, makeHarness: () => Promise<UnitOfWor
         ...neverDone,
         id: h.ids.newId(),
         title: 'Descale kettle',
-        repeatDays: null,
+        kind: 'upkeep',
       }
       await put(asNeeded)
       expect(await get(asNeeded.id)).toEqual(asNeeded)
@@ -192,7 +193,13 @@ export const itemsContract = (name: string, makeHarness: () => Promise<UnitOfWor
       await expect(put(need('x'.repeat(121)))).rejects.toBeInstanceOf(ConstraintViolation)
       await put(need('x'.repeat(120)))
       const chore = (title: string, repeatDays: number | null) =>
-        ({ ...need(title), category: 'chore', repeatDays }) as unknown as Item
+        ({
+          ...need(title),
+          category: 'chore',
+          repeatDays,
+          kind: 'upkeep',
+          rooms: [],
+        }) as unknown as Item
       await put(chore('Water the plants', 365))
       await put(chore('Descale the kettle', null))
       for (const days of [0, 366]) {
@@ -228,7 +235,7 @@ export const itemsContract = (name: string, makeHarness: () => Promise<UnitOfWor
       const mine = await setup()
       const theirs = await setup()
       const chore = (title: string) =>
-        ({ ...mine.need(title), category: 'chore', repeatDays: 7 }) as unknown as Item
+        ({ ...mine.need(title), category: 'chore', kind: 'upkeep', rooms: [] }) as unknown as Item
       const trash = chore('Trash')
       const mop = chore('Mop')
       await mine.put(trash)

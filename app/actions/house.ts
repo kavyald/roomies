@@ -10,19 +10,31 @@ import {
   makeSetFeelingWeights,
   makeSetRole,
 } from '@/lib/app/house'
-import type { ContactId, HouseId, RoomId, UserId } from '@/lib/domain/ids'
+import { makeCreateRoutine, makeEditRoutine, makeRemoveRoutine } from '@/lib/app/routines'
+import type { ContactId, HouseId, RoomId, RoutineId, UserId } from '@/lib/domain/ids'
+import type { Version } from '@/lib/domain/items'
+import type { RoutineWho } from '@/lib/domain/routines'
 import {
   editContactSchema,
+  editRoutineSchema,
   feelingWeightsSchema,
   idSchema,
   moveOutSchema,
   moveRoomSchema,
+  newRoutineSchema,
   nothingSchema,
   renameRoomSchema,
   setRoleSchema,
 } from '@/lib/schemas/house'
 import { makeAction } from '@/lib/server/action'
 import { requestSupabase } from '@/lib/server/session'
+
+const routineWho = (
+  who: { takesTurns: true; startsWith: string } | { takesTurns: false; fixedMember: string },
+): RoutineWho =>
+  who.takesTurns
+    ? { takesTurns: true, startsWith: who.startsWith as UserId }
+    : { takesTurns: false, fixedMember: who.fixedMember as UserId }
 
 export async function editContactAction(houseId: HouseId, input: unknown) {
   return makeAction(
@@ -55,6 +67,44 @@ export async function setRoleAction(houseId: HouseId, input: unknown) {
     (deps, actor, i) => makeSetRole(deps)(actor, { userId: i.userId as UserId, role: i.role }),
     houseEnv(houseId),
   )(input)
+}
+
+export async function createRoutineAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    newRoutineSchema,
+    (deps, actor, i) =>
+      makeCreateRoutine(deps)(actor, {
+        ...i,
+        who: routineWho(i.who),
+        roomIds: i.roomIds as RoomId[],
+      }),
+    houseEnv(houseId),
+  )(input)
+}
+
+export async function editRoutineAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    editRoutineSchema,
+    (deps, actor, i) =>
+      makeEditRoutine(deps)(actor, {
+        id: i.id as RoutineId,
+        patch: {
+          ...i.patch,
+          who: i.patch.who && routineWho(i.patch.who),
+          roomIds: i.patch.roomIds as RoomId[] | undefined,
+        },
+        version: i.version as Version | undefined,
+      }),
+    houseEnv(houseId),
+  )(input)
+}
+
+export async function removeRoutineAction(houseId: HouseId, id: unknown) {
+  return makeAction(
+    idSchema,
+    (deps, actor, i) => makeRemoveRoutine(deps)(actor, i as RoutineId),
+    houseEnv(houseId),
+  )(id)
 }
 
 export async function renameRoomAction(houseId: HouseId, input: unknown) {

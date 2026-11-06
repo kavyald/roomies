@@ -54,7 +54,7 @@ import type { LocalDate, LocalTime } from '@/lib/domain/time'
 import { HouseFeels } from './Feelings'
 import { HandledByPicker } from './HandledByPicker'
 import { ItemForm, toNewItem, valuesFrom, type ItemFormValues } from './ItemForm'
-import { CATEGORY, scheduleLabel, whenLabel } from './meta'
+import { CATEGORY, CHORE_KIND_LABEL, whenLabel } from './meta'
 import { WhyHere } from './WhyHere'
 
 type Sheets = {
@@ -85,7 +85,7 @@ const PROBLEM: Record<string, string> = {
   unknown_member: "That roommate isn't in the house anymore.",
   unknown_room: "That room isn't there anymore.",
   unknown_contact: "That contact isn't there anymore.",
-  bad_repeat: 'Pick between 1 and 365 days.',
+  bad_icon: 'Pick one of the icons.',
   on_a_run: "It's on a request or visit. Move it there to change who's handling it.",
   // Someone saved it first (ARCHITECTURE §7.5); the house's data refetches with this.
   conflict: CHANGED_MEANWHILE,
@@ -317,7 +317,10 @@ const patchFrom = (item: Item, v: ItemFormValues): ItemPatch => {
   const p: Record<string, unknown> = {}
   if (v.title.trim() !== item.title) p.title = v.title
   if (v.note !== before.note) p.note = v.note.trim() ? v.note : null
-  if (v.roomId !== before.roomId) p.roomId = v.roomId || null
+  if (v.roomId !== before.roomId) {
+    if (item.category === 'chore') p.rooms = v.roomId ? [v.roomId] : []
+    else p.roomId = v.roomId || null
+  }
   if (v.assignee !== before.assignee) p.assignee = v.assignee || null
   if (v.date !== before.date || v.time !== before.time) {
     p.when = v.date
@@ -325,10 +328,6 @@ const patchFrom = (item: Item, v: ItemFormValues): ItemPatch => {
       : null
   }
   if (v.priority !== before.priority) p.priority = v.priority
-  if (item.category === 'chore') {
-    const next = v.repeat === 'every' ? v.repeatDays : null
-    if (next !== item.repeatDays) p.repeatDays = next
-  }
   if (item.category === 'task' && v.contactId !== before.contactId)
     p.contactId = v.contactId || null
   return p as ItemPatch
@@ -398,7 +397,8 @@ function ItemDetailSheet({
   }
 
   const tz = house.data?.settings.timezone ?? 'UTC'
-  const room = item.roomId ? rooms.data?.find((r) => r.id === item.roomId) : undefined
+  const roomId = item.category === 'chore' ? item.rooms[0] : item.roomId
+  const room = roomId ? rooms.data?.find((r) => r.id === roomId) : undefined
   const contact =
     item.category === 'task' && item.contactId
       ? contacts.data?.find((c) => c.id === item.contactId)
@@ -497,7 +497,7 @@ function ItemDetailSheet({
   const when = whenLabel(item, now, tz)
   if (when)
     rows.push([item.category === 'need' ? 'Needed by' : 'When', when.replace(/^Needed by /, '')])
-  if (item.category !== 'need') {
+  if (item.category === 'task') {
     rows.push([
       "Who's on it",
       item.assignee ? (
@@ -623,7 +623,9 @@ function ItemDetailSheet({
           }
 
   const kind =
-    item.category === 'chore' ? `Chore · ${scheduleLabel(item)}` : CATEGORY[item.category].label
+    item.category === 'chore'
+      ? `Chore · ${CHORE_KIND_LABEL[item.kind]}`
+      : CATEGORY[item.category].label
 
   return (
     <Sheet

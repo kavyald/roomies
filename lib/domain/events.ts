@@ -10,6 +10,7 @@ import type {
   OptionId,
   PollId,
   RoomId,
+  RoutineId,
   RunId,
   UserId,
 } from './ids'
@@ -183,6 +184,18 @@ export type DomainEvent = EventBase &
         readonly roomId: RoomId
         readonly changes?: FieldChanges
       }
+    | {
+        readonly kind: 'room.routine_changed'
+        readonly roomId: RoomId
+        /** Where the room went, or the routine it left. */
+        readonly routineId: RoutineId
+        readonly changes: FieldChanges
+      }
+    | {
+        readonly kind: 'routine.created' | 'routine.updated' | 'routine.removed'
+        readonly routineId: RoutineId
+        readonly changes?: FieldChanges
+      }
   )
 
 export type EventKind = DomainEvent['kind']
@@ -203,6 +216,7 @@ export type ActivityRow = {
   readonly contactId?: ContactId
   readonly memberId?: UserId
   readonly roomId?: RoomId
+  readonly routineId?: RoutineId
   readonly note?: string
   readonly changes?: unknown
   readonly payload: Readonly<{ v: 1 } & Record<string, unknown>>
@@ -221,6 +235,7 @@ const SUBJECTS = [
   'contactId',
   'memberId',
   'roomId',
+  'routineId',
 ] as const
 
 /** Maps an event to its activity row. Subjects become typed columns; `payload` holds extras only. */

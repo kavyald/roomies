@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { asId, type ContactId, type HouseId, type ItemId, type UserId } from './ids'
+import type { Feeling } from './feelings'
+import type { Member, Room } from './house'
 import type { Item, Task } from './items'
-import {
-  choreLateness,
-  choreList,
-  daysAgo,
-  daysSinceDone,
-  isChoreDue,
-  needList,
-  taskList,
-} from './lists'
+import type { Routine } from './routines'
+import { choreBoard, daysAgo, daysSinceDone, needList, taskList } from './lists'
 import type { Chore } from './items'
 import { instantAt, MS_PER_DAY, plusMs } from './time'
 import { instant, type LocalDate, type LocalTime } from './time'
@@ -92,53 +87,96 @@ describe('needList', () => {
 describe('chores', () => {
   const NY = 'America/New_York'
   const now = instantAt('2026-09-29' as LocalDate, '12:00' as LocalTime, NY)
-  const ago = (days: number) => ({ at: plusMs(now, -days * MS_PER_DAY), by: me })
-  const c = (title: string, repeatDays: number | null, lastDoneDays?: number): Chore =>
-    ({
-      ...t(title),
-      category: 'chore',
-      repeatDays,
-      ...(lastDoneDays !== undefined && { lastDone: ago(lastDoneDays) }),
-    }) as Chore
-
-  const chores = [
-    c('Weekly, 3 days ago', 7, 3),
-    c('Weekly, 9 days ago', 7, 9),
-    c('As needed, long ago', null, 30),
-    c('Every 3 days, 4 ago', 3, 4),
-    c('As needed, recent', null, 1),
-    c('As needed, never', null),
+  const today = '2026-09-29' as LocalDate
+  const wren = 'wren' as UserId
+  const member = (userId: UserId, day: number): Member => ({
+    houseId: 'h' as Member['houseId'],
+    userId,
+    role: 'member',
+    joinedAt: instant(day),
+    status: { active: true },
+  })
+  const members = [member(me, 1), member(wren, 2)]
+  const room = (name: string, sortOrder: number, routineId?: string): Room => ({
+    id: name as Room['id'],
+    houseId: 'h' as Room['houseId'],
+    name,
+    floor: 'first',
+    kind: 'common',
+    sortOrder,
+    ...(routineId && { routineId: routineId as Room['routineId'] & string }),
+  })
+  const routine = (id: string, sortOrder: number, startsWith: UserId): Routine => ({
+    id: id as Routine['id'],
+    houseId: 'h' as Routine['houseId'],
+    name: id,
+    icon: 'broom',
+    resets: 'weekly',
+    startsOn: today,
+    startsWith,
+    sortOrder,
+    createdAt: instant(0),
+  })
+  const chore = (title: string, o: Partial<Chore> = {}): Chore =>
+    ({ ...t(title), category: 'chore', kind: 'deep_clean', rooms: [], ...o }) as Chore
+  const rooms = [
+    room('Kitchen', 2, 'r1'),
+    room('Dining', 1, 'r1'),
+    room('Garden', 3),
+    room('Bath', 4, 'r2'),
   ]
+  const routines = [routine('r2', 0, wren), routine('r1', 1, me)]
+  const board = (items: Item[], feelings: Feeling[] = []) =>
+    choreBoard(items, { rooms, routines, members, feelings, me, today, tz: NY })
 
-  it('puts the chore furthest past its rhythm first, and as-needed ones last', () => {
-    expect(choreList(chores, now, NY).map((x) => x.title)).toEqual([
-      'Every 3 days, 4 ago', // 4/3
-      'Weekly, 9 days ago', // 9/7
-      'Weekly, 3 days ago',
-      'As needed, never',
-      'As needed, long ago',
-      'As needed, recent',
+  it('puts your card first, with its chores under their first room in house order', () => {
+    const vacuum = chore('Vacuum', { rooms: ['Kitchen', 'Dining'] as never })
+    const sink = chore('Sink', { rooms: ['Kitchen'] as never, lastDone: { at: now, by: wren } })
+    const b = board([vacuum, sink])
+    expect(b.cards.map((c) => [c.routine.id, c.holder, c.next, c.mine])).toEqual([
+      ['r1', me, wren, true],
+      ['r2', wren, me, false],
+    ])
+    expect(b.cards[0]!.rooms.map((r) => [r.room.name, r.chores.map((c) => c.chore.title)])).toEqual(
+      [
+        ['Dining', ['Vacuum']],
+        ['Kitchen', ['Sink']],
+      ],
+    )
+    expect(b.cards[0]!.chores.map((c) => [c.chore.title, c.done])).toEqual([
+      ['Sink', true],
+      ['Vacuum', false],
     ])
   })
 
-  it('an every-7-days chore last done 9 days ago is due; doing it today resets it', () => {
-    const late = c('Trash', 7, 9)
-    expect(daysSinceDone(late, now, NY)).toBe(9)
-    expect(isChoreDue(late, now, NY)).toBe(true)
-    const reset = { ...late, lastDone: { at: now, by: me } }
-    expect(isChoreDue(reset, now, NY)).toBe(false)
-    expect(choreList([c('Other', 7, 8), reset], now, NY).map((x) => x.title)).toEqual([
-      'Other',
-      'Trash',
-    ])
+  it('upkeep and chores nobody is on go to one list, felt first, and quiet after they are done', () => {
+    const dishes = chore('Dishes', { kind: 'upkeep', rooms: ['Kitchen'] as never })
+    const trash = chore('Trash', { kind: 'upkeep' })
+    const weeds = chore('Weeds', { rooms: ['Garden'] as never })
+    const gone = chore('Gone', { archivedAt: now })
+    const f: Feeling = { itemId: dishes.id, by: wren, kind: 'frustrated', at: now }
+    const b = board([trash, weeds, dishes, gone], [f])
+    expect(b.upkeep.felt.map((c) => c.chore.title)).toEqual(['Dishes'])
+    expect(b.upkeep.calm.map((c) => c.title)).toEqual(['Trash', 'Weeds'])
+    const after = board([{ ...dishes, lastDone: { at: plusMs(now, 1), by: me } }], [f])
+    expect(after.upkeep.felt).toEqual([])
+    expect(after.upkeep.calm.map((c) => c.title)).toEqual(['Dishes'])
   })
 
-  it('never-done repeating chores rank first; as-needed chores are never "due"', () => {
-    expect(choreLateness(c('New', 7), now, NY)).toBe(Number.POSITIVE_INFINITY)
-    expect(isChoreDue(c('Descale', null, 100), now, NY)).toBe(false)
+  it("a card carries its chores' active feelings", () => {
+    const sink = chore('Sink', { rooms: ['Bath'] as never })
+    const f: Feeling = { itemId: sink.id, by: me, kind: 'anxious', at: now }
+    expect(board([sink], [f]).cards.find((c) => c.routine.id === 'r2')!.feelings).toEqual([f])
   })
 
   it('says how long ago plainly', () => {
+    expect(
+      daysSinceDone(
+        chore('x', { lastDone: { at: plusMs(now, -9 * MS_PER_DAY), by: me } }),
+        now,
+        NY,
+      ),
+    ).toBe(9)
     expect([0, 1, 9].map(daysAgo)).toEqual(['today', 'yesterday', '9 days ago'])
   })
 })

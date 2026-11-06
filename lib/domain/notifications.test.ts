@@ -122,7 +122,9 @@ describe('notificationsFor', () => {
   })
 
   it('a 😰 or 😤 on a chore tells everyone but the sharer, never only the assignee (T99)', () => {
-    const chore = ctx({ items: new Map([[leak, { title: 'Dishes', assignee: wren, chore: true }]]) })
+    const chore = ctx({
+      items: new Map([[leak, { title: 'Dishes', assignee: wren, chore: true }]]),
+    })
     const msgs = notificationsFor([feeling('frustrated', kavya)], chore)
     expect(who(msgs)).toEqual([wren, sam])
     expect(msgs[0]).toMatchObject({

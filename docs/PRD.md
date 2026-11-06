@@ -140,12 +140,18 @@ Every item has:
 
 ### 6.2 Chores (ongoing upkeep)
 
-- **Two kinds of schedule** **[DECIDED]**:
-  - **As needed** (default): no due date. The chore shows "last done 9 days ago · Wren." It appears in the Home feed only if someone shares a feeling on it (😤 "something in the fridge is alive").
-  - **About every N days:** it enters the Home feed once it's past N days since last done. Priority grows the longer it's past.
-- **Anyone can do it:** tap **Done** to record who and when. An optional **assignee** covers "Jo always waters the garden."
+Two concepts only: a **room** is where chores live, and a **routine** is who's responsible for a set of rooms and how often that changes hands. A routine has many rooms; a room is in at most one routine. Houses start with no routines. **[DECIDED] (owner)**
+
+- **Two kinds of chore** **[DECIDED] (owner)**:
+  - **Deep clean:** the routine holder's checklist for the period. Every chore, every period. It resets when the period does; what wasn't finished doesn't carry over and nothing is marked.
+  - **Upkeep:** shared, everyday (dishes, trash). Nobody's job and no tick: people share a feeling when it piles up, and anyone taps **Took care of it**, after which older feelings stop counting (§7). It comes back only with a new feeling. Chores with no owner count as upkeep too.
+- **Who's on a chore is worked out, never stored:** the chore's first room in house order → that room's routine → who has it this period. No room, or a first room in no routine, means no owner. A chore can cover several rooms; one tick covers them all.
+- **Routines:** anyone in the house creates and edits them (Admin → Routines, the only place the word appears). **Resets** weekly (Monday), every 2 weeks (every other Monday) or monthly (the 1st), in the house's time zone. **Who:** takes turns among everyone by when they joined, or always one person; a fixed person's checklist still resets.
+- **Handover:** nothing is written. The holder gets one message when a routine that takes turns changes hands ("You have the kitchen and dining this week"), combined per person, only on the period's first day.
+- **Joining and moving out:** the rotation restarts so this period's holders don't shift. If the holder moves out, the next person in turn takes over; if a fixed person moves out, the routine goes back to taking turns.
+- **Anyone can tick any chore** (helping counts): **Did it** records who and when, with Undo.
 - Chores can go on a run (e.g. a cleaning session).
-- **[DECIDED] (owner)** No chore balance or "who's done what" view.
+- **[DECIDED] (owner)** No numbers, no "due", and no chore balance or "who's done what" view: progress is a row of icons on your own card only, and people are shown as their avatar.
 
 ### 6.3 Tasks (one-offs)
 
@@ -261,19 +267,19 @@ The weights are editable (§8.2).
 The score is computed when the feed is shown, because it depends on today's date.
 
 ```
-score = base(priority) + due_pressure(when or chore rhythm) + Σ feeling_weight(each member's active feeling)
+score = base(priority) + due_pressure(when) + Σ feeling_weight(each member's active feeling)
 clamped to 0–100
 ```
 
 | Part | Value |
 |---|---|
 | base | Low 10 · Normal 25 · High 45 · Urgent 70 |
-| due pressure | overdue: +35, +2/day overdue (up to +15 more) · due today: +25 · within 3 days: +15 · within 7 days: +5 · no date: 0. A chore past its "every N days" counts as overdue by the days past. |
+| due pressure | overdue: +35, +2/day overdue (up to +15 more) · due today: +25 · within 3 days: +15 · within 7 days: +5 · no date: 0. Chores have none. |
 | feelings | from the **feeling weights** setting (§8.2). Only **active** feelings count: on a chore, those shared after it was last done (§7) |
 
 Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (20–44), **Low** (< 20). Tapping it shows **"Why is this here?"**, the breakdown (e.g. "Due tomorrow +25, 😰 Maya +20").
 
-**What's in the feed:** tasks that aren't done, **except tasks on a visit** (the contact has taken them on). Those come back only if someone shares a feeling or the visit is within 3 days. Chores past their rhythm, or with a feeling. Needs with a feeling or a needed-by date within 7 days. Polls and runs have their own sections on Home. Home's list also takes in any open task or need dated in the next 7 days, so nothing with a date this week drops off Home.
+**What's in the feed:** tasks that aren't done, **except tasks on a visit** (the contact has taken them on). Those come back only if someone shares a feeling or the visit is within 3 days. Chores with no owner (upkeep, or in no routine) with a feeling; a routine's own chores stay on the Chores tab. Needs with a feeling or a needed-by date within 7 days. Polls and runs have their own sections on Home. Home's list also takes in any open task or need dated in the next 7 days, so nothing with a date this week drops off Home.
 
 ### 8.2 Settings: feeling weights **[DECIDED] (owner)**
 
@@ -358,7 +364,6 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 |---|---|
 | **Bills**: cadence, due reminders, editable amounts ("from now on" / "just this payment"), payment history | A chore like "Pay internet" with a cost |
 | **Belongings & ownership shares**, settled state, move-out checklist | A "Keep it?" poll + a cost |
-| **Rotating / fixed chore schedules** (take turns, rrule) | An optional assignee |
 | **Outside-help stages** (not contacted → fixed), contact log, "no word in 3 days" nudges | "Handled by" a contact + visit runs |
 | **Heads-ups + calendar icon**: a `heads_up` item category (date, optional end date, room, host; never done, never on a run, not in the feed), an "A heads-up" tile on +, a calendar button on Home, "heads-up tomorrow" notifications. Designed in detail, deferred by the owner. Later still: "Got it" acknowledgments. | A task with a date |
 | **Info items** (Wi‑Fi, trash days) with hidden values | None |
@@ -410,5 +415,6 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D35 | Built from the docs↔code audit: conflict detection on edits, "Handled by" follows the run, an app-wide CSP, `security_events`, undo "Did it", poll withdraw / reopen / deadline, run rename and point person, cost edit and remove, poll and run deep links, notification settings in one section (T50–T58, T61) | Owner |
 | D36 | A feedback button (bug / idea / praise) at the top right of Admin, saved for the owner in Supabase, with the sender, house, app version and browser (§6.8, T91) | Owner |
 | D37 | Feelings on a chore count only if shared after it was last done; 😰/😤 on a chore notifies every active member, not an assignee. Reopening a need or a task is an undo, so its feelings count again (§7, §8.1, T99) | Owner |
+| D38 | Routines: rooms grouped under who's responsible and how often it changes hands; chores are Deep clean or Upkeep, and who's on one is worked out. **Reverses the decided chore rhythms** ("as needed" / "about every N days") and the chore assignee: chores have neither now. Rotations are no longer deferred (§6.2, T96) | Owner |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.

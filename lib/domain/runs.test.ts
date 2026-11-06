@@ -69,7 +69,8 @@ const task = (title: string, o: Partial<Task> = {}): Task => ({
 const chore = (title: string, o: Partial<Chore> = {}): Chore => ({
   ...base(title),
   category: 'chore',
-  repeatDays: 7,
+  kind: 'upkeep',
+  rooms: [],
   ...o,
 })
 

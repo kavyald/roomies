@@ -10,8 +10,7 @@ import {
   type FeelingWeights,
 } from './feelings'
 import type { UserId } from './ids'
-import type { Item, Priority } from './items'
-import { daysSinceDone, isChoreDue } from './lists'
+import type { Chore, Item, Priority } from './items'
 import { daysBetween, localDateOf, type Instant, type LocalDate } from './time'
 
 export type Tier = 'top' | 'high' | 'normal' | 'low'
@@ -21,11 +20,8 @@ export type ScorePart =
   | { readonly kind: 'base'; readonly priority: Priority; readonly points: number }
   | {
       readonly kind: 'due'
-      /** Days until it's due (negative: days past). For a chore, measured against its rhythm. */
+      /** Days until it's due (negative: days past). */
       readonly days: number
-      readonly chore: boolean
-      /** A repeating chore nobody has done yet. */
-      readonly neverDone?: boolean
       readonly points: number
     }
   | {
@@ -62,20 +58,10 @@ export const tierOf = (score: number): Tier =>
   score >= 70 ? 'top' : score >= 45 ? 'high' : score >= 20 ? 'normal' : 'low'
 
 const dueOf = (item: Item, now: Instant, tz: string): ScorePart | null => {
-  if (item.category === 'chore') {
-    if (!item.repeatDays) return null
-    const since = daysSinceDone(item, now, tz)
-    // A repeating chore nobody has done yet is already past its rhythm (it's in the feed, T21).
-    if (since === null)
-      return { kind: 'due', days: 0, chore: true, neverDone: true, points: OVERDUE }
-    const days = item.repeatDays - since
-    const points = duePoints(days)
-    return points ? { kind: 'due', days, chore: true, points } : null
-  }
-  if (!item.when) return null
+  if (item.category === 'chore' || !item.when) return null
   const days = daysBetween(localDateOf(now, tz), item.when.date)
   const points = duePoints(days)
-  return points ? { kind: 'due', days, chore: false, points } : null
+  return points ? { kind: 'due', days, points } : null
 }
 
 /**
@@ -104,15 +90,20 @@ export const scorePriority = (
 
 /**
  * Whether an item belongs in Needs attention (PRD §8.1): open tasks, except ones on a visit
- * (back only with a feeling or the visit within 3 days); chores past their rhythm or with a
- * feeling; needs with a feeling or needed within 7 days.
+ * (back only with a feeling or the visit within 3 days); chores nobody's on (upkeep, or no routine)
+ * with a feeling; needs with a feeling or needed within 7 days. A routine's chores stay on the
+ * Chores tab: they're its holder's checklist.
  */
 export const isInFeed = (
   item: Item,
   feelings: readonly Feeling[],
   now: Instant,
   tz: string,
-  opts: { visitDate?: (item: Item) => LocalDate | undefined } = {},
+  opts: {
+    visitDate?: (item: Item) => LocalDate | undefined
+    /** Whether a routine is on this chore (`choreOwner`). */
+    hasOwner?: (chore: Chore) => boolean
+  } = {},
 ): boolean => {
   if (item.archivedAt) return false
   if (item.category !== 'chore' && item.done) return false
@@ -126,7 +117,7 @@ export const isInFeed = (
       return !!visit && daysBetween(today, visit) <= 3
     }
     case 'chore':
-      return felt || isChoreDue(item, now, tz)
+      return felt && !opts.hasOwner?.(item)
     case 'need':
       return felt || (!!item.when && daysBetween(today, item.when.date) <= 7)
   }
@@ -150,14 +141,17 @@ export const homeFeed = (
     filter: FeedFilter
     me: UserId
     visitDate?: (item: Item) => LocalDate | undefined
+    hasOwner?: (chore: Chore) => boolean
   },
 ): FeedEntry[] =>
   items
     .filter((i) => ctx.filter === 'all' || i.assignee === ctx.me)
     .filter(
       (i) =>
-        isInFeed(i, feelingsOf(i), ctx.now, ctx.tz, { visitDate: ctx.visitDate }) ||
-        isComingUp(i, localDateOf(ctx.now, ctx.tz)),
+        isInFeed(i, feelingsOf(i), ctx.now, ctx.tz, {
+          visitDate: ctx.visitDate,
+          hasOwner: ctx.hasOwner,
+        }) || isComingUp(i, localDateOf(ctx.now, ctx.tz)),
     )
     .map((item) => ({
       item,
@@ -192,12 +186,6 @@ export const describePart = (part: ScorePart, name: (id: UserId) => string): str
     case 'feeling':
       return `${FEELING_META[part.feeling].emoji} ${name(part.by)}`
     case 'due':
-      if (part.chore) {
-        if (part.neverDone) return 'Not done yet'
-        if (part.days < 0) return `${dayCount(-part.days)} past its rhythm`
-        if (part.days === 0) return 'Due for a turn today'
-        return `Due for a turn in ${dayCount(part.days)}`
-      }
       if (part.days < 0)
         return part.days === -1 ? 'Was due yesterday' : `Was due ${dayCount(-part.days)} ago`
       if (part.days === 0) return 'Due today'

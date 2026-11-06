@@ -11,9 +11,9 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { useHouse, useItems, useFeelingsByItem } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
-import { choreList } from '@/lib/domain/lists'
+import type { Chore } from '@/lib/domain/items'
 
-/** Chores (FRONTEND §5.6): furthest past their rhythm first, with one-tap Did it. */
+/** Chores (FRONTEND §5.6): every chore, with one-tap Did it. */
 export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   const items = useItems(houseId)
   const house = useHouse(houseId)
@@ -33,7 +33,9 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   if (items.isPending) return <p className="text-ink-soft">Loading…</p>
 
   const tz = house.data?.settings.timezone ?? 'UTC'
-  const chores = choreList(items.data, now, tz)
+  const chores = items.data
+    .filter((i): i is Chore => i.category === 'chore' && !i.archivedAt)
+    .sort((a, b) => a.title.localeCompare(b.title))
   if (chores.length === 0) {
     return (
       <EmptyState

@@ -18,7 +18,7 @@ test('a swipe right finishes a task or a chore, with Undo; a swipe left opens th
 }) => {
   const owner = await ownerOnHouseTab(page)
   await anItem(owner, { category: 'task', title: 'Fix the latch' })
-  await anItem(owner, { category: 'chore', title: 'Take out the trash', repeatDays: 7 })
+  await anItem(owner, { category: 'chore', title: 'Take out the trash' })
 
   // Tasks: right = Done.
   await page.goto(`/h/${owner.houseId}/tasks`)
@@ -93,7 +93,7 @@ test('Needs rows swipe too, and a feeling takes two taps from a card', async ({ 
   await expect(row).not.toContainText('😰1')
 })
 
-test('+ on Needs adds three in one sheet; + on Chores makes a repeating chore in 3 taps', async ({
+test('+ on Needs adds three in one sheet; + on Chores makes a chore in 2 taps', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
@@ -122,9 +122,7 @@ test('+ on Needs adds three in one sheet; + on Chores makes a repeating chore in
   await page.getByRole('button', { name: 'Add', exact: true }).click() // 1
   const chore = page.getByRole('dialog', { name: 'A chore' })
   await chore.getByLabel('What needs doing?').fill('Water the plants')
-  await chore.getByRole('button', { name: 'About every…' }).click() // 2
-  await chore.getByLabel('Days between').fill('3')
-  await chore.getByRole('button', { name: 'Add', exact: true }).click() // 3
+  await chore.getByRole('button', { name: 'Add', exact: true }).click() // 2
   await expect(chore).toBeHidden()
-  await expect(page.getByRole('list', { name: 'Chores' })).toContainText('About every 3 days')
+  await expect(page.getByRole('list', { name: 'Chores' })).toContainText('Water the plants')
 })

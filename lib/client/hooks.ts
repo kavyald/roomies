@@ -5,7 +5,7 @@ import { useEffect, useMemo } from 'react'
 import { isFeelingActive, type Feeling, type FeelingWeights } from '../domain/feelings'
 import type { NewContact } from '../domain/contacts'
 import type { AppCommands } from './app-client'
-import type { ContactId, HouseId, InviteId, ItemId, RunId } from '../domain/ids'
+import type { ContactId, HouseId, InviteId, ItemId, RoutineId, RunId } from '../domain/ids'
 import type { NewItem } from '../domain/items'
 import type { NewInvite } from '../domain/invites'
 import { useAppClient } from './provider'
@@ -272,6 +272,28 @@ export const useMoveOut = (houseId: HouseId) =>
 export const useSetRole = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Parameters<AppCommands['setRole']>[0]) => c.setRole(i), [
     'members',
+  ])
+export const useRoutines = (houseId: HouseId) => {
+  const { queries } = useAppClient()
+  return useQuery({ queryKey: keys.routines(houseId), queryFn: () => queries.routines(houseId) })
+}
+export const useCreateRoutine = (houseId: HouseId) =>
+  useHouseCommand(
+    houseId,
+    (c, i: Parameters<AppCommands['createRoutine']>[0]) => c.createRoutine(i),
+    ['routines', 'rooms', 'items'],
+  )
+export const useEditRoutine = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: Parameters<AppCommands['editRoutine']>[0]) => c.editRoutine(i), [
+    'routines',
+    'rooms',
+    'items',
+  ])
+export const useRemoveRoutine = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, id: RoutineId) => c.removeRoutine(id), [
+    'routines',
+    'rooms',
+    'items',
   ])
 export const useRenameRoom = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Parameters<AppCommands['renameRoom']>[0]) => c.renameRoom(i), [

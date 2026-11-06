@@ -16,7 +16,7 @@ import { onRunLabel, RUN_ICON } from '@/components/runs/meta'
 import { ForChip } from '@/components/needs/Whose'
 import { FeelingButton, FeelingCounts, FeelingTray } from './Feelings'
 import { useItemSheets } from './ItemSheets'
-import { CATEGORY, FINISH, scheduleLabel } from './meta'
+import { CATEGORY, CHORE_KIND_LABEL, FINISH } from './meta'
 
 export type CardContext = {
   houseId: HouseId
@@ -73,17 +73,18 @@ export function ItemCard({
   const { openItem } = useItemSheets()
   const [tray, setTray] = useState(false)
   const feelButton = useRef<HTMLButtonElement>(null)
-  const room = item.roomId ? ctx.rooms.get(item.roomId) : undefined
+  const roomId = item.category === 'chore' ? item.rooms[0] : item.roomId
+  const room = roomId ? ctx.rooms.get(roomId) : undefined
   const contact =
     item.category === 'task' && item.contactId ? ctx.contacts.get(item.contactId) : undefined
   const assignee = item.assignee ? ctx.person(item.assignee) : undefined
   const onRun = item.run ? ctx.run(item.run.id) : undefined
   const Icon = CATEGORY[item.category].icon
-  // The schedule says the most about a chore on the Chores tab; Home names the category instead.
+  // A chore's kind says the most on the Chores tab; Home names the category instead.
   const kind = showCategory ? (
     <Chip icon={Icon}>{CATEGORY[item.category].label}</Chip>
   ) : item.category === 'chore' ? (
-    <span className="text-[0.8rem] font-bold text-ink-soft">{scheduleLabel(item)}</span>
+    <span className="text-[0.8rem] font-bold text-ink-soft">{CHORE_KIND_LABEL[item.kind]}</span>
   ) : null
   const hasTop = !!tier || !!kind || !!feelings?.length
   const owner = needOwner(item)

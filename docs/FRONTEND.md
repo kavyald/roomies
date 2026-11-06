@@ -134,7 +134,7 @@ Inputs are always ≥ 16px, which prevents iOS from zooming in on focus.
 | Concept / state | Icon | Label on chip |
 |---|---|---|
 | Need | `shopping-bag` | Need |
-| Chore | `sparkles` | Chore (on Home; the rhythm, "As needed" or "About every 7 days", is plain text on the Chores tab and under the detail's title) |
+| Chore | `sparkles` | Chore (on Home; its kind, "Deep clean" or "Upkeep", is plain text on the Chores tab and under the detail's title) |
 | Task | `check-circle` | Task |
 | Task handled by a contact | `phone` | "Handled by: Super" |
 | Poll | `bar-chart-3` | "Poll · 2/4 voted" |
@@ -241,7 +241,7 @@ Tabs: **Home · Needs · Tasks · Chores · Admin** (T67; everyone sees the tab 
 └───────────────────────────────┘
 ```
 
-- **Card:** one line with the tier chip (and, on Home only, the category chip) and the feelings ("😤1 🙏2") → title → at most three chips: "For Kavya" on a personal need (T45), the room, then "On X's run" or, when it isn't on a run, "Handled by: Landlord" → one meta line (the assignee's avatar + the date, or "Last done 9 days ago · Wren"). On the Chores tab the first line shows the chore's rhythm ("About every 7 days") instead of a category. The card's button is named by the title; the rest is its description.
+- **Card:** one line with the tier chip (and, on Home only, the category chip) and the feelings ("😤1 🙏2") → title → at most three chips: "For Kavya" on a personal need (T45), the room, then "On X's run" or, when it isn't on a run, "Handled by: Landlord" → one meta line (the assignee's avatar + the date, or "Last done 9 days ago · Wren"). On the Chores tab the first line shows the chore's kind ("Upkeep") instead of a category. The card's button is named by the title; the rest is its description.
 - **Beside the card:** the check circle (**Done** / **Got it** / **Did it**, whose toast offers **Undo**) and, under it, **🙂+**, which opens the emoji tray under the card (§5.2). Neither sits inside the card's button.
 - **Swipe** (cards here and on Chores and Tasks, and Needs rows): right = finish it (the same as the check circle, with **Undo** in the toast), left = open the emoji tray. Only sideways drags count, so the list still scrolls, and a drag is never a tap. While dragging, the card slides over a strip that says what letting go does ("✓ Done" on the left, "🙂 Feeling" on the right); short of 88px it springs back and nothing happens. The buttons are the non-swipe way for VoiceOver and keyboards, and reduced motion makes the spring back instant.
 - **One list (T81):** there's no "Coming up" or "Needs attention" heading. Everything that needs attention and every open task or need dated in the next 7 days sit in one list ranked by priority (PRD §8.1), each once; a dated card still shows its date on its meta line. VoiceOver names the list "By priority". Dated runs live in **Runs in progress** (every open batch, plus visits dated this week), and **📅 Calendar** beside *Mine | All* opens the month calendar (§5.10).
@@ -257,9 +257,9 @@ Two taps from any card: **🙂+** (or a swipe left), then an emoji.
 ### 5.3 Add sheet (+)
 
 1. On **Needs, Chores or Tasks**, the + opens that kind's form directly. On Home (and Admin) it asks first: one of five tiles, **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch). The form has a *Need · Chore · Task* switch at the top (the title stays) and **A poll or a run instead?** at the bottom, which goes back to the tiles.
-2. Title (autofocused) + the header check (**Add**), or **Add another**, which adds it and keeps the sheet open with the title (and note) cleared and the other fields kept, so three needs in a row take one sheet. Optional fields by type, behind **More options** except a chore's rhythm:
+2. Title (autofocused) + the header check (**Add**), or **Add another**, which adds it and keeps the sheet open with the title (and note) cleared and the other fields kept, so three needs in a row take one sheet. Optional fields by type, behind **More options**:
    - **Need:** needed by, room
-   - **Chore:** *As needed* or *About every N days* (always shown, so a repeating chore is +, *About every…*, **Add**), room, optional assignee
+   - **Chore:** room (nobody is assigned: who's on a chore follows from its room's routine, PRD §6.2)
    - **Task:** date, room, assignee, **Handled by** (a contact)
    - **Poll:** a question, 2+ options (each with an optional note), an optional deadline. It can be started from an item ("+ Poll about this") or on its own.
    - **Run:** the item picker (below)
@@ -267,7 +267,7 @@ Two taps from any card: **🙂+** (or a swipe left), then an emoji.
 ### 5.4 Item detail
 
 A sheet, simplest first, so the title, the primary action and the meta rows fit on a 375pt screen without scrolling:
-- **Header:** the title, with the category under it ("Task", "Chore · About every 7 days", "· Deleted"), and **Edit** (pencil) and **Delete** (trash) icons in the header. Delete asks first, in place of the primary action: "Delete this? You can undo it right after." · **Keep it** / **Delete**. Deleting closes the sheet with a "Deleted." toast and **Undo** (PRD D30); a deleted item opened from Activity shows neither.
+- **Header:** the title, with the category under it ("Task", "Chore · Upkeep", "· Deleted"), and **Edit** (pencil) and **Delete** (trash) icons in the header. Delete asks first, in place of the primary action: "Delete this? You can undo it right after." · **Keep it** / **Delete**. Deleting closes the sheet with a "Deleted." toast and **Undo** (PRD D30); a deleted item opened from Activity shows neither.
 - **The primary action** at the top: **Done** (task) · **Got it** (need) · **Did it** (chore); **Not done after all** once it's done; **Bring it back** when deleted (opened from Activity).
 - **Meta rows:** Room · Last done (chores) · When / Needed by · Who's on it · Handled by (tasks) · Ask them · On a run · Done/Got it. Then the note.
 - **Tasks: "Handled by"** is always shown. It reads *One of us · Needs outside help?* or *Super · (555) 010-2231* with a copy icon and the pencil ("Change who's handling it"), and either opens **Who's handling it?**: One of us, the contacts, or **+ Someone new** (name + optional phone). On a request or visit it reads *It's on the Landlord request. Move it to change who's handling it.* with **Open the Landlord request** instead, because "Handled by" follows the run (PRD §6.3).
@@ -283,7 +283,7 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 
 ### 5.6 Chores tab
 
-- Chore cards sorted by how overdue they are against their rhythm (as-needed chores last), each with "Last done 9 days ago · Wren" and a one-tap **Did it**. Its toast (here, on Home, and in the detail sheet) offers **Undo**, which puts the chore back to its last done before; if someone has done it again since, it says "It's been done again since. Nothing to undo."
+- Chore cards by title, each with "Last done 9 days ago · Wren" and a one-tap **Did it**. Its toast (here, on Home, and in the detail sheet) offers **Undo**, which puts the chore back to its last done before; if someone has done it again since, it says "It's been done again since. Nothing to undo."
 
 ### 5.7 Tasks tab
 

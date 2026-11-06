@@ -4,7 +4,6 @@ import { ChevronDown } from 'lucide-react'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
-import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { SheetSave } from '@/components/ui/Sheet'
 import { useContacts, useMembers, useProfiles, useRooms } from '@/lib/client/hooks'
 import type { ContactId, HouseId, RoomId, UserId } from '@/lib/domain/ids'
@@ -21,8 +20,6 @@ export type ItemFormValues = {
   date: string
   time: string
   priority: Priority
-  repeat: 'as_needed' | 'every'
-  repeatDays: number
   contactId: ContactId | ''
   /** Needs, when adding: just for me, not the house (T45). */
   forMe: boolean
@@ -31,13 +28,11 @@ export type ItemFormValues = {
 export const valuesFrom = (item?: Item): ItemFormValues => ({
   title: item?.title ?? '',
   note: item?.note ?? '',
-  roomId: item?.roomId ?? '',
+  roomId: (item?.category === 'chore' ? item.rooms[0] : item?.roomId) ?? '',
   assignee: item?.assignee ?? '',
   date: item?.when?.date ?? '',
   time: item?.when?.time ?? '',
   priority: item?.priority ?? 'normal',
-  repeat: item?.category === 'chore' && item.repeatDays ? 'every' : 'as_needed',
-  repeatDays: item?.category === 'chore' && item.repeatDays ? item.repeatDays : 7,
   contactId: item?.category === 'task' ? (item.contactId ?? '') : '',
   forMe: false,
 })
@@ -47,13 +42,12 @@ export const toNewItem = (category: Category, v: ItemFormValues): NewItem => ({
   category,
   title: v.title,
   ...(v.note.trim() && { note: v.note }),
-  ...(v.roomId && { roomId: v.roomId }),
-  ...(v.assignee && { assignee: v.assignee }),
+  ...(v.roomId && (category === 'chore' ? { rooms: [v.roomId] } : { roomId: v.roomId })),
+  ...(v.assignee && category !== 'chore' && { assignee: v.assignee }),
   ...(v.date && {
     when: { date: v.date as LocalDate, ...(v.time && { time: v.time as LocalTime }) },
   }),
   ...(v.priority !== 'normal' && { priority: v.priority }),
-  ...(category === 'chore' && { repeatDays: v.repeat === 'every' ? v.repeatDays : null }),
   ...(category === 'task' && v.contactId && { contactId: v.contactId }),
   ...(category === 'need' && v.forMe && { forMe: true }),
 })
@@ -65,8 +59,8 @@ const Label = ({ htmlFor, children }: { htmlFor: string; children: React.ReactNo
 )
 
 /**
- * Title first (FRONTEND §5.3): a title and "Add" is enough. A chore's "How often?" always shows;
- * the other optional fields sit behind "More options" when adding, and are all shown when editing.
+ * Title first (FRONTEND §5.3): a title and "Add" is enough. The optional fields sit behind "More
+ * options" when adding, and are all shown when editing.
  * It lives in a Sheet: the header check (SheetSave, named by `submitLabel`) submits it (T80).
  * "Add another" (when adding) keeps the sheet open: it clears the title and note for the next one
  * and keeps the rest (room, date, who).
@@ -145,40 +139,6 @@ export function ItemForm({
 
       {showWhose && <WhoseToggle value={whose} onChange={setWhose} />}
 
-      {category === 'chore' && (
-        <div className="grid gap-1.5">
-          <span className="text-[0.8rem] font-extrabold text-ink-soft">How often?</span>
-          <SegmentedControl
-            wide
-            label="How often"
-            value={v.repeat}
-            onChange={(r) => set('repeat', r)}
-            options={[
-              { value: 'as_needed', label: 'As needed' },
-              { value: 'every', label: 'About every…' },
-            ]}
-          />
-          {v.repeat === 'every' && (
-            <div className="flex items-center gap-2">
-              <input
-                id="repeat-days"
-                aria-label="Days between"
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={365}
-                className={`${inputClass} w-24`}
-                value={v.repeatDays}
-                onChange={(e) =>
-                  set('repeatDays', Math.max(1, Math.min(365, Number(e.target.value) || 1)))
-                }
-              />
-              <span className="font-semibold">days</span>
-            </div>
-          )}
-        </div>
-      )}
-
       {!expanded && (
         <button
           type="button"
@@ -229,7 +189,7 @@ export function ItemForm({
             />
           </div>
 
-          {category !== 'need' && (
+          {category === 'task' && (
             <div className="grid gap-1.5">
               <Label htmlFor="item-assignee">Who&apos;s on it</Label>
               <select

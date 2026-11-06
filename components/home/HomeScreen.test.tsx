@@ -33,7 +33,7 @@ describe('HomeScreen: one list by priority', () => {
         priority: 'normal',
         createdBy: admin,
         createdAt: T0,
-        ...(o.category === 'chore' && { repeatDays: null }),
+        ...(o.category === 'chore' && { kind: 'upkeep', rooms: [] }),
         ...o,
       }) as Item
     const paper = item('Toilet paper', { category: 'need' })

@@ -12,7 +12,6 @@ test('a duplicate need points to the first, Did it resets a chore, 😰 moves a 
   await anItem(owner, {
     category: 'chore',
     title: 'Take out the trash',
-    repeatDays: 7,
     lastDoneDaysAgo: 9,
   })
   // Home: a High task (45) above a Normal one Sam is frustrated about (25 + 😤 15 = 40).
@@ -54,7 +53,7 @@ test('a duplicate need points to the first, Did it resets a chore, 😰 moves a 
   await expect(feed.first()).toContainText('Replace hallway bulb')
   await expect(feed.nth(1)).toContainText('Fix the latch')
   await expect(page.getByRole('list', { name: 'By priority' })).not.toContainText(
-    'Take out the trash', // just done, so it's not past its rhythm
+    'Take out the trash', // nobody shared a feeling
   )
   await feed.nth(1).getByRole('button', { name: 'Fix the latch', exact: true }).click()
   const detail = page.getByRole('dialog', { name: 'Fix the latch' })

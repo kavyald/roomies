@@ -90,21 +90,22 @@ export const anItem = async (
   o: {
     category: 'need' | 'chore' | 'task'
     title: string
-    repeatDays?: number
+    /** Chores: absent means upkeep. */
+    kind?: 'deep_clean' | 'upkeep'
     lastDoneDaysAgo?: number
   },
 ) => {
   const id = randomUUID()
   await asOwner((db) =>
     db.query(
-      `insert into items (id, house_id, category, title, repeat_days, last_done_at, last_done_by, created_by)
+      `insert into items (id, house_id, category, title, chore_kind, last_done_at, last_done_by, created_by)
        values ($1, $2, $3, $4, $5, now() - make_interval(days => $6::int), case when $6::int is null then null else $7::uuid end, $7)`,
       [
         id,
         owner.houseId,
         o.category,
         o.title,
-        o.repeatDays ?? null,
+        o.category === 'chore' ? (o.kind ?? 'upkeep') : null,
         o.lastDoneDaysAgo ?? null,
         owner.userId,
       ],

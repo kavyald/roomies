@@ -22,6 +22,7 @@ import {
   profileToDomain,
   pollToDomain,
   roomToDomain,
+  routineToDomain,
   runToDomain,
 } from '../postgres/mappers'
 
@@ -29,7 +30,7 @@ type Mapper<T> = (row: never) => T
 
 // An activity row with what it points at. Two foreign keys lead to runs, so those name theirs.
 const RUN_REF = 'kind, title, runner_id, contact_id'
-const WITH_SUBJECTS = `*, item:items(title, category), run:runs!activity_events_run_id_fkey(${RUN_REF}), to_run:runs!activity_events_to_run_id_fkey(${RUN_REF}), poll:polls(question), option:poll_options(label), cost:costs(amount_cents)`
+const WITH_SUBJECTS = `*, item:items(title, category), run:runs!activity_events_run_id_fkey(${RUN_REF}), to_run:runs!activity_events_to_run_id_fkey(${RUN_REF}), poll:polls(question), option:poll_options(label), cost:costs(amount_cents), routine:routines(name)`
 
 type RunRow = {
   kind: RunRef['kind']
@@ -45,6 +46,7 @@ type RowWithSubjects = Record<string, unknown> & {
   poll_id: string | null
   option_id: string | null
   cost_id: string | null
+  routine_id: string | null
   action_id: string
   item: { title: string; category: Category } | null
   run: RunRow | null
@@ -52,6 +54,7 @@ type RowWithSubjects = Record<string, unknown> & {
   poll: { question: string } | null
   option: { label: string } | null
   cost: { amount_cents: number } | null
+  routine: { name: string } | null
 }
 
 const raw = async (
@@ -75,6 +78,7 @@ const withSubjects = (page: readonly RowWithSubjects[], before: number | null): 
   const polls: Record<string, string> = {}
   const options: Record<string, string> = {}
   const costs: Record<string, Cents> = {}
+  const routines: Record<string, string> = {}
   for (const r of page) {
     if (r.item_id && r.item) items[r.item_id] = { title: r.item.title, category: r.item.category }
     if (r.run_id && r.run) runs[r.run_id] = runRef(r.run)
@@ -82,11 +86,12 @@ const withSubjects = (page: readonly RowWithSubjects[], before: number | null): 
     if (r.poll_id && r.poll) polls[r.poll_id] = r.poll.question
     if (r.option_id && r.option) options[r.option_id] = r.option.label
     if (r.cost_id && r.cost) costs[r.cost_id] = r.cost.amount_cents as Cents
+    if (r.routine_id && r.routine) routines[r.routine_id] = r.routine.name
   }
   return {
     rows: page.map((r) => activityToDomain(r as never)),
     before,
-    subjects: { items, runs, polls, options, costs },
+    subjects: { items, runs, polls, options, costs, routines },
   }
 }
 
@@ -144,14 +149,39 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => {
         sb.from('rooms').select('*').eq('house_id', houseId).order('sort_order').order('name'),
         roomToDomain,
       ),
+    routines: (houseId) =>
+      rows(
+        sb
+          .from('routines')
+          .select('*')
+          .eq('house_id', houseId)
+          .is('removed_at', null)
+          .order('sort_order')
+          .order('created_at'),
+        routineToDomain,
+      ),
     contacts: (houseId) =>
       rows(sb.from('contacts').select('*').eq('house_id', houseId), contactToDomain).then((cs) =>
         cs.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())),
       ),
     items: async (houseId) => {
       const tz = await tzOf(houseId)
-      return rows(sb.from('items').select('*').eq('house_id', houseId).order('created_at'), (r) =>
-        itemToDomain(r, tz),
+      return rows(
+        sb
+          .from('items')
+          .select('*, chore_rooms(room_id)')
+          .eq('house_id', houseId)
+          .order('created_at'),
+        (r: never) => {
+          const row = r as { chore_rooms?: readonly { room_id: string }[] }
+          return itemToDomain(
+            {
+              ...(r as object),
+              chore_room_ids: (row.chore_rooms ?? []).map((c) => c.room_id).sort(),
+            } as never,
+            tz,
+          )
+        },
       )
     },
     notificationsOff: (userId) =>

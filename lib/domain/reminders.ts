@@ -2,10 +2,12 @@
 // drafts with a dedupe key so running the job again sends nothing new. Pure: `today` and
 // `tomorrow` are the house's calendar days, passed in.
 
+import type { Member, Room } from './house'
 import type { Draft, Recipient } from './notifications'
 import type { Item } from './items'
 import type { Poll } from './polls'
 import { isPollOpen } from './polls'
+import { periodStart, rotationOrder, routineHolder, type Resets, type Routine } from './routines'
 import { isRunOpen, type Run } from './runs'
 import { addDays, localDateOf, type Instant, type LocalDate } from './time'
 
@@ -18,13 +20,56 @@ export type ReminderInput = {
   readonly runs: readonly Run[]
   readonly people: readonly Recipient[]
   readonly runLabel: (r: Run) => string
+  readonly routines: readonly Routine[]
+  readonly rooms: readonly Room[]
+  readonly members: readonly Member[]
 }
 
-/** When a chore's next turn comes, on the house calendar (null: as needed, or never done). */
-export const choreDueDate = (item: Item, tz: string): LocalDate | null =>
-  item.category === 'chore' && item.repeatDays && item.lastDone
-    ? addDays(localDateOf(item.lastDone.at, tz), item.repeatDays)
-    : null
+const PERIOD_WORDS: Record<Resets, string> = {
+  weekly: 'this week',
+  biweekly: 'these two weeks',
+  monthly: 'this month',
+}
+
+const listOf = (words: readonly string[]) =>
+  words.length < 2 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`
+
+/**
+ * One message per person whose routines change hands today, whatever they hold: "You have the
+ * kitchen and dining this week". Only routines that take turns, and only on the first day of the
+ * period, so adding a routine midweek says nothing.
+ */
+const handoversFor = (input: ReminderInput, today: LocalDate, home: string): Draft[] => {
+  if (rotationOrder(input.members).length < 2) return []
+  const byHolder = new Map<string, { routine: Routine; names: string[] }[]>()
+  for (const routine of input.routines) {
+    if (routine.removedAt || routine.fixedMember) continue
+    if (periodStart(routine, today) !== today) continue
+    const holder = routineHolder(routine, input.members, today)
+    if (!holder) continue
+    const names = input.rooms
+      .filter((r) => r.routineId === routine.id && !r.archivedAt)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((r) => r.name.toLowerCase())
+    byHolder.set(holder, [
+      ...(byHolder.get(holder) ?? []),
+      { routine, names: names.length > 0 ? names : [routine.name.toLowerCase()] },
+    ])
+  }
+  return [...byHolder].map(([holder, held]) => {
+    const when = new Set(held.map((h) => h.routine.resets))
+    const period = when.size === 1 ? PERIOD_WORDS[held[0]!.routine.resets] : 'for now'
+    const [first, ...rest] = held.flatMap((h) => h.names)
+    return {
+      userId: holder as Recipient['userId'],
+      category: 'assigned' as const,
+      title: `You have the ${listOf([first!, ...rest])} ${period}`,
+      body: "It's your turn to look after them.",
+      url: `${home}/chores`,
+      dedupeKey: `handover:${input.houseId}:${today}:${holder}`,
+    }
+  })
+}
 
 /** Day-before and day-of reminders; nothing for things already past (no nagging, FRONTEND §7). */
 export const remindersFor = (input: ReminderInput): Draft[] => {
@@ -35,24 +80,18 @@ export const remindersFor = (input: ReminderInput): Draft[] => {
     d === today ? 'today' : d === tomorrow ? 'tomorrow' : null
   const drafts: Draft[] = []
 
-  // Your tasks and chores, the day before and the day of.
+  // Your tasks, the day before and the day of.
   for (const item of input.items) {
     if (item.archivedAt || !item.assignee) continue
-    if (item.category === 'need') continue
-    if (item.category === 'task' && item.done) continue
-    const date = item.category === 'task' ? item.when?.date : choreDueDate(item, input.tz)
+    if (item.category !== 'task' || item.done) continue
+    const date = item.when?.date
     const when = which(date)
     if (!when || !date) continue
-    const chore = item.category === 'chore'
     drafts.push({
       userId: item.assignee,
       category: 'due',
       title: `${when === 'today' ? 'Today' : 'Tomorrow'}: ${item.title}`,
-      body: chore
-        ? `Its turn comes up ${when}.`
-        : when === 'today'
-          ? "It's on you today."
-          : "Just a heads-up: it's on you tomorrow.",
+      body: when === 'today' ? "It's on you today." : "Just a heads-up: it's on you tomorrow.",
       url: `${home}/i/${item.id}`,
       dedupeKey: `due:${item.id}:${date}:${when}:${item.assignee}`,
     })
@@ -94,5 +133,6 @@ export const remindersFor = (input: ReminderInput): Draft[] => {
       })
     }
   }
+  drafts.push(...handoversFor(input, today, home))
   return drafts
 }

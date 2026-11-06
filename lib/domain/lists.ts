@@ -1,8 +1,11 @@
 // How the Needs, Chores, and Tasks tabs order and filter items (FRONTEND §5.5–5.7). Pure.
 
+import { activeFeelings, type Feeling } from './feelings'
+import type { Member, Room } from './house'
 import type { UserId } from './ids'
 import type { Chore, Item, Need, Task } from './items'
-import { calendarDaysBetween, type Instant } from './time'
+import { choreOwner, nextHolder, routineHolder, routineProgress, type Routine } from './routines'
+import { calendarDaysBetween, type Instant, type LocalDate } from './time'
 
 const whenKey = (i: Item) => (i.when ? `${i.when.date} ${i.when.time ?? '99:99'}` : null)
 
@@ -53,37 +56,101 @@ export const needList = (
 export const daysSinceDone = (c: Chore, now: Instant, tz: string): number | null =>
   c.lastDone ? calendarDaysBetween(c.lastDone.at, now, tz) : null
 
-/**
- * How far past its rhythm a chore is: 1 means exactly due, 9/7 means two days past. Never done
- * counts as very far past; as-needed chores have no rhythm (null).
- */
-export const choreLateness = (c: Chore, now: Instant, tz: string): number | null => {
-  if (!c.repeatDays) return null
-  const days = daysSinceDone(c, now, tz)
-  return days === null ? Number.POSITIVE_INFINITY : days / c.repeatDays
+/** A routine and what its holder looks after this period (the Chores tab, FRONTEND §5.6). */
+export type RoutineCard = {
+  readonly routine: Routine
+  readonly holder?: UserId
+  readonly next?: UserId
+  readonly mine: boolean
+  /** Its rooms in house order, each with its deep clean chores (a chore under its first room). */
+  readonly rooms: readonly {
+    readonly room: Room
+    readonly chores: readonly { readonly chore: Chore; readonly done: boolean }[]
+  }[]
+  readonly chores: readonly { readonly chore: Chore; readonly done: boolean }[]
+  readonly feelings: readonly Feeling[]
 }
 
-/** Whether a repeating chore is past its "about every N days" (and so belongs in the feed). */
-export const isChoreDue = (c: Chore, now: Instant, tz: string): boolean =>
-  (choreLateness(c, now, tz) ?? 0) > 1
+export type ChoreBoard = {
+  readonly cards: readonly RoutineCard[]
+  /** Chores nobody's on: the ones someone feels something about first, then the rest. */
+  readonly upkeep: {
+    readonly felt: readonly { readonly chore: Chore; readonly feelings: readonly Feeling[] }[]
+    readonly calm: readonly Chore[]
+  }
+}
+
+const inHouseOrder = (a: Room, b: Room) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)
 
 /**
- * Open chores for the Chores tab (FRONTEND §5.6): the ones furthest past their rhythm first; then
- * as-needed chores, longest since done first.
+ * The Chores tab: a card per routine (yours first, then in their saved order) with its Deep clean
+ * chores, then the one Upkeep list for everything nobody's on. Numbers and who's-done-what stay out
+ * of it (PRD §6.2): `done` is for the holder's own card.
  */
-export const choreList = (items: readonly Item[], now: Instant, tz: string): Chore[] =>
-  items
+export const choreBoard = (
+  items: readonly Item[],
+  ctx: {
+    rooms: readonly Room[]
+    routines: readonly Routine[]
+    members: readonly Member[]
+    feelings: readonly Feeling[]
+    me: UserId
+    today: LocalDate
+    tz: string
+  },
+): ChoreBoard => {
+  const chores = items
     .filter((i): i is Chore => i.category === 'chore' && !i.archivedAt)
-    .sort((a, b) => {
-      const la = choreLateness(a, now, tz)
-      const lb = choreLateness(b, now, tz)
-      if (la !== null && lb !== null && la !== lb) return lb - la
-      if (la !== null && lb === null) return -1
-      if (lb !== null && la === null) return 1
-      const da = a.lastDone?.at.epochMs ?? Number.NEGATIVE_INFINITY
-      const db = b.lastDone?.at.epochMs ?? Number.NEGATIVE_INFINITY
-      return da - db || a.title.localeCompare(b.title)
+    .sort((a, b) => a.title.localeCompare(b.title))
+  const live = ctx.rooms.filter((r) => !r.archivedAt).sort(inHouseOrder)
+  const firstRoomOf = (c: Chore) => live.find((r) => c.rooms.includes(r.id))
+  const ownerOf = new Map(chores.map((c) => [c.id, choreOwner(c, ctx.rooms, ctx.routines)]))
+
+  const cards = ctx.routines
+    .filter((r) => !r.removedAt)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+    .map((routine): RoutineCard => {
+      const holder = routineHolder(routine, ctx.members, ctx.today)
+      const next = nextHolder(routine, ctx.members, ctx.today)
+      const own = routineProgress(
+        routine,
+        chores.filter((c) => ownerOf.get(c.id)?.id === routine.id),
+        ctx.today,
+        ctx.tz,
+      )
+      return {
+        routine,
+        ...(holder && { holder }),
+        ...(next && { next }),
+        mine: holder === ctx.me,
+        rooms: live
+          .filter((r) => r.routineId === routine.id)
+          .map((room) => ({
+            room,
+            chores: own.filter((c) => firstRoomOf(c.chore)?.id === room.id),
+          })),
+        chores: own,
+        feelings: own.flatMap((c) => activeFeelings(c.chore, ctx.feelings)),
+      }
     })
+    .sort((a, b) => Number(b.mine) - Number(a.mine))
+
+  const nobodys = chores.filter((c) => !ownerOf.get(c.id))
+  const withFeelings = nobodys.map((chore) => ({
+    chore,
+    feelings: activeFeelings(chore, ctx.feelings),
+  }))
+  const latest = (fs: readonly Feeling[]) => Math.max(...fs.map((f) => f.at.epochMs))
+  return {
+    cards,
+    upkeep: {
+      felt: withFeelings
+        .filter((c) => c.feelings.length > 0)
+        .sort((a, b) => latest(b.feelings) - latest(a.feelings)),
+      calm: withFeelings.filter((c) => c.feelings.length === 0).map((c) => c.chore),
+    },
+  }
+}
 
 /** "today", "yesterday", "9 days ago". */
 export const daysAgo = (days: number): string =>

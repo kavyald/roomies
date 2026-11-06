@@ -1,7 +1,7 @@
 // The house, its people, and its places (ARCHITECTURE §6.3).
 
 import { DEFAULT_FEELING_WEIGHTS, type FeelingWeights } from './feelings'
-import type { ContactId, HouseId, InviteId, RoomId, UserId } from './ids'
+import type { ContactId, HouseId, InviteId, RoomId, RoutineId, UserId } from './ids'
 import type { Instant, LocalTime } from './time'
 
 export type HouseSettings = {
@@ -63,6 +63,8 @@ export type Room = {
   readonly element?: Element
   readonly sortOrder: number
   readonly archivedAt?: Instant
+  /** The routine that looks after it (at most one). */
+  readonly routineId?: RoutineId
 }
 
 export type Contact = {

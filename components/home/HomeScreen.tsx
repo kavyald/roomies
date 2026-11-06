@@ -17,6 +17,8 @@ import {
   useItems,
   useMarkDone,
   useReopenItem,
+  useRooms,
+  useRoutines,
   useRuns,
 } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
@@ -24,6 +26,7 @@ import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
 import { homeFeed, type FeedFilter } from '@/lib/domain/priority'
+import { choreOwner } from '@/lib/domain/routines'
 import { visitDateOf } from '@/lib/domain/runs'
 import { OpenPolls } from './OpenPolls'
 import { RunsInProgress } from './RunsInProgress'
@@ -48,6 +51,8 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   const house = useHouse(houseId)
   const ctx = useCardContext(houseId)
   const feelingsBy = useFeelingsByItem(houseId)
+  const rooms = useRooms(houseId)
+  const routines = useRoutines(houseId)
   const { openItem } = useItemSheets()
   const done = useMarkDone(houseId)
   const reopen = useReopenItem(houseId)
@@ -75,6 +80,7 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
     filter,
     me,
     visitDate: (i) => visitDateOf(i, runsById),
+    hasOwner: (c) => !!choreOwner(c, rooms.data ?? [], routines.data ?? []),
   })
 
   const check = async (item: Item) => {

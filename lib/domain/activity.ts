@@ -30,6 +30,7 @@ export type ActivityNames = {
   runRef?(id: RunId): RunRef | undefined
   poll?(id: PollId): string | undefined
   option?(id: OptionId): string | undefined
+  routine?(id: string): string | undefined
   cost?(id: CostId): string | undefined // e.g. "$42.50"
   contact(id: ContactId): string | undefined
   room(id: RoomId): string | undefined
@@ -45,6 +46,7 @@ export type ActivitySubjects = {
   readonly polls: Readonly<Record<string, string>>
   readonly options: Readonly<Record<string, string>>
   readonly costs: Readonly<Record<string, Cents>>
+  readonly routines: Readonly<Record<string, string>>
 }
 
 export const noSubjects: ActivitySubjects = {
@@ -53,6 +55,7 @@ export const noSubjects: ActivitySubjects = {
   polls: {},
   options: {},
   costs: {},
+  routines: {},
 }
 
 /** All the pages' subjects in one lookup. */
@@ -62,6 +65,7 @@ export const mergeSubjects = (pages: readonly ActivitySubjects[]): ActivitySubje
   polls: Object.assign({}, ...pages.map((p) => p.polls)),
   options: Object.assign({}, ...pages.map((p) => p.options)),
   costs: Object.assign({}, ...pages.map((p) => p.costs)),
+  routines: Object.assign({}, ...pages.map((p) => p.routines)),
 })
 
 /** The feed's names: the page's subjects, plus the house's people, contacts and rooms. */
@@ -80,6 +84,7 @@ export const activityNames = (
   runRef: (id) => s.runs[id],
   poll: (id) => s.polls[id],
   option: (id) => s.options[id],
+  routine: (id) => s.routines[id],
   cost: (id) => {
     const c = s.costs[id]
     return c === undefined ? undefined : formatCents(c)
@@ -141,6 +146,9 @@ const EDIT_WORDS: Readonly<Record<string, string>> = {
   when: 'date',
   priority: 'priority',
   repeat_days: 'how often',
+  rooms: 'rooms',
+  kind: 'kind',
+  icon: 'icon',
 }
 
 const listOf = (words: readonly string[]) =>
@@ -211,6 +219,8 @@ export const activityLine = (
   const contact = (r: StoredActivityRow) =>
     (r.contactId && names.contact(r.contactId)) || 'a contact'
   const room = (r: StoredActivityRow) => (r.roomId && names.room(r.roomId)) || 'a room'
+  const routine = (r: StoredActivityRow) =>
+    (r.routineId && names.routine?.(r.routineId)) || 'a set of rooms'
   const member = (r: StoredActivityRow) => who(r.memberId)
   const refOf = (id: RunId | undefined) => (id ? names.runRef?.(id) : undefined)
   // A run's usual name, without its title ("Kavya's run", "Landlord visit").
@@ -379,6 +389,16 @@ export const activityLine = (
           ? `${actor} renamed ${before} to ${room(r)}`
           : `${actor} renamed ${room(r)}`
       }
+      case 'room.routine_changed':
+        return change(r, 'routine')?.[1]
+          ? `${actor} put ${room(r)} in ${routine(r)}`
+          : `${actor} took ${room(r)} out of ${routine(r)}`
+      case 'routine.created':
+        return `${actor} added ${routine(r)}`
+      case 'routine.updated':
+        return `${actor} changed ${routine(r)}`
+      case 'routine.removed':
+        return `${actor} removed ${routine(r)}`
       default:
         return `${actor} made a change`
     }

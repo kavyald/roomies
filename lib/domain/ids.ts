@@ -14,6 +14,7 @@ export type RunId = Id<'run'>
 export type CostId = Id<'cost'>
 export type ActionId = Id<'action'>
 export type FeedbackId = Id<'feedback'>
+export type RoutineId = Id<'routine'>
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 

@@ -87,7 +87,8 @@ describe('activeFeelings (T99)', () => {
   const chore = (lastDoneAt?: number): Item => ({
     ...base,
     category: 'chore',
-    repeatDays: null,
+    kind: 'upkeep',
+    rooms: [],
     ...(lastDoneAt !== undefined && { lastDone: { at: instant(lastDoneAt), by: wren } }),
   })
 

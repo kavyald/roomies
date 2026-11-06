@@ -1,25 +1,21 @@
 import { expect, test } from '@playwright/test'
 import { anItem, ownerOnHouseTab } from './support'
 
-test('an as-needed chore shows on Home only after someone shares a feeling, and says why', async ({
+test('a chore shows on Home only after someone shares a feeling, and says why', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
   await anItem(owner, {
     category: 'chore',
     title: 'Take out the trash',
-    repeatDays: 7,
     lastDoneDaysAgo: 9,
   })
-  await anItem(owner, { category: 'chore', title: 'Descale the kettle' }) // as needed
+  await anItem(owner, { category: 'chore', title: 'Descale the kettle' })
 
   await page.goto(`/h/${owner.houseId}`)
   const feed = page.getByRole('list', { name: 'By priority' })
   const cards = feed.getByRole('listitem')
-  await expect(cards).toHaveCount(1)
-  await expect(cards.first()).toContainText('High')
-  await expect(cards.first()).toContainText('Take out the trash')
-  await expect(feed).not.toContainText('Descale the kettle')
+  await expect(cards).toHaveCount(0)
 
   // Share 😤 about the kettle from the Chores tab.
   await page.goto(`/h/${owner.houseId}/chores`)
@@ -32,13 +28,13 @@ test('an as-needed chore shows on Home only after someone shares a feeling, and 
   )
   await page.keyboard.press('Escape')
 
-  // Now it's on Home, below the trash, and it explains itself.
+  // Now it's on Home, on its own, and it explains itself.
   await page.getByRole('link', { name: 'Home' }).click()
-  await expect(cards).toHaveCount(2)
-  await expect(cards.nth(1)).toContainText('Descale the kettle')
-  await expect(cards.nth(1)).toContainText('Normal')
-  await expect(cards.nth(1)).toContainText('😤1')
-  await cards.nth(1).getByRole('button', { name: 'Descale the kettle', exact: true }).click()
+  await expect(cards).toHaveCount(1)
+  await expect(cards.first()).toContainText('Descale the kettle')
+  await expect(cards.first()).toContainText('Normal')
+  await expect(cards.first()).toContainText('😤1')
+  await cards.first().getByRole('button', { name: 'Descale the kettle', exact: true }).click()
   const why = page
     .getByRole('dialog', { name: 'Descale the kettle' })
     .getByRole('region', { name: 'Why is this here?' })
