@@ -98,7 +98,7 @@ export function FeelingButton({
       <span
         aria-hidden
         className={cn(
-          'grid h-8 min-w-9 place-items-center rounded-full px-1.5 font-bold text-ink-soft',
+          'grid h-8 min-w-9 place-items-center rounded-full px-1.5 font-bold whitespace-nowrap text-ink-soft',
           open ? 'bg-top-fill text-top-ink' : 'bg-neutral-fill',
         )}
       >

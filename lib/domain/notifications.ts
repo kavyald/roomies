@@ -21,7 +21,7 @@ export const NOTIFICATION_CATEGORIES: readonly NotificationCategory[] = [
 
 export const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   assigned: 'Something is handed to me',
-  due: 'My tasks and chores are coming due',
+  due: 'My tasks are coming due',
   feelings: 'Someone feels 😰 or 😤 about a chore or something of mine, or changes the weights',
   polls: 'New polls, new options, and polls closing',
   runs: 'Runs starting or handed to me, and runs with a date tomorrow',

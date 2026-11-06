@@ -95,7 +95,7 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 | **Home** | **Open polls**, **Runs in progress** (open batches, plus visits dated in the next 7 days), then one unlabeled list ranked by priority (*Mine / All*): the feed (§8.1) plus any task or need dated in the next 7 days, each once. A **Calendar** link beside *Mine / All* opens the month calendar. |
 | **Needs** | The shared list of things to buy. Needs with a feeling come first. **Start a run** from here. |
 | **Tasks** | **Requests & visits** (unsent and sent requests, planned visits) with **+ New** (start a request or plan a visit), then tasks with filters *Mine / All / Outside help* |
-| **Chores** | Chores, sorted by what's due for a go, with "last done" |
+| **Chores** | Who has which rooms this period, as cards, and the shared Upkeep list below |
 | **Admin** | Roommates, invite link (admins), contacts, **Routines**, then untitled: **Feeling weights**, **Activity**, **Rooms**. Everyone sees this tab and can change routines; only admins get the invite link and roommate controls. |
 
 A floating **"+"** opens a picker (Need / Chore / Task / Poll / Run) and then a short form. Only the title is required.

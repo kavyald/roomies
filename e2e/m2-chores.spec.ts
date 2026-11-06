@@ -82,7 +82,7 @@ test('quick add from a room or Upkeep; Upkeep goes from all calm to felt and bac
   await upkeep.getByRole('button', { name: 'Add to Upkeep' }).click()
   const addUpkeep = page.getByRole('dialog', { name: 'Add to Upkeep' })
   await addUpkeep.getByLabel('What needs doing?').fill('Dishes')
-  await addUpkeep.getByLabel('Room').selectOption({ label: 'Kitchen' })
+  await addUpkeep.getByLabel('Room', { exact: true }).selectOption({ label: 'Kitchen' })
   await addUpkeep.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(addUpkeep).toBeHidden()
 
@@ -124,7 +124,7 @@ test('the chore sheet edits its icon, kind and rooms', async ({ page }) => {
   await detail.getByRole('button', { name: 'Edit' }).click()
   const edit = page.getByRole('dialog', { name: 'Edit chore' })
   await edit.getByRole('button', { name: 'Deep clean' }).click()
-  await edit.getByLabel('Rooms').selectOption({ label: 'Kitchen' })
+  await edit.getByLabel('Rooms', { exact: true }).selectOption({ label: 'Kitchen' })
   await edit.getByRole('button', { name: 'Broom' }).click()
   await edit.getByRole('button', { name: 'Save' }).click()
   await expect(detail).toContainText('Chore · Deep clean')
