@@ -2,7 +2,7 @@
 // Content-Security-Policy violations (T52, ARCHITECTURE §5.4).
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { aPoll, aRun, anItem, anOwner, dismissInstallGuide, signIn } from './support'
+import { aPoll, aRoutine, aRun, anItem, anOwner, dismissInstallGuide, signIn } from './support'
 
 /** Collects CSP violations from the console and from `securitypolicyviolation` events. */
 const watchCsp = async (page: Page) => {
@@ -56,6 +56,14 @@ for (const colorScheme of ['light', 'dark'] as const) {
     const task = await anItem(owner, { category: 'task', title: 'Fix the latch' })
     await anItem(owner, { category: 'need', title: 'Olive oil' })
     await anItem(owner, { category: 'chore', title: 'Trash', lastDoneDaysAgo: 9 })
+    await aRoutine(owner, { name: 'Kitchen', rooms: ['Kitchen'], holder: owner.userId })
+    await anItem(owner, {
+      category: 'chore',
+      title: 'Sink',
+      kind: 'deep_clean',
+      icon: 'droplets',
+      rooms: ['Kitchen'],
+    })
     const seededPoll = await aPoll(owner, 'Movie night?')
     const seededRun = await aRun(owner, 'Groceries')
     await signIn(page, owner.email)
@@ -79,6 +87,43 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()
       await check(page, path)
     }
+    // Chores: a routine card's sheet, quick add, and Upkeep with a chore someone feels about (T97).
+    await page.goto(`${h}/chores`)
+    await page.getByRole('button', { name: 'Kitchen, Kavya' }).click()
+    const routineSheet = page.getByRole('dialog', { name: 'Kitchen' })
+    await routineSheet.getByRole('button', { name: 'Did it: Sink' }).click()
+    await expect(routineSheet.getByRole('button', { name: 'Did it: Sink' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await check(page, 'chores (routine sheet)')
+    await routineSheet.getByRole('button', { name: 'Add to Kitchen' }).click()
+    await expect(page.getByRole('dialog', { name: 'Add to Kitchen' })).toBeVisible()
+    await check(page, 'chores (quick add)')
+    await page.goto(`${h}/chores`)
+    const upkeep = page.getByRole('region', { name: 'Upkeep' })
+    await check(page, 'chores (Upkeep, all calm)')
+    await upkeep.getByRole('button', { name: 'Share a feeling: Trash' }).click()
+    await upkeep.getByRole('button', { name: 'Frustrated' }).click()
+    await expect(upkeep.getByRole('button', { name: 'Took care of it: Trash' })).toBeVisible()
+    await check(page, 'chores (Upkeep, felt)')
+
+    // Admin → Routines (T98): the list, the edit sheet with its rooms, and the new-routine sheet.
+    await page.goto(`${h}/admin`)
+    const routineRow = page.getByRole('list', { name: 'Routines' }).getByRole('button', {
+      name: /^Kitchen/,
+    })
+    await expect(routineRow).toBeVisible()
+    await check(page, 'admin (routines)')
+    const routineEdit = page.getByRole('dialog', { name: 'Kitchen' })
+    await expect(async () => {
+      if (!(await routineEdit.isVisible())) await routineRow.click()
+      await expect(routineEdit).toBeVisible({ timeout: 2000 })
+    }).toPass()
+    await check(page, 'admin (routine sheet)')
+    await page.keyboard.press('Escape')
+    await expect(routineEdit).toBeHidden()
+
     // Admin → Rooms: the sheet, then a room open to edit in place (T66).
     await page.goto(`${h}/admin`)
     const rooms = page.getByRole('dialog', { name: 'Rooms' })

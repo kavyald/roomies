@@ -80,6 +80,39 @@ describe('routines', () => {
   })
 })
 
+describe('someone who moved out', () => {
+  it("can't change the house's routines or a chore's rooms, or read them", async () => {
+    const house = await aDbHouse()
+    const routine = await seedRoutine(house)
+    const chore = await seedChore(house)
+    await asOwner((c) =>
+      c.query(`insert into chore_rooms (house_id, item_id, room_id) values ($1, $2, $3)`, [
+        house.houseId,
+        chore,
+        house.roomId,
+      ]),
+    )
+    await asOwner((c) =>
+      c.query(
+        `update house_members set status = 'moved_out', left_at = now()
+           where house_id = $1 and user_id = $2`,
+        [house.houseId, house.member],
+      ),
+    )
+    await asUser(house.member, async (c) => {
+      expect((await c.query(`select id from routines where id = $1`, [routine])).rows).toEqual([])
+      expect((await c.query(`select 1 from chore_rooms where item_id = $1`, [chore])).rows).toEqual(
+        [],
+      )
+      const update = await c.query(`update routines set name = 'Mine' where id = $1`, [routine])
+      expect(update.rowCount).toBe(0)
+      const del = await c.query(`delete from chore_rooms where item_id = $1`, [chore])
+      expect(del.rowCount).toBe(0)
+      expect(await refused(c, insertRoutine, [newId(), house.houseId, house.member])).toBe('42501')
+    })
+  })
+})
+
 describe('chore_rooms', () => {
   const add = `insert into chore_rooms (house_id, item_id, room_id) values ($1, $2, $3)`
 
