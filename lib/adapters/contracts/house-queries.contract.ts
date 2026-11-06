@@ -1,14 +1,21 @@
 // The HouseQueries contract: the read side returns domain types, scoped by access rules.
 // Run against memory (unit) and the Supabase browser adapter (db, through PostgREST + RLS).
 
+import type { Routine } from '../../domain/routines'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { HouseQueries } from '../../app/ports'
 import { noSubjects } from '../../domain/activity'
 import type { Contact, Room } from '../../domain/house'
 import type { HouseId, UserId } from '../../domain/ids'
 import type { DomainEvent } from '../../domain/events'
-import { instant } from '../../domain/time'
-import { seedHouse, system, unversioned, type UnitOfWorkHarness } from './unit-of-work.contract'
+import { instant, type LocalDate } from '../../domain/time'
+import {
+  asMember,
+  seedHouse,
+  system,
+  unversioned,
+  type UnitOfWorkHarness,
+} from './unit-of-work.contract'
 
 const T = instant(Date.UTC(2026, 8, 29, 16, 0))
 
@@ -259,11 +266,52 @@ export const houseQueriesContract = (
         polls: { [poll.id]: 'Which vacuum?' },
         options: { [poll.options[0]!.id]: 'Dyson' },
         costs: { [cost.id]: 4250 },
+        routines: {},
       })
       const stranger = await seedHouse(h)
       expect(
         await h.queriesFor(stranger.member, stranger.house.id).activity(house.id, { limit: 10 }),
       ).toEqual({ rows: [], before: null, subjects: noSubjects })
+    })
+
+    it('reads the house routines without removed ones, and names them in activity even so', async () => {
+      const { house, member } = await seedHouse(h)
+      const routine = (name: string, removedAt?: typeof T): Routine => ({
+        id: h.ids.newId(),
+        houseId: house.id,
+        name,
+        icon: 'broom',
+        resets: 'weekly',
+        startsOn: '2026-11-02' as LocalDate,
+        startsWith: member,
+        sortOrder: 0,
+        createdAt: T,
+        ...(removedAt && { removedAt }),
+      })
+      const [live, gone] = [routine('Kitchen'), routine('Garden', T)]
+      await h.uow.run(asMember(house.id, member), async (r) => {
+        await r.routines.save(live)
+        await r.routines.save(gone)
+        await r.events.record(
+          house.id,
+          [
+            {
+              kind: 'routine.removed',
+              routineId: gone.id,
+              actionId: h.ids.newId(),
+              by: member,
+            },
+          ],
+          T,
+        )
+      })
+      const q = h.queriesFor(member, house.id)
+      expect((await q.routines(house.id)).map((r) => r.name)).toEqual(['Kitchen'])
+      expect((await q.activity(house.id, { limit: 5 })).subjects.routines).toEqual({
+        [gone.id]: 'Garden',
+      })
+      const stranger = await seedHouse(h)
+      expect(await h.queriesFor(stranger.member, stranger.house.id).routines(house.id)).toEqual([])
     })
 
     it('lists the costs that still count, while a removed one keeps its name in activity', async () => {

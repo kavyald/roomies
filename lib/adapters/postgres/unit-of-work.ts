@@ -14,8 +14,8 @@ import {
   type Repos,
   type UnitOfWork,
 } from '../../app/ports'
-import type { HouseId, UserId } from '../../domain/ids'
-import type { Need, Version } from '../../domain/items'
+import type { HouseId, RoomId, UserId } from '../../domain/ids'
+import type { Chore, Need, Version } from '../../domain/items'
 import type { NotificationCategory } from '../../domain/notifications'
 import type { Actor } from '../../domain/actor'
 import { activityRowFor } from '../../domain/events'
@@ -45,6 +45,8 @@ import {
   pollOptionToRow,
   pollToDomain,
   roomToRow,
+  routineToDomain,
+  routineToRow,
   runToDomain,
   runToRow,
   toDate,
@@ -99,7 +101,7 @@ const save = async (
  * `touch_updated_at` trigger) in whole microseconds, as text. Exact, unlike a JS Date, so two
  * saves in the same millisecond still differ. `versionOf` reads the same value from PostgREST.
  */
-const versionSql = (column: 'items.updated_at' | 'runs.updated_at') =>
+const versionSql = (column: 'items.updated_at' | 'runs.updated_at' | 'routines.updated_at') =>
   sql<string>`(extract(epoch from ${sql.ref(column)}) * 1000000)::bigint::text`
 
 const reposFor = (trx: Trx): Repos => {
@@ -156,6 +158,13 @@ const reposFor = (trx: Trx): Repos => {
       .selectAll('items')
       .select(versionSql('items.updated_at').as('version'))
       .select(sql<string>`houses.settings->>'timezone'`.as('tz'))
+      .select(
+        sql<
+          string[]
+        >`coalesce((select array_agg(cr.room_id::text order by cr.room_id) from chore_rooms cr where cr.item_id = items.id), '{}')`.as(
+          'chore_room_ids',
+        ),
+      )
   const runsWithZone = () =>
     trx
       .selectFrom('runs')
@@ -163,6 +172,39 @@ const reposFor = (trx: Trx): Repos => {
       .selectAll('runs')
       .select(versionSql('runs.updated_at').as('version'))
       .select(sql<string>`houses.settings->>'timezone'`.as('tz'))
+
+  /** Makes the rows match the chore's rooms; a save that leaves them alone writes nothing. */
+  const saveChoreRooms = async (item: Chore): Promise<void> => {
+    const rows = await trx
+      .selectFrom('chore_rooms')
+      .select('room_id')
+      .where('item_id', '=', item.id)
+      .execute()
+    const stored = rows.map((r) => r.room_id)
+    const gone = stored.filter((id) => !item.rooms.includes(id as RoomId))
+    const added = item.rooms.filter((id) => !stored.includes(id))
+    if (gone.length > 0) {
+      await trx
+        .deleteFrom('chore_rooms')
+        .where('item_id', '=', item.id)
+        .where('room_id', 'in', gone)
+        .execute()
+    }
+    if (added.length > 0) {
+      await trx
+        .insertInto('chore_rooms')
+        .values(added.map((room_id) => ({ house_id: item.houseId, item_id: item.id, room_id })))
+        .execute()
+    }
+  }
+
+  // `starts_on` as text: pg would make a date a Date at local midnight.
+  const routinesWithVersion = () =>
+    trx
+      .selectFrom('routines')
+      .selectAll()
+      .select(sql<string>`routines.starts_on::text`.as('starts_on'))
+      .select(versionSql('routines.updated_at').as('version'))
 
   return {
     houses: {
@@ -277,6 +319,42 @@ const reposFor = (trx: Trx): Repos => {
         )
       },
     },
+    routines: {
+      get: async (id) => {
+        const r = await routinesWithVersion().where('id', '=', id).executeTakeFirst()
+        return r && routineToDomain(r)
+      },
+      listByHouse: async (houseId) =>
+        (
+          await routinesWithVersion()
+            .where('house_id', '=', houseId)
+            .orderBy('sort_order')
+            .orderBy('created_at')
+            .execute()
+        ).map(routineToDomain),
+      save: async (routine) => {
+        const row = routineToRow(routine)
+        // Leave out what never changes: created_at has microseconds a JS Date drops.
+        const { id: _id, house_id: _house, created_at: _at, ...editable } = row
+        await saveLoaded(
+          `routines/${routine.id}`,
+          routine.version,
+          (version) => {
+            const q = trx.updateTable('routines').set(editable).where('id', '=', routine.id)
+            return (
+              version ? q.where(versionSql('routines.updated_at'), '=', version) : q
+            ).executeTakeFirst()
+          },
+          () =>
+            trx
+              .selectFrom('routines')
+              .select(versionSql('routines.updated_at').as('version'))
+              .where('id', '=', routine.id)
+              .executeTakeFirst(),
+          () => trx.insertInto('routines').values(row).execute(),
+        )
+      },
+    },
     contacts: {
       get: async (id) => {
         const r = await trx
@@ -384,6 +462,7 @@ const reposFor = (trx: Trx): Repos => {
               .executeTakeFirst(),
           () => trx.insertInto('items').values(row).execute(),
         )
+        if (item.category === 'chore') await saveChoreRooms(item)
       },
     },
     runs: {
@@ -816,6 +895,7 @@ const reposFor = (trx: Trx): Repos => {
                 contact_id: r.contactId ?? null,
                 member_id: r.memberId ?? null,
                 room_id: r.roomId ?? null,
+                routine_id: r.routineId ?? null,
                 note: r.note ?? null,
                 changes: r.changes === undefined ? null : JSON.stringify(r.changes),
                 payload: JSON.stringify(r.payload),

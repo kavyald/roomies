@@ -7,6 +7,7 @@ const TABLE_BY_PREFIX: Record<string, string> = {
   feeling: 'feelings',
   member: 'house_members',
   room: 'rooms',
+  routine: 'routines',
   contact: 'contacts',
   invite: 'house_invites',
   house: 'houses',

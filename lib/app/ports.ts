@@ -5,6 +5,7 @@ import type { ActivitySubjects } from '../domain/activity'
 import type { Actor } from '../domain/actor'
 import type { DomainEvent, EventKind, StoredActivityRow } from '../domain/events'
 import type { Contact, House, Invite, Member, Profile, Room } from '../domain/house'
+import type { Routine } from '../domain/routines'
 import type {
   ContactId,
   CostId,
@@ -14,6 +15,7 @@ import type {
   ItemId,
   PollId,
   RoomId,
+  RoutineId,
   RunId,
   UserId,
 } from '../domain/ids'
@@ -234,11 +236,19 @@ export interface EventSink {
   ): Promise<StoredActivityRow | undefined>
 }
 
+export interface RoutineRepo {
+  get(id: RoutineId): Promise<Routine | undefined>
+  /** Removed ones included. */
+  listByHouse(houseId: HouseId): Promise<Routine[]>
+  save(routine: Routine): Promise<void>
+}
+
 export interface Repos {
   readonly houses: HouseRepo
   readonly profiles: ProfileRepo
   readonly members: MemberRepo
   readonly rooms: RoomRepo
+  readonly routines: RoutineRepo
   readonly contacts: ContactRepo
   readonly invites: InviteRepo
   readonly items: ItemRepo
@@ -297,6 +307,8 @@ export interface HouseQueries {
   members(houseId: HouseId): Promise<Member[]>
   profiles(houseId: HouseId): Promise<Profile[]>
   rooms(houseId: HouseId): Promise<Room[]>
+  /** The house's routines, removed ones left out. */
+  routines(houseId: HouseId): Promise<Routine[]>
   contacts(houseId: HouseId): Promise<Contact[]>
   /** Everyone's current feelings on the house's items. */
   feelings(houseId: HouseId): Promise<Feeling[]>

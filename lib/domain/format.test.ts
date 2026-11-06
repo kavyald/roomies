@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { clockTime, describeWhen, relativeTime } from './format'
+import { clockTime, describeWhen, relativeTime, throughDay } from './format'
 import { instantAt, plusMs, type LocalDate, type LocalTime } from './time'
+
+describe('throughDay', () => {
+  const today = '2026-09-29' as LocalDate // a Tuesday
+  it.each([
+    ['2026-09-29', 'today'],
+    ['2026-10-04', 'Sunday'],
+    ['2026-10-06', 'Oct 6'],
+    ['2026-10-31', 'Oct 31'],
+  ])('%s is %s', (date, label) => {
+    expect(throughDay(date as LocalDate, today)).toBe(label)
+  })
+})
 
 const NY = 'America/New_York'
 const at = (d: string, t: string) => instantAt(d as LocalDate, t as LocalTime, NY)

@@ -8,7 +8,7 @@ test('a need, a chore, and a task can each be added with just a title in 3 taps,
 
   for (const [tile, title, action] of [
     ['A need', 'Paper towels', 'Got it'],
-    ['A chore', 'Water the plants', 'Did it'],
+    ['A chore', 'Water the plants', 'Took care of it'],
     ['A task', 'Fix the window latch', 'Done'],
   ] as const) {
     await addWithThreeTaps(page, tile, title)

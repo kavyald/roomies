@@ -5,12 +5,13 @@ import type { StoredActivityRow } from '../../domain/events'
 import { feelingWeightsFrom, type Feeling } from '../../domain/feelings'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
 import { asId, type UserId } from '../../domain/ids'
-import type { Done, Item, Version } from '../../domain/items'
+import type { Chore, Done, Item, Version } from '../../domain/items'
 import type { Cost } from '../../domain/costs'
 import type { Feedback } from '../../domain/feedback'
 import type { Cents } from '../../domain/money'
 import type { Poll, PollOption } from '../../domain/polls'
 import type { PushSubscription } from '../../domain/push'
+import type { Routine } from '../../domain/routines'
 import type { Run } from '../../domain/runs'
 import {
   instant,
@@ -18,6 +19,7 @@ import {
   localDateOf,
   localTimeOf,
   type Instant,
+  type LocalDate,
   type LocalTime,
   type When,
 } from '../../domain/time'
@@ -36,6 +38,7 @@ import type {
   PollVotesTable,
   PushSubscriptionsTable,
   RoomsTable,
+  RoutinesTable,
   RunsTable,
 } from './schema'
 
@@ -167,6 +170,7 @@ export const roomToDomain = (r: Selectable<RoomsTable>): Room =>
     element: r.element ?? undefined,
     sortOrder: r.sort_order,
     archivedAt: optInstant(r.archived_at),
+    routineId: r.routine_id ? asId<'routine'>(r.routine_id) : undefined,
   })
 
 export const roomToRow = (r: Room) => ({
@@ -178,6 +182,39 @@ export const roomToRow = (r: Room) => ({
   element: r.element ?? null,
   sort_order: r.sortOrder,
   archived_at: r.archivedAt ? toDate(r.archivedAt) : null,
+  routine_id: r.routineId ?? null,
+})
+
+// ---- routines --------------------------------------------------------------------------------
+
+export const routineToDomain = (r: Selectable<RoutinesTable> & { version?: string }): Routine =>
+  compact({
+    id: asId<'routine'>(r.id),
+    houseId: asId<'house'>(r.house_id),
+    name: r.name,
+    icon: r.icon,
+    resets: r.resets,
+    startsOn: r.starts_on as LocalDate,
+    startsWith: r.starts_with ? asId<'user'>(r.starts_with) : undefined,
+    fixedMember: r.fixed_member_id ? asId<'user'>(r.fixed_member_id) : undefined,
+    sortOrder: r.sort_order,
+    createdAt: toInstant(r.created_at),
+    removedAt: optInstant(r.removed_at),
+    version: versionOf(r),
+  })
+
+export const routineToRow = (r: Routine) => ({
+  id: r.id,
+  house_id: r.houseId,
+  name: r.name,
+  icon: r.icon,
+  resets: r.resets,
+  starts_on: r.startsOn,
+  starts_with: r.startsWith ?? null,
+  fixed_member_id: r.fixedMember ?? null,
+  sort_order: r.sortOrder,
+  created_at: toDate(r.createdAt),
+  removed_at: r.removedAt ? toDate(r.removedAt) : null,
 })
 
 // ---- contacts --------------------------------------------------------------------------------
@@ -245,6 +282,7 @@ export const activityToDomain = (r: Selectable<ActivityEventsTable>): StoredActi
     contactId: r.contact_id ? asId<'contact'>(r.contact_id) : undefined,
     memberId: r.member_id ? asId<'user'>(r.member_id) : undefined,
     roomId: r.room_id ? asId<'room'>(r.room_id) : undefined,
+    routineId: r.routine_id ? asId<'routine'>(r.routine_id) : undefined,
     note: r.note ?? undefined,
     changes: r.changes ?? undefined,
     payload: r.payload as StoredActivityRow['payload'],
@@ -255,7 +293,11 @@ export const activityToDomain = (r: Selectable<ActivityEventsTable>): StoredActi
 // house's time zone, so it reads back as the same date.
 
 export const itemToDomain = (
-  r: Selectable<ItemsTable> & { version?: string },
+  r: Selectable<ItemsTable> & {
+    version?: string
+    /** Chores: their rooms, in a stable order. */
+    chore_room_ids?: readonly string[]
+  },
   tz: string,
 ): Item => {
   const when: When | undefined = r.when_at
@@ -279,14 +321,21 @@ export const itemToDomain = (
     archivedAt: optInstant(r.archived_at),
     version: versionOf(r),
   })
+  const { roomId: _roomId, assignee: _assignee, ...choreBase } = base
   const done =
     r.done_at && r.done_by ? { at: toInstant(r.done_at), by: asId<'user'>(r.done_by) } : undefined
   switch (r.category) {
     case 'chore':
+      // The old build may still have written these (DEPLOYMENT D5): an unset kind is upkeep, and a
+      // chore with no chore_rooms rows is in the room it was given. Assignee and rhythm are retired.
       return compact({
-        ...base,
+        ...choreBase,
         category: 'chore' as const,
-        repeatDays: r.repeat_days,
+        kind: r.chore_kind ?? 'upkeep',
+        icon: r.icon ?? undefined,
+        rooms: (r.chore_room_ids?.length ? r.chore_room_ids : r.room_id ? [r.room_id] : []).map(
+          (id) => asId<'room'>(id),
+        ),
         lastDone:
           r.last_done_at && r.last_done_by
             ? { at: toInstant(r.last_done_at), by: asId<'user'>(r.last_done_by) }
@@ -315,6 +364,8 @@ export const itemToRow = (i: Item, tz: string) => {
   const loose = i as Item & {
     repeatDays?: number | null
     lastDone?: Done
+    kind?: Chore['kind']
+    icon?: string
     contactId?: string
     done?: Done
     forMember?: string
@@ -331,6 +382,8 @@ export const itemToRow = (i: Item, tz: string) => {
     when_has_time: Boolean(i.when?.time),
     priority: i.priority,
     repeat_days: loose.repeatDays ?? null,
+    chore_kind: loose.kind ?? null,
+    icon: loose.icon ?? null,
     last_done_at: loose.lastDone ? toDate(loose.lastDone.at) : null,
     last_done_by: loose.lastDone?.by ?? null,
     contact_id: loose.contactId ?? null,

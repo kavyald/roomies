@@ -72,7 +72,7 @@ describe('the + sheet (FRONTEND §5.3)', { timeout: 20_000 }, () => {
     expect(titles().sort()).toEqual(['need:Foil', 'need:Lemons', 'need:Rice'])
   })
 
-  it("can switch kinds, and a chore's rhythm shows without More options", async () => {
+  it('can switch kinds, keeping the title', async () => {
     const { titles } = await setup('need')
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     let sheet = await screen.findByRole('dialog', { name: 'A need' })
@@ -82,10 +82,6 @@ describe('the + sheet (FRONTEND §5.3)', { timeout: 20_000 }, () => {
     expect(within(sheet).getByLabelText<HTMLInputElement>('What needs doing?').value).toBe(
       'Water the plants',
     )
-    await userEvent.click(within(sheet).getByRole('button', { name: 'About every…' }))
-    const days = within(sheet).getByLabelText('Days between')
-    await userEvent.clear(days)
-    await userEvent.type(days, '3')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Add' }))
     await waitFor(() => expect(titles()).toEqual(['chore:Water the plants']))
   })

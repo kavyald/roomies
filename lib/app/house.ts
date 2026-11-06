@@ -8,6 +8,8 @@ import type { RoomId, UserId } from '../domain/ids'
 import { anonymizeProfile, moveOut, setRole } from '../domain/members'
 import { err, ok, type Result } from '../domain/result'
 import { moveRoom, renameRoom } from '../domain/rooms'
+import { reanchorRoutines } from '../domain/routines'
+import { localDateOf } from '../domain/time'
 import { setFeelingWeights } from '../domain/weights'
 
 /** "I moved out" (target = me) or an admin removing someone. RLS lets only those two through. */
@@ -25,8 +27,18 @@ export const makeMoveOut =
       const now = clock.now()
       const r = moveOut(target, members, by, now, ids.newId(), input.note)
       if (!r.ok) return r
-      // Record first: once someone has moved out, they can't write to the house's log.
-      await repos.events.record(actor.houseId, r.value.events, now)
+      const house = await repos.houses.get(actor.houseId)
+      const routines = reanchorRoutines(await repos.routines.listByHouse(actor.houseId), {
+        before: members,
+        after: members.map((m) => (m.userId === target.userId ? r.value.member : m)),
+        today: localDateOf(now, house?.settings.timezone ?? 'UTC'),
+        by,
+        actionId: ids.newId(),
+      })
+      // Record first: once someone has moved out, they can't write to the house's log. The same
+      // goes for the routines their leaving changes.
+      await repos.events.record(actor.houseId, [...r.value.events, ...routines.events], now)
+      for (const routine of routines.routines) await repos.routines.save(routine)
       await repos.members.save(r.value.member)
       return ok(r.value.member)
     })

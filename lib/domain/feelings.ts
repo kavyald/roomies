@@ -1,5 +1,6 @@
 import type { DomainEvent, StoredActivityRow } from './events'
 import type { ActionId, ItemId, UserId } from './ids'
+import type { Item } from './items'
 import { err, ok, type Result } from './result'
 import type { Instant } from './time'
 
@@ -44,6 +45,20 @@ export const feelingWeightsFrom = (stored: Readonly<Record<string, unknown>>): F
     }),
   ) as FeelingWeights
 
+// ---- which feelings count (PRD §8.1) ---------------------------------------------------------------
+
+/**
+ * Whether a feeling still counts: it was shared after the chore was last taken care of. A need or a
+ * task that's open has no last done, so all its feelings count: reopening is an undo, like undoing
+ * Did it, which puts the older last done back and so brings older feelings back too.
+ */
+export const isFeelingActive = (item: Item, feeling: Feeling): boolean =>
+  item.category !== 'chore' || !item.lastDone || feeling.at.epochMs > item.lastDone.at.epochMs
+
+/** The feelings about this item that count. Nothing is deleted; the rest are just quiet. */
+export const activeFeelings = (item: Item, feelings: readonly Feeling[]): Feeling[] =>
+  feelings.filter((f) => f.itemId === item.id && isFeelingActive(item, f))
+
 // ---- sharing a feeling (PRD §7) ------------------------------------------------------------------
 
 export const FEELING_META: Record<FeelingKind, { emoji: string; label: string; blurb: string }> = {
@@ -59,12 +74,13 @@ export const MAX_FEELING_NOTE = 280
 
 /**
  * Sets, changes, or removes my feeling about an item. The event carries the previous feeling, so
- * "Earlier" can be read back from the activity log.
+ * "Earlier" can be read back from the activity log. `stale`: my current feeling has gone quiet (the
+ * item was taken care of since), so sharing the same one again is a new feeling, not "no change".
  */
 export const setFeeling = (
   current: Feeling | null,
   next: { kind: FeelingKind; note?: string } | null,
-  ctx: { itemId: ItemId; by: UserId; now: Instant; actionId: ActionId },
+  ctx: { itemId: ItemId; by: UserId; now: Instant; actionId: ActionId; stale?: boolean },
 ): Result<{ feeling: Feeling | null; events: DomainEvent[] }, 'no_change' | 'note_too_long'> => {
   if (next === null) {
     if (!current) return err('no_change')
@@ -83,7 +99,8 @@ export const setFeeling = (
   }
   const note = next.note?.trim() || undefined
   if (note && note.length > MAX_FEELING_NOTE) return err('note_too_long')
-  if (current && current.kind === next.kind && current.note === note) return err('no_change')
+  if (!ctx.stale && current && current.kind === next.kind && current.note === note)
+    return err('no_change')
   const feeling: Feeling = {
     itemId: ctx.itemId,
     by: ctx.by,

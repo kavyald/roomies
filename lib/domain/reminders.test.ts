@@ -12,7 +12,9 @@ import {
 import type { Chore, Item, Task } from './items'
 import type { Recipient } from './notifications'
 import type { Poll } from './polls'
-import { choreDueDate, remindersFor, type ReminderInput } from './reminders'
+import type { Member, Room } from './house'
+import { remindersFor, type ReminderInput } from './reminders'
+import type { Routine } from './routines'
 import type { Run } from './runs'
 import { instantAt, type LocalDate, type LocalTime } from './time'
 
@@ -36,7 +38,8 @@ const task = (title: string, o: Partial<Task>): Task => ({ ...base(title), categ
 const chore = (title: string, o: Partial<Chore>): Chore => ({
   ...base(title),
   category: 'chore',
-  repeatDays: 7,
+  kind: 'deep_clean',
+  rooms: [],
   ...o,
 })
 
@@ -49,11 +52,14 @@ const input = (o: Partial<ReminderInput> = {}): ReminderInput => ({
   runs: [],
   people: [person(kavya), person(wren), person(sam)],
   runLabel: (r) => r.title ?? 'A run',
+  routines: [],
+  rooms: [],
+  members: [],
   ...o,
 })
 const titles = (i: ReminderInput) => remindersFor(i).map((d) => [d.userId, d.title, d.body])
 
-describe('reminders for tasks and chores', () => {
+describe('reminders for tasks', () => {
   it('the assignee hears the day before and the day of, and nothing for other days', () => {
     const items: Item[] = [
       task('Call the plumber', { assignee: wren, when: { date: '2026-09-30' as LocalDate } }),
@@ -71,31 +77,110 @@ describe('reminders for tasks and chores', () => {
         when: { date: '2026-09-29' as LocalDate },
         archivedAt: NOW,
       }),
-      chore('Take out the trash', {
-        assignee: kavya,
-        lastDone: { at: at('2026-09-22'), by: kavya },
-      }),
-      chore('Mop', { assignee: kavya, lastDone: { at: at('2026-09-23'), by: kavya } }),
-      chore('As needed', { assignee: kavya, repeatDays: null }),
-      chore('Never done', { assignee: kavya }),
+      chore('A chore has no due date', { lastDone: { at: at('2026-09-22'), by: kavya } }),
     ]
     expect(titles(input({ items }))).toEqual([
       [wren, 'Tomorrow: Call the plumber', "Just a heads-up: it's on you tomorrow."],
       [sam, 'Today: Pay the internet', "It's on you today."],
-      [kavya, 'Today: Take out the trash', 'Its turn comes up today.'],
-      [kavya, 'Tomorrow: Mop', 'Its turn comes up tomorrow.'],
     ])
     for (const d of remindersFor(input({ items }))) {
       expect(`${d.title} ${d.body}`).not.toMatch(/overdue|failed|missed/i)
       expect(d.category).toBe('due')
     }
   })
+})
 
-  it('knows when a chore comes due on the house calendar', () => {
+describe('routine handovers', () => {
+  // 2026-09-28 is a Monday.
+  const MONDAY = at('2026-09-28', '09:00')
+  const member = (userId: UserId, day: number): Member => ({
+    houseId: house,
+    userId,
+    role: 'member',
+    joinedAt: at(`2026-09-0${day}`),
+    status: { active: true },
+  })
+  const members = [member(kavya, 1), member(wren, 2), member(sam, 3)]
+  const routine = (id: string, o: Partial<Routine> = {}): Routine => ({
+    id: id as Routine['id'],
+    houseId: house,
+    name: id,
+    icon: 'broom',
+    resets: 'weekly',
+    startsOn: '2026-09-21' as LocalDate,
+    startsWith: kavya,
+    sortOrder: 0,
+    createdAt: at('2026-09-01'),
+    ...o,
+  })
+  const room = (name: string, routineId: string, sortOrder = 0): Room => ({
+    id: name as Room['id'],
+    houseId: house,
+    name,
+    floor: 'first',
+    kind: 'common',
+    sortOrder,
+    routineId: routineId as Room['id'] & never,
+  })
+  const handovers = (o: Partial<ReminderInput>) =>
+    remindersFor(input({ now: MONDAY, members, ...o })).filter((d) =>
+      d.dedupeKey?.startsWith('handover:'),
+    )
+
+  it('tells the new holder once, naming all their rooms, with a key that stops a second send', () => {
+    const [d, ...rest] = handovers({
+      routines: [routine('r1')],
+      rooms: [room('Kitchen', 'r1', 1), room('Dining', 'r1', 2)],
+    })
+    expect(rest).toEqual([])
+    expect(d).toMatchObject({
+      userId: wren, // Kavya last week, Wren this week
+      category: 'assigned',
+      title: 'You have the kitchen and dining this week',
+      url: '/h/h/chores',
+    })
+    expect(d!.dedupeKey).toBe(`handover:h:2026-09-28:${wren}`)
+    const again = handovers({
+      routines: [routine('r1')],
+      rooms: [room('Kitchen', 'r1', 1), room('Dining', 'r1', 2)],
+      now: at('2026-09-28', '18:00'),
+    })
+    expect(again[0]!.dedupeKey).toBe(d!.dedupeKey)
+  })
+
+  it('combines every routine one person takes over into one message', () => {
+    const list = handovers({
+      routines: [routine('r1'), routine('r2')],
+      rooms: [room('Kitchen', 'r1'), room('Bath', 'r2')],
+    })
+    expect(list.map((d) => [d.userId, d.title])).toEqual([
+      [wren, 'You have the kitchen and bath this week'],
+    ])
     expect(
-      choreDueDate(chore('c', { lastDone: { at: at('2026-09-22', '23:30'), by: kavya } }), NY),
-    ).toBe('2026-09-29')
-    expect(choreDueDate(task('t', {}), NY)).toBeNull()
+      handovers({
+        routines: [
+          routine('r1'),
+          routine('r2', { resets: 'biweekly', startsOn: '2026-09-14' as LocalDate }),
+        ],
+        rooms: [room('Kitchen', 'r1'), room('Bath', 'r2')],
+      }).find((d) => d.userId === wren)!.title,
+    ).toBe('You have the kitchen and bath for now')
+  })
+
+  it('names the routine when it has no rooms, and uses the words for its period', () => {
+    const [d] = handovers({
+      now: at('2026-10-01', '09:00'),
+      routines: [routine('Garden', { resets: 'monthly', startsOn: '2026-09-01' as LocalDate })],
+    })
+    expect(d!.title).toBe('You have the garden this month')
+  })
+
+  it('says nothing midweek, for a fixed person, a removed routine, or a house of one', () => {
+    const r = [routine('r1')]
+    expect(handovers({ routines: r, now: at('2026-09-29', '09:00') })).toEqual([])
+    expect(handovers({ routines: [routine('r1', { fixedMember: sam })] })).toEqual([])
+    expect(handovers({ routines: [routine('r1', { removedAt: NOW })] })).toEqual([])
+    expect(handovers({ routines: r, members: [members[0]!] })).toEqual([])
   })
 })
 

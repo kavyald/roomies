@@ -2,6 +2,8 @@
 // Checking, starting, and accepting happen before the person is a member, so they run as Roomies
 // (the system actor) after checking the token themselves.
 
+import { reanchorRoutines } from '../domain/routines'
+import { localDateOf } from '../domain/time'
 import type { AppDeps } from './ports'
 import type { Actor, HouseActor } from '../domain/actor'
 import { actorUser } from '../domain/actor'
@@ -277,10 +279,19 @@ export const makeAcceptInvite =
           },
         )
         if (!r.ok) return r
+        const house = await repos.houses.get(houseId)
+        const routines = reanchorRoutines(await repos.routines.listByHouse(houseId), {
+          before: members,
+          after: [...members.filter((m) => m.userId !== userId), r.value.member],
+          today: localDateOf(now, house?.settings.timezone ?? 'UTC'),
+          by: null,
+          actionId: ids.newId(),
+        })
         await repos.profiles.save(r.value.profile)
         await repos.members.save(r.value.member)
         await repos.invites.save(r.value.invite)
-        await repos.events.record(houseId, r.value.events, now)
+        await repos.events.record(houseId, [...r.value.events, ...routines.events], now)
+        for (const routine of routines.routines) await repos.routines.save(routine)
         return ok(houseId)
       },
     )

@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { CHORE_ICONS } from '@/lib/domain/icons'
+import { ChoreIconPicker, choreIconLabel } from './ChoreIconPicker'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ListChecks, Pencil } from 'lucide-react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -150,5 +152,21 @@ describe('ListRow', () => {
     expect(buttons).toHaveLength(1)
     expect(buttons[0]!.querySelector('svg.lucide-pencil')).not.toBeNull()
     expect(buttons[0]!.textContent).toBe('Super(555) 010-2231')
+  })
+})
+
+describe('ChoreIconPicker', () => {
+  it('names every icon, shows the chosen one, and offers no wind', async () => {
+    const onChange = vi.fn()
+    render(<ChoreIconPicker label="Icon" value="broom" onChange={onChange} />)
+    const group = screen.getByRole('group', { name: 'Icon' })
+    expect(within(group).getAllByRole('button')).toHaveLength(CHORE_ICONS.length)
+    expect(within(group).getByRole('button', { name: 'Broom' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    )
+    expect(within(group).queryByRole('button', { name: 'Wind' })).toBeNull()
+    await userEvent.click(within(group).getByRole('button', { name: 'Trash' }))
+    expect(onChange).toHaveBeenCalledWith('trash-2')
+    expect(choreIconLabel('spray-can')).toBe('Spray can')
   })
 })

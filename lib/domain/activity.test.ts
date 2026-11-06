@@ -34,6 +34,7 @@ const row = (kind: EventKind, extra: Partial<StoredActivityRow> = {}): StoredAct
 })
 
 const names: ActivityNames = {
+  routine: (r) => (r === 'r' ? 'Deep clean' : undefined),
   person: (id) => ({ 'u-kavya': 'Kavya', 'u-maya': 'Maya' })[id as string],
   item: (id) =>
     ({
@@ -226,6 +227,20 @@ describe('activityLine: every kind', () => {
       'Kavya renamed Galley to Kitchen',
     ],
     ['room.renamed', { roomId: id('kitchen') }, 'Kavya renamed Kitchen'],
+    [
+      'room.routine_changed',
+      { roomId: id('kitchen'), routineId: id('r'), changes: { routine: [null, 'r'] } },
+      'Kavya put Kitchen in Deep clean',
+    ],
+    [
+      'room.routine_changed',
+      { roomId: id('kitchen'), routineId: id('r'), changes: { routine: ['r', null] } },
+      'Kavya took Kitchen out of Deep clean',
+    ],
+    ['routine.created', { routineId: id('r') }, 'Kavya added Deep clean'],
+    ['routine.updated', { routineId: id('r') }, 'Kavya changed Deep clean'],
+    ['routine.removed', { routineId: id('r') }, 'Kavya removed Deep clean'],
+    ['routine.removed', { routineId: id('gone') }, 'Kavya removed a set of rooms'],
   ]
 
   it.each(cases)('%s → %s', (kind, extra, expected) => {

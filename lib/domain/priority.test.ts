@@ -11,7 +11,7 @@ import {
   signedPoints,
   tierOf,
 } from './priority'
-import { instantAt, type LocalDate, type LocalTime } from './time'
+import { instantAt, plusMs, type LocalDate, type LocalTime } from './time'
 
 const TZ = 'America/New_York'
 const NOW = instantAt('2026-09-29' as LocalDate, '12:00' as LocalTime, TZ) // Tue
@@ -44,7 +44,8 @@ const need = (title: string, o: Partial<Need> = {}): Need => ({
 const chore = (title: string, o: Partial<Chore> = {}): Chore => ({
   ...base(title),
   category: 'chore',
-  repeatDays: 7,
+  kind: 'upkeep',
+  rooms: [],
   ...o,
 })
 const felt = (item: Item, kind: FeelingKind, by: UserId = maya): Feeling => ({
@@ -98,17 +99,7 @@ describe('scorePriority (PRD §8.1)', () => {
       (i) => [felt(i, 'anxious')],
       100,
     ],
-    ['chore 2 days past every 7', chore('c', { lastDone: { at: at(-9), by: me } }), [], 64],
-    ['chore due for a turn today', chore('c', { lastDone: { at: at(-7), by: me } }), [], 50],
-    ['chore 2 days from its turn', chore('c', { lastDone: { at: at(-5), by: me } }), [], 40],
-    [
-      'chore done today (its next turn is 7 days away)',
-      chore('c', { lastDone: { at: at(0), by: me } }),
-      [],
-      30,
-    ],
-    ['repeating chore never done', chore('c'), [], 60],
-    ['as-needed chore has no due pressure', chore('c', { repeatDays: null }), [], 25],
+    ['a chore has no due pressure', chore('c', { lastDone: { at: at(-30), by: me } }), [], 25],
     ['need needed by tomorrow', need('n', { when: { date: day(1) } }), [], 40],
   ])('%s → %i', (_, item, feelings, expected) => {
     expect(score(item, typeof feelings === 'function' ? feelings(item) : feelings)).toBe(expected)
@@ -167,8 +158,7 @@ describe('due pressure', () => {
 
 describe('describePart', () => {
   const name = () => 'Wren'
-  const due = (days: number, chore = false, neverDone = false) =>
-    describePart({ kind: 'due', days, chore, neverDone, points: 0 }, name)
+  const due = (days: number) => describePart({ kind: 'due', days, points: 0 }, name)
   it('reads kindly, about the item and never the person', () => {
     expect([due(-1), due(-3), due(0), due(1), due(5)]).toEqual([
       'Was due yesterday',
@@ -177,23 +167,27 @@ describe('describePart', () => {
       'Due tomorrow',
       'Due in 5 days',
     ])
-    expect([due(-1, true), due(-2, true), due(0, true), due(1, true), due(3, true)]).toEqual([
-      '1 day past its rhythm',
-      '2 days past its rhythm',
-      'Due for a turn today',
-      'Due for a turn in 1 day',
-      'Due for a turn in 3 days',
-    ])
-    expect(due(0, true, true)).toBe('Not done yet')
     expect(describePart({ kind: 'base', priority: 'urgent', points: 70 }, name)).toBe('Urgent')
     expect(signedPoints(-5)).toBe('−5')
-    for (const s of [due(-9), due(-9, true)]) expect(s).not.toMatch(/overdue|failed|missed/i)
+    for (const s of [due(-9)]) expect(s).not.toMatch(/overdue|failed|missed/i)
   })
 })
 
 describe('isInFeed', () => {
   const inFeed = (item: Item, feelings: Feeling[] = [], visit?: LocalDate) =>
     isInFeed(item, feelings, NOW, TZ, { visitDate: () => visit })
+
+  it('a chore goes quiet after it is done, and counts again with a newer feeling (T99)', () => {
+    const c = chore('Dishes')
+    const done = { ...c, lastDone: { at: NOW, by: me } }
+    const old = { ...felt(c, 'frustrated'), at: at(-1) }
+    expect(inFeed(c, [old])).toBe(true)
+    expect(inFeed(done, [old])).toBe(false)
+    expect(score(done, [old])).toBe(score(done))
+    const again = { ...felt(c, 'frustrated'), at: plusMs(NOW, 1000) }
+    expect(inFeed(done, [again])).toBe(true)
+    expect(score(done, [again])).toBeGreaterThan(score(done))
+  })
 
   it('includes open tasks, but not done or archived ones', () => {
     expect(inFeed(task('a'))).toBe(true)
@@ -211,14 +205,16 @@ describe('isInFeed', () => {
     expect(inFeed(onRequest)).toBe(true)
   })
 
-  it('includes chores past their rhythm, or with a feeling', () => {
-    expect(inFeed(chore('c', { lastDone: { at: at(-8), by: me } }))).toBe(true)
-    expect(inFeed(chore('c', { lastDone: { at: at(-7), by: me } }))).toBe(false)
-    expect(inFeed(chore('c', { lastDone: { at: at(-2), by: me } }))).toBe(false)
+  it("leaves a routine's chores out: they're its holder's checklist", () => {
+    const c = chore('Sink', { kind: 'deep_clean' })
+    const owned = isInFeed(c, [felt(c, 'anxious')], NOW, TZ, { hasOwner: () => true })
+    expect(owned).toBe(false)
+    expect(inFeed(c, [felt(c, 'anxious')])).toBe(true) // nobody's on it: it counts as upkeep
+    expect(inFeed(chore('c', { lastDone: { at: at(-30), by: me } }))).toBe(false)
   })
 
-  it('shows an as-needed chore only once someone shares a feeling', () => {
-    const c = chore('Descale the kettle', { repeatDays: null })
+  it('shows a chore only once someone shares a feeling', () => {
+    const c = chore('Descale the kettle')
     expect(inFeed(c)).toBe(false)
     expect(inFeed(c, [felt(c, 'fine')])).toBe(true)
   })
@@ -241,7 +237,7 @@ describe('homeFeed', () => {
     task('Leak', { when: { date: day(-1) }, assignee: me }),
     task('Thursday', { when: { date: day(2) } }),
     task('Friday', { when: { date: day(3) } }),
-    chore('Descale', { repeatDays: null }),
+    chore('Descale'),
     need('Toilet paper'),
   ]
   const feelings = [felt(items[6]!, 'anxious'), felt(items[6]!, 'frustrated', me)]
@@ -284,7 +280,7 @@ describe('homeFeed', () => {
       task('Super, last week', { run: visit, when: { date: day(-1) } }),
       task('Done already', { run: visit, when: { date: day(1) }, done: { at: NOW, by: me } }),
       need('Milk', { when: { date: day(2) } }), // in the feed and this week: once
-      chore('Mop', { repeatDays: null, lastDone: { at: at(-1), by: me } }),
+      chore('Mop', { lastDone: { at: at(-1), by: me } }),
     ]
     const list = homeFeed(dated, () => [], {
       weights: DEFAULT_FEELING_WEIGHTS,

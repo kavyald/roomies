@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { StoredActivityRow } from './events'
 import {
+  activeFeelings,
   feelingWeightsFrom,
   DEFAULT_FEELING_WEIGHTS,
   earlierFeelings,
@@ -10,6 +11,7 @@ import {
   type Feeling,
 } from './feelings'
 import { asId, type ActionId, type HouseId, type ItemId, type UserId } from './ids'
+import type { Item } from './items'
 import { instant } from './time'
 
 const itemId = asId<'item'>('radiator') as ItemId
@@ -63,6 +65,57 @@ describe('setFeeling', () => {
       ok: false,
       error: 'note_too_long',
     })
+  })
+})
+
+describe('activeFeelings (T99)', () => {
+  const base = {
+    id: itemId,
+    houseId: asId<'house'>('h') as HouseId,
+    title: 'Dishes',
+    priority: 'normal' as const,
+    createdBy: maya,
+    createdAt: instant(0),
+  }
+  const felt = (t: number, by: UserId = maya): Feeling => ({
+    itemId,
+    by,
+    kind: 'frustrated',
+    at: instant(t),
+  })
+  const elsewhere: Feeling = { ...felt(50), itemId: asId<'item'>('other') as ItemId }
+  const chore = (lastDoneAt?: number): Item => ({
+    ...base,
+    category: 'chore',
+    kind: 'upkeep',
+    rooms: [],
+    ...(lastDoneAt !== undefined && { lastDone: { at: instant(lastDoneAt), by: wren } }),
+  })
+
+  it('a chore counts only feelings shared after it was last done', () => {
+    const feelings = [felt(10), felt(30, wren), elsewhere]
+    expect(activeFeelings(chore(), feelings)).toEqual([felt(10), felt(30, wren)])
+    expect(activeFeelings(chore(20), feelings)).toEqual([felt(30, wren)])
+    expect(activeFeelings(chore(40), feelings)).toEqual([])
+    // Shared in the same instant as the Did it: not after it.
+    expect(activeFeelings(chore(30), feelings)).toEqual([])
+  })
+
+  it('counts every feeling on an open need or task, including a reopened one', () => {
+    const feelings = [felt(10), elsewhere]
+    for (const category of ['need', 'task'] as const) {
+      expect(activeFeelings({ ...base, category }, feelings)).toEqual([felt(10)])
+    }
+  })
+
+  it('sharing the same feeling again counts once the old one has gone quiet', () => {
+    const old = felt(10)
+    expect(setFeeling(old, { kind: 'frustrated' }, ctx(30))).toEqual({
+      ok: false,
+      error: 'no_change',
+    })
+    const r = setFeeling(old, { kind: 'frustrated' }, { ...ctx(30), stale: true })
+    expect(r.ok && r.value.feeling?.at).toEqual(instant(30))
   })
 })
 

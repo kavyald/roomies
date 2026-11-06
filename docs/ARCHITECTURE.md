@@ -16,7 +16,7 @@
 | **Only house members** can see house data | Per-user authentication + authorization enforced at the **database layer** (row-level security), not only in UI code |
 | Tiny data volume (thousands of rows per house, ever) | No caching layers, queues, or microservices. Postgres handles everything. |
 | Collaborative (several people editing the same lists) | Realtime updates are nice to have. Two edits of the same item or run don't silently overwrite each other: the later one is told and sees the latest (§7.5). |
-| Reminders, chore rhythms, poll deadlines, dated runs | Need **scheduled jobs** (cron) |
+| Reminders, routine handovers, poll deadlines, dated runs | Need **scheduled jobs** (cron) |
 | Notifications on iPhone | **Web Push** (iOS 16.4+, only when installed to the Home Screen). An email fallback comes later. |
 | Solo developer | Minimize the number of vendors and moving parts. One language (TypeScript) end to end. |
 
@@ -76,7 +76,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | Forms + validation | Plain React state in the forms, **Zod** schemas (`lib/schemas/`) validating every server action's input |
 | DB access (server) | **Kysely** (typed SQL builder) over `pg`, used only inside adapters, with one transaction per use case |
 | DB types | Hand-written Kysely table types in `lib/adapters/postgres/schema.ts` (T08), used **only in adapters** (never in domain or UI code). No generated types. |
-| Dates / recurrence | No library: `lib/domain/time.ts` does dates, times and time zones with the built-in `Intl` API. Chores repeat every N days (`repeat_days`), so there are no recurrence rules. |
+| Dates / recurrence | No library: `lib/domain/time.ts` does dates, times and time zones with the built-in `Intl` API. Routines reset weekly, every 2 weeks or monthly by arithmetic (`lib/domain/routines.ts`), so there are no recurrence rules. |
 | PWA | Hand-written service worker (`public/sw.js`: app shell cache + push), `app/manifest.ts` |
 | Bottom sheets | `vaul` (inside `components/ui/Sheet.tsx`) |
 | Push | `web-push` (VAPID) inside the `PushSender` adapter, called by the send-notifications job |
@@ -160,14 +160,14 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | Port | Methods (abridged) | Production adapter | Test adapter |
 |---|---|---|---|
 | `UnitOfWork` | `run<T>(actor, fn: (repos: Repos) => Promise<T>): Promise<T>`, one transaction per call. It rolls back when `fn` throws **or resolves to a failed `Result`** (A21). A broken CHECK/unique rule throws `ConstraintViolation`, a broken RLS rule `AccessDenied`. | Postgres (`PostgresUnitOfWork`): `begin` → a member or user gets `set local role app_writer` (a member of `authenticated` with the write grants, A30) + `set_config('request.jwt.claims', …)` so **RLS still applies**; the system actor gets `set local role service_role` → `commit` | `MemoryUnitOfWork` (`lib/adapters/memory/db.ts`, which mirrors each RLS rule) |
-| `Repos` (inside a UoW) | `houses`, `profiles`, `members`, `rooms`, `contacts`, `invites`, `items`, `feelings`, `runs`, `polls`, `costs`, `feedback`, `notifications`, `pushSubscriptions`, `events`. Most have `get` / `listByHouse` / `save`. Exceptions: `costs` is `get` / `listByHouse` / `add` / `update` (`update` writes only the amount, who paid, the note and `removed_at`, T57); `polls` saves piece by piece (`create` / `addOption` / `setVote` / `removeVote` / `saveState`, one RLS rule each; `saveState` writes the deadline and closing or reopening); `feelings` also has `remove`; `feedback` is `add` only (members can't read it back, T91); `notifications` is `offFor` / `setEnabled` / `enqueue` / `pending` / `markSent` / `retryLater`; `pushSubscriptions` is `save` / `byEndpoint` / `forget` / `forUsers` / `markOk` / `markGone` (only the system's `save` moves a browser saved under someone else, T84; `forget` leaves already-gone rows as they were). Saves are update-then-insert, not upsert (RLS on upserts). | Kysely queries | in-memory tables |
+| `Repos` (inside a UoW) | `houses`, `profiles`, `members`, `rooms`, `routines`, `contacts`, `invites`, `items`, `feelings`, `runs`, `polls`, `costs`, `feedback`, `notifications`, `pushSubscriptions`, `events`. Most have `get` / `listByHouse` / `save`. Exceptions: `costs` is `get` / `listByHouse` / `add` / `update` (`update` writes only the amount, who paid, the note and `removed_at`, T57); `polls` saves piece by piece (`create` / `addOption` / `setVote` / `removeVote` / `saveState`, one RLS rule each; `saveState` writes the deadline and closing or reopening); `feelings` also has `remove`; `feedback` is `add` only (members can't read it back, T91); `notifications` is `offFor` / `setEnabled` / `enqueue` / `pending` / `markSent` / `retryLater`; `pushSubscriptions` is `save` / `byEndpoint` / `forget` / `forUsers` / `markOk` / `markGone` (only the system's `save` moves a browser saved under someone else, T84; `forget` leaves already-gone rows as they were). Saves are update-then-insert, not upsert (RLS on upserts). | Kysely queries | in-memory tables |
 | `EventSink` (`repos.events`) | `record(houseId, events: DomainEvent[], at: Instant)`: stamps rows with the injected clock's `at` (A21) and writes `activity_events`; `withNotifications(uow)` (A23) makes the same call also write `notifications_outbox` in the **same transaction** (transactional outbox). `forRun(houseId, runId)` reads a run's story (rows on it or moved into it) inside the transaction; `lastForItem(houseId, itemId, kind)` reads an item's newest row of a kind (the `chore.done` an Undo takes back, T54). | Postgres | in-memory |
 | `Clock` | `now(): Instant` | `systemClock` | `fixedClock(t)` |
 | `IdGenerator` | `newId<K>(): Id<K>` | `cryptoIds` (`crypto.randomUUID`) | `seqIds()` |
 | `Tokens` | `newToken()` (128 bits, URL-safe), `hash(token)` (SHA-256): invite tokens are stored only as hashes | `cryptoTokens` | `seqTokens()` |
 | `RateLimiter` | `hit(key, { limit, windowMs }, now): Promise<boolean>`: counts attempts per key in fixed windows, outside the use case's transaction (§5.4) | Postgres (`rate_limits`, service role) | in-memory |
 | `SecurityLog` | `record(event: SecurityEvent): Promise<void>`: appends a refused join or setup attempt (`invite_refused` with its reason, `setup_token_refused`, `rate_limited`; each with its step, IP and time), outside the use case's transaction (§5.4) | Postgres (`security_events`, service role) | `memorySecurityLog()` (keeps `events`) |
-| `HouseQueries` (read side) | Raw reads, each one RLS-filtered: `house`, `members`, `profiles`, `rooms`, `contacts`, `feelings`, `items`, `polls`, `runs`, `costs` (removed ones left out; activity still names them through `subjects`), `invites` (admins only), `notificationsOff(userId)`, `itemActivity(houseId, itemId)`, `runActivity(houseId, runId)`, `latestActivity(houseId, kind)`, and `activity(houseId, { before?, limit })`, a page of rows with the `subjects` they name (A24). Screens shape these in the browser with pure functions (`homeFeed`, `needList`, `choreList`, `taskList`, `calendarEntries`, `activityFeed`, …). | Supabase browser client (RLS) | `memoryHouseQueries` |
+| `HouseQueries` (read side) | Raw reads, each one RLS-filtered: `house`, `members`, `profiles`, `rooms`, `routines` (removed ones left out), `contacts`, `feelings`, `items`, `polls`, `runs`, `costs` (removed ones left out; activity still names them through `subjects`), `invites` (admins only), `notificationsOff(userId)`, `itemActivity(houseId, itemId)`, `runActivity(houseId, runId)`, `latestActivity(houseId, kind)`, and `activity(houseId, { before?, limit })`, a page of rows with the `subjects` they name (A24). Screens shape these in the browser with pure functions (`homeFeed`, `needList`, `choreBoard`, `taskList`, `calendarEntries`, `activityFeed`, …). | Supabase browser client (RLS) | `memoryHouseQueries` |
 | `ChangeFeed` | `subscribe(houseId, onChange: (change: { table }) => void): Unsubscribe` | Supabase Realtime (§7.5) | `memoryChangeFeed` |
 | `AuthGateway` | `createUser(email): Result<UserId, 'already_exists'>`, `sendCode(email)` (only to an existing account, silent either way), `deleteUser(id)`. Checking the code is `verifyOtp` in the sign-in server action, which sets the session cookie. | Supabase Auth (admin client for create/delete, anon client for codes) | `memoryAuth` |
 | `PushSender` | `send(sub: PushSubscription, payload: string): Promise<PushOutcome>`, where `PushOutcome` is `{ kind: 'sent' }`, `{ kind: 'gone' }` (404/410), `{ kind: 'failed', retryAfterMs? }` (429, 5xx or no answer, with the push service's Retry-After when it sent one) or `{ kind: 'rejected' }` (any other 4xx: won't pass, so not retried, and the browser is kept) | `webPushSender` (`web-push`, VAPID) | `fakePush()` (records sends) |
@@ -245,7 +245,9 @@ Admin-only actions (invites, adding and removing members, roles, house details) 
 | "members update own" (+ `member_role`) | `house_members` update | You move out or change your room, never your role; someone who moved out can't reactivate themselves. `member_role(h, u)` answers only a caller who is an active member of `h` |
 | "outbox enqueue" | `notifications_outbox` insert | Members enqueue for their own house, and only for its active members (`user_id`) |
 | "houses members set feeling weights" (+ `only_feeling_weights_changed`) | `houses` update | Any member saves the row when nothing but `settings.feeling_weights` differs from the stored one (A22, PRD §8.2) |
-| "feelings delete own" | `feelings` delete | One of two DELETE policies (with "poll votes withdraw own while open"): removing your own current feeling (its history stays in `activity_events`) |
+| "feelings delete own" | `feelings` delete | One of three DELETE policies (with "poll votes withdraw own while open" and "chore rooms delete"): removing your own current feeling (its history stays in `activity_events`) |
+| "routines read / insert / update" | `routines` | Any active member of the house (owner, T96); never deleted, since activity points at them |
+| "chore rooms read / insert / delete" | `chore_rooms` | Any active member of the house; a chore's rooms are rows you add and remove. The third DELETE policy |
 | "notification prefs read" (+ `shares_house`) | `notification_prefs` select | Housemates read each other's toggles, so whoever records an event enqueues only what the others want (A23); you change only your own |
 | "costs update" (+ column grant) | `costs` update | Any member edits a cost's amount, who paid and note, or sets `removed_at` (T57); the grant covers only those four columns, so what it was for, who added it and when never change |
 | `poll_is_open(p)` | `poll_options`, `poll_votes` insert/update | Options and your own vote only while the poll is open |
@@ -346,6 +348,13 @@ rooms           (id, house_id, name, floor: first|basement|outside, kind: bedroo
 house_invites   (id, house_id, token_hash unique, created_by, created_at, expires_at, max_uses > 0, uses, revoked_at null)
 contacts        (id, house_id, name, phone null, note null, created_at, archived_at null)   -- archived, never deleted
 
+-- routines: who looks after a set of rooms (T96) -----------------------------------
+routines(id, house_id, name, icon, resets: weekly|biweekly|monthly, starts_on date,
+         starts_with null, fixed_member_id null,            -- who has it is arithmetic from these
+         sort_order, created_at, updated_at (version), removed_at)  UNIQUE(house_id, id)
+rooms.routine_id null                                       -- FK (house_id, routine_id); at most one
+chore_rooms(house_id, item_id, room_id)  PK(item_id, room_id)  -- a chore's rooms; chores use this, not items.room_id
+
 -- items: needs, chores, tasks ----------------------------------------------------
 items           (id, house_id,
                  category: need|chore|task,                 -- never changes (D15)
@@ -353,7 +362,9 @@ items           (id, house_id,
                  assignee_id null,                          -- "who's on it"; null = anyone
                  when_at null, when_has_time bool,          -- due / needed by / scheduled
                  priority: low|normal|high|urgent  default 'normal',
-                 repeat_days int null,                      -- chores only, 1–365: null = as needed
+                 repeat_days int null,                      -- retired (T96): read by nothing, cleared in a later release
+                 chore_kind: deep_clean|upkeep null,        -- chores only; null reads as upkeep until the later release requires it
+                 icon text null,                            -- chores only, a name from lib/domain/icons.ts
                  last_done_at null, last_done_by null,      -- chores only
                  contact_id null,                           -- tasks only: "handled by"
                  for_member null → profiles,                -- needs only (T45): whose it is; null = the house's. A label only
@@ -466,7 +477,7 @@ interface ItemBase {
 }
 type Done = { at: Instant; by: UserId }
 type Need  = ItemBase & { category: 'need';  done?: Done; forMember?: UserId }  // urgency = feelings + needed-by date; forMember absent = the house's (T45)
-type Chore = ItemBase & { category: 'chore'; repeatDays: number | null; lastDone?: Done }   // null = as needed
+type Chore = Omit<ItemBase, 'assignee' | 'roomId'> & { category: 'chore'; kind: 'deep_clean' | 'upkeep'; icon?: string; rooms: RoomId[]; lastDone?: Done }   // who's on it is worked out (choreOwner)
 type Task  = ItemBase & { category: 'task';  contactId?: ContactId; done?: Done }
 type Item = Need | Chore | Task
 
@@ -539,6 +550,8 @@ type DomainEvent = { actionId: ActionId; by: UserId | null } & (      // by: nul
   | { kind: 'invite.created' | 'invite.revoked'; payload: { expiresAt?: string; maxUses?: number } }
   | { kind: 'contact.created' | 'contact.edited' | 'contact.removed'; contactId: ContactId; changes?: FieldChanges }
   | { kind: 'room.renamed'; roomId: RoomId; changes?: FieldChanges }   // rooms are seeded; never added or archived in the app (T60)
+  | { kind: 'room.routine_changed'; roomId: RoomId; routineId: RoutineId; changes: FieldChanges } // { routine: [before, after] }
+  | { kind: 'routine.created' | 'routine.updated' | 'routine.removed'; routineId: RoutineId; changes?: FieldChanges }
 )
 type FieldChanges = Record<string, [before: unknown, after: unknown]>
 ```
@@ -625,7 +638,7 @@ select changes, actor_id, at from activity_events
 | | `item.assigned` | item, member, `changes` | ✓ | new assignee (not if they took it) |
 | | `item.handled_by_changed` | item, contact, `changes` | ✓ | — |
 | | `chore.done` · `chore.undone` | item (+ run if done on one), `changes {lastDone: [before, after]}` | ◐ · — | — |
-| Feelings | `feeling.set` · `feeling.removed` | item, `changes {previous, next}` | ✓ · — | assignee on 😰/😤 (not their own) |
+| Feelings | `feeling.set` · `feeling.removed` | item, `changes {previous, next}` | ✓ · — | 😰/😤: the assignee of a need or task, or everyone on a chore (not their own, T99) |
 | Polls | `poll.created` · `poll.closed` · `poll.reopened` · `poll.deadline_changed` | poll (+ item, winning option) | ✓ | everyone but whoever did it, on created/closed |
 | | `poll.option_added` | poll, option, note | ✓ | people who already voted, not whoever added it (D32) |
 | | `poll.voted` · `poll.vote_changed` · `poll.vote_withdrawn` | poll, option | ◐ · ◐ · — | — |
@@ -636,6 +649,7 @@ select changes, actor_id, at from activity_events
 | House | `house.created` · `settings.feeling_weights_changed` · `invite.created` · `invite.revoked` | `changes` / `payload` | ✓ (invites: admins) | everyone but the changer, on weights (D32; the Home card stays) |
 | People | `member.joined` · `member.room_changed` · `member.role_changed` · `member.moved_out` · `member.removed` | member (+ room), note | ✓ | everyone else on joined/left (not whoever removed them) · that member on role (not their own change) |
 | Places | `contact.created` · `contact.edited` · `contact.removed` · `room.renamed` | contact / room, `changes` | ✓ | — |
+| Routines | `routine.created` · `routine.updated` · `routine.removed` · `room.routine_changed` | routine (+ room), `changes` | ✓ | — (the handover is a reminder) |
 
 **Not in this table:** refused invite and setup tokens (`security_events`, §5.4), sign-in attempts (Supabase Auth), notification delivery (`notifications_outbox`), views, and computed priority.
 
@@ -646,7 +660,7 @@ select changes, actor_id, at from activity_events
 ### 7.1 Priority
 
 - **One pure function:** `scorePriority(item, feelings, weights, now, tz): { score, tier, breakdown }`. `weights` comes from `HouseSettings.feelingWeights`, and `now` is an argument. It runs in the browser (`homeFeed`, the Home screen's one list) and in tests with a fixed clock.
-- **`isInFeed(item, feelings, now, tz, { visitDate })`** applies the PRD §8.1 rules: tasks not done (except those on a visit, unless there's a feeling or the visit is within 3 days), chores past their rhythm or with a feeling, and needs with a feeling or needed-by within 7 days.
+- **`isInFeed(item, feelings, now, tz, { visitDate, hasOwner })`** applies the PRD §8.1 rules: tasks not done (except those on a visit, unless there's a feeling or the visit is within 3 days), chores nobody's on (upkeep, or in no routine) with an active feeling, and needs with a feeling or needed-by within 7 days.
 - **Never stored**, because it depends on today's date.
 
 ### 7.2 Function catalog
@@ -662,7 +676,7 @@ select changes, actor_id, at from activity_events
 | `doChore` / `undoChore` | `(c: Chore, by, now, actionId) → Result<{ chore; events }, 'archived'>` / `(c: Chore, doneAt, didIt: ChoreDoneChange \| undefined, by, actionId) → Result<…, 'nothing_to_undo' \| 'done_again'>` | Did it updates last done; `chore.done` carries `changes.lastDone: [previous \| null, next]`. Its undo (T54) restores `previous` (read back with `choreDoneChange`) only while the chore's last done is still `by`'s Did it at `doneAt`; once anyone has done it again it's `done_again`. Like `reopenItem`, it doesn't put the chore back on a run it left. |
 | `archiveItem` / `restoreItem` | `(i, by, now, actionId) → Result<…, 'already_archived'>` / `(i, by, actionId, openNeeds) → Result<…, 'not_archived' \| 'duplicate_need'>` | "Delete" and its Undo / "Bring it back" in the app (PRD D30): a soft delete that sets `archived_at`, so activity still points at the row. Activity says "deleted" / "brought back"; no restore window |
 | **Lists and the feed** (`lists.ts`, `priority.ts`) | | |
-| `needList` / `choreList` / `taskList` | `(items, feelingScore?)` / `(items, now, tz)` / `(items, filter: 'mine' \| 'all' \| 'outside', me)` | The Needs, Chores and Tasks screens' order and filters; `isChoreDue`, `choreLateness`, `daysSinceDone` back them |
+| `needList` / `choreBoard` / `taskList` | `(items, feelingScore?)` / `(items, { rooms, routines, members, feelings, me, today, tz })` / `(items, filter: 'mine' \| 'all' \| 'outside', me)` | The Needs, Chores and Tasks screens' order and filters; `isChoreDue`, `choreLateness`, `daysSinceDone` back them |
 | `scorePriority` | `(i: Item, f: Feeling[], w: FeelingWeights, now, tz) → { score, tier, breakdown }` | PRD §8.1; `describePart` words the breakdown ("Why is this here?") |
 | `isInFeed` | `(i: Item, f: Feeling[], now, tz, { visitDate? }) → boolean` | PRD §8.1 rules (§7.1) |
 | `homeFeed` | `(items, feelingsOf, { weights, now, tz, filter: 'mine' \| 'all', me, visitDate? }) → FeedEntry[]` | Home's one list (T81): in-feed items plus open tasks and needs dated in the next 7 days (`isComingUp`), each once; highest score first, then the sooner date, then the newest |
@@ -703,6 +717,12 @@ select changes, actor_id, at from activity_events
 | `createInvite` / `revokeInvite` / `acceptInvite` | `(input, ctx: { …, openSpots, tokenHash }) → Result<…, 'bad_limits'>` / `(inv, by, now, actionId) → Result<…, 'already_revoked'>` / `(inv, joining, ctx) → Result<{ invite; member; profile; events }, InviteProblem \| 'already_member' \| 'room_taken' \| 'empty_name'>` | `max_uses` defaults to the open bedrooms (`openBedrooms`, at least 1); 1–20 uses, 1–30 days |
 | `moveOut` / `setRole` | `(target, members, by, now, actionId, note?) → Result<…, 'not_allowed' \| 'already_moved_out' \| 'last_admin'>` / `(target, role, members, by, actionId) → Result<…, 'not_allowed' \| 'no_change' \| 'last_admin' \| 'not_active'>` | The house always keeps an admin |
 | `anonymizeProfile` | `(p: Profile) → Profile` | "Former roommate" |
+| **Routines** (`routines.ts`, `icons.ts`) | | |
+| `periodStart` / `nextPeriodStart` | `(r: { resets, startsOn }, today) → LocalDate` | Monday, every other Monday from `startsOn`, or the 1st |
+| `routineHolder` / `nextHolder` / `rotationOrder` | `(r, members, today) → UserId \| undefined` | The fixed person, or arithmetic over active members by `joinedAt` |
+| `choreOwner` / `doneThisPeriod` / `routineProgress` | `(chore, rooms, routines) → Routine \| undefined` / `(chore, routine, today, tz) → boolean` | First live room's routine; upkeep has none |
+| `createRoutine` / `editRoutine` / `removeRoutine` / `setRoutineRooms` | → `Result<{ routine; events }, …>` / `{ rooms; events }` | Any member; a changed reset keeps this period's holder |
+| `reanchorRoutines` | `(routines, { before, after, today, by, actionId }) → { routines; events }` | Run when someone joins or moves out, so this period's holders don't shift |
 | `renameRoom` / `moveRoom` | `(room, name, by, actionId) → Result<…, 'empty_name' \| 'no_change'>` / `(rooms, roomId, 'up' \| 'down') → Result<Room[], 'not_found' \| 'at_edge'>` | Moves within the room's group, keeping the group's `sort_order` slots. Reordering isn't recorded |
 | `roomGroup` / `roomsInGroup` | `(kind) → 'bedrooms' \| 'bathrooms' \| 'spaces'` / `(rooms, group) → Room[]` | The three groups Admin → Rooms and the room picker show (FRONTEND §5.11); live rooms in `sort_order` |
 | `createContact` / `editContact` / `removeContact` | `(input, houseId, by, id, actionId)` / `(c, patch, by, actionId)` / `(c, by, now, actionId)` | Removing archives (activity rows point at contacts) |
@@ -714,13 +734,14 @@ select changes, actor_id, at from activity_events
 | `activityLine` / `activityFeed` | `(rows sharing an action_id, names: ActivityNames, viewer: { isAdmin }) → FeedLine \| null` / `(rows, names, viewer) → FeedLine[]` | `names` comes from `activityNames(subjects, house)` (A24). Hidden kinds are left out, and admin-only kinds show only to admins. One line per action, newest first. `pageAtActionBoundary` keeps an action on one page. |
 | `inActivityFilter` / `feedByDay` | `(line, filter) → boolean` / `(lines, now, tz) → FeedDay[]` | Filters: All, Items, Polls & runs, Money, House. Day headings come from `dayHeading` and line times from `feedTime` (`format.ts`). |
 | `notificationsFor` / `deliver` | `(events, ctx: NotificationContext) → OutboxMessage[]` / `(drafts, ctx) → OutboxMessage[]` | Who gets what (A23); `deliver` keeps current members only, drops categories they turned off, and holds messages until their quiet hours end (`isQuiet`, `sendAfter`) |
-| `remindersFor` | `(input: { houseId, tz, now, items, polls, runs, people, runLabel }) → Draft[]` | Day-before and day-of reminders, each with a dedupe key |
+| `remindersFor` | `(input: { houseId, tz, now, items, polls, runs, people, runLabel, routines, rooms, members }) → Draft[]` | Day-before and day-of reminders, each with a dedupe key |
 | `newSubscription` / `pushPayload` / `afterAttempt` | `(browserSub, ctx) → Result<PushSubscription, 'invalid_subscription'>` / `(m) → string` / `(outcomes, retriesSoFar, now) → done (error or null) \| retry at` (5 min, 30 min, 2 h, or the push service's Retry-After up to 6 h; then `push_failed`; a refusal that won't pass is final, `push_rejected`, T84) | Web Push |
 
 **Use cases** (`lib/app/*.ts`). Each is built as `makeX(deps)`, then called as `(actor: HouseActor, input) → Promise<Result<Out, Err>>` in one `UnitOfWork` transaction, unless noted. Most also return `not_found` (an id from another house, or none). The `Deps` column is what each takes from `AppDeps`; the house use cases take `uow`, `clock`, `ids`.
 
 | File | Use cases (input) | Output | Errors (besides `not_found`) | Deps beyond uow, clock, ids |
 |---|---|---|---|---|
+| `routines.ts` | `createRoutine` · `editRoutine` (`{ id, patch, version }`; `patch.roomIds` makes those its rooms) · `removeRoutine` (a routine id) | Any member; every change records its event |
 | `items.ts` | `createItem` (`NewItem`) · `editItem` (`{ id, patch }`, which also sets "Handled by") · `markDone` · `reopenItem` · `doChore` · `archiveItem` · `restoreItem` (an item id) · `undoChore` (`{ id, doneAt }`: the last done Did it returned) | `Item` | `ItemError`, `unknown_member` / `unknown_room` / `unknown_contact`, `duplicate_need`, `no_change`, `on_a_run` (edit), `already_done`, `not_done`, `archived`, `not_for_chores`, `not_a_chore`, `already_archived`, `not_archived`, `nothing_to_undo` / `done_again` (undo) | |
 | | `setFeeling` (`{ itemId, kind \| null, note? }`) | `Feeling \| null` | `no_change`, `note_too_long` | |
 | `runs.ts` | `startRun` (`NewRun & { itemIds }`) · `addToRun` (`{ runId, itemIds }`) · `startRequest` (`{ contactId, itemIds }`) · `planVisit` (`{ contactId, itemIds, when? }`) · `addToRequest` (`{ taskId }`) | `Run` | the domain errors above, `unknown_member` | |
@@ -786,7 +807,7 @@ Jobs are **use cases** run as the system actor with `depsForJob()`, behind one r
 | Job (`/api/cron/…`) | Schedule (pg_cron) | Does |
 |---|---|---|
 | `tick` | every 15 min | Nothing: the heartbeat that proves the schedule reaches the app |
-| `reminders` → `runReminders` | every 15 min | Day-before and day-of reminders for dated tasks and chores (assignee), polls closing tomorrow, and runs with a date tomorrow → outbox, each with a dedupe key (person + thing + day), so a second run enqueues nothing new |
+| `reminders` → `runReminders` | every 15 min | Day-before and day-of reminders for dated tasks (assignee), polls closing tomorrow, runs with a date tomorrow, and routine handovers on a period's first day → outbox, each with a dedupe key (person + thing + day), so a second run enqueues nothing new |
 | `close-polls` → `closeDuePolls` | hourly, at :05 | Closes polls past `closes_at` and records the result (which tells the house) |
 | `send-notifications` → `sendNotifications` | every 5 min, plus right after each house action that succeeded (`after()` → `sendNotificationsNow`) | Sends due outbox rows (`send_after` ≤ now, so quiet hours are already applied) by Web Push, 100 at a time. A subscription the push service calls gone is marked `gone_at`. A message no browser took because of a passing failure (5xx, 429, a timeout) is put off with `retryLater` (5 min, 30 min, 2 h, then moved past the person's quiet hours like the first try) and then given up on as `push_failed`; a refusal that won't pass (another 4xx) is final as `push_rejected` (T84). Logs `messages`, `delivered`, `retrying` and `droppedSubscriptions`. |
 
@@ -940,7 +961,7 @@ iPhone UX specifics:
 | Feelings feature feels awkward or passive-aggressive (and they're always named) | Gentle copy, a "not a big deal" option, an optional note to add context, no leaderboard or chore balance |
 | Supabase free-tier pause | Cron keeps it active; upgrade if needed |
 | RLS mistake leaks data across houses | RLS-on-every-table CI check + explicit cross-house access tests |
-| Timezone bugs in recurring chores | House timezone, local-date due dates, tests around DST |
+| Timezone bugs in routine periods | House timezone, local dates, tests around DST and month ends |
 
 ---
 
@@ -963,7 +984,7 @@ iPhone UX specifics:
 | A13 | Data objects | Standalone, immutable domain types (discriminated unions), mapped to/from rows in adapters | Owner (DI request) |
 | A14 | Activity log + notifications | Domain events recorded in the same transaction (transactional outbox). No triggers. | Owner (DI request) |
 | A15 | v1 storage | One `items` table (need / chore / task) with CHECKs. Polls, runs, costs, and feelings are their own tables. Detail tables come back per category only if one grows. | Owner (D18) |
-| A16 | v1 scope | Needs, chores, tasks, polls, runs, costs, feeling weights. Bills, belongings, rotations, outside-help stages, heads-ups, info, and email come later. | Owner (D13) |
+| A16 | v1 scope | Needs, chores, tasks, polls, runs, costs, feeling weights. Bills, belongings, outside-help stages, heads-ups, info, and email come later. | Owner (D13) |
 | A17 | History storage | `items.run_id` holds the current run. `activity_events` (typed subject columns, append-only, `action_id` grouping) is the only history store. `run_items` / `run_claims` dropped. | Owner |
 | A18 | Sign-in email sender | A dedicated house Gmail as Supabase custom SMTP, with the app on `*.vercel.app`. No domain in v1. Move to Resend + a custom domain when delivery logs or reminder emails are needed, or if Google flags the account. | Owner |
 | A19 | External services | Kept out of M0–M4. The core runs on local Supabase (CLI + Docker) with its local inbox. Hosted Supabase, the Gmail sender, Vercel, Sentry, and on-iPhone checks are the M5 "E" tasks, and no core task depends on them. | Owner |
@@ -982,3 +1003,4 @@ iPhone UX specifics:
 | A32 | Server error reports outlive the response (T79) | `lib/adapters/sentry/server.ts` (`reportError`, and `captureRequestError` for `onRequestError`) hands `Sentry.flush(2000)` to `waitUntil` from `@vercel/functions` after every capture. Vercel freezes a function once its response ends, and `@sentry/nextjs`'s own wait only runs on the edge runtime, so on Node a report still sending was cut off and counted as a `network_error` discard. Off Vercel `waitUntil` does nothing. The server reporters sit apart from `index.ts` so the browser bundle never pulls in `@vercel/functions`. | Build (T79), found in E2 |
 | A33 | A browser belongs to whoever last turned notifications on with it (T84) | `savePushSubscription` checks you're an active member and saves as the system in one transaction, which moves a browser saved under someone else to you. It moves only if the keys you send match the saved ones (the same browser hands back the same subscription) or the row is already gone; knowing the endpoint alone isn't enough. Sign-out unsubscribes the browser and marks its row `gone_at`. The alternatives were an RLS policy letting a member update a row they can't see by endpoint (it would need a security-definer lookup, a logic RPC, which §4.1 rules out), or refusing the save (the next person on a shared phone could never turn notifications on). | Build (T84) |
 | A34 | Feedback is not an activity event (T91) | A bug, idea or praise sent from Admin goes to its own `feedback` table, which members insert into (in their own name, for their own house) and never read; the owner reads it in the Supabase dashboard. The use case records no `DomainEvent`, so it's neither house history nor a notification: it's a note to whoever runs Roomies, not something the house did. The server stamps the app version (`Config.appVersion`, from `VERCEL_GIT_COMMIT_SHA`) and the request's user agent, so the client sends only the kind and message. No screenshot or page path. | Owner (2026-10-14), built in T91 |
+| A35 | Routines (T96) | Who's on a chore is derived, not stored: a routine holds an anchor (`starts_on`, `starts_with`) and the holder is arithmetic over active members, re-anchored in the join and move-out transactions. A handover is a reminder draft with a dedupe key, not an activity event, since nothing happens to the data then. The migration only adds (DEPLOYMENT D5); the strict chore checks come in a later release. |

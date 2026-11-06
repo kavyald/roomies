@@ -1,7 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
-import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Drawer } from 'vaul'
 import { IconButton } from './IconButton'
@@ -36,12 +36,28 @@ export function Sheet({
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   // A drag that starts on the handle shouldn't also count as a tap on Close.
   const pressedAt = useRef<number | null>(null)
+  // On touch, Radix decides a tap was outside only at its `click`, and by then Undo has already taken
+  // the toast off the page, so the tap's target can't say where it was. Note it as the tap starts.
+  const startedOnToast = useRef(false)
+  useEffect(() => {
+    if (!open) return
+    const note = (e: PointerEvent) => {
+      startedOnToast.current = !!(e.target as Element | null)?.closest?.('[role="status"]')
+    }
+    document.addEventListener('pointerdown', note, true)
+    return () => document.removeEventListener('pointerdown', note, true)
+  }, [open])
+
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange} repositionInputs={false}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-40 bg-scrim" />
         <Drawer.Content
           data-sheet // the toast moves to the top while a sheet is open
+          // Tapping the toast (Undo, Open) isn't tapping away: the sheet stays.
+          onPointerDownOutside={(e) => {
+            if (startedOnToast.current) e.preventDefault()
+          }}
           // An open menu inside the sheet closes itself on Escape; the sheet stays.
           onEscapeKeyDown={(e) => {
             if ((e.target as Element | null)?.closest?.('[data-keeps-escape]')) e.preventDefault()

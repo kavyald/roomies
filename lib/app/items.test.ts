@@ -71,8 +71,7 @@ describe('items, end to end on the memory adapters', () => {
     const trash = await create(as('Jo'), {
       category: 'chore',
       title: 'Trash',
-      repeatDays: 7,
-      assignee: s.people.Jo,
+      kind: 'deep_clean',
     })
     if (!trash.ok) throw new Error(trash.error)
     const r = await did(as('Wren'), trash.value.id)
@@ -88,7 +87,7 @@ describe('items, end to end on the memory adapters', () => {
     const [create, did, undo] = [makeCreateItem(deps), makeDoChore(deps), makeUndoChore(deps)]
     const later = (h: number) => (now = plusMs(TEST_NOW, h * 3_600_000))
 
-    const trash = await create(as('Jo'), { category: 'chore', title: 'Trash', repeatDays: 7 })
+    const trash = await create(as('Jo'), { category: 'chore', title: 'Trash', kind: 'deep_clean' })
     if (!trash.ok) throw new Error(trash.error)
     const id = trash.value.id
 
@@ -156,7 +155,7 @@ describe('items, end to end on the memory adapters', () => {
     const theirs = await create(asMember(other.house.id, other.people.Sam), {
       category: 'chore',
       title: 'Mop',
-      repeatDays: null,
+      kind: 'upkeep',
     })
     if (!theirs.ok) throw new Error(theirs.error)
     await makeDoChore(deps)(asMember(other.house.id, other.people.Sam), theirs.value.id)
@@ -290,6 +289,23 @@ describe('items, end to end on the memory adapters', () => {
 })
 
 describe('feelings', () => {
+  it('the same feeling can be shared again after a chore was taken care of (T99)', async () => {
+    let now = TEST_NOW
+    const deps = depsForTest({ clock: { now: () => now } })
+    const s = await sampleHouse(deps.uow, deps.ids, async () => deps.ids.newId<'user'>() as UserId)
+    const as = (who: keyof typeof s.people) => asMember(s.house.id, s.people[who])
+    const feel = makeSetFeeling(deps)
+    const dishes = await makeCreateItem(deps)(as('Kavya'), { category: 'chore', title: 'Dishes' })
+    if (!dishes.ok) throw new Error(dishes.error)
+    const itemId = dishes.value.id
+    await feel(as('Sam'), { itemId, kind: 'frustrated' })
+    now = plusMs(TEST_NOW, 1000)
+    await makeDoChore(deps)(as('Wren'), itemId)
+    now = plusMs(TEST_NOW, 2000)
+    const again = await feel(as('Sam'), { itemId, kind: 'frustrated' })
+    expect(again.ok && again.value?.at).toEqual(now)
+  })
+
   it('shares, changes (keeping the old one in activity), and removes a feeling', async () => {
     const { deps, s, as, create, feel } = await setup()
     const radiator = await create(as('Kavya'), { category: 'task', title: 'Radiator clanking' })

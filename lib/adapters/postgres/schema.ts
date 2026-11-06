@@ -43,6 +43,7 @@ export type RoomsTable = {
   element: 'air' | 'fire' | 'water' | 'earth' | null
   sort_order: number
   archived_at: Timestamp | null
+  routine_id: string | null
 }
 
 export type HouseMembersTable = {
@@ -77,6 +78,27 @@ export type ContactsTable = {
   archived_at: Timestamp | null
 }
 
+export type RoutinesTable = {
+  id: string
+  house_id: string
+  name: string
+  icon: string
+  resets: 'weekly' | 'biweekly' | 'monthly'
+  starts_on: string
+  starts_with: string | null
+  fixed_member_id: string | null
+  sort_order: number
+  created_at: Timestamp
+  updated_at: DefaultTimestamp
+  removed_at: Timestamp | null
+}
+
+export type ChoreRoomsTable = {
+  house_id: string
+  item_id: string
+  room_id: string
+}
+
 export type ItemsTable = {
   id: string
   house_id: string
@@ -89,6 +111,8 @@ export type ItemsTable = {
   when_has_time: boolean
   priority: 'low' | 'normal' | 'high' | 'urgent'
   repeat_days: number | null
+  chore_kind: 'deep_clean' | 'upkeep' | null
+  icon: string | null
   last_done_at: Timestamp | null
   last_done_by: string | null
   contact_id: string | null
@@ -201,6 +225,7 @@ export type ActivityEventsTable = {
   contact_id: string | null
   member_id: string | null
   room_id: string | null
+  routine_id: string | null
   note: string | null
   changes: Json<unknown> | null
   payload: Json<Record<string, unknown>>
@@ -245,6 +270,8 @@ export type DB = {
   profiles: ProfilesTable
   houses: HousesTable
   rooms: RoomsTable
+  routines: RoutinesTable
+  chore_rooms: ChoreRoomsTable
   house_members: HouseMembersTable
   house_invites: HouseInvitesTable
   contacts: ContactsTable

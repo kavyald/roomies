@@ -90,26 +90,78 @@ export const anItem = async (
   o: {
     category: 'need' | 'chore' | 'task'
     title: string
-    repeatDays?: number
+    /** Chores: absent means upkeep. */
+    kind?: 'deep_clean' | 'upkeep'
+    /** Chores: a name from lib/domain/icons.ts. */
+    icon?: string
+    /** Chores: the names of its rooms. */
+    rooms?: readonly string[]
     lastDoneDaysAgo?: number
   },
 ) => {
   const id = randomUUID()
-  await asOwner((db) =>
-    db.query(
-      `insert into items (id, house_id, category, title, repeat_days, last_done_at, last_done_by, created_by)
-       values ($1, $2, $3, $4, $5, now() - make_interval(days => $6::int), case when $6::int is null then null else $7::uuid end, $7)`,
+  await asOwner(async (db) => {
+    await db.query(
+      `insert into items (id, house_id, category, title, chore_kind, icon, last_done_at, last_done_by, created_by)
+       values ($1, $2, $3, $4, $5, $8, now() - make_interval(days => $6::int), case when $6::int is null then null else $7::uuid end, $7)`,
       [
         id,
         owner.houseId,
         o.category,
         o.title,
-        o.repeatDays ?? null,
+        o.category === 'chore' ? (o.kind ?? 'upkeep') : null,
         o.lastDoneDaysAgo ?? null,
         owner.userId,
+        o.icon ?? null,
       ],
-    ),
-  )
+    )
+    if (o.rooms?.length) {
+      await db.query(
+        `insert into chore_rooms (house_id, item_id, room_id)
+         select house_id, $2, id from rooms where house_id = $1 and name = any($3)`,
+        [owner.houseId, id, o.rooms],
+      )
+    }
+  })
+  return id
+}
+
+/**
+ * Puts a routine over some rooms straight into the database: `holder` has it this period, and it
+ * takes turns among the house from there (or, with `fixed`, it's always theirs).
+ */
+export const aRoutine = async (
+  owner: { houseId: string },
+  o: {
+    name: string
+    icon?: string
+    rooms: readonly string[]
+    holder: string
+    fixed?: boolean
+    sortOrder?: number
+  },
+) => {
+  const id = randomUUID()
+  await asOwner(async (db) => {
+    await db.query(
+      `insert into routines (id, house_id, name, icon, resets, starts_on, starts_with, fixed_member_id, sort_order)
+       values ($1, $2, $3, $4, 'weekly', date_trunc('week', now() at time zone 'America/New_York')::date, $5, $6, $7)`,
+      [
+        id,
+        owner.houseId,
+        o.name,
+        o.icon ?? 'broom',
+        o.fixed ? null : o.holder,
+        o.fixed ? o.holder : null,
+        o.sortOrder ?? 0,
+      ],
+    )
+    await db.query('update rooms set routine_id = $1 where house_id = $2 and name = any($3)', [
+      id,
+      owner.houseId,
+      o.rooms,
+    ])
+  })
   return id
 }
 

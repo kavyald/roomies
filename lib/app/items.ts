@@ -3,8 +3,8 @@
 
 import type { AppDeps, Repos } from './ports'
 import { actorUser, type HouseActor } from '../domain/actor'
-import { setFeeling, type Feeling, type FeelingKind } from '../domain/feelings'
-import type { ActionId, ItemId, UserId } from '../domain/ids'
+import { isFeelingActive, setFeeling, type Feeling, type FeelingKind } from '../domain/feelings'
+import type { ActionId, ItemId, UserId, RoomId } from '../domain/ids'
 import {
   archiveItem,
   choreDoneChange,
@@ -34,6 +34,7 @@ const checkReferences = async (
   refs: {
     assignee?: UserId | null
     roomId?: Item['roomId'] | null
+    rooms?: readonly RoomId[]
     contactId?: string | null
     forMember?: UserId | null
   },
@@ -43,8 +44,9 @@ const checkReferences = async (
     const m = await repos.members.get(actor.houseId, person)
     if (!m?.status.active) return 'unknown_member'
   }
-  if (refs.roomId) {
-    const room = await repos.rooms.get(refs.roomId)
+  for (const id of [refs.roomId, ...(refs.rooms ?? [])]) {
+    if (!id) continue
+    const room = await repos.rooms.get(id)
     if (room?.houseId !== actor.houseId || room.archivedAt) return 'unknown_room'
   }
   if (refs.contactId) {
@@ -206,6 +208,7 @@ export const makeSetFeeling =
         by,
         now,
         actionId: ids.newId(),
+        stale: !!current && !isFeelingActive(item, current),
       })
       if (!r.ok) return r
       // Record first: the event holds the feeling being replaced.

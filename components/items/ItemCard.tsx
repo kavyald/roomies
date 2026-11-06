@@ -16,7 +16,7 @@ import { onRunLabel, RUN_ICON } from '@/components/runs/meta'
 import { ForChip } from '@/components/needs/Whose'
 import { FeelingButton, FeelingCounts, FeelingTray } from './Feelings'
 import { useItemSheets } from './ItemSheets'
-import { CATEGORY, FINISH, scheduleLabel } from './meta'
+import { CATEGORY, finishWord } from './meta'
 
 export type CardContext = {
   houseId: HouseId
@@ -41,7 +41,7 @@ export const feelSide = {
 
 /**
  * An item as a card (FRONTEND §5.1): one line with the tier (and, on Home, the category) and the
- * feelings; the title; at most three chips (whose need it is, the room, then the run it's on or who's handling it); one
+ * feelings; the title; chips (whose need it is, the room, or all of a chore's rooms, then the run it's on or who's handling it); one
  * meta line. Tapping it opens the detail sheet. Beside it, the check button does the quick action
  * and 🙂+ opens the emoji tray; swiping right and left do the same two things.
  */
@@ -73,21 +73,20 @@ export function ItemCard({
   const { openItem } = useItemSheets()
   const [tray, setTray] = useState(false)
   const feelButton = useRef<HTMLButtonElement>(null)
-  const room = item.roomId ? ctx.rooms.get(item.roomId) : undefined
+  const roomIds = item.category === 'chore' ? item.rooms : item.roomId ? [item.roomId] : []
+  const rooms = roomIds
+    .map((id) => ctx.rooms.get(id))
+    .filter((r): r is Room => !!r)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
   const contact =
     item.category === 'task' && item.contactId ? ctx.contacts.get(item.contactId) : undefined
   const assignee = item.assignee ? ctx.person(item.assignee) : undefined
   const onRun = item.run ? ctx.run(item.run.id) : undefined
   const Icon = CATEGORY[item.category].icon
-  // The schedule says the most about a chore on the Chores tab; Home names the category instead.
-  const kind = showCategory ? (
-    <Chip icon={Icon}>{CATEGORY[item.category].label}</Chip>
-  ) : item.category === 'chore' ? (
-    <span className="text-[0.8rem] font-bold text-ink-soft">{scheduleLabel(item)}</span>
-  ) : null
+  const kind = showCategory ? <Chip icon={Icon}>{CATEGORY[item.category].label}</Chip> : null
   const hasTop = !!tier || !!kind || !!feelings?.length
   const owner = needOwner(item)
-  const hasChips = !!owner || !!room || !!onRun || !!contact
+  const hasChips = !!owner || rooms.length > 0 || !!onRun || !!contact
   const hasMeta = !!assignee || !!meta
   // VoiceOver reads the title first; the tier, chips and meta line follow as the description.
   const id = useId()
@@ -99,7 +98,7 @@ export function ItemCard({
   return (
     <Swipeable
       className="rounded-[20px]"
-      right={onCheck && { ...finishSide(FINISH[item.category]), onSwipe: onCheck }}
+      right={onCheck && { ...finishSide(finishWord(item)), onSwipe: onCheck }}
       left={{ ...feelSide, onSwipe: () => setTray(true) }}
     >
       <article className="sticker grid rounded-[20px] border-[1.5px] border-outline bg-card">
@@ -133,7 +132,9 @@ export function ItemCard({
             {hasChips && (
               <span id={`${id}-chips`} className="flex flex-wrap gap-1.5">
                 <ForChip item={item} person={ctx.person} />
-                {room && <RoomChip name={room.name} element={room.element} />}
+                {rooms.map((r) => (
+                  <RoomChip key={r.id} name={r.name} element={r.element} />
+                ))}
                 {onRun ? (
                   <Chip icon={RUN_ICON[onRun.run.kind]}>{onRunLabel(onRun.run, onRun.label)}</Chip>
                 ) : (

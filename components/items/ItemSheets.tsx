@@ -54,7 +54,7 @@ import type { LocalDate, LocalTime } from '@/lib/domain/time'
 import { HouseFeels } from './Feelings'
 import { HandledByPicker } from './HandledByPicker'
 import { ItemForm, toNewItem, valuesFrom, type ItemFormValues } from './ItemForm'
-import { CATEGORY, scheduleLabel, whenLabel } from './meta'
+import { CATEGORY, CHORE_KIND_LABEL, finishWord, TOOK_CARE, whenLabel } from './meta'
 import { WhyHere } from './WhyHere'
 
 type Sheets = {
@@ -85,12 +85,15 @@ const PROBLEM: Record<string, string> = {
   unknown_member: "That roommate isn't in the house anymore.",
   unknown_room: "That room isn't there anymore.",
   unknown_contact: "That contact isn't there anymore.",
-  bad_repeat: 'Pick between 1 and 365 days.',
+  bad_icon: 'Pick one of the icons.',
   on_a_run: "It's on a request or visit. Move it there to change who's handling it.",
   // Someone saved it first (ARCHITECTURE §7.5); the house's data refetches with this.
   conflict: CHANGED_MEANWHILE,
 }
 const oops = "Couldn't reach the house. Check your connection and try again."
+
+/** What to say when an item can't be saved. */
+export const itemProblem = (error: string): string => PROBLEM[error] ?? oops
 
 export function ItemSheetsProvider({
   houseId,
@@ -317,7 +320,13 @@ const patchFrom = (item: Item, v: ItemFormValues): ItemPatch => {
   const p: Record<string, unknown> = {}
   if (v.title.trim() !== item.title) p.title = v.title
   if (v.note !== before.note) p.note = v.note.trim() ? v.note : null
-  if (v.roomId !== before.roomId) p.roomId = v.roomId || null
+  if (item.category === 'chore') {
+    const moved =
+      v.rooms.length !== before.rooms.length || v.rooms.some((r) => !before.rooms.includes(r))
+    if (moved) p.rooms = v.rooms
+    if (v.kind !== before.kind) p.kind = v.kind
+    if (v.icon !== before.icon) p.icon = v.icon || null
+  } else if (v.roomId !== before.roomId) p.roomId = v.roomId || null
   if (v.assignee !== before.assignee) p.assignee = v.assignee || null
   if (v.date !== before.date || v.time !== before.time) {
     p.when = v.date
@@ -325,10 +334,6 @@ const patchFrom = (item: Item, v: ItemFormValues): ItemPatch => {
       : null
   }
   if (v.priority !== before.priority) p.priority = v.priority
-  if (item.category === 'chore') {
-    const next = v.repeat === 'every' ? v.repeatDays : null
-    if (next !== item.repeatDays) p.repeatDays = next
-  }
   if (item.category === 'task' && v.contactId !== before.contactId)
     p.contactId = v.contactId || null
   return p as ItemPatch
@@ -398,7 +403,11 @@ function ItemDetailSheet({
   }
 
   const tz = house.data?.settings.timezone ?? 'UTC'
-  const room = item.roomId ? rooms.data?.find((r) => r.id === item.roomId) : undefined
+  const itemRooms = (rooms.data ?? [])
+    .filter((r) =>
+      item.category === 'chore' ? item.rooms.includes(r.id) && !r.archivedAt : r.id === item.roomId,
+    )
+    .sort((a, b) => a.sortOrder - b.sortOrder)
   const contact =
     item.category === 'task' && item.contactId
       ? contacts.data?.find((c) => c.id === item.contactId)
@@ -485,7 +494,16 @@ function ItemDetailSheet({
       ),
     ])
   }
-  if (room) rows.push(['Room', <RoomChip key="room" name={room.name} element={room.element} />])
+  if (itemRooms.length > 0) {
+    rows.push([
+      itemRooms.length > 1 ? 'Rooms' : 'Room',
+      <span key="room" className="flex flex-wrap gap-1.5">
+        {itemRooms.map((r) => (
+          <RoomChip key={r.id} name={r.name} element={r.element} />
+        ))}
+      </span>,
+    ])
+  }
   if (item.category === 'chore') {
     rows.push([
       'Last done',
@@ -497,7 +515,7 @@ function ItemDetailSheet({
   const when = whenLabel(item, now, tz)
   if (when)
     rows.push([item.category === 'need' ? 'Needed by' : 'When', when.replace(/^Needed by /, '')])
-  if (item.category !== 'need') {
+  if (item.category === 'task') {
     rows.push([
       "Who's on it",
       item.assignee ? (
@@ -600,8 +618,9 @@ function ItemDetailSheet({
       }
     : item.category === 'chore'
       ? {
-          label: 'Did it',
-          run: () => did.didIt(item.id, 'Nice. Marked as done today.'),
+          label: finishWord(item),
+          run: () =>
+            did.didIt(item.id, item.kind === 'upkeep' ? TOOK_CARE : 'Nice. Marked as done today.'),
         }
       : isDone
         ? {
@@ -623,7 +642,9 @@ function ItemDetailSheet({
           }
 
   const kind =
-    item.category === 'chore' ? `Chore · ${scheduleLabel(item)}` : CATEGORY[item.category].label
+    item.category === 'chore'
+      ? `Chore · ${CHORE_KIND_LABEL[item.kind]}`
+      : CATEGORY[item.category].label
 
   return (
     <Sheet

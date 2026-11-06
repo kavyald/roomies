@@ -510,7 +510,7 @@ const LAYERS = [
  { id:'domain', n:'3', title:'Domain · lib/domain', sub:'Pure TypeScript: no I/O, no Date.now(), no random ids. Returns values and Result, never throws for business rules.', mods:[
   { name:'items.ts · lists.ts', desc:'needs, chores, tasks', fns:[
     ['createItem · editItem · markDone · reopenItem · doChore · archiveItem · restoreItem','Each returns { item, events }. Category never changes (D15).'],
-    ['needList · choreList · taskList','Tab ordering: needs by feeling score, chores by lateness, tasks by date.'],
+    ['needList · choreBoard · taskList','Tab ordering: needs by feeling score, chores as routine cards then Upkeep, tasks by date.'],
     ['choreLateness · isChoreDue · daysSinceDone','Measured in calendar days in the house time zone.'] ]},
   { name:'priority.ts · feelings.ts · weights.ts', desc:'the feed', fns:[
     ['scorePriority(item, feelings, weights, now, tz)','base + due pressure + Σ feeling weights, clamped 0–100 → { score, tier, breakdown }.'],

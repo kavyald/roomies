@@ -25,7 +25,7 @@ const item = (title: string, o: Partial<Item> & Pick<Item, 'category'>): Item =>
     priority: 'normal',
     createdBy: me,
     createdAt: instant(0),
-    ...(o.category === 'chore' && { repeatDays: 7 }),
+    ...(o.category === 'chore' && { kind: 'upkeep', rooms: [] }),
     ...o,
   }) as Item
 const run = (id: string, o: Partial<Run>): Run =>

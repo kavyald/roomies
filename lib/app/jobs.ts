@@ -17,7 +17,7 @@ type Deps = Pick<AppDeps, 'uow' | 'clock' | 'ids'>
 const system = (houseId: HouseId): Actor => ({ kind: 'system', houseId })
 const EVERY_HOUSE = system(asId<'house'>('00000000-0000-0000-0000-000000000000') as HouseId)
 
-/** Due tasks and chores, polls closing tomorrow, and runs dated tomorrow, into the outbox. */
+/** Due tasks, polls closing tomorrow, runs dated tomorrow and routine handovers, into the outbox. */
 export const makeRunReminders =
   ({ uow, clock }: Pick<Deps, 'uow' | 'clock'>) =>
   async () => {
@@ -28,10 +28,13 @@ export const makeRunReminders =
       enqueued += await uow.run(system(house.id), async (repos) => {
         const audience = await houseAudience(repos, house.id)
         if (!audience) return 0
-        const [items, polls, runs] = await Promise.all([
+        const [items, polls, runs, routines, rooms, members] = await Promise.all([
           repos.items.listByHouse(house.id),
           repos.polls.listByHouse(house.id),
           repos.runs.listByHouse(house.id),
+          repos.routines.listByHouse(house.id),
+          repos.rooms.listByHouse(house.id),
+          repos.members.listByHouse(house.id),
         ])
         const drafts = remindersFor({
           houseId: house.id,
@@ -42,6 +45,9 @@ export const makeRunReminders =
           runs,
           people: audience.people,
           runLabel: (r) => runLabel(r, audience.labels),
+          routines,
+          rooms,
+          members,
         })
         const ctx = { houseId: house.id, houseTz: audience.tz, now, people: audience.people }
         return repos.notifications.enqueue(deliver(drafts, ctx))

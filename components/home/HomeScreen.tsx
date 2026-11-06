@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { ItemCard } from '@/components/items/ItemCard'
-import { FINISH, itemMeta } from '@/components/items/meta'
+import { finishWord, itemMeta, TOOK_CARE } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
 import { useDidIt } from '@/components/items/useDidIt'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -17,6 +17,8 @@ import {
   useItems,
   useMarkDone,
   useReopenItem,
+  useRooms,
+  useRoutines,
   useRuns,
 } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
@@ -24,6 +26,7 @@ import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
 import { homeFeed, type FeedFilter } from '@/lib/domain/priority'
+import { choreOwner } from '@/lib/domain/routines'
 import { visitDateOf } from '@/lib/domain/runs'
 import { OpenPolls } from './OpenPolls'
 import { RunsInProgress } from './RunsInProgress'
@@ -48,6 +51,8 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   const house = useHouse(houseId)
   const ctx = useCardContext(houseId)
   const feelingsBy = useFeelingsByItem(houseId)
+  const rooms = useRooms(houseId)
+  const routines = useRoutines(houseId)
   const { openItem } = useItemSheets()
   const done = useMarkDone(houseId)
   const reopen = useReopenItem(houseId)
@@ -75,10 +80,13 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
     filter,
     me,
     visitDate: (i) => visitDateOf(i, runsById),
+    hasOwner: (c) => !!choreOwner(c, rooms.data ?? [], routines.data ?? []),
   })
 
   const check = async (item: Item) => {
-    if (item.category === 'chore') return didIt(item.id)
+    if (item.category === 'chore') {
+      return item.kind === 'upkeep' ? didIt(item.id, TOOK_CARE) : didIt(item.id)
+    }
     const r = await done.mutateAsync(item.id)
     if (r.ok) celebrate()
     toast(
@@ -130,7 +138,7 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
                     showCategory
                     meta={itemMeta(item, now, tz, (u) => ctx.person(u)?.name)}
                     onOpen={() => openItem(item.id)}
-                    checkLabel={`${FINISH[item.category]}: ${item.title}`}
+                    checkLabel={`${finishWord(item)}: ${item.title}`}
                     onCheck={() => check(item)}
                   />
                 </li>
