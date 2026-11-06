@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { asOwner } from '../lib/testing/db'
-import { anItem, dismissInstallGuide, ownerOnHouseTab, signIn, anOwner } from './support'
+import { aRoutine, anItem, dismissInstallGuide, ownerOnHouseTab, signIn, anOwner } from './support'
 
 /** Counts the taps a journey takes. */
 const tapper = () => {
@@ -31,7 +31,8 @@ const tapper = () => {
 test('finishing takes one tap without swiping, and a grocery run about six', async ({ page }) => {
   const owner = await ownerOnHouseTab(page)
   await anItem(owner, { category: 'task', title: 'Fix the latch' })
-  await anItem(owner, { category: 'chore', title: 'Take out the trash' })
+  await aRoutine(owner, { name: 'Kitchen', rooms: ['Kitchen'], holder: owner.userId })
+  await anItem(owner, { category: 'chore', title: 'Sink', kind: 'deep_clean', rooms: ['Kitchen'] })
   await anItem(owner, { category: 'need', title: 'Foil' })
   const t = tapper()
   const h = `/h/${owner.houseId}`
@@ -41,12 +42,13 @@ test('finishing takes one tap without swiping, and a grocery run about six', asy
   await t.tap(page.getByRole('button', { name: 'Done: Fix the latch' }))
   await expect(page.getByRole('status').filter({ hasText: 'Done. 💛' })).toBeVisible()
   await page.goto(`${h}/chores`)
-  await t.tap(page.getByRole('button', { name: 'Did it: Take out the trash' }))
+  await t.tap(page.getByRole('button', { name: 'Kitchen, Kavya' })) // the chore's card, then…
+  await t.tap(page.getByRole('button', { name: 'Did it: Sink' })) // one tap on its row
   await expect(page.getByRole('status').filter({ hasText: 'Did it. Thanks!' })).toBeVisible()
   await page.goto(`${h}/needs`)
   await t.tap(page.getByRole('button', { name: 'Got it: Foil' }))
   await expect(page.getByRole('status').filter({ hasText: 'Got Foil.' })).toBeVisible()
-  expect(t.count).toBe(3) // one each
+  expect(t.count).toBe(4)
 
   // A feeling from a Needs row without swiping: 🙂+, then the emoji.
   await anItem(owner, { category: 'need', title: 'Olive oil' })
@@ -156,7 +158,7 @@ test.describe('at 375pt', () => {
       const h = `/h/${owner.houseId}`
       for (const [id, title, primary] of [
         [need, 'Paper towels', 'Got it'],
-        [chore, 'Clean the fridge', 'Did it'],
+        [chore, 'Clean the fridge', 'Took care of it'],
         [task, 'Fix the radiator valve', 'Done'],
       ] as const) {
         await page.goto(`${h}/i/${id}`)

@@ -1,5 +1,6 @@
 import { CheckCircle, ShoppingBag, Sparkles, type LucideIcon } from 'lucide-react'
 import { describeWhen } from '@/lib/domain/format'
+import type { Room } from '@/lib/domain/house'
 import type { Category, Chore, Item } from '@/lib/domain/items'
 import { daysAgo, daysSinceDone } from '@/lib/domain/lists'
 import type { Instant } from '@/lib/domain/time'
@@ -20,6 +21,22 @@ export const CHORE_KIND_LABEL: Record<Chore['kind'], string> = {
   deep_clean: 'Deep clean',
   upkeep: 'Upkeep',
 }
+
+/** Finishing this item: Upkeep has no done state, someone just takes care of it (PRD §6.2). */
+export const finishWord = (item: Item): string =>
+  item.category === 'chore' && item.kind === 'upkeep' ? 'Took care of it' : FINISH[item.category]
+
+/** The toast after taking care of an Upkeep chore. */
+export const TOOK_CARE = 'Taken care of. Thanks! 💛'
+
+/** A chore's rooms in house order, as "kitchen, dining" (FRONTEND §5.6). */
+export const choreRoomsLabel = (chore: Chore, rooms: ReadonlyMap<string, Room>): string =>
+  chore.rooms
+    .map((id) => rooms.get(id))
+    .filter((r): r is Room => !!r && !r.archivedAt)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((r) => r.name.toLowerCase())
+    .join(', ')
 
 /** "Needed by Fri", "Due Oct 3", "Today 10:00" (FRONTEND §3.4). */
 export const whenLabel = (item: Item, now: Instant, tz: string): string | undefined => {

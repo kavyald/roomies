@@ -4,18 +4,27 @@ import { ChevronDown } from 'lucide-react'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
+import { ChoreIconPicker } from '@/components/ui/ChoreIconPicker'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { SheetSave } from '@/components/ui/Sheet'
 import { useContacts, useMembers, useProfiles, useRooms } from '@/lib/client/hooks'
 import type { ContactId, HouseId, RoomId, UserId } from '@/lib/domain/ids'
-import type { Category, Item, NewItem, Priority } from '@/lib/domain/items'
+import type { Category, ChoreKind, Item, NewItem, Priority } from '@/lib/domain/items'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
 import { useWhoseChoice, WhoseToggle } from '@/components/needs/Whose'
+import { CHORE_KIND_LABEL } from './meta'
 import { RoomSelect } from './RoomSelect'
+import { RoomsSelect } from './RoomsSelect'
 
 export type ItemFormValues = {
   title: string
   note: string
+  /** Needs and tasks. */
   roomId: RoomId | ''
+  /** Chores: any number of rooms, an icon and a kind instead of a room and a person. */
+  rooms: readonly RoomId[]
+  icon: string
+  kind: ChoreKind
   assignee: UserId | ''
   date: string
   time: string
@@ -28,7 +37,10 @@ export type ItemFormValues = {
 export const valuesFrom = (item?: Item): ItemFormValues => ({
   title: item?.title ?? '',
   note: item?.note ?? '',
-  roomId: (item?.category === 'chore' ? item.rooms[0] : item?.roomId) ?? '',
+  roomId: (item?.category === 'chore' ? undefined : item?.roomId) ?? '',
+  rooms: item?.category === 'chore' ? item.rooms : [],
+  icon: (item?.category === 'chore' ? item.icon : undefined) ?? '',
+  kind: item?.category === 'chore' ? item.kind : 'upkeep',
   assignee: item?.assignee ?? '',
   date: item?.when?.date ?? '',
   time: item?.when?.time ?? '',
@@ -42,11 +54,18 @@ export const toNewItem = (category: Category, v: ItemFormValues): NewItem => ({
   category,
   title: v.title,
   ...(v.note.trim() && { note: v.note }),
-  ...(v.roomId && (category === 'chore' ? { rooms: [v.roomId] } : { roomId: v.roomId })),
+  ...(category === 'chore'
+    ? {
+        kind: v.kind,
+        ...(v.icon && { icon: v.icon }),
+        ...(v.rooms.length > 0 && { rooms: v.rooms }),
+      }
+    : v.roomId && { roomId: v.roomId }),
   ...(v.assignee && category !== 'chore' && { assignee: v.assignee }),
-  ...(v.date && {
-    when: { date: v.date as LocalDate, ...(v.time && { time: v.time as LocalTime }) },
-  }),
+  ...(category !== 'chore' &&
+    v.date && {
+      when: { date: v.date as LocalDate, ...(v.time && { time: v.time as LocalTime }) },
+    }),
   ...(v.priority !== 'normal' && { priority: v.priority }),
   ...(category === 'task' && v.contactId && { contactId: v.contactId }),
   ...(category === 'need' && v.forMe && { forMe: true }),
@@ -179,15 +198,40 @@ export function ItemForm({
             </div>
           )}
 
-          <div className="grid gap-1.5">
-            <Label htmlFor="item-room">Room</Label>
-            <RoomSelect
-              id="item-room"
-              rooms={rooms.data ?? []}
-              value={v.roomId}
-              onChange={(r) => set('roomId', r)}
-            />
-          </div>
+          {category === 'chore' ? (
+            <>
+              <SegmentedControl
+                wide
+                label="What kind of chore?"
+                value={v.kind}
+                onChange={(k) => set('kind', k)}
+                options={[
+                  { value: 'deep_clean', label: CHORE_KIND_LABEL.deep_clean },
+                  { value: 'upkeep', label: CHORE_KIND_LABEL.upkeep },
+                ]}
+              />
+              <div className="grid gap-1.5">
+                <Label htmlFor="item-rooms">Rooms</Label>
+                <RoomsSelect
+                  id="item-rooms"
+                  rooms={rooms.data ?? []}
+                  value={v.rooms}
+                  onChange={(r) => set('rooms', r)}
+                />
+              </div>
+              <ChoreIconPicker label="Icon" value={v.icon} onChange={(i) => set('icon', i)} />
+            </>
+          ) : (
+            <div className="grid gap-1.5">
+              <Label htmlFor="item-room">Room</Label>
+              <RoomSelect
+                id="item-room"
+                rooms={rooms.data ?? []}
+                value={v.roomId}
+                onChange={(r) => set('roomId', r)}
+              />
+            </div>
+          )}
 
           {category === 'task' && (
             <div className="grid gap-1.5">

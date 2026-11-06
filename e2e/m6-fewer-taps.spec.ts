@@ -13,12 +13,11 @@ const swipe = async (page: Page, card: Locator, direction: 'right' | 'left') => 
   await page.mouse.up()
 }
 
-test('a swipe right finishes a task or a chore, with Undo; a swipe left opens the emoji tray', async ({
+test('a swipe right finishes a task, with Undo; a swipe left opens the emoji tray', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
   await anItem(owner, { category: 'task', title: 'Fix the latch' })
-  await anItem(owner, { category: 'chore', title: 'Take out the trash' })
 
   // Tasks: right = Done.
   await page.goto(`/h/${owner.houseId}/tasks`)
@@ -47,19 +46,6 @@ test('a swipe right finishes a task or a chore, with Undo; a swipe left opens th
   await expect(tasks.getByRole('listitem').filter({ hasText: 'Fix the latch' })).toContainText(
     '😕1',
   )
-
-  // Chores: right = Did it, with Undo.
-  await page.goto(`/h/${owner.houseId}/chores`)
-  const trash = page
-    .getByRole('list', { name: 'Chores' })
-    .getByRole('button', { name: 'Take out the trash', exact: true })
-  await swipe(page, trash, 'right')
-  const did = page.getByRole('status').filter({ hasText: 'Did it. Thanks!' })
-  await expect(did).toBeVisible()
-  const card = page.getByRole('list', { name: 'Chores' }).getByRole('listitem')
-  await expect(card).toContainText('Last done today · Kavya')
-  await did.getByRole('button', { name: 'Undo' }).click()
-  await expect(card).toContainText('Not done yet')
 })
 
 test('Needs rows swipe too, and a feeling takes two taps from a card', async ({ page }) => {
@@ -124,5 +110,5 @@ test('+ on Needs adds three in one sheet; + on Chores makes a chore in 2 taps', 
   await chore.getByLabel('What needs doing?').fill('Water the plants')
   await chore.getByRole('button', { name: 'Add', exact: true }).click() // 2
   await expect(chore).toBeHidden()
-  await expect(page.getByRole('list', { name: 'Chores' })).toContainText('Water the plants')
+  await expect(page.getByRole('region', { name: 'Upkeep' })).toContainText('Water the plants')
 })

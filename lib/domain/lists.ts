@@ -2,10 +2,20 @@
 
 import { activeFeelings, type Feeling } from './feelings'
 import type { Member, Room } from './house'
+import { throughDay } from './format'
 import type { UserId } from './ids'
 import type { Chore, Item, Need, Task } from './items'
-import { choreOwner, nextHolder, routineHolder, routineProgress, type Routine } from './routines'
-import { calendarDaysBetween, type Instant, type LocalDate } from './time'
+import {
+  choreOwner,
+  listOf,
+  nextHolder,
+  nextPeriodStart,
+  PERIOD_WORDS,
+  routineHolder,
+  routineProgress,
+  type Routine,
+} from './routines'
+import { addDays, calendarDaysBetween, type Instant, type LocalDate } from './time'
 
 const whenKey = (i: Item) => (i.when ? `${i.when.date} ${i.when.time ?? '99:99'}` : null)
 
@@ -150,6 +160,40 @@ export const choreBoard = (
       calm: withFeelings.filter((c) => c.feelings.length === 0).map((c) => c.chore),
     },
   }
+}
+
+/**
+ * The Chores tab's top line: "This week you have the kitchen and dining · through Sunday". Nothing
+ * if you hold no card. Cards on different schedules have no one date to name: "You have … for now".
+ */
+export const holdingLine = (
+  cards: readonly RoutineCard[],
+  today: LocalDate,
+): string | undefined => {
+  const mine = cards.filter((c) => c.mine)
+  if (mine.length === 0) return undefined
+  const names = listOf(
+    mine.flatMap((c) =>
+      c.rooms.length > 0
+        ? c.rooms.map((r) => r.room.name.toLowerCase())
+        : [c.routine.name.toLowerCase()],
+    ),
+  )
+  const ends = new Set(mine.map((c) => nextPeriodStart(c.routine, today)))
+  const resets = new Set(mine.map((c) => c.routine.resets))
+  if (ends.size > 1 || resets.size > 1) return `You have the ${names} for now`
+  const period = PERIOD_WORDS[mine[0]!.routine.resets]
+  const through = throughDay(addDays([...ends][0]!, -1), today)
+  return `${period[0]!.toUpperCase()}${period.slice(1)} you have the ${names} · through ${through}`
+}
+
+/** What VoiceOver hears for your own card: "Sink and stove done"; "All done"; nothing yet. */
+export const doneLine = (chores: RoutineCard['chores']): string | undefined => {
+  const done = chores.filter((c) => c.done)
+  if (done.length === 0) return undefined
+  if (done.length === chores.length) return 'All done'
+  const titles = done.map((c, i) => (i === 0 ? c.chore.title : c.chore.title.toLowerCase()))
+  return `${listOf(titles)} done`
 }
 
 /** "today", "yesterday", "9 days ago". */

@@ -65,6 +65,17 @@ export const periodStart = (
   }
 }
 
+/** A period in words, for "You have the kitchen this week". */
+export const PERIOD_WORDS: Record<Resets, string> = {
+  weekly: 'this week',
+  biweekly: 'these two weeks',
+  monthly: 'this month',
+}
+
+/** "kitchen", "kitchen and dining", "kitchen, dining and garden". */
+export const listOf = (words: readonly string[]): string =>
+  words.length < 2 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`
+
 /** The first day of the next period. */
 export const nextPeriodStart = (
   r: Pick<Routine, 'resets' | 'startsOn'>,

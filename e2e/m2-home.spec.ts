@@ -19,10 +19,11 @@ test('a chore shows on Home only after someone shares a feeling, and says why', 
 
   // Share 😤 about the kettle from the Chores tab.
   await page.goto(`/h/${owner.houseId}/chores`)
-  await page.getByRole('button', { name: /^Descale the kettle/ }).click()
+  const upkeep = page.getByRole('region', { name: 'Upkeep' })
+  await upkeep.getByRole('button', { name: 'Share a feeling: Descale the kettle' }).click()
+  await upkeep.getByRole('button', { name: 'Frustrated', exact: true }).click()
+  await upkeep.getByRole('button', { name: 'Descale the kettle', exact: true }).click()
   const detail = page.getByRole('dialog', { name: 'Descale the kettle' })
-  await detail.getByRole('button', { name: '🙂+ Share a feeling' }).click()
-  await detail.getByRole('button', { name: 'Frustrated', exact: true }).click()
   await expect(detail.getByRole('region', { name: 'How the house feels' })).toContainText(
     'You · 😤 Frustrated',
   )

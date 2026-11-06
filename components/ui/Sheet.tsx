@@ -42,6 +42,10 @@ export function Sheet({
         <Drawer.Overlay className="fixed inset-0 z-40 bg-scrim" />
         <Drawer.Content
           data-sheet // the toast moves to the top while a sheet is open
+          // Tapping the toast (Undo, Open) isn't tapping away: the sheet stays.
+          onPointerDownOutside={(e) => {
+            if ((e.target as Element | null)?.closest?.('[role="status"]')) e.preventDefault()
+          }}
           // An open menu inside the sheet closes itself on Escape; the sheet stays.
           onEscapeKeyDown={(e) => {
             if ((e.target as Element | null)?.closest?.('[data-keeps-escape]')) e.preventDefault()

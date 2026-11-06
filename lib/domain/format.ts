@@ -2,6 +2,7 @@
 
 import {
   calendarDaysBetween,
+  dayOfWeek,
   daysBetween,
   localDateOf,
   localTimeOf,
@@ -14,7 +15,17 @@ import {
 } from './time'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const LONG_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** The last day of a stretch, after "through": "today", "Sunday" within the week, then "Nov 15". */
+export const throughDay = (date: LocalDate, today: LocalDate): string => {
+  const days = daysBetween(today, date)
+  if (days <= 0) return 'today'
+  if (days < 7) return LONG_WEEKDAYS[dayOfWeek(date)]!
+  const [, m, d] = date.split('-').map(Number) as [number, number, number]
+  return `${MONTHS[m - 1]} ${d}`
+}
 
 /** "Just now", "5m ago", "3h ago", "Yesterday", "Mon", "Sep 3", "Sep 3, 2025". */
 export const relativeTime = (at: Instant, now: Instant, tz: string): string => {

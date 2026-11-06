@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { ItemCard } from '@/components/items/ItemCard'
-import { FINISH, itemMeta } from '@/components/items/meta'
+import { finishWord, itemMeta, TOOK_CARE } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
 import { useDidIt } from '@/components/items/useDidIt'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -84,7 +84,9 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
   })
 
   const check = async (item: Item) => {
-    if (item.category === 'chore') return didIt(item.id)
+    if (item.category === 'chore') {
+      return item.kind === 'upkeep' ? didIt(item.id, TOOK_CARE) : didIt(item.id)
+    }
     const r = await done.mutateAsync(item.id)
     if (r.ok) celebrate()
     toast(
@@ -136,7 +138,7 @@ export function HomeScreen({ houseId }: { houseId: HouseId }) {
                     showCategory
                     meta={itemMeta(item, now, tz, (u) => ctx.person(u)?.name)}
                     onOpen={() => openItem(item.id)}
-                    checkLabel={`${FINISH[item.category]}: ${item.title}`}
+                    checkLabel={`${finishWord(item)}: ${item.title}`}
                     onCheck={() => check(item)}
                   />
                 </li>

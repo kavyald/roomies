@@ -53,6 +53,12 @@ export function FeelingCounts({ feelings }: { feelings: readonly Feeling[] }) {
   )
 }
 
+/** The emoji alone, no counts ("😤 🙏"), for the Chores tab (FRONTEND §5.6). */
+export const feelingEmojis = (feelings: readonly Feeling[]): string =>
+  feelingCounts(feelings)
+    .map((c) => FEELING_META[c.kind].emoji)
+    .join(' ')
+
 /** My current feeling about an item, if I've shared one since it was last taken care of. */
 export const useMyFeeling = (houseId: HouseId, itemId: ItemId): Feeling | undefined => {
   const { me } = useAppClient()

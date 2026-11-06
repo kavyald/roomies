@@ -4,7 +4,15 @@ import type { Feeling } from './feelings'
 import type { Member, Room } from './house'
 import type { Item, Task } from './items'
 import type { Routine } from './routines'
-import { choreBoard, daysAgo, daysSinceDone, needList, taskList } from './lists'
+import {
+  choreBoard,
+  daysAgo,
+  daysSinceDone,
+  doneLine,
+  holdingLine,
+  needList,
+  taskList,
+} from './lists'
 import type { Chore } from './items'
 import { instantAt, MS_PER_DAY, plusMs } from './time'
 import { instant, type LocalDate, type LocalTime } from './time'
@@ -167,6 +175,44 @@ describe('chores', () => {
     const sink = chore('Sink', { rooms: ['Bath'] as never })
     const f: Feeling = { itemId: sink.id, by: me, kind: 'anxious', at: now }
     expect(board([sink], [f]).cards.find((c) => c.routine.id === 'r2')!.feelings).toEqual([f])
+  })
+
+  describe('holdingLine', () => {
+    const wednesday = '2026-11-04' as LocalDate
+    const card = (o: Partial<Routine>, roomNames: string[] = []) =>
+      ({
+        routine: { ...routine('r', 0, me), ...o },
+        mine: true,
+        rooms: roomNames.map((n) => ({ room: room(n, 0), chores: [] })),
+        chores: [],
+        feelings: [],
+      }) satisfies Parameters<typeof holdingLine>[0][number]
+
+    it('says what you have and through when', () => {
+      expect(holdingLine([card({}, ['Kitchen', 'Dining'])], wednesday)).toBe(
+        'This week you have the kitchen and dining · through Sunday',
+      )
+      expect(holdingLine([card({ resets: 'monthly' }, ['Garden'])], wednesday)).toBe(
+        'This month you have the garden · through Nov 30',
+      )
+    })
+    it('says nothing when you hold nothing, and uses the name when it has no rooms', () => {
+      expect(holdingLine([{ ...card({}), mine: false }], wednesday)).toBeUndefined()
+      expect(holdingLine([card({ name: 'Bins' })], wednesday)).toContain('you have the bins')
+    })
+    it('has no one date for cards on different schedules', () => {
+      expect(
+        holdingLine([card({}, ['Kitchen']), card({ resets: 'monthly' }, ['Garden'])], wednesday),
+      ).toBe('You have the kitchen and garden for now')
+    })
+  })
+
+  it('doneLine names what is done, without counting', () => {
+    const line = (titles: string[], done: string[]) =>
+      doneLine(titles.map((t2) => ({ chore: chore(t2), done: done.includes(t2) })))
+    expect(line(['Sink', 'Stove', 'Floor'], [])).toBeUndefined()
+    expect(line(['Sink', 'Stove', 'Floor'], ['Sink', 'Stove'])).toBe('Sink and stove done')
+    expect(line(['Sink'], ['Sink'])).toBe('All done')
   })
 
   it('says how long ago plainly', () => {

@@ -7,7 +7,14 @@ import type { Draft, Recipient } from './notifications'
 import type { Item } from './items'
 import type { Poll } from './polls'
 import { isPollOpen } from './polls'
-import { periodStart, rotationOrder, routineHolder, type Resets, type Routine } from './routines'
+import {
+  listOf,
+  PERIOD_WORDS,
+  periodStart,
+  rotationOrder,
+  routineHolder,
+  type Routine,
+} from './routines'
 import { isRunOpen, type Run } from './runs'
 import { addDays, localDateOf, type Instant, type LocalDate } from './time'
 
@@ -24,15 +31,6 @@ export type ReminderInput = {
   readonly rooms: readonly Room[]
   readonly members: readonly Member[]
 }
-
-const PERIOD_WORDS: Record<Resets, string> = {
-  weekly: 'this week',
-  biweekly: 'these two weeks',
-  monthly: 'this month',
-}
-
-const listOf = (words: readonly string[]) =>
-  words.length < 2 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`
 
 /**
  * One message per person whose routines change hands today, whatever they hold: "You have the

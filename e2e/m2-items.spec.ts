@@ -42,10 +42,15 @@ test('a duplicate need points to the first, Did it resets a chore, 😰 moves a 
   ).toBeVisible()
   await expect(needs.getByRole('listitem')).toHaveCount(1)
 
-  // 2. Did it on a chore.
+  // 2. Took care of a chore: its last done resets.
   await page.getByRole('link', { name: 'Chores' }).click()
-  await page.getByRole('button', { name: 'Did it: Take out the trash' }).click()
-  await expect(page.getByRole('list', { name: 'Chores' })).toContainText('Last done today · Kavya')
+  await page.getByRole('button', { name: 'Share a feeling: Take out the trash' }).click()
+  await page.getByRole('button', { name: 'See details' }).click()
+  const chore = page.getByRole('dialog', { name: 'Take out the trash' })
+  await chore.getByRole('button', { name: 'Took care of it', exact: true }).click()
+  await expect(chore).toContainText('Just now · Kavya')
+  await page.keyboard.press('Escape')
+  await expect(chore).toBeHidden()
 
   // 3. On Home, sharing 😰 moves the latch above the bulb (25 + 15 + 20 = 60).
   await page.getByRole('link', { name: 'Home' }).click()
