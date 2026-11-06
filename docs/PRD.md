@@ -96,7 +96,7 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 | **Needs** | The shared list of things to buy. Needs with a feeling come first. **Start a run** from here. |
 | **Tasks** | **Requests & visits** (unsent and sent requests, planned visits) with **+ New** (start a request or plan a visit), then tasks with filters *Mine / All / Outside help* |
 | **Chores** | Chores, sorted by what's due for a go, with "last done" |
-| **Admin** | Roommates, invite link (admins), contacts, then untitled: **Feeling weights**, **Activity**, **Rooms**. Everyone sees this tab; only admins get the invite link and roommate controls. |
+| **Admin** | Roommates, invite link (admins), contacts, **Routines**, then untitled: **Feeling weights**, **Activity**, **Rooms**. Everyone sees this tab and can change routines; only admins get the invite link and roommate controls. |
 
 A floating **"+"** opens a picker (Need / Chore / Task / Poll / Run) and then a short form. Only the title is required.
 

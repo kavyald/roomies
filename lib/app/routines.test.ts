@@ -101,7 +101,9 @@ describe('routines', () => {
     const gone = await remove(as('Jo'), r.value.id)
     expect(gone.ok && gone.value.removedAt).toEqual(TEST_NOW)
     expect(stored().find((x) => x.id === s.rooms.Kitchen!.id)!.routineId).toBeUndefined()
-    expect(kinds()).toContain('routine.removed')
+    // One activity line per action, read from its first event: it must say the routine went.
+    const removal = kinds().slice(kinds().indexOf('routine.removed'))
+    expect(removal).toEqual(['routine.removed', 'room.routine_changed'])
     expect(sink.ok && deps.uow.state.items.get(sink.value.id)?.archivedAt).toBeUndefined()
     expect(await remove(as('Jo'), r.value.id)).toEqual({ ok: false, error: 'removed' })
     expect(await remove(as('Jo'), 'nope' as never)).toEqual({ ok: false, error: 'not_found' })

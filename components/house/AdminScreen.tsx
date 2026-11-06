@@ -9,12 +9,16 @@ import { FeelingWeightsSection } from './FeelingWeightsSection'
 import { InvitesSection } from './InvitesSection'
 import { RoommatesSection } from './RoommatesSection'
 import { RoomsSection } from './RoomsSection'
+import { RoutinesSection } from './RoutinesSection'
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="mt-6 mb-2.5 text-[1.0625rem] font-extrabold">{children}</h2>
 }
 
-/** The Admin tab: roommates, invites, contacts, feeling weights, activity, rooms (FRONTEND §5.11). */
+/**
+ * The Admin tab: roommates, invites, contacts, routines, feeling weights, activity, rooms
+ * (FRONTEND §5.11).
+ */
 export function AdminScreen({ houseId }: { houseId: HouseId }) {
   const members = useMembers(houseId)
   const profiles = useProfiles(houseId)
@@ -46,6 +50,9 @@ export function AdminScreen({ houseId }: { houseId: HouseId }) {
 
       <SectionTitle>Contacts</SectionTitle>
       <ContactsSection houseId={houseId} />
+
+      <SectionTitle>Routines</SectionTitle>
+      <RoutinesSection houseId={houseId} />
 
       {/* Untitled, in this order, above Rooms (owner, T67): each row says what it is. */}
       <div className="mt-6 grid gap-3">

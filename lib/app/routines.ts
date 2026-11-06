@@ -131,6 +131,7 @@ export const makeRemoveRoutine =
       const moved = setRoutineRooms(rooms, routine.id, [], { by, actionId })
       for (const room of moved.rooms) await repos.rooms.save(room)
       await repos.routines.save(r.value.routine)
-      await repos.events.record(actor.houseId, [...moved.events, ...r.value.events], now)
+      // An action reads as its first event: "removed Upstairs", not "took Kitchen out of Upstairs".
+      await repos.events.record(actor.houseId, [...r.value.events, ...moved.events], now)
       return ok(r.value.routine)
     })
