@@ -15,11 +15,14 @@ export function RoomSelect({
   rooms,
   value,
   onChange,
+  empty = 'No room',
 }: {
   id: string
   rooms: readonly Room[]
   value: RoomId | ''
   onChange: (v: RoomId | '') => void
+  /** What the empty choice says. */
+  empty?: string
 }) {
   return (
     <select
@@ -28,7 +31,7 @@ export function RoomSelect({
       value={value}
       onChange={(e) => onChange(e.target.value as RoomId | '')}
     >
-      <option value="">No room</option>
+      <option value="">{empty}</option>
       {ROOM_GROUPS.map((group) => {
         const here = roomsInGroup(rooms, group)
         return here.length ? (

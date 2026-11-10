@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { CHORE_ICONS } from '@/lib/domain/icons'
+import { ChoreIconPicker, choreIconLabel } from './ChoreIconPicker'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ListChecks, Pencil } from 'lucide-react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -150,5 +152,45 @@ describe('ListRow', () => {
     expect(buttons).toHaveLength(1)
     expect(buttons[0]!.querySelector('svg.lucide-pencil')).not.toBeNull()
     expect(buttons[0]!.textContent).toBe('Super(555) 010-2231')
+  })
+})
+
+describe('ChoreIconPicker', () => {
+  it('suggests icons from the name and keeps the chosen one in view', async () => {
+    const onChange = vi.fn()
+    render(<ChoreIconPicker label="Icon" title="Swiffer" value="broom" onChange={onChange} />)
+    const suggested = screen.getByRole('group', { name: 'Suggested icons' })
+    const names = within(suggested)
+      .getAllByRole('button')
+      .map((b) => b.getAttribute('aria-label'))
+    expect(names.slice(0, 2)).toEqual(['Broom', 'Mop'])
+    expect(
+      within(suggested).getByRole('button', { name: 'Broom' }).getAttribute('aria-pressed'),
+    ).toBe('true')
+    await userEvent.click(within(suggested).getByRole('button', { name: 'Mop' }))
+    expect(onChange).toHaveBeenCalledWith('mop')
+  })
+
+  it('opens every icon by group, offers no wind, and searches by word', async () => {
+    const onChange = vi.fn()
+    render(<ChoreIconPicker label="Icon" onChange={onChange} />)
+    // With no name to go on, the full list starts open.
+    const picker = screen.getByRole('group', { name: 'Icon' })
+    expect(screen.queryByRole('group', { name: 'Suggested icons' })).toBeNull()
+    expect(within(picker).getAllByRole('button', { pressed: false })).toHaveLength(
+      CHORE_ICONS.length,
+    )
+    expect(screen.getByRole('group', { name: 'Kitchen' })).toBeTruthy()
+    expect(within(picker).queryByRole('button', { name: 'Wind' })).toBeNull()
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search icons' }), 'vac{Enter}')
+    const found = screen.getByRole('group', { name: 'Icons found' })
+    await userEvent.click(within(found).getByRole('button', { name: 'Robot vacuum' }))
+    expect(onChange).toHaveBeenCalledWith('robot-vacuum')
+
+    await userEvent.clear(screen.getByRole('searchbox', { name: 'Search icons' }))
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search icons' }), 'qqq')
+    expect(screen.getByText('No icon for that. Try another word.')).toBeTruthy()
+    expect(choreIconLabel('spray-can')).toBe('Spray can')
   })
 })

@@ -14,6 +14,18 @@ export function useDidIt(houseId: HouseId) {
   const toast = useToast()
   const celebrate = useCelebrate()
 
+  /** Puts the chore back to its last done before; false (with a toast) if that can't happen. */
+  const undoIt = async (id: ItemId, doneAt: number): Promise<boolean> => {
+    const back = await undo.mutateAsync({ id, doneAt })
+    if (back.ok) return true
+    toast(
+      back.error === 'done_again'
+        ? "It's been done again since. Nothing to undo."
+        : "Couldn't undo that. Try again.",
+    )
+    return false
+  }
+
   const didIt = async (id: ItemId, thanks = 'Did it. Thanks! 💛') => {
     const r = await did.mutateAsync(id)
     const doneAt = r.ok && r.value.category === 'chore' ? r.value.lastDone?.at : undefined
@@ -21,17 +33,9 @@ export function useDidIt(houseId: HouseId) {
     celebrate()
     toast(thanks, {
       label: 'Undo',
-      onClick: async () => {
-        const back = await undo.mutateAsync({ id, doneAt: doneAt.epochMs })
-        if (back.ok) return
-        toast(
-          back.error === 'done_again'
-            ? "It's been done again since. Nothing to undo."
-            : "Couldn't undo that. Try again.",
-        )
-      },
+      onClick: () => void undoIt(id, doneAt.epochMs),
     })
   }
 
-  return { didIt, isPending: did.isPending || undo.isPending }
+  return { didIt, undoIt, isPending: did.isPending || undo.isPending }
 }

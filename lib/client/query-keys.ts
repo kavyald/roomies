@@ -6,6 +6,7 @@ export const keys = {
   members: (houseId: HouseId) => ['house', houseId, 'members'] as const,
   profiles: (houseId: HouseId) => ['house', houseId, 'profiles'] as const,
   rooms: (houseId: HouseId) => ['house', houseId, 'rooms'] as const,
+  routines: (houseId: HouseId) => ['house', houseId, 'routines'] as const,
   contacts: (houseId: HouseId) => ['house', houseId, 'contacts'] as const,
   activity: (houseId: HouseId) => ['house', houseId, 'activity'] as const,
   invites: (houseId: HouseId) => ['house', houseId, 'invites'] as const,
@@ -29,11 +30,14 @@ export const keysForTable = (houseId: HouseId, table: string): readonly (readonl
     case 'houses':
       return [keys.house(houseId)]
     case 'house_members':
-      return [keys.members(houseId), keys.profiles(houseId)]
+      // Someone joining or moving out restarts the rotations.
+      return [keys.members(houseId), keys.profiles(houseId), keys.routines(houseId)]
     case 'profiles':
       return [keys.profiles(houseId)]
     case 'rooms':
-      return [keys.rooms(houseId)]
+      return [keys.rooms(houseId), keys.routines(houseId)]
+    case 'routines':
+      return [keys.routines(houseId), keys.rooms(houseId)]
     case 'contacts':
       return [keys.contacts(houseId)]
     case 'feelings':

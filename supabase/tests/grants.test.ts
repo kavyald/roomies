@@ -23,6 +23,7 @@ const API_URL = process.env.TEST_SUPABASE_URL ?? 'http://127.0.0.1:54321'
 // Table-level writes `app_writer` holds, per table.
 const APP_WRITER: Record<string, string[]> = {
   activity_events: ['INSERT'],
+  chore_rooms: ['DELETE', 'INSERT'],
   contacts: ['INSERT', 'UPDATE'],
   costs: ['INSERT'],
   feedback: ['INSERT'],
@@ -39,6 +40,7 @@ const APP_WRITER: Record<string, string[]> = {
   profiles: ['INSERT', 'UPDATE'],
   push_subscriptions: ['INSERT', 'UPDATE'],
   rooms: ['INSERT', 'UPDATE'],
+  routines: ['INSERT', 'UPDATE'],
   runs: ['INSERT', 'UPDATE'],
 }
 

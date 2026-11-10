@@ -5,6 +5,7 @@ import type { UserId } from '../domain/ids'
 import { plusMs } from '../domain/time'
 import { sampleHouse } from '../testing/sample-house'
 import {
+  makeAddRoomChores,
   makeArchiveItem,
   makeCreateItem,
   makeDoChore,
@@ -71,8 +72,7 @@ describe('items, end to end on the memory adapters', () => {
     const trash = await create(as('Jo'), {
       category: 'chore',
       title: 'Trash',
-      repeatDays: 7,
-      assignee: s.people.Jo,
+      kind: 'deep_clean',
     })
     if (!trash.ok) throw new Error(trash.error)
     const r = await did(as('Wren'), trash.value.id)
@@ -88,7 +88,7 @@ describe('items, end to end on the memory adapters', () => {
     const [create, did, undo] = [makeCreateItem(deps), makeDoChore(deps), makeUndoChore(deps)]
     const later = (h: number) => (now = plusMs(TEST_NOW, h * 3_600_000))
 
-    const trash = await create(as('Jo'), { category: 'chore', title: 'Trash', repeatDays: 7 })
+    const trash = await create(as('Jo'), { category: 'chore', title: 'Trash', kind: 'deep_clean' })
     if (!trash.ok) throw new Error(trash.error)
     const id = trash.value.id
 
@@ -156,7 +156,7 @@ describe('items, end to end on the memory adapters', () => {
     const theirs = await create(asMember(other.house.id, other.people.Sam), {
       category: 'chore',
       title: 'Mop',
-      repeatDays: null,
+      kind: 'upkeep',
     })
     if (!theirs.ok) throw new Error(theirs.error)
     await makeDoChore(deps)(asMember(other.house.id, other.people.Sam), theirs.value.id)
@@ -290,6 +290,23 @@ describe('items, end to end on the memory adapters', () => {
 })
 
 describe('feelings', () => {
+  it('the same feeling can be shared again after a chore was taken care of (T99)', async () => {
+    let now = TEST_NOW
+    const deps = depsForTest({ clock: { now: () => now } })
+    const s = await sampleHouse(deps.uow, deps.ids, async () => deps.ids.newId<'user'>() as UserId)
+    const as = (who: keyof typeof s.people) => asMember(s.house.id, s.people[who])
+    const feel = makeSetFeeling(deps)
+    const dishes = await makeCreateItem(deps)(as('Kavya'), { category: 'chore', title: 'Dishes' })
+    if (!dishes.ok) throw new Error(dishes.error)
+    const itemId = dishes.value.id
+    await feel(as('Sam'), { itemId, kind: 'frustrated' })
+    now = plusMs(TEST_NOW, 1000)
+    await makeDoChore(deps)(as('Wren'), itemId)
+    now = plusMs(TEST_NOW, 2000)
+    const again = await feel(as('Sam'), { itemId, kind: 'frustrated' })
+    expect(again.ok && again.value?.at).toEqual(now)
+  })
+
   it('shares, changes (keeping the old one in activity), and removes a feeling', async () => {
     const { deps, s, as, create, feel } = await setup()
     const radiator = await create(as('Kavya'), { category: 'task', title: 'Radiator clanking' })
@@ -351,5 +368,65 @@ describe('a need for me or for the house (T45)', () => {
     expect(deps.uow.state.activity.at(-1)?.changes).toEqual({
       for_member: [s.people.Wren, s.people.Sam],
     })
+  })
+})
+
+describe("adding a room's chores (T101)", () => {
+  it('gives the room its own Deep clean copies as one action, skipping names it has', async () => {
+    const { deps, s, as, create, kinds } = await setup()
+    const add = makeAddRoomChores(deps)
+    const kitchen = s.rooms.Kitchen!.id
+    const bath = s.rooms['Bathroom 1']!.id
+    // The bathroom's Vacuum is its own: adding one to the kitchen doesn't touch it.
+    const bathVacuum = await create(as('Wren'), {
+      category: 'chore',
+      title: 'Vacuum',
+      kind: 'deep_clean',
+      rooms: [bath],
+    })
+    if (!bathVacuum.ok) throw new Error(bathVacuum.error)
+
+    const r = await add(as('Sam'), {
+      roomId: kitchen,
+      chores: [
+        { title: 'Vacuum', icon: 'robot-vacuum' },
+        { title: 'Swiffer', icon: 'mop' },
+      ],
+    })
+    if (!r.ok) throw new Error(r.error)
+    expect(
+      r.value.map((c) => c.category === 'chore' && [c.title, c.kind, c.rooms, c.icon]),
+    ).toEqual([
+      ['Vacuum', 'deep_clean', [kitchen], 'robot-vacuum'],
+      ['Swiffer', 'deep_clean', [kitchen], 'mop'],
+    ])
+    const created = deps.uow.state.activity.filter((a) => a.kind === 'item.created').slice(-2)
+    expect(new Set(created.map((a) => a.actionId)).size).toBe(1)
+
+    // Again: the kitchen has both now, so nothing is added and nothing is recorded.
+    const before = kinds().length
+    const again = await add(as('Sam'), { roomId: kitchen, chores: [{ title: 'vacuum' }] })
+    expect(again).toEqual({ ok: true, value: [] })
+    expect(kinds()).toHaveLength(before)
+    expect(
+      (await deps.uow.run(as('Sam'), (repos) => repos.items.get(bathVacuum.value.id)))?.category,
+    ).toBe('chore')
+  })
+
+  it('refuses a room from another house and a bad icon', async () => {
+    const { deps, s, as } = await setup()
+    const add = makeAddRoomChores(deps)
+    expect(
+      await add(as('Sam'), {
+        roomId: deps.ids.newId<'room'>() as never,
+        chores: [{ title: 'Dust' }],
+      }),
+    ).toEqual({ ok: false, error: 'unknown_room' })
+    expect(
+      await add(as('Sam'), {
+        roomId: s.rooms.Kitchen!.id,
+        chores: [{ title: 'Dust', icon: 'wind' }],
+      }),
+    ).toEqual({ ok: false, error: 'bad_icon' })
   })
 })

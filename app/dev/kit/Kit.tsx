@@ -19,6 +19,7 @@ import { Chip, RoomChip, TierChip } from '@/components/ui/Chip'
 import { Disclosure, DisclosureGroup } from '@/components/ui/Disclosure'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { ChoreIconPicker } from '@/components/ui/ChoreIconPicker'
 import { IconButton, IconMark } from '@/components/ui/IconButton'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
@@ -41,6 +42,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Contents() {
   const [scope, setScope] = useState<'mine' | 'all'>('mine')
   const [sheet, setSheet] = useState(false)
+  const [icon, setIcon] = useState<string>('broom')
   const [all, setAll] = useState(false)
   const toast = useToast()
   return (
@@ -185,6 +187,15 @@ function Contents() {
             <p className="m-0 text-sm">$189.00 · Wren paid</p>
           </Disclosure>
         </DisclosureGroup>
+      </Section>
+
+      <Section title="Chore icons">
+        <ChoreIconPicker
+          label="Chore icon"
+          title="Swiffer the kitchen"
+          value={icon}
+          onChange={setIcon}
+        />
       </Section>
 
       <Section title="Icon buttons">

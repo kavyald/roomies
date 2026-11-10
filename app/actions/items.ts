@@ -2,6 +2,7 @@
 
 import { houseEnv } from './env'
 import {
+  makeAddRoomChores,
   makeArchiveItem,
   makeCreateItem,
   makeDoChore,
@@ -12,10 +13,11 @@ import {
   makeSetFeeling,
   makeUndoChore,
 } from '@/lib/app/items'
-import type { HouseId, ItemId } from '@/lib/domain/ids'
+import type { HouseId, ItemId, RoomId } from '@/lib/domain/ids'
 import type { ItemPatch, NewItem, Version } from '@/lib/domain/items'
 import { instant } from '@/lib/domain/time'
 import {
+  addRoomChoresSchema,
   itemIdSchema,
   itemPatchSchema,
   newItemSchema,
@@ -67,6 +69,14 @@ export async function doChoreAction(houseId: HouseId, id: unknown) {
     houseEnv(houseId),
   )(id)
 }
+export async function addRoomChoresAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    addRoomChoresSchema,
+    (deps, actor, i) => makeAddRoomChores(deps)(actor, { ...i, roomId: i.roomId as RoomId }),
+    houseEnv(houseId),
+  )(input)
+}
+
 export async function undoChoreAction(houseId: HouseId, input: unknown) {
   return makeAction(
     undoChoreSchema,

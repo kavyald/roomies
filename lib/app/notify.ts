@@ -88,7 +88,18 @@ export const outboxFor = async (
         ),
       )
     ).flatMap((i) =>
-      i ? [[i.id as string, { title: i.title, ...(i.assignee && { assignee: i.assignee }) }]] : [],
+      i
+        ? [
+            [
+              i.id as string,
+              {
+                title: i.title,
+                ...(i.assignee && { assignee: i.assignee }),
+                ...(i.category === 'chore' && { chore: true }),
+              },
+            ],
+          ]
+        : [],
     ),
   )
   const polls: NotificationContext['polls'] = new Map(

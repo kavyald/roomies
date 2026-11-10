@@ -19,6 +19,7 @@ import type {
   OptionId,
   PollId,
   RoomId,
+  RoutineId,
   RunId,
   UserId,
 } from '../domain/ids'
@@ -26,13 +27,14 @@ import type { Cost } from '../domain/costs'
 import type { Cents } from '../domain/money'
 import type { Poll, PollResult } from '../domain/polls'
 import type { NewRun, Run, SentVia } from '../domain/runs'
+import type { Resets, Routine, RoutineError, RoutinePatch, RoutineWho } from '../domain/routines'
 import type { When } from '../domain/time'
 
 type RunStartError =
   'already_on_a_run' | 'done_item' | 'tasks_only' | 'title_too_long' | 'not_found'
 type RunMoveError =
   'nothing_selected' | 'not_on_run' | 'same_run' | 'target_closed' | 'tasks_only' | 'not_found'
-import type { Item, ItemError, ItemPatch, NewItem, Version } from '../domain/items'
+import type { ChorePick, Item, ItemError, ItemPatch, NewItem, Version } from '../domain/items'
 import type { NewInvite } from '../domain/invites'
 import type { Result } from '../domain/result'
 
@@ -70,6 +72,21 @@ export type AppCommands = {
   }): Promise<
     CommandResult<Member, 'not_found' | 'not_allowed' | 'no_change' | 'last_admin' | 'not_active'>
   >
+  createRoutine(input: {
+    name: string
+    icon: string
+    resets: Resets
+    who: RoutineWho
+    roomIds: readonly RoomId[]
+  }): Promise<CommandResult<Routine, RoutineError | 'unknown_room' | 'not_found'>>
+  editRoutine(input: {
+    id: RoutineId
+    patch: RoutinePatch & { roomIds?: readonly RoomId[] }
+    version?: Version
+  }): Promise<
+    CommandResult<Routine, RoutineError | 'unknown_room' | 'not_found' | 'no_change' | 'removed'>
+  >
+  removeRoutine(id: RoutineId): Promise<CommandResult<Routine, 'not_found' | 'removed'>>
   renameRoom(input: {
     roomId: RoomId
     name: string
@@ -105,6 +122,11 @@ export type AppCommands = {
     id: ItemId
     doneAt: number
   }): Promise<CommandResult<Item, 'nothing_to_undo' | 'done_again' | 'not_a_chore' | 'not_found'>>
+  /** Admin → Rooms: Deep clean chores for a room by name; names it has are skipped (T101). */
+  addRoomChores(input: {
+    roomId: RoomId
+    chores: readonly ChorePick[]
+  }): Promise<CommandResult<Item[], ItemError | ReferenceError | 'not_found'>>
   archiveItem(id: ItemId): Promise<CommandResult<Item, 'already_archived' | 'not_found'>>
   restoreItem(
     id: ItemId,

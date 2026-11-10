@@ -4,6 +4,7 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
 export const whenSchema = z.object({ date, time: time.optional() })
 const priority = z.enum(['low', 'normal', 'high', 'urgent'])
+const choreKind = z.enum(['deep_clean', 'upkeep'])
 
 export const newItemSchema = z.object({
   category: z.enum(['need', 'chore', 'task']),
@@ -13,7 +14,9 @@ export const newItemSchema = z.object({
   assignee: z.uuid().optional(),
   when: whenSchema.optional(),
   priority: priority.optional(),
-  repeatDays: z.number().int().nullable().optional(),
+  kind: choreKind.optional(),
+  icon: z.string().max(40).optional(),
+  rooms: z.array(z.uuid()).max(40).optional(),
   contactId: z.uuid().optional(),
   forMe: z.boolean().optional(),
 })
@@ -27,7 +30,9 @@ export const itemPatchSchema = z.object({
     assignee: z.uuid().nullable().optional(),
     when: whenSchema.nullable().optional(),
     priority: priority.optional(),
-    repeatDays: z.number().int().nullable().optional(),
+    kind: choreKind.optional(),
+    icon: z.string().max(40).nullable().optional(),
+    rooms: z.array(z.uuid()).max(40).optional(),
     contactId: z.uuid().nullable().optional(),
     forMember: z.uuid().nullable().optional(),
   }),
@@ -38,6 +43,14 @@ export const itemPatchSchema = z.object({
 export const itemIdSchema = z.uuid()
 
 /** Undo for Did it: the chore, and the last done (ms since epoch) that Did it set. */
+export const addRoomChoresSchema = z.object({
+  roomId: z.uuid(),
+  chores: z
+    .array(z.object({ title: z.string().max(200), icon: z.string().max(40).optional() }))
+    .min(1)
+    .max(40),
+})
+
 export const undoChoreSchema = z.object({ id: z.uuid(), doneAt: z.number().int() })
 
 export const setFeelingSchema = z.object({

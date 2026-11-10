@@ -21,8 +21,8 @@ export const NOTIFICATION_CATEGORIES: readonly NotificationCategory[] = [
 
 export const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   assigned: 'Something is handed to me',
-  due: 'My tasks and chores are coming due',
-  feelings: 'Someone feels 😰 or 😤 about something of mine, or changes the feeling weights',
+  due: 'My tasks are coming due',
+  feelings: 'Someone feels 😰 or 😤 about a chore or something of mine, or changes the weights',
   polls: 'New polls, new options, and polls closing',
   runs: 'Runs starting or handed to me, and runs with a date tomorrow',
   people: 'People joining or leaving',
@@ -85,7 +85,10 @@ export type NotificationContext = {
   readonly houseTz: string
   readonly now: Instant
   readonly people: readonly Recipient[]
-  readonly items: ReadonlyMap<string, { readonly title: string; readonly assignee?: UserId }>
+  readonly items: ReadonlyMap<
+    string,
+    { readonly title: string; readonly assignee?: UserId; readonly chore?: boolean }
+  >
   readonly polls: ReadonlyMap<
     string,
     {
@@ -168,11 +171,22 @@ const draftsFor = (
       const next = e.changes.next as Feeling | null
       if (!next || !ANXIOUS_OR_FRUSTRATED.has(next.kind)) return []
       const item = ctx.items.get(e.itemId)
-      if (!item?.assignee || item.assignee === e.by) return []
+      if (!item) return []
       const { emoji, label } = FEELING_META[next.kind]
+      const title = `${emoji} ${actor} feels ${label.toLowerCase()} about ${item.title}`
+      // A chore's feeling is about the chore, so the whole house hears it, never one person (T99).
+      if (item.chore) {
+        return to(everyoneBut(e.by), {
+          category: 'feelings',
+          title,
+          body: next.note ?? 'They wanted the house to know.',
+          url: itemUrl(e.itemId),
+        })
+      }
+      if (!item.assignee || item.assignee === e.by) return []
       return to([item.assignee], {
         category: 'feelings',
-        title: `${emoji} ${actor} feels ${label.toLowerCase()} about ${item.title}`,
+        title,
         body: next.note ?? "It's on you, so they wanted you to know.",
         url: itemUrl(e.itemId),
       })

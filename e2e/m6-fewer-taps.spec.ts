@@ -13,12 +13,11 @@ const swipe = async (page: Page, card: Locator, direction: 'right' | 'left') => 
   await page.mouse.up()
 }
 
-test('a swipe right finishes a task or a chore, with Undo; a swipe left opens the emoji tray', async ({
+test('a swipe right finishes a task, with Undo; a swipe left opens the emoji tray', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
   await anItem(owner, { category: 'task', title: 'Fix the latch' })
-  await anItem(owner, { category: 'chore', title: 'Take out the trash', repeatDays: 7 })
 
   // Tasks: right = Done.
   await page.goto(`/h/${owner.houseId}/tasks`)
@@ -47,19 +46,6 @@ test('a swipe right finishes a task or a chore, with Undo; a swipe left opens th
   await expect(tasks.getByRole('listitem').filter({ hasText: 'Fix the latch' })).toContainText(
     '😕1',
   )
-
-  // Chores: right = Did it, with Undo.
-  await page.goto(`/h/${owner.houseId}/chores`)
-  const trash = page
-    .getByRole('list', { name: 'Chores' })
-    .getByRole('button', { name: 'Take out the trash', exact: true })
-  await swipe(page, trash, 'right')
-  const did = page.getByRole('status').filter({ hasText: 'Did it. Thanks!' })
-  await expect(did).toBeVisible()
-  const card = page.getByRole('list', { name: 'Chores' }).getByRole('listitem')
-  await expect(card).toContainText('Last done today · Kavya')
-  await did.getByRole('button', { name: 'Undo' }).click()
-  await expect(card).toContainText('Not done yet')
 })
 
 test('Needs rows swipe too, and a feeling takes two taps from a card', async ({ page }) => {
@@ -93,7 +79,7 @@ test('Needs rows swipe too, and a feeling takes two taps from a card', async ({ 
   await expect(row).not.toContainText('😰1')
 })
 
-test('+ on Needs adds three in one sheet; + on Chores makes a repeating chore in 3 taps', async ({
+test('+ on Needs adds three in one sheet; + on Chores makes a chore in 2 taps', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
@@ -122,9 +108,7 @@ test('+ on Needs adds three in one sheet; + on Chores makes a repeating chore in
   await page.getByRole('button', { name: 'Add', exact: true }).click() // 1
   const chore = page.getByRole('dialog', { name: 'A chore' })
   await chore.getByLabel('What needs doing?').fill('Water the plants')
-  await chore.getByRole('button', { name: 'About every…' }).click() // 2
-  await chore.getByLabel('Days between').fill('3')
-  await chore.getByRole('button', { name: 'Add', exact: true }).click() // 3
+  await chore.getByRole('button', { name: 'Add', exact: true }).click() // 2
   await expect(chore).toBeHidden()
-  await expect(page.getByRole('list', { name: 'Chores' })).toContainText('About every 3 days')
+  await expect(page.getByRole('region', { name: 'Upkeep' })).toContainText('Water the plants')
 })

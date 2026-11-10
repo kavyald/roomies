@@ -2,6 +2,7 @@
 // A discriminated union, so invalid states can't be written down: a need has no repeat, a chore
 // is never "done" (only "last done"), only tasks have a "handled by" contact.
 
+import { isChoreIcon } from './icons'
 import type { DomainEvent, FieldChanges } from './events'
 import type { ActionId, ContactId, HouseId, ItemId, RoomId, RunId, UserId } from './ids'
 import { err, ok, type Result } from './result'
@@ -42,10 +43,21 @@ export type Need = ItemBase & {
   /** Whose need it is (PRD §6.1, T45); absent means the house's. A label only: money is unchanged. */
   readonly forMember?: UserId
 }
-/** `repeatDays: null` means "as needed". */
-export type Chore = ItemBase & {
+/** Deep clean: the routine holder's checklist for the period. Upkeep: shared, nobody's job. */
+export type ChoreKind = 'deep_clean' | 'upkeep'
+
+/**
+ * Who's on a chore is never stored (PRD §6.2): it follows from its first room's routine, so a chore
+ * has no assignee, and it can cover several rooms instead of one.
+ */
+export type Chore = Omit<ItemBase, 'assignee' | 'roomId'> & {
   readonly category: 'chore'
-  readonly repeatDays: number | null
+  readonly assignee?: undefined
+  readonly roomId?: undefined
+  readonly kind: ChoreKind
+  /** A name from CHORE_ICONS. */
+  readonly icon?: string
+  readonly rooms: readonly RoomId[]
   readonly lastDone?: Done
 }
 export type Task = ItemBase & {
@@ -99,15 +111,53 @@ export type NewItem = {
   readonly assignee?: UserId
   readonly when?: When
   readonly priority?: Priority
-  /** Chores only: about every N days, or null/absent for "as needed". */
-  readonly repeatDays?: number | null
+  /** Chores only; absent means upkeep. */
+  readonly kind?: ChoreKind
+  /** Chores only. */
+  readonly icon?: string
+  /** Chores only: chores use this, not `roomId`. */
+  readonly rooms?: readonly RoomId[]
   /** Tasks only. */
   readonly contactId?: ContactId
   /** Needs only: just for whoever adds it ("Me"), not the house (T45). */
   readonly forMe?: boolean
 }
 
-export type ItemError = 'empty_title' | 'title_too_long' | 'invalid_for_category' | 'bad_repeat'
+export type ItemError = 'empty_title' | 'title_too_long' | 'invalid_for_category' | 'bad_icon'
+
+/** A chore by name and icon: one picked for a room in Admin → Rooms (T101). */
+export type ChorePick = { readonly title: string; readonly icon?: string }
+
+/** A chore name as people would match it: "  Vacuum " and "vacuum" are the same chore. */
+export const choreKey = (title: string): string => title.trim().replace(/\s+/g, ' ').toLowerCase()
+
+/**
+ * The picks a room doesn't have yet as Deep clean chores: one per name, with names it already has
+ * (or that are picked twice) left out. Each room gets its own copy of a chore (T101).
+ */
+export const newRoomChores = (
+  roomId: RoomId,
+  picks: readonly ChorePick[],
+  items: readonly Item[],
+): ChorePick[] => {
+  const has = new Set(
+    items
+      .filter(
+        (i): i is Chore =>
+          i.category === 'chore' &&
+          !i.archivedAt &&
+          i.kind === 'deep_clean' &&
+          i.rooms.includes(roomId),
+      )
+      .map((c) => choreKey(c.title)),
+  )
+  return picks.filter((p) => {
+    const key = choreKey(p.title)
+    if (!key || has.has(key)) return false
+    has.add(key)
+    return true
+  })
+}
 
 const checkTitle = (title: string): Result<string, 'empty_title' | 'title_too_long'> => {
   const t = title.trim()
@@ -115,9 +165,6 @@ const checkTitle = (title: string): Result<string, 'empty_title' | 'title_too_lo
   if (t.length > MAX_TITLE) return err('title_too_long')
   return ok(t)
 }
-
-const checkRepeat = (n: number | null | undefined): n is number | null | undefined =>
-  n === null || n === undefined || (Number.isInteger(n) && n >= 1 && n <= 365)
 
 /**
  * A new item. Adding a need that's already open returns `duplicate_need`, with the existing
@@ -136,10 +183,13 @@ export const createItem = (
 ): Result<{ item: Item; events: DomainEvent[] }, ItemError | 'duplicate_need'> => {
   const title = checkTitle(input.title)
   if (!title.ok) return title
-  if (input.category !== 'chore' && input.repeatDays != null) return err('invalid_for_category')
+  if (input.category !== 'chore' && (input.kind || input.icon || input.rooms))
+    return err('invalid_for_category')
+  if (input.category === 'chore' && (input.assignee || input.roomId))
+    return err('invalid_for_category')
   if (input.category !== 'task' && input.contactId) return err('invalid_for_category')
   if (input.category !== 'need' && input.forMe) return err('invalid_for_category')
-  if (!checkRepeat(input.repeatDays)) return err('bad_repeat')
+  if (input.icon && !isChoreIcon(input.icon)) return err('bad_icon')
   const forMember = input.category === 'need' && input.forMe ? ctx.by : undefined
   if (input.category === 'need') {
     const existing = duplicateNeed(ctx.openNeeds, title.value, forMember)
@@ -161,7 +211,13 @@ export const createItem = (
   } as const
   const item: Item =
     input.category === 'chore'
-      ? { ...base, category: 'chore', repeatDays: input.repeatDays ?? null }
+      ? ({
+          ...base,
+          category: 'chore',
+          kind: input.kind ?? 'upkeep',
+          ...(input.icon && { icon: input.icon }),
+          rooms: [...new Set(input.rooms ?? [])],
+        } as Chore)
       : input.category === 'task'
         ? { ...base, category: 'task', ...(input.contactId && { contactId: input.contactId }) }
         : { ...base, category: 'need', ...(forMember && { forMember }) }
@@ -196,7 +252,10 @@ export type ItemPatch = {
   readonly assignee?: UserId | null
   readonly when?: When | null
   readonly priority?: Priority
-  readonly repeatDays?: number | null
+  /** Chores only. */
+  readonly kind?: ChoreKind
+  readonly icon?: string | null
+  readonly rooms?: readonly RoomId[]
   readonly contactId?: ContactId | null
   /** Needs only: whose it is; `null` gives it back to the house (T45). */
   readonly forMember?: UserId | null
@@ -218,11 +277,16 @@ export const editItem = (
   { item: Item; events: DomainEvent[] },
   ItemError | 'duplicate_need' | 'no_change' | 'on_a_run'
 > => {
-  if (item.category !== 'chore' && patch.repeatDays !== undefined)
+  if (
+    item.category !== 'chore' &&
+    (patch.kind !== undefined || patch.icon !== undefined || patch.rooms !== undefined)
+  )
+    return err('invalid_for_category')
+  if (item.category === 'chore' && (patch.assignee || patch.roomId))
     return err('invalid_for_category')
   if (item.category !== 'task' && patch.contactId) return err('invalid_for_category')
   if (item.category !== 'need' && patch.forMember) return err('invalid_for_category')
-  if (!checkRepeat(patch.repeatDays)) return err('bad_repeat')
+  if (patch.icon && !isChoreIcon(patch.icon)) return err('bad_icon')
   if (
     item.category === 'task' &&
     patch.contactId !== undefined &&
@@ -260,7 +324,9 @@ export const editItem = (
     when: pick(patch.when, item.when),
     priority: patch.priority ?? item.priority,
     ...(item.category === 'chore' && {
-      repeatDays: patch.repeatDays === undefined ? item.repeatDays : patch.repeatDays,
+      kind: patch.kind ?? item.kind,
+      icon: pick(patch.icon, item.icon),
+      rooms: patch.rooms ? [...new Set(patch.rooms)] : item.rooms,
     }),
     ...(item.category === 'task' && { contactId: pick(patch.contactId, item.contactId) }),
     ...(item.category === 'need' && { forMember }),
@@ -275,8 +341,12 @@ export const editItem = (
   diff('room', item.roomId, next.roomId)
   if (!sameWhen(item.when, next.when)) changes.when = [item.when ?? null, next.when ?? null]
   diff('priority', item.priority, next.priority)
-  if (item.category === 'chore' && next.category === 'chore')
-    diff('repeat_days', item.repeatDays, next.repeatDays)
+  if (item.category === 'chore' && next.category === 'chore') {
+    diff('kind', item.kind, next.kind)
+    diff('icon', item.icon, next.icon)
+    if (item.rooms.length !== next.rooms.length || item.rooms.some((r) => !next.rooms.includes(r)))
+      changes.rooms = [item.rooms, next.rooms]
+  }
   if (item.category === 'need' && next.category === 'need')
     diff('for_member', item.forMember, next.forMember)
 

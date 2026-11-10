@@ -43,17 +43,24 @@ test('rooms are one row that opens a sheet in three groups, and a room can be re
   await expect(bedrooms.getByRole('button', { name: 'Fire, bedroom', exact: true })).toBeVisible()
   await expect(sheet.getByRole('list', { name: 'Bathrooms' }).getByRole('button')).toHaveCount(3)
   await expect(sheet.getByRole('list', { name: 'Spaces' }).getByRole('button')).toHaveCount(10)
-  // Plain names, no room icons: the only mark on a row is the edit pencil (T68).
-  await expect(sheet.getByRole('list').locator('svg:not(.lucide-pencil)')).toHaveCount(0)
+  // Plain names, no room icons: the only mark on a row is the chevron to its sheet (T101).
+  await expect(sheet.getByRole('list').locator('svg:not(.lucide-chevron-right)')).toHaveCount(0)
 
+  // A room opens its own sheet (T101), where it's renamed.
   const spaces = sheet.getByRole('list', { name: 'Spaces' })
   await spaces.getByRole('button', { name: 'Craft room, shared space', exact: true }).click()
-  const edit = spaces.getByRole('group', { name: 'Edit Craft room, shared space' })
+  const craft = page.getByRole('dialog', { name: 'Craft room' })
+  await craft.getByRole('button', { name: 'Rename or move' }).click()
+  const edit = craft.getByRole('group', { name: 'Edit Craft room, shared space' })
   await edit.getByLabel('Name').fill('Studio')
   await edit.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Renamed.' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Studio' })).toBeVisible()
+  await page.keyboard.press('Escape')
   await expect(
-    spaces.getByRole('button', { name: 'Studio, shared space', exact: true }),
+    page
+      .getByRole('list', { name: 'Spaces' })
+      .getByRole('button', { name: 'Studio, shared space', exact: true }),
   ).toBeVisible()
 
   await page.goto(`/h/${owner.houseId}/activity`)
@@ -69,23 +76,30 @@ test('a room moves earlier or later within its group, and stays there', async ({
   const names = () =>
     bedrooms()
       .getByRole('listitem')
-      .evaluateAll((li) => li.map((l) => l.querySelector('button')?.textContent ?? 'editing'))
+      .evaluateAll((li) =>
+        li.map((l) => l.querySelector('button')?.getAttribute('aria-label')?.split(',')[0]),
+      )
+  // A room's own sheet (T101) moves it.
+  const editRoom = async (name: string) => {
+    await bedrooms()
+      .getByRole('button', { name: `${name}, bedroom`, exact: true })
+      .click()
+    const room = page.getByRole('dialog', { name })
+    await room.getByRole('button', { name: 'Rename or move' }).click()
+    return room.getByRole('group', { name: `Edit ${name}, bedroom` })
+  }
   await expect.poll(names).toEqual(['Air', 'Fire', 'Water', 'Earth'])
 
-  await bedrooms().getByRole('button', { name: 'Earth, bedroom', exact: true }).click()
-  const earth = bedrooms().getByRole('group', { name: 'Edit Earth, bedroom' })
+  const earth = await editRoom('Earth')
   await earth.getByRole('button', { name: 'Move earlier' }).click()
   await expect(earth.getByRole('button', { name: 'Move earlier' })).toBeEnabled() // saved
   await earth.getByRole('button', { name: 'Cancel' }).click()
+  await page.keyboard.press('Escape')
   await expect.poll(names).toEqual(['Air', 'Fire', 'Earth', 'Water'])
 
   await page.reload()
   sheet = await openRooms(page)
   await expect.poll(names).toEqual(['Air', 'Fire', 'Earth', 'Water'])
-  await bedrooms().getByRole('button', { name: 'Air, bedroom', exact: true }).click()
-  await bedrooms()
-    .getByRole('group', { name: 'Edit Air, bedroom' })
-    .getByRole('button', { name: 'Move earlier' })
-    .click()
+  await (await editRoom('Air')).getByRole('button', { name: 'Move earlier' }).click()
   await expect(page.getByText("It's already first in bedrooms.")).toBeVisible()
 })

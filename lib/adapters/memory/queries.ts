@@ -21,6 +21,10 @@ export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQu
       return profiles.filter((p): p is Profile => p !== undefined)
     }),
   rooms: (houseId) => uow.run(actor, (r) => r.rooms.listByHouse(houseId)),
+  routines: (houseId) =>
+    uow.run(actor, async (r) =>
+      (await r.routines.listByHouse(houseId)).filter((x) => !x.removedAt),
+    ),
   contacts: (houseId) => uow.run(actor, (r) => r.contacts.listByHouse(houseId)),
   invites: (houseId) => uow.run(actor, (r) => r.invites.listByHouse(houseId)),
   items: (houseId) => uow.run(actor, (r) => r.items.listByHouse(houseId)),
@@ -100,6 +104,7 @@ const subjectsOf = (
   const polls: Record<string, string> = {}
   const options: Record<string, string> = {}
   const costs: Record<string, Cents> = {}
+  const routines: Record<string, string> = {}
   for (const r of rows) {
     const item = r.itemId && state.items.get(r.itemId)
     if (item && item.houseId === houseId)
@@ -122,6 +127,8 @@ const subjectsOf = (
     }
     const cost = r.costId && state.costs.find((c) => c.id === r.costId && c.houseId === houseId)
     if (cost) costs[cost.id] = cost.amount
+    const routine = r.routineId && state.routines.get(r.routineId)
+    if (routine && routine.houseId === houseId) routines[routine.id] = routine.name
   }
-  return { items, runs, polls, options, costs }
+  return { items, runs, polls, options, costs, routines }
 }

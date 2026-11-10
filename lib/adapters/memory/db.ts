@@ -20,6 +20,7 @@ import type {
   ItemId,
   PollId,
   RoomId,
+  RoutineId,
   RunId,
   UserId,
 } from '../../domain/ids'
@@ -35,6 +36,7 @@ import type { Instant } from '../../domain/time'
 import type { Poll, PollOption } from '../../domain/polls'
 import type { Feeling } from '../../domain/feelings'
 import { sameNeed, type Item, type Need, type Version } from '../../domain/items'
+import type { Routine } from '../../domain/routines'
 import type { Run } from '../../domain/runs'
 import { isValidWeight } from '../../domain/weights'
 
@@ -44,6 +46,7 @@ export type MemoryState = {
   profiles: Map<UserId, Profile>
   members: Map<string, Member>
   rooms: Map<RoomId, Room>
+  routines: Map<RoutineId, Routine>
   contacts: Map<ContactId, Contact>
   invites: Map<InviteId, Invite>
   items: Map<ItemId, Item>
@@ -64,6 +67,7 @@ export const emptyState = (): MemoryState => ({
   profiles: new Map(),
   members: new Map(),
   rooms: new Map(),
+  routines: new Map(),
   contacts: new Map(),
   invites: new Map(),
   items: new Map(),
@@ -218,6 +222,8 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
       save: async (r) => {
         const old = s.rooms.get(r.id)
         if (!isMember(s, a, r.houseId) || (old && !isMember(s, a, old.houseId))) deny('rooms')
+        if (r.routineId && s.routines.get(r.routineId)?.houseId !== r.houseId)
+          throw new ConstraintViolation('rooms: routine: no such routine in this house')
         s.rooms.set(r.id, r)
       },
     },
@@ -247,6 +253,24 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         const old = s.invites.get(i.id)
         if (!isAdmin(s, a, i.houseId) || (old && !isAdmin(s, a, old.houseId))) deny('house_invites')
         s.invites.set(i.id, i)
+      },
+    },
+    routines: {
+      get: async (id) => {
+        const r = s.routines.get(id)
+        return r && isMember(s, a, r.houseId) ? r : undefined
+      },
+      listByHouse: async (houseId) =>
+        visible(s.routines.values(), houseId).sort((x, y) => x.sortOrder - y.sortOrder),
+      save: async (routine) => {
+        const old = s.routines.get(routine.id)
+        if (!isMember(s, a, routine.houseId) || (old && !isMember(s, a, old.houseId)))
+          deny('routines')
+        if (!routine.name.trim() || routine.name.trim().length > 60)
+          throw new ConstraintViolation('routines: name')
+        if (!routine.startsWith && !routine.fixedMember)
+          throw new ConstraintViolation('routines: someone has to have it')
+        s.routines.set(routine.id, versioned(`routines/${routine.id}`, routine, old, written))
       },
     },
     items: {
@@ -565,6 +589,13 @@ const checkItem = (s: MemoryState, item: Item): void => {
     !(Number.isInteger(i.repeatDays) && Number(i.repeatDays) >= 1 && Number(i.repeatDays) <= 365)
   )
     refuse('repeat days are 1 to 365')
+  if (i.category !== 'chore' && ((i as { kind?: unknown }).kind || (i as { icon?: unknown }).icon))
+    refuse('chore-only fields')
+  if (
+    i.category === 'chore' &&
+    (i.rooms ?? []).some((id) => s.rooms.get(id)?.houseId !== i.houseId)
+  )
+    refuse('chore rooms: no such room in this house')
   if (i.category !== 'task' && i.contactId) refuse('task-only contact')
   if (i.category !== 'need' && i.forMember) refuse('need-only owner')
   if (i.category === 'chore' && i.done) refuse('chores are never done')

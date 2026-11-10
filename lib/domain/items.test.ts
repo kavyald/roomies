@@ -12,10 +12,12 @@ import {
 import {
   archiveItem,
   choreDoneChange,
+  choreKey,
   createItem,
   doChore,
   editItem,
   markDone,
+  newRoomChores,
   reopenItem,
   restoreItem,
   undoChore,
@@ -49,7 +51,8 @@ const need = (title: string, o: Partial<Need> = {}): Need => ({
   createdAt: instant(0),
   ...o,
 })
-const chore: Chore = { ...need('Trash'), category: 'chore', repeatDays: 7 }
+const { roomId: _r, assignee: _as, done: _d, forMember: _fm, ...base_ } = need('Trash')
+const chore: Chore = { ...base_, category: 'chore', kind: 'upkeep', rooms: [] } as Chore
 const task: Task = { ...need('Latch'), category: 'task' }
 
 describe('createItem', () => {
@@ -89,14 +92,29 @@ describe('createItem', () => {
     )
   })
 
-  it('makes chores "as needed" by default, or about every N days', () => {
-    const asNeeded = createItem({ category: 'chore', title: 'Descale kettle' }, ctx())
-    expect(asNeeded.ok && asNeeded.value.item).toMatchObject({
+  it('makes chores upkeep by default, or deep clean with an icon and rooms', () => {
+    const plain = createItem({ category: 'chore', title: 'Descale kettle' }, ctx())
+    expect(plain.ok && plain.value.item).toMatchObject({
       category: 'chore',
-      repeatDays: null,
+      kind: 'upkeep',
+      rooms: [],
     })
-    const weekly = createItem({ category: 'chore', title: 'Trash', repeatDays: 7 }, ctx())
-    expect(weekly.ok && weekly.value.item).toMatchObject({ repeatDays: 7 })
+    const room = asId<'room'>('kitchen') as RoomId
+    const deep = createItem(
+      {
+        category: 'chore',
+        title: 'Sink',
+        kind: 'deep_clean',
+        icon: 'droplets',
+        rooms: [room, room],
+      },
+      ctx(),
+    )
+    expect(deep.ok && deep.value.item).toMatchObject({
+      kind: 'deep_clean',
+      icon: 'droplets',
+      rooms: [room],
+    })
   })
 
   it('keeps optional fields, and "handled by" for tasks', () => {
@@ -127,10 +145,13 @@ describe('createItem', () => {
   it.each([
     [{ category: 'need', title: ' ' }, 'empty_title'],
     [{ category: 'need', title: 'x'.repeat(121) }, 'title_too_long'],
-    [{ category: 'need', title: 'Soap', repeatDays: 7 }, 'invalid_for_category'],
+    [{ category: 'need', title: 'Soap', kind: 'upkeep' }, 'invalid_for_category'],
+    [{ category: 'task', title: 'Soap', icon: 'broom' }, 'invalid_for_category'],
+    [{ category: 'need', title: 'Soap', rooms: [] }, 'invalid_for_category'],
+    [{ category: 'chore', title: 'Mop', assignee: 'kavya' }, 'invalid_for_category'],
+    [{ category: 'chore', title: 'Mop', roomId: 'kitchen' }, 'invalid_for_category'],
     [{ category: 'chore', title: 'Mop', contactId: 'c' }, 'invalid_for_category'],
-    [{ category: 'chore', title: 'Mop', repeatDays: 0 }, 'bad_repeat'],
-    [{ category: 'chore', title: 'Mop', repeatDays: 2.5 }, 'bad_repeat'],
+    [{ category: 'chore', title: 'Mop', icon: 'wind' }, 'bad_icon'],
   ] as const)('refuses %j', (input, error) => {
     expect(createItem(input as never, ctx())).toEqual({ ok: false, error })
   })
@@ -240,17 +261,33 @@ describe('editItem', () => {
     })
   })
 
-  it('changes how often a chore repeats', () => {
-    const r = editItem(chore, { repeatDays: null }, { by: kavya, actionId: a, openNeeds: [] })
-    expect(r.ok && (r.value.item as Chore).repeatDays).toBeNull()
+  it("changes a chore's kind, icon and rooms, and says what changed", () => {
+    const room = asId<'room'>('kitchen') as RoomId
+    const r = editItem(
+      chore,
+      { kind: 'deep_clean', icon: 'broom', rooms: [room] },
+      { by: kavya, actionId: a, openNeeds: [] },
+    )
+    expect(r.ok && r.value.item).toMatchObject({ kind: 'deep_clean', icon: 'broom', rooms: [room] })
+    expect(r.ok && r.value.events[0]).toMatchObject({
+      kind: 'item.edited',
+      changes: { kind: ['upkeep', 'deep_clean'], icon: [null, 'broom'], rooms: [[], [room]] },
+    })
+    expect(editItem(chore, { rooms: [] }, { by: kavya, actionId: a, openNeeds: [] })).toEqual({
+      ok: false,
+      error: 'no_change',
+    })
   })
 
   it.each([
-    [need('Soap'), { repeatDays: 3 }, 'invalid_for_category'],
+    [need('Soap'), { kind: 'upkeep' }, 'invalid_for_category'],
+    [need('Soap'), { rooms: [] }, 'invalid_for_category'],
+    [chore, { assignee: 'kavya' }, 'invalid_for_category'],
+    [chore, { roomId: 'kitchen' }, 'invalid_for_category'],
     [chore, { contactId: 'c' }, 'invalid_for_category'],
     [task, { title: '' }, 'empty_title'],
     [task, { title: 'Latch' }, 'no_change'],
-    [chore, { repeatDays: 999 }, 'bad_repeat'],
+    [chore, { icon: 'wind' }, 'bad_icon'],
   ] as const)('refuses a bad edit %#', (item, patch, error) => {
     expect(editItem(item, patch as never, { by: kavya, actionId: a, openNeeds: [] })).toEqual({
       ok: false,
@@ -445,5 +482,46 @@ describe('done, did it, undo, archive', () => {
     expect(
       restoreItem(archived.value.item, kavya, a, [need('milk', { id: asId('x') })]),
     ).toMatchObject({ error: 'duplicate_need' })
+  })
+})
+
+describe('newRoomChores (T101)', () => {
+  const kitchen = asId<'room'>('kitchen') as RoomId
+  const bath = asId<'room'>('bath') as RoomId
+  const inRoom = (title: string, o: Partial<Chore> = {}): Chore =>
+    ({
+      ...chore,
+      id: asId<'item'>(title) as ItemId,
+      title,
+      kind: 'deep_clean',
+      rooms: [kitchen],
+      ...o,
+    }) as Chore
+
+  it('keeps the names the room lacks, once each, and skips the ones it has', () => {
+    const existing = [
+      inRoom('Vacuum'),
+      inRoom('Swiffer', { rooms: [bath] }),
+      inRoom('Dust', { archivedAt: now }),
+      inRoom('Wipe counters', { kind: 'upkeep' }),
+    ]
+    expect(
+      newRoomChores(
+        kitchen,
+        [
+          { title: ' vacuum ' },
+          { title: 'Swiffer', icon: 'mop' },
+          { title: 'swiffer' },
+          { title: 'Dust' },
+          { title: 'Wipe counters' },
+          { title: '   ' },
+        ],
+        existing,
+      ),
+    ).toEqual([{ title: 'Swiffer', icon: 'mop' }, { title: 'Dust' }, { title: 'Wipe counters' }])
+  })
+
+  it('matches names whatever their case and spacing', () => {
+    expect(choreKey('  Clean   the Sink ')).toBe('clean the sink')
   })
 })

@@ -3,8 +3,8 @@
 
 import type { AppDeps, Repos } from './ports'
 import { actorUser, type HouseActor } from '../domain/actor'
-import { setFeeling, type Feeling, type FeelingKind } from '../domain/feelings'
-import type { ActionId, ItemId, UserId } from '../domain/ids'
+import { isFeelingActive, setFeeling, type Feeling, type FeelingKind } from '../domain/feelings'
+import type { ActionId, ItemId, UserId, RoomId } from '../domain/ids'
 import {
   archiveItem,
   choreDoneChange,
@@ -12,15 +12,18 @@ import {
   doChore,
   editItem,
   markDone,
+  newRoomChores,
   reopenItem,
   restoreItem,
   undoChore,
+  type ChorePick,
   type Item,
   type ItemError,
   type ItemPatch,
   type Version,
   type NewItem,
 } from '../domain/items'
+import type { DomainEvent } from '../domain/events'
 import { err, ok, type Result } from '../domain/result'
 import type { Instant } from '../domain/time'
 
@@ -34,6 +37,7 @@ const checkReferences = async (
   refs: {
     assignee?: UserId | null
     roomId?: Item['roomId'] | null
+    rooms?: readonly RoomId[]
     contactId?: string | null
     forMember?: UserId | null
   },
@@ -43,8 +47,9 @@ const checkReferences = async (
     const m = await repos.members.get(actor.houseId, person)
     if (!m?.status.active) return 'unknown_member'
   }
-  if (refs.roomId) {
-    const room = await repos.rooms.get(refs.roomId)
+  for (const id of [refs.roomId, ...(refs.rooms ?? [])]) {
+    if (!id) continue
+    const room = await repos.rooms.get(id)
     if (room?.houseId !== actor.houseId || room.archivedAt) return 'unknown_room'
   }
   if (refs.contactId) {
@@ -78,6 +83,51 @@ export const makeCreateItem =
       await repos.items.save(r.value.item)
       await repos.events.record(actor.houseId, r.value.events, now)
       return ok(r.value.item)
+    })
+
+/**
+ * Admin → Rooms (T101): give a room several Deep clean chores at once, one copy each, as one
+ * action. Names the room already has are skipped, so adding none is fine (an empty list back).
+ */
+export const makeAddRoomChores =
+  ({ uow, clock, ids }: Deps) =>
+  (
+    actor: HouseActor,
+    input: { roomId: RoomId; chores: readonly ChorePick[] },
+  ): Promise<Result<Item[], ItemError | ReferenceError | 'not_found'>> =>
+    uow.run(actor, async (repos) => {
+      const by = actorUser(actor)
+      if (!by) return err('not_found')
+      const bad = await checkReferences(repos, actor, { rooms: [input.roomId] })
+      if (bad) return err(bad)
+      const now = clock.now()
+      const actionId = ids.newId<'action'>() as ActionId
+      const picks = newRoomChores(
+        input.roomId,
+        input.chores,
+        await repos.items.listByHouse(actor.houseId),
+      )
+      const made: Item[] = []
+      const events: DomainEvent[] = []
+      for (const pick of picks) {
+        const r = createItem(
+          {
+            category: 'chore',
+            title: pick.title,
+            kind: 'deep_clean',
+            ...(pick.icon && { icon: pick.icon }),
+            rooms: [input.roomId],
+          },
+          { by, now, id: ids.newId(), houseId: actor.houseId, actionId, openNeeds: [] },
+        )
+        // Chores are never duplicate needs: only the title or icon can be refused.
+        if (!r.ok) return err(r.error as ItemError)
+        made.push(r.value.item)
+        events.push(...r.value.events)
+      }
+      for (const item of made) await repos.items.save(item)
+      if (events.length > 0) await repos.events.record(actor.houseId, events, now)
+      return ok(made)
     })
 
 /** Loads an item of this house, runs a change on it, and saves it with its events. */
@@ -206,6 +256,7 @@ export const makeSetFeeling =
         by,
         now,
         actionId: ids.newId(),
+        stale: !!current && !isFeelingActive(item, current),
       })
       if (!r.ok) return r
       // Record first: the event holds the feeling being replaced.
