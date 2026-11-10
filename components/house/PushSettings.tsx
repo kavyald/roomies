@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useAppClient } from '@/lib/client/provider'
 import { pushState, thisBrowsersEndpoint, type PushState } from '@/lib/client/push'
+import { NotificationSteps } from './NotificationSteps'
 import { TURN_ON_TOASTS, turnOnPush } from './turn-on-push'
 
 const LINES: Record<PushState, string> = {
@@ -55,19 +56,27 @@ export function PushSettings() {
   }
 
   const Icon = state === 'on' ? Bell : BellOff
+  const help = state === 'blocked' || state === 'unsupported' ? state : null
   return (
-    <div
-      aria-label="This device"
-      role="group"
-      className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5"
-    >
-      <Icon aria-hidden className="size-5 flex-none text-ink-soft" />
-      <p className="m-0 min-w-0 flex-1 font-semibold">{LINES[state]}</p>
-      {state === 'off' && (
-        <Button size="small" disabled={busy} onClick={turnOn}>
-          Turn on notifications
-        </Button>
+    <>
+      <div
+        aria-label="This device"
+        role="group"
+        className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5"
+      >
+        <Icon aria-hidden className="size-5 flex-none text-ink-soft" />
+        <p className="m-0 min-w-0 flex-1 font-semibold">{LINES[state]}</p>
+        {state === 'off' && (
+          <Button size="small" disabled={busy} onClick={turnOn}>
+            Turn on notifications
+          </Button>
+        )}
+      </div>
+      {help && (
+        <div className="px-3.5 pb-3">
+          <NotificationSteps kind={help} />
+        </div>
       )}
-    </div>
+    </>
   )
 }

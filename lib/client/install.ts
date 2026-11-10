@@ -34,3 +34,80 @@ export const pushPromptFor = (
   if (!c.standalone && isIosSafari(c.userAgent)) return null
   return state === 'off' ? 'ask' : state
 }
+
+/** Where someone is, for step-by-step help (T95): steps differ by phone, computer and browser. */
+export type Platform =
+  | 'iphone_app'
+  | 'iphone_browser'
+  | 'android'
+  | 'desktop_chrome'
+  | 'desktop_safari'
+  | 'desktop_firefox'
+  | 'other'
+
+export const platformOf = (ua: string, standalone: boolean): Platform => {
+  if (IOS.test(ua)) return standalone ? 'iphone_app' : 'iphone_browser'
+  if (/Android/i.test(ua)) return 'android'
+  if (/Firefox\//.test(ua)) return 'desktop_firefox'
+  if (/Edg\/|Chrome\//.test(ua)) return 'desktop_chrome'
+  if (/Safari\//.test(ua) && /Macintosh/.test(ua)) return 'desktop_safari'
+  return 'other'
+}
+
+const THEN_TURN_ON =
+  'Come back to Roomies and tap Turn on in your settings (your avatar → Notifications).'
+
+/** How to un-block notifications for Roomies, one short step at a time. */
+export const allowSteps: Record<Platform, readonly string[]> = {
+  iphone_app: [
+    'Open the Settings app on your iPhone.',
+    'Tap Notifications, then scroll down and tap Roomies.',
+    'Turn on Allow Notifications.',
+    THEN_TURN_ON,
+  ],
+  iphone_browser: [
+    'Notifications only work from the Roomies app on your Home Screen.',
+    'In Safari, tap Share, then Add to Home Screen.',
+    'Open Roomies from your Home Screen and turn notifications on there.',
+  ],
+  android: [
+    'Tap the icon at the left of the address bar.',
+    'Tap Permissions, then Notifications.',
+    'Choose Allow.',
+    THEN_TURN_ON,
+  ],
+  desktop_chrome: [
+    'Click the icon at the left of the address bar (two little sliders).',
+    'Turn on Notifications, or set it to Allow.',
+    'Reload the page.',
+    THEN_TURN_ON,
+  ],
+  desktop_safari: [
+    'In the menu bar, choose Safari, then Settings.',
+    'Click Websites, then Notifications in the list on the left.',
+    'Find Roomies and set it to Allow.',
+    THEN_TURN_ON,
+  ],
+  desktop_firefox: [
+    'Click the icon at the left of the address bar.',
+    'Next to Send Notifications, click the × to clear Blocked.',
+    'Reload the page.',
+    THEN_TURN_ON,
+  ],
+  other: [
+    "Open this browser's settings for this site.",
+    'Set Notifications to Allow.',
+    'Reload the page.',
+    THEN_TURN_ON,
+  ],
+}
+
+/** When this browser can't push at all: what to do instead. */
+export const unsupportedSteps = (p: Platform): readonly string[] =>
+  p === 'iphone_browser' || p === 'iphone_app'
+    ? [
+        'Open Roomies in Safari.',
+        'Tap Share, then Add to Home Screen.',
+        'Open Roomies from your Home Screen. If it still can’t, update your iPhone (iOS 16.4 or later).',
+      ]
+    : ['Open Roomies in Chrome, Edge, Firefox or Safari.', 'Turn notifications on there.']

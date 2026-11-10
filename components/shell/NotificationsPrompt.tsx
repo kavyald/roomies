@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { NotificationSteps } from '@/components/house/NotificationSteps'
 import { TURN_ON_TOASTS, turnOnPush } from '@/components/house/turn-on-push'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
@@ -20,7 +21,7 @@ const answered = (): boolean => {
 }
 
 const isStandalone = (): boolean =>
-  window.matchMedia('(display-mode: standalone)').matches ||
+  window.matchMedia?.('(display-mode: standalone)').matches ||
   (navigator as Navigator & { standalone?: boolean }).standalone === true
 
 const COPY: Record<PushPrompt, { title: string; description: string }> = {
@@ -32,11 +33,11 @@ const COPY: Record<PushPrompt, { title: string; description: string }> = {
   blocked: {
     title: 'Notifications are blocked',
     description:
-      'To get pings, allow notifications for Roomies in your browser’s or phone’s settings, then come back.',
+      'They were turned off for Roomies on this device. Here’s how to turn them back on:',
   },
   unsupported: {
     title: 'No notifications on this browser',
-    description: 'You’ll still see everything in the app. Notifications work on other browsers.',
+    description: 'You’ll still see everything in the app. To get pings:',
   },
 }
 
@@ -99,9 +100,12 @@ export function NotificationsPrompt() {
           </Button>
         </div>
       ) : (
-        <Button variant="secondary" block onClick={done}>
-          Got it
-        </Button>
+        <>
+          <NotificationSteps kind={prompt} />
+          <Button variant="secondary" block onClick={done}>
+            Got it
+          </Button>
+        </>
       )}
     </Sheet>
   )

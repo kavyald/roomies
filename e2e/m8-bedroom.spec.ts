@@ -24,9 +24,7 @@ test('the organizer picks a bedroom, changes it, then clears it', async ({ page 
   await room.getByRole('radio', { name: 'Water' }).click()
   await expect(page.getByText('Your room is Water now.')).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(
-    roommates.getByRole('button', { name: /Kavya.*Water room/ }),
-  ).toBeVisible()
+  await expect(roommates.getByRole('button', { name: /Kavya.*Water room/ })).toBeVisible()
 
   await roommates.getByRole('button', { name: /Kavya/ }).click()
   await room.getByRole('radio', { name: 'Not yet' }).click()
