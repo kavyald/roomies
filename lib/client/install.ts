@@ -54,8 +54,7 @@ export const platformOf = (ua: string, standalone: boolean): Platform => {
   return 'other'
 }
 
-const THEN_TURN_ON =
-  'Come back to Roomies and tap Turn on in your settings (your avatar → Notifications).'
+const THEN_TURN_ON = 'Come back to Roomies. Notifications turn on by themselves.'
 
 /** How to un-block notifications for Roomies, one short step at a time. */
 export const allowSteps: Record<Platform, readonly string[]> = {
@@ -68,7 +67,7 @@ export const allowSteps: Record<Platform, readonly string[]> = {
   iphone_browser: [
     'Notifications only work from the Roomies app on your Home Screen.',
     'In Safari, tap Share, then Add to Home Screen.',
-    'Open Roomies from your Home Screen and turn notifications on there.',
+    'Open Roomies from your Home Screen and tap Turn on.',
   ],
   android: [
     'Tap the icon at the left of the address bar.',
@@ -111,3 +110,13 @@ export const unsupportedSteps = (p: Platform): readonly string[] =>
         'Open Roomies from your Home Screen. If it still can’t, update your iPhone (iOS 16.4 or later).',
       ]
     : ['Open Roomies in Chrome, Edge, Firefox or Safari.', 'Turn notifications on there.']
+
+/**
+ * Once the browser allows Roomies, notifications are on (owner, T95): a device that's allowed but
+ * not connected to me connects itself when the app opens, with no tap. Turning them off is done by
+ * blocking them again, or with the categories in the app.
+ */
+export const connectsItself = (
+  state: 'unsupported' | 'install_first' | 'blocked' | 'off' | 'on',
+  permission: NotificationPermission,
+): boolean => state === 'off' && permission === 'granted'

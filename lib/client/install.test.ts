@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { allowSteps, platformOf, pushPromptFor, shouldShowInstallGuide } from './install'
+import {
+  allowSteps,
+  connectsItself,
+  platformOf,
+  pushPromptFor,
+  shouldShowInstallGuide,
+} from './install'
 
 const IPHONE_SAFARI =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
@@ -60,10 +66,22 @@ describe('platformOf (T95)', () => {
     expect(platformOf(ua, standalone)).toBe(expected)
   })
 
-  it('ends every way to un-block with turning them on in Roomies, except before install', () => {
+  it('ends every way to un-block with coming back, where they turn on by themselves', () => {
     for (const [p, steps] of Object.entries(allowSteps)) {
       if (p === 'iphone_browser') continue
-      expect(steps.at(-1)).toMatch(/Turn on in your settings/)
+      expect(steps.at(-1)).toMatch(/turn on by themselves/)
     }
+  })
+})
+
+describe('connectsItself (T95)', () => {
+  it.each([
+    ['allowed, not connected', 'off', 'granted', true],
+    ['never asked', 'off', 'default', false],
+    ['already on', 'on', 'granted', false],
+    ['blocked', 'blocked', 'denied', false],
+    ["can't push", 'unsupported', 'default', false],
+  ] as const)('%s → %s', (_label, state, permission, expected) => {
+    expect(connectsItself(state, permission)).toBe(expected)
   })
 })
