@@ -34,7 +34,7 @@
 
 **[DECIDED] PWA.** It matches "a link that roommates can access on their phone." If push reliability becomes a real problem, Expo can later reuse the same backend and most TypeScript logic.
 
-Onboarding must actively guide iOS users through **Share → Add to Home Screen**, since that's the only way push works on iOS. We detect standalone mode with `navigator.standalone` / `display-mode: standalone` and show an instruction sheet until the app is installed. Once push can work (installed, or any browser that supports it), `NotificationsPrompt` offers it once per device (`pushPromptFor` in `lib/client/install.ts`, T95).
+Onboarding must actively guide iOS users through **Share → Add to Home Screen**, since that's the only way push works on iOS. We detect standalone mode with `navigator.standalone` / `display-mode: standalone` and show an instruction sheet until the app is installed. Once push can work (installed, or any browser that supports it), `NotificationsPrompt` offers it once per device (`pushPromptFor` in `lib/client/install.ts`, T95). A device that already allows Roomies but isn't connected to whoever is signed in connects itself on open, with no tap (`settlePush` in `components/house/turn-on-push.ts`, PRD D42).
 
 ---
 
