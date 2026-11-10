@@ -221,9 +221,10 @@ A run is **a batch of items handled together**. There are three kinds:
 
 - **[DECIDED]** Money is a **cost record**: an amount, who paid, an optional note, and what it was for (an item or a run). Nothing requires one.
 - **Adding one:** "Add cost" on any item, or the **Spent** amount beside a batch's **Finish**.
-- **Changing one:** any member can **edit** a cost (amount, who paid, note) or **remove** it ("Remove this cost?"), from the item's Costs section or the run's sheet. A removed cost leaves the item or run; the activity log keeps the edit or removal.
-- **Splitting** is left to Splitwise; Roomies shows no monthly total or shares (T64; the fuller money feature is T89, after launch).
-- **Open Splitwise** copies "{title} — ${amount}" and opens Splitwise. **[DECIDED] (owner)** There's no Splitwise API in v1.
+- **Changing one:** any member can **edit** a cost (amount, who paid, note) or **remove** it ("Remove this cost?"), from the item's Costs section (open right under its main button, and on its Edit sheet, T104) or the run's sheet. A removed cost leaves the item or run; the activity log keeps the edit or removal.
+- **Splitting** is left to Splitwise; Roomies shows no monthly total or shares (T64).
+- **The Splitwise icon** **[DECIDED] (owner, T89)** sits on every cost (an item's Costs, a run's Spent) and in the toast after adding one or finishing with Spent. Tapping it copies "{title} — ${amount}" and opens the house's Splitwise group, where you paste it in (Splitwise has no link that fills in an expense, and there's no Splitwise API). Once anyone has tapped it for a cost, the icon is highlighted with a check; it stays tappable to send it again. It shows that someone tapped, not that Splitwise saved it.
+- **The Splitwise group** **[DECIDED] (owner, T89)** is a house setting any roommate sets, changes or removes in Admin (paste the group's link). Until it's set, the icon opens Splitwise's home page. Activity notes each change under Money ("Kavya linked the Splitwise group").
 
 ### 6.7 Calendar
 
@@ -385,7 +386,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D1 | Chores assigned to a person are visible to everyone (no private items) | Owner |
 | D2 | No chore balance / "who's done what" view | Owner |
 | D3 | Poll result: most votes wins, and a tie is shown as "Tie" with no automatic action | Owner |
-| D4 | Splitwise via an "Open Splitwise" copy button. The house already uses it. | Owner |
+| D4 | Splitwise via a copy-and-open button, the Splitwise icon on each cost, opening the house's group (T89). The house already uses it. | Owner |
 | D5 | Feelings are always named, opt-in, about items (never people), with notes replacing comments and an Earlier list | Owner |
 | D6 | No weekly check-in or house mood | Owner |
 | D7 | Feeling weights are one house-wide setting, and any member can change them | Owner |

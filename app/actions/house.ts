@@ -8,6 +8,7 @@ import {
   makeMoveRoom,
   makeRenameRoom,
   makeSetFeelingWeights,
+  makeSetSplitwiseGroup,
   makeChangeMyRoom,
   makeSetRole,
 } from '@/lib/app/house'
@@ -26,6 +27,7 @@ import {
   nothingSchema,
   renameRoomSchema,
   setRoleSchema,
+  splitwiseGroupSchema,
   changeMyRoomSchema,
 } from '@/lib/schemas/house'
 import { makeAction } from '@/lib/server/action'
@@ -138,6 +140,14 @@ export async function setFeelingWeightsAction(houseId: HouseId, input: unknown) 
   return makeAction(
     feelingWeightsSchema,
     (deps, actor, i) => makeSetFeelingWeights(deps)(actor, i),
+    houseEnv(houseId),
+  )(input)
+}
+
+export async function setSplitwiseGroupAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    splitwiseGroupSchema,
+    (deps, actor, i) => makeSetSplitwiseGroup(deps)(actor, i.link),
     houseEnv(houseId),
   )(input)
 }

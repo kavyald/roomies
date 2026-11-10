@@ -10,7 +10,8 @@ import {
   type ReactNode,
 } from 'react'
 
-type ToastAction = { label: string; onClick: () => void }
+/** `label` is what the action says, or with `icon`, its accessible name (the icon shows instead). */
+type ToastAction = { label: string; onClick: () => void; icon?: ReactNode }
 type ToastState = { id: number; message: string; action?: ToastAction } | null
 type Show = (message: string, action?: ToastAction) => void
 
@@ -107,13 +108,18 @@ export function ToastProvider({
             {toast.action && (
               <button
                 type="button"
-                className="min-h-11 font-extrabold underline"
+                aria-label={toast.action.icon ? toast.action.label : undefined}
+                className={
+                  toast.action.icon
+                    ? 'grid size-[max(2.75rem,44px)] flex-none place-items-center rounded-full'
+                    : 'min-h-11 font-extrabold underline'
+                }
                 onClick={() => {
                   toast.action?.onClick()
                   setToast(null)
                 }}
               >
-                {toast.action.label}
+                {toast.action.icon ?? toast.action.label}
               </button>
             )}
           </div>

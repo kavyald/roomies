@@ -44,6 +44,7 @@ import {
 } from '@/lib/domain/runs'
 import type { LocalDate, LocalTime } from '@/lib/domain/time'
 import { RunCosts } from '@/components/costs/RunCosts'
+import { SplitwiseMark } from '@/components/costs/SplitwiseMark'
 import { useSplitwise } from '@/components/costs/useSplitwise'
 import { useContactChoice } from './ContactChoice'
 import { requestStage } from './meta'
@@ -669,7 +670,13 @@ function FinishRun({
     const noted = recorded ? ` ${formatCents(recorded.amount)} noted.` : ''
     toast(
       `Finished.${noted}${back || (recorded ? '' : ' Thanks! 💛')}`,
-      recorded ? { label: 'Open Splitwise', onClick: () => splitwise(recorded, label) } : undefined,
+      recorded
+        ? {
+            label: 'Add to Splitwise',
+            icon: <SplitwiseMark />,
+            onClick: () => splitwise(recorded, label),
+          }
+        : undefined,
     )
     onFinished()
   }

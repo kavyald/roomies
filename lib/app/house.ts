@@ -11,6 +11,7 @@ import { err, ok, type Result } from '../domain/result'
 import { moveRoom, renameRoom } from '../domain/rooms'
 import { reanchorRoutines } from '../domain/routines'
 import { localDateOf } from '../domain/time'
+import { setSplitwiseGroup } from '../domain/splitwise'
 import { setFeelingWeights } from '../domain/weights'
 
 /** "I moved out" (target = me) or an admin removing someone. RLS lets only those two through. */
@@ -158,6 +159,24 @@ export const makeSetFeelingWeights =
       const by = actorUser(actor)
       if (!house || !by) return err('not_found')
       const r = setFeelingWeights(house, weights, { by, actionId: ids.newId() })
+      if (!r.ok) return r
+      await repos.houses.save(r.value.house)
+      await repos.events.record(house.id, r.value.events, clock.now())
+      return ok(r.value.house)
+    })
+
+/** Admin → Splitwise (T89): link, change or (with `null`) unlink the house's group. Any member. */
+export const makeSetSplitwiseGroup =
+  ({ uow, clock, ids }: Pick<AppDeps, 'uow' | 'clock' | 'ids'>) =>
+  (
+    actor: HouseActor,
+    link: string | null,
+  ): Promise<Result<House, 'not_found' | 'invalid' | 'no_change'>> =>
+    uow.run(actor, async (repos) => {
+      const house = await repos.houses.get(actor.houseId)
+      const by = actorUser(actor)
+      if (!house || !by) return err('not_found')
+      const r = setSplitwiseGroup(house, link, { by, actionId: ids.newId() })
       if (!r.ok) return r
       await repos.houses.save(r.value.house)
       await repos.events.record(house.id, r.value.events, clock.now())

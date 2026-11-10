@@ -22,6 +22,7 @@ export type HouseSettingsJson = {
   timezone: string
   feeling_weights: Record<string, number>
   invite_ttl_days: number
+  splitwise_group?: string | null
 }
 
 export type HousesTable = {

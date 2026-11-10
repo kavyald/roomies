@@ -136,6 +136,9 @@ export const useLatestWeightsChange = (houseId: HouseId) => {
 export const useSetFeelingWeights = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, w: FeelingWeights) => c.setFeelingWeights(w), ['house'])
 
+export const useSetSplitwiseGroup = (houseId: HouseId) =>
+  useHouseCommand(houseId, (c, i: { link: string | null }) => c.setSplitwiseGroup(i), ['house'])
+
 export const useSetFeeling = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Parameters<AppCommands['setFeeling']>[0]) => c.setFeeling(i), [
     'feelings',
@@ -198,6 +201,14 @@ export const useEditCost = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'editCost'>) => c.editCost(i), ['costs'])
 export const useRemoveCost = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'removeCost'>) => c.removeCost(i), ['costs'])
+/** Which costs someone has sent to Splitwise, so their icon shows it (T89). */
+export const useSplitwiseCopied = (houseId: HouseId) => {
+  const { queries } = useAppClient()
+  return useQuery({
+    queryKey: keys.splitwiseCopied(houseId),
+    queryFn: async () => new Set<string>(await queries.splitwiseCopied(houseId)),
+  })
+}
 export const useCopiedToSplitwise = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'copiedToSplitwise'>) => c.copiedToSplitwise(i), [])
 

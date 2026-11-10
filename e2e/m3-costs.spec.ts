@@ -35,7 +35,7 @@ test('a grocery run in about six taps: finishing with $40 records one cost on th
   await run.getByRole('button', { name: 'Finish' }).click()
   const toast = page.getByRole('status').filter({ hasText: 'Finished. $40.00 noted.' })
   await expect(toast).toBeVisible()
-  await expect(toast.getByRole('button', { name: 'Open Splitwise' })).toBeVisible()
+  await expect(toast.getByRole('button', { name: 'Add to Splitwise' })).toBeVisible()
 
   // A cost on an item, paid by someone else.
   await page.goto(`/h/${owner.houseId}/needs`)
@@ -46,18 +46,15 @@ test('a grocery run in about six taps: finishing with $40 records one cost on th
     .getByRole('button', { name: /^Vacuum/ })
     .click()
   const detail = page.getByRole('dialog', { name: 'Vacuum' })
-  await detail.getByRole('button', { name: 'Costs', exact: true }).click()
   await detail.getByRole('button', { name: 'Add cost' }).click()
   await detail.getByLabel('Amount').fill('$189')
   await detail.getByLabel('Who paid').selectOption({ label: 'Wren' })
   await detail.getByRole('button', { name: 'Save cost' }).click()
   const costs = detail.getByRole('region', { name: 'Costs' })
   await expect(costs).toContainText('$189.00 · Wren paid')
-  // The closed section still shows the total.
-  await costs.getByRole('button', { name: 'Costs', exact: true }).click()
-  await expect(
-    costs.getByRole('button', { name: 'Costs', exact: true }),
-  ).toHaveAccessibleDescription('$189.00')
+  // The section shows its total beside its name (T104).
+  await expect(costs.getByRole('heading', { name: 'Costs' })).toBeVisible()
+  await expect(costs.getByText('$189.00', { exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   // Admin shows no monthly total (T64).
   await page.getByRole('link', { name: 'Admin' }).click()

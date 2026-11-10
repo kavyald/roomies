@@ -133,6 +133,17 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.keyboard.press('Escape')
     await expect(routineEdit).toBeHidden()
 
+    // Admin → Splitwise (T89): the group link sheet.
+    const splitwiseSheet = page.getByRole('dialog', { name: 'Splitwise group' })
+    await expect(async () => {
+      if (!(await splitwiseSheet.isVisible()))
+        await page.getByRole('list', { name: 'Splitwise' }).getByRole('button').click()
+      await expect(splitwiseSheet).toBeVisible({ timeout: 2000 })
+    }).toPass()
+    await check(page, 'admin (Splitwise sheet)')
+    await page.keyboard.press('Escape')
+    await expect(splitwiseSheet).toBeHidden()
+
     // Admin → Rooms: the sheet, then a room open to edit in place (T66).
     await page.goto(`${h}/admin`)
     const rooms = page.getByRole('dialog', { name: 'Rooms' })

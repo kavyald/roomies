@@ -26,7 +26,6 @@ test('a cost on an item is edited, then removed, and Activity follows (T57); Hou
     .getByRole('button', { name: /^Vacuum/ })
     .click()
   const detail = page.getByRole('dialog', { name: 'Vacuum' })
-  await detail.getByRole('button', { name: 'Costs', exact: true }).click()
   const costs = detail.getByRole('region', { name: 'Costs' })
   await expect(costs).toContainText('$189.00 · You paid · Dyson')
 

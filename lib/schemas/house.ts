@@ -48,3 +48,6 @@ export const feelingWeightsSchema = z.object({
   meh: weight,
   thanks: weight,
 })
+
+/** A pasted Splitwise group link, or null to unlink it (T89). The use case checks its shape. */
+export const splitwiseGroupSchema = z.object({ link: z.string().max(500).nullable() })

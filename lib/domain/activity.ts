@@ -19,6 +19,7 @@ import type { Category } from './items'
 import { formatCents, type Cents } from './money'
 import { runLabel, type RunRef } from './runs'
 import { localDateOf, type Instant, type LocalDate } from './time'
+import { describeSplitwiseChange } from './splitwise'
 import { describeWeightsChange } from './weights'
 
 /** Names for the things rows point at. Anything unknown gets a gentle generic word. */
@@ -361,6 +362,8 @@ export const activityLine = (
         return `${actor} set up the house`
       case 'settings.feeling_weights_changed':
         return `${actor} ${describeWeightsChange(r.changes as FieldChanges | undefined)}`
+      case 'settings.splitwise_changed':
+        return `${actor} ${describeSplitwiseChange(r.changes as FieldChanges | undefined)}`
       case 'invite.created':
         return `${actor} made an invite link`
       case 'invite.revoked':
@@ -415,7 +418,7 @@ export const activityLine = (
     const k = first.kind
     if (k.startsWith('poll.')) return 'poll'
     if (k.startsWith('run.') || k.startsWith('request.')) return 'run'
-    if (k.startsWith('cost.')) return 'money'
+    if (k.startsWith('cost.') || k === 'settings.splitwise_changed') return 'money'
     if (k.startsWith('item.') || k === 'chore.done' || k === 'feeling.set')
       return itemCats.size === 1 ? ([...itemCats][0] as FeedTopic) : 'item'
     return 'house'

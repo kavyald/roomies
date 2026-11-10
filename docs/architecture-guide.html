@@ -498,7 +498,7 @@ const LAYERS = [
   { name:'house · invites · setup · contacts · me · session', desc:'people and places', fns:[
     ['makeSetupHouse · makeSetupStatus','One-time bootstrap guarded by SETUP_TOKEN and RLS.'],
     ['makeCreateInvite · makeRevokeInvite · makeStartInvite · makeAcceptInvite · makeInviteDetails','Token checked by the use case, then work runs as the system actor; accept re-validates inside its write.'],
-    ['makeMoveOut · makeSetRole · makeRenameRoom · makeMoveRoom · makeDeleteAccount · makeSetFeelingWeights','Membership changes record the event before the status change.'],
+    ['makeMoveOut · makeSetRole · makeRenameRoom · makeMoveRoom · makeDeleteAccount · makeSetFeelingWeights · makeSetSplitwiseGroup','Membership changes record the event before the status change.'],
     ['makeCreateContact · makeEditContact · makeRemoveContact','Contacts are archived, never deleted.'],
     ['makeUpdateMySettings · makeSetNotificationEnabled · makeWhereTo','Personal settings and post-sign-in routing.'] ]},
   { name:'notify.ts · push.ts · jobs.ts', desc:'delivery', fns:[
@@ -516,7 +516,8 @@ const LAYERS = [
     ['scorePriority(item, feelings, weights, now, tz)','base + due pressure + Σ feeling weights, clamped 0–100 → { score, tier, breakdown }.'],
     ['isInFeed · homeFeed','PRD §8.1 rules, e.g. tasks on a visit leave the feed unless felt about or within 3 days.'],
     ['setFeeling · earlierFeelings · feelingScore · feelingCounts','One current feeling per person per item.'],
-    ['setFeelingWeights · isValidWeight · stepWeight','−20…+40 in steps of 5.'] ]},
+    ['setFeelingWeights · isValidWeight · stepWeight','−20…+40 in steps of 5.'],
+    ['parseSplitwiseGroup · setSplitwiseGroup · splitwiseUrl','The house’s Splitwise group link, one shape; any member (T89).'] ]},
   { name:'runs.ts', desc:'the biggest module (629 lines)', fns:[
     ['startRun · addToRun · markRunItemsDone · moveRunItems · returnToPool · finishRun','Set or clear item.run and emit one event per item.'],
     ['startRequest · addToRequest · requestMessage · sendRequest · handToContact · planVisit · setVisitDate','Requests and visits.'],
@@ -788,7 +789,7 @@ const PROD = [
  ['D7','Feeling weights are the house\'s','One house-wide setting any member can change (−20…+40). Saving re-ranks everyone\'s feed and shows a card on Home.',[]],
  ['D2 · D6','No scoreboards','No chore balance, no “who\'s done what”, no weekly check-in or house mood.',[]],
  ['D3 · D20','Polls: ties are ties','Most votes wins. A tie says “Tie” and the app does nothing automatic. Anyone can add options while it\'s open.',[]],
- ['D14 · D4','Money is optional','A cost record on an item or run, only when something was spent. “Open Splitwise” copies “title — $amount”; no Splitwise API.',[]],
+ ['D14 · D4','Money is optional','A cost record on an item or run, only when something was spent. The Splitwise icon copies “title — $amount” and opens the house’s Splitwise group (T89); no Splitwise API.',[]],
  ['D23 · D24','Runs keep the feed calm','Tasks on a visit leave Home unless someone has a feeling or the visit is within 3 days. No automatic “no reply” nudges, just “Sent N days ago”.',[]],
  ['D13','v1 is five things','Needs, chores, tasks, polls, runs. Bills, belongings, rotations, heads-ups, info items and email digests are parked, not dropped.',[]]
 ];

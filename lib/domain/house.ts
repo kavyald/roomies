@@ -8,6 +8,8 @@ export type HouseSettings = {
   readonly timezone: string
   readonly feelingWeights: FeelingWeights
   readonly inviteTtlDays: number
+  /** The house's Splitwise group link, which a cost's Splitwise icon opens (T89). */
+  readonly splitwiseGroup?: string
 }
 
 export const defaultHouseSettings = (timezone: string): HouseSettings => ({

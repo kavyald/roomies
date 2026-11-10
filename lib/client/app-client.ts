@@ -354,6 +354,10 @@ export type AppCommands = {
   setFeelingWeights(
     weights: FeelingWeights,
   ): Promise<CommandResult<House, 'not_found' | 'out_of_range' | 'no_change'>>
+  /** Link, change or (null) unlink the house's Splitwise group (T89). */
+  setSplitwiseGroup(input: {
+    link: string | null
+  }): Promise<CommandResult<House, 'not_found' | 'invalid' | 'no_change'>>
   setFeeling(input: {
     itemId: ItemId
     kind: FeelingKind | null

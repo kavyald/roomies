@@ -450,6 +450,7 @@ function ItemDetailSheet({
             else toast(PROBLEM[r.error] ?? oops)
           }}
         />
+        <ItemCosts houseId={houseId} item={item} />
       </Sheet>
     )
   }
@@ -691,6 +692,7 @@ function ItemDetailSheet({
           {primary.label}
         </Button>
       )}
+      <ItemCosts houseId={houseId} item={item} />
       {rows.length > 0 && (
         <dl className="m-0 grid grid-cols-[auto_1fr] items-center gap-x-3.5 gap-y-2">
           {rows.map(([k, val]) => (
@@ -726,7 +728,6 @@ function ItemDetailSheet({
           <WhyHere houseId={houseId} item={item} name={(u) => nameOf(u) ?? 'Former roommate'} />
         )}
         <ItemPolls houseId={houseId} item={item} />
-        <ItemCosts houseId={houseId} item={item} />
         <ItemRunPath houseId={houseId} itemId={item.id} />
       </DisclosureGroup>
     </Sheet>

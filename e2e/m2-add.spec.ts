@@ -75,16 +75,18 @@ test('the detail sheet shows Edit and Delete as header icons, and the extras clo
   await expect(detail.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
   await expect(detail.getByRole('button', { name: 'More actions' })).toHaveCount(0)
 
-  // Costs is a closed section: a named region with a row that opens it.
+  // Costs is open, right under the main button, with Add cost in view (T104).
   const costs = detail.getByRole('region', { name: 'Costs' })
-  const costsRow = costs.getByRole('button', { name: 'Costs', exact: true })
-  await expect(costsRow).toHaveAttribute('aria-expanded', 'false')
-  await expect(costs.getByRole('button', { name: 'Add cost' })).toHaveCount(0)
-  await costsRow.click()
-  await expect(costsRow).toHaveAttribute('aria-expanded', 'true')
   await expect(costs.getByRole('button', { name: 'Add cost' })).toBeVisible()
 
+  // The Edit sheet has the same Costs section under the form (T104).
   await detail.getByRole('button', { name: 'Edit', exact: true }).click()
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Edit task' })
+      .getByRole('region', { name: 'Costs' })
+      .getByRole('button', { name: 'Add cost' }),
+  ).toBeVisible()
   await page.getByLabel('What needs doing?').fill('Descale the kettle')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible()

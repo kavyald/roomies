@@ -157,7 +157,10 @@ export type DomainEvent = EventBase &
       }
     // house, people, places
     | { readonly kind: 'house.created' }
-    | { readonly kind: 'settings.feeling_weights_changed'; readonly changes: FieldChanges }
+    | {
+        readonly kind: 'settings.feeling_weights_changed' | 'settings.splitwise_changed'
+        readonly changes: FieldChanges
+      }
     | {
         readonly kind: 'member.joined' | 'member.room_changed'
         readonly memberId: UserId

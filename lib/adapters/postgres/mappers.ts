@@ -114,6 +114,7 @@ export const houseToDomain = (r: Selectable<HousesTable>): House =>
       timezone: r.settings.timezone,
       feelingWeights: feelingWeightsFrom(r.settings.feeling_weights),
       inviteTtlDays: r.settings.invite_ttl_days,
+      ...(r.settings.splitwise_group && { splitwiseGroup: r.settings.splitwise_group }),
     },
     createdBy: asId<'user'>(r.created_by),
     createdAt: toInstant(r.created_at),
@@ -130,6 +131,7 @@ export const houseToRow = (h: House) => ({
     timezone: h.settings.timezone,
     feeling_weights: h.settings.feelingWeights,
     invite_ttl_days: h.settings.inviteTtlDays,
+    ...(h.settings.splitwiseGroup && { splitwise_group: h.settings.splitwiseGroup }),
   }),
 })
 

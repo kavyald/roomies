@@ -326,6 +326,8 @@ export interface HouseQueries {
   notificationsOff(userId: UserId): Promise<NotificationCategory[]>
   /** The house's costs that still count (removed ones left out), oldest first. */
   costs(houseId: HouseId): Promise<Cost[]>
+  /** The costs someone has tapped the Splitwise icon for (a `cost.splitwise_copied` row), T89. */
+  splitwiseCopied(houseId: HouseId): Promise<CostId[]>
   /** The house's runs, open ones and finished ones. */
   runs(houseId: HouseId): Promise<Run[]>
   /** A run's story (rows on it or moved into it), oldest first. */

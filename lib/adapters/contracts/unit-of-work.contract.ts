@@ -312,6 +312,30 @@ export const unitOfWorkContract = (name: string, makeHarness: () => Promise<Unit
         ).rejects.toBeInstanceOf(AccessDenied)
       })
 
+      it('any member may link the Splitwise group, but only as a group link (T89)', async () => {
+        const { house, member } = await seedHouse(h)
+        const me = asMember(house.id, member)
+        const withGroup = (splitwiseGroup: string) => ({
+          ...house,
+          settings: { ...house.settings, splitwiseGroup },
+        })
+        const group = 'https://secure.splitwise.com/#/groups/12345678'
+        await h.uow.run(me, (r) => r.houses.save(withGroup(group)))
+        expect((await h.uow.run(me, (r) => r.houses.get(house.id)))?.settings.splitwiseGroup).toBe(
+          group,
+        )
+        await expect(
+          h.uow.run(me, (r) => r.houses.save({ ...withGroup(group), name: 'Mine now' })),
+        ).rejects.toBeInstanceOf(AccessDenied)
+        await expect(
+          h.uow.run(me, (r) => r.houses.save(withGroup('https://example.com/groups/1'))),
+        ).rejects.toBeInstanceOf(ConstraintViolation)
+        await h.uow.run(me, (r) => r.houses.save({ ...house, settings: house.settings }))
+        expect(
+          (await h.uow.run(me, (r) => r.houses.get(house.id)))?.settings.splitwiseGroup,
+        ).toBeUndefined()
+      })
+
       it('any member may change the feeling weights, but only admins change the rest of the house', async () => {
         const { house, admin, member } = await seedHouse(h)
         const me = asMember(house.id, member)

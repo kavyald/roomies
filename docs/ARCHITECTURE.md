@@ -167,7 +167,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | `Tokens` | `newToken()` (128 bits, URL-safe), `hash(token)` (SHA-256): invite tokens are stored only as hashes | `cryptoTokens` | `seqTokens()` |
 | `RateLimiter` | `hit(key, { limit, windowMs }, now): Promise<boolean>`: counts attempts per key in fixed windows, outside the use case's transaction (§5.4) | Postgres (`rate_limits`, service role) | in-memory |
 | `SecurityLog` | `record(event: SecurityEvent): Promise<void>`: appends a refused join or setup attempt (`invite_refused` with its reason, `setup_token_refused`, `rate_limited`; each with its step, IP and time), outside the use case's transaction (§5.4) | Postgres (`security_events`, service role) | `memorySecurityLog()` (keeps `events`) |
-| `HouseQueries` (read side) | Raw reads, each one RLS-filtered: `house`, `members`, `profiles`, `rooms`, `routines` (removed ones left out), `contacts`, `feelings`, `items`, `polls`, `runs`, `costs` (removed ones left out; activity still names them through `subjects`), `invites` (admins only), `notificationsOff(userId)`, `itemActivity(houseId, itemId)`, `runActivity(houseId, runId)`, `latestActivity(houseId, kind)`, and `activity(houseId, { before?, limit })`, a page of rows with the `subjects` they name (A24). Screens shape these in the browser with pure functions (`homeFeed`, `needList`, `choreBoard`, `taskList`, `calendarEntries`, `activityFeed`, …). | Supabase browser client (RLS) | `memoryHouseQueries` |
+| `HouseQueries` (read side) | Raw reads, each one RLS-filtered: `house`, `members`, `profiles`, `rooms`, `routines` (removed ones left out), `contacts`, `feelings`, `items`, `polls`, `runs`, `costs` (removed ones left out; activity still names them through `subjects`), `invites` (admins only), `notificationsOff(userId)`, `itemActivity(houseId, itemId)`, `runActivity(houseId, runId)`, `latestActivity(houseId, kind)`, `splitwiseCopied(houseId)` (the costs with a `cost.splitwise_copied` row, which highlights their icon, T89), and `activity(houseId, { before?, limit })`, a page of rows with the `subjects` they name (A24). Screens shape these in the browser with pure functions (`homeFeed`, `needList`, `choreBoard`, `taskList`, `calendarEntries`, `activityFeed`, …). | Supabase browser client (RLS) | `memoryHouseQueries` |
 | `ChangeFeed` | `subscribe(houseId, onChange: (change: { table }) => void): Unsubscribe` | Supabase Realtime (§7.5) | `memoryChangeFeed` |
 | `AuthGateway` | `createUser(email): Result<UserId, 'already_exists'>`, `sendCode(email)` (only to an existing account, silent either way), `deleteUser(id)`. Checking the code is `verifyOtp` in the sign-in server action, which sets the session cookie. | Supabase Auth (admin client for create/delete, anon client for codes) | `memoryAuth` |
 | `PushSender` | `send(sub: PushSubscription, payload: string): Promise<PushOutcome>`, where `PushOutcome` is `{ kind: 'sent' }`, `{ kind: 'gone' }` (404/410), `{ kind: 'failed', retryAfterMs? }` (429, 5xx or no answer, with the push service's Retry-After when it sent one) or `{ kind: 'rejected' }` (any other 4xx: won't pass, so not retried, and the browser is kept) | `webPushSender` (`web-push`, VAPID) | `fakePush()` (records sends) |
@@ -244,7 +244,7 @@ Admin-only actions (invites, adding and removing members, roles, house details) 
 | `can_claim_house(h)` in "members admin insert" | `house_members` insert | The setup owner adds *themselves* as the first admin of the house they created, while it has no members |
 | "members update own" (+ `member_role`) | `house_members` update | You move out or change your room, never your role; someone who moved out can't reactivate themselves. `member_role(h, u)` answers only a caller who is an active member of `h` |
 | "outbox enqueue" | `notifications_outbox` insert | Members enqueue for their own house, and only for its active members (`user_id`) |
-| "houses members set feeling weights" (+ `only_feeling_weights_changed`) | `houses` update | Any member saves the row when nothing but `settings.feeling_weights` differs from the stored one (A22, PRD §8.2) |
+| "houses members set shared settings" (+ `only_shared_settings_changed`) | `houses` update | Any member saves the row when nothing but `settings.feeling_weights` or `settings.splitwise_group` differs from the stored one (A22, A36; PRD §8.2, §6.6) |
 | "feelings delete own" | `feelings` delete | One of three DELETE policies (with "poll votes withdraw own while open" and "chore rooms delete"): removing your own current feeling (its history stays in `activity_events`) |
 | "routines read / insert / update" | `routines` | Any active member of the house (owner, T96); never deleted, since activity points at them |
 | "chore rooms read / insert / delete" | `chore_rooms` | Any active member of the house; a chore's rooms are rows you add and remove. The third DELETE policy |
@@ -266,7 +266,7 @@ Admin-only actions (invites, adding and removing members, roles, house details) 
 
 A new table grants its writes to `app_writer`, never to `authenticated`; Member reads and `service_role`'s rights are granted explicitly too, with matching default privileges, because hosted projects don't grant them the way the local CLI does (A31). `supabase/tests/grants.test.ts` checks the lists, the read and `service_role` grants, that `authenticator` can't become `app_writer`, and that Realtime publishes only `activity_events`.
 
-**Policy helpers** (`is_member`, `is_admin`, `shares_house`, `no_house_exists`, `member_role`, `can_claim_house`, `poll_is_open`, `only_feeling_weights_changed`) live in the `private` schema, which the REST API doesn't expose, so nobody calls them as RPCs. Policies reach them by oid; `authenticated` may execute them but can't look the schema up, and `app_writer` and `service_role` can (the server calls `private.no_house_exists()`).
+**Policy helpers** (`is_member`, `is_admin`, `shares_house`, `no_house_exists`, `member_role`, `can_claim_house`, `poll_is_open`, `only_shared_settings_changed`) live in the `private` schema, which the REST API doesn't expose, so nobody calls them as RPCs. Policies reach them by oid; `authenticated` may execute them but can't look the schema up, and `app_writer` and `service_role` can (the server calls `private.no_house_exists()`).
 
 **[DECIDED] A4:** no extra "house passcode" on invites. Joins notify everyone, links expire and can be revoked, and admins can remove people in one tap.
 
@@ -338,7 +338,8 @@ profiles        (id, display_name, theme: auto|light|dark, timezone null, quiet_
                  -- id = the auth user's id, but no foreign key: a deleted account's profile is anonymized and kept
                  check ((quiet_start is null) = (quiet_end is null))
 houses          (id, name, address null, unit null, created_by, created_at,
-                 settings jsonb)   -- { timezone, feeling_weights: {anxious:20, frustrated:15, confused:5, fine:0, meh:-5, thanks:0}, invite_ttl_days }
+                 settings jsonb)   -- { timezone, feeling_weights: {anxious:20, frustrated:15, confused:5, fine:0, meh:-5, thanks:0}, invite_ttl_days, splitwise_group? }
+                                   -- splitwise_group: "https://secure.splitwise.com/#/groups/<id>" or absent (CHECK houses_splitwise_group_valid, T89)
                  check (valid_feeling_weights(settings -> 'feeling_weights'))   -- known feelings, −20…+40, steps of 5 (A22)
 house_members   (house_id, user_id, role: admin|member, status: active|moved_out, room_id null, joined_at, left_at null)  PK(house_id, user_id)
                  foreign key (house_id, room_id) references rooms (house_id, id)    -- a room of the same house
@@ -511,7 +512,7 @@ type Cost = { id: CostId; houseId: HouseId; amount: Cents; paidBy: UserId; note?
 type RunStep = { id: number; at: Instant; by: UserId | null; itemId: ItemId; runId: RunId; note?: string
   what: 'added' | 'done' | 'returned' | { movedTo: RunId } }
 
-type HouseSettings = { timezone: string; feelingWeights: FeelingWeights; inviteTtlDays: number }
+type HouseSettings = { timezone: string; feelingWeights: FeelingWeights; inviteTtlDays: number; splitwiseGroup?: string }
 
 // ---- events (returned by domain functions, recorded by EventSink) ----
 type DomainEvent = { actionId: ActionId; by: UserId | null } & (      // by: null = Roomies (jobs)
@@ -544,7 +545,7 @@ type DomainEvent = { actionId: ActionId; by: UserId | null } & (      // by: nul
   | { kind: 'cost.removed'; costId: CostId; itemId?: ItemId; runId?: RunId; memberId?: UserId; note?: string }
   // house, people, places
   | { kind: 'house.created' }
-  | { kind: 'settings.feeling_weights_changed'; changes: FieldChanges }
+  | { kind: 'settings.feeling_weights_changed' | 'settings.splitwise_changed'; changes: FieldChanges }
   | { kind: 'member.joined' | 'member.room_changed'; memberId: UserId; roomId?: RoomId; changes?: FieldChanges }
   | { kind: 'member.role_changed' | 'member.moved_out' | 'member.removed'; memberId: UserId; note?: string; changes?: FieldChanges }
   | { kind: 'invite.created' | 'invite.revoked'; payload: { expiresAt?: string; maxUses?: number } }
@@ -646,7 +647,7 @@ select changes, actor_id, at from activity_events
 | | `run.item_added` · `run.item_moved` · `run.item_returned` · `run.item_done` | item, run, to_run (moves), note | ◐ | a visit's point person on tasks moved into it, one message per action, not if they moved them (D32) |
 | | `request.sent` · `request.closed` · `run.finished` | run (+ contact) | ✓ | — |
 | Money | `cost.added` · `cost.edited` · `cost.removed` · `cost.splitwise_copied` | cost (+ item or run, member who paid) | ✓ · ✓ · ✓ · — | — |
-| House | `house.created` · `settings.feeling_weights_changed` · `invite.created` · `invite.revoked` | `changes` / `payload` | ✓ (invites: admins) | everyone but the changer, on weights (D32; the Home card stays) |
+| House | `house.created` · `settings.feeling_weights_changed` · `settings.splitwise_changed` · `invite.created` · `invite.revoked` | `changes` / `payload` | ✓ (invites: admins; the Splitwise change files under Money) | everyone but the changer, on weights (D32; the Home card stays) |
 | People | `member.joined` · `member.room_changed` · `member.role_changed` · `member.moved_out` · `member.removed` | member (+ room), note | ✓ | everyone else on joined/left (not whoever removed them) · that member on role (not their own change) |
 | Places | `contact.created` · `contact.edited` · `contact.removed` · `room.renamed` | contact / room, `changes` | ✓ | — |
 | Routines | `routine.created` · `routine.updated` · `routine.removed` · `room.routine_changed` | routine (+ room), `changes` | ✓ | — (the handover is a reminder) |
@@ -686,6 +687,7 @@ select changes, actor_id, at from activity_events
 | `setFeeling` | `(current: Feeling \| null, next: { kind, note? } \| null, ctx: { itemId, by, now, actionId }) → Result<{ feeling \| null; events }, 'no_change' \| 'note_too_long'>` | The event carries `previous`; `earlierFeelings(rows)` reads them back, leaving out a version whose note was added or edited on the same feeling |
 | `isValidWeight` / `stepWeight` | `(n) → boolean` / `(n, ±1) → number` | −20…+40, steps of 5 |
 | `setFeelingWeights` | `(house: House, next: FeelingWeights, ctx: { by, actionId }) → Result<{ house; events }, 'out_of_range' \| 'no_change'>` | `describeWeightsChange` words the Home card |
+| `parseSplitwiseGroup` / `setSplitwiseGroup` / `splitwiseUrl` (`splitwise.ts`, T89) | `(input) → Result<string, 'invalid'>` / `(house, link \| null, { by, actionId }) → Result<{ house; events }, 'invalid' \| 'no_change'>` / `(settings) → string` | A pasted link becomes one shape; `settings.splitwise_changed` holds `[before, after]`; the icon opens the group or Splitwise's home page. `describeSplitwiseChange` words the activity line |
 | **Polls** (`polls.ts`) | | |
 | `createPoll` | `(input: NewPoll, ctx: { by, now, actionId, id, houseId, optionIds }) → Result<{ poll; events }, 'empty_question' \| 'question_too_long' \| 'needs_two_options' \| 'duplicate_label' \| …>` | |
 | `vote` | `(p: Poll, option, ctx) → Result<{ poll; vote; events }, 'closed' \| 'unknown_option' \| 'no_change'>` | Changing a vote replaces it |
@@ -755,7 +757,7 @@ select changes, actor_id, at from activity_events
 | `polls.ts` | `createPoll` (`NewPoll`) · `vote` (`{ pollId, optionId }`) · `addPollOption` (`{ pollId, label, note? }`) · `closePoll` (`{ pollId }`) · `withdrawVote` (`{ pollId }`) · `reopenPoll` (`{ pollId }`) · `setPollDeadline` (`{ pollId, closesAt \| null }`) | `Poll` / `{ poll, result }` | the domain errors above | |
 | `costs.ts` | `addCost` (`NewCost`) · `editCost` (`{ costId, amount?, paidBy?, note? }`) · `removeCost` (`{ costId }`) · `copiedToSplitwise` (`{ costId }`) | `Cost` | `not_positive`, `too_large`, `note_too_long`, `unknown_member`, `not_found`; edit: `no_change`, `removed`; remove: `already_removed` | |
 | `contacts.ts` | `createContact` (`NewContact`) · `editContact` (`{ id, patch }`) · `removeContact` (an id) | `Contact` | `empty_name`, `no_change`, `already_removed` | |
-| `house.ts` | `moveOut` (`{ userId, note? }`: "I moved out", or an admin removing someone) · `setRole` (`{ userId, role }`) · `changeMyRoom` (`{ roomId \| null }`, as yourself, T93) · `renameRoom` (`{ roomId, name }`) · `moveRoom` (`{ roomId, direction }`) · `setFeelingWeights` (`FeelingWeights`, any member) | `Member` / `Room` / `Room[]` / `House` | `not_allowed`, `already_moved_out`, `last_admin`, `not_active`, `no_change`, `room_taken`, `empty_name`, `at_edge`, `out_of_range` | |
+| `house.ts` | `moveOut` (`{ userId, note? }`: "I moved out", or an admin removing someone) · `setRole` (`{ userId, role }`) · `changeMyRoom` (`{ roomId \| null }`, as yourself, T93) · `renameRoom` (`{ roomId, name }`) · `moveRoom` (`{ roomId, direction }`) · `setFeelingWeights` (`FeelingWeights`, any member) · `setSplitwiseGroup` (`link \| null`, any member, T89) | `Member` / `Room` / `Room[]` / `House` | `not_allowed`, `already_moved_out`, `last_admin`, `not_active`, `no_change`, `room_taken`, `empty_name`, `at_edge`, `out_of_range`, `invalid` | |
 | | `deleteAccount` (none): moves you out, anonymizes your profile, then deletes the auth user | `void` | `last_admin` | `auth` |
 | `me.ts` | `updateMySettings` (`SettingsPatch`: theme, quiet hours) · `setNotificationEnabled` (`{ category, enabled }`) | `Profile` / the input | `bad_time`, `no_change` | uow only |
 | `invites.ts` | `createInvite` (`NewInvite`) · `revokeInvite` (an id) · `listInvites` (admins) | `{ invite, token }` / `Invite` / `Invite[]` | `not_admin`, `bad_limits`, `already_revoked` | `tokens` |
@@ -836,7 +838,7 @@ Immediate notifications (assigned, 😰/😤, new poll or option, run started, n
 
 ### 7.6 Splitwise
 
-v1 is a link-out only: copy "{title} — ${amount}" (`splitwiseText`) and open Splitwise, then record a `cost.splitwise_copied` activity row (the `copiedToSplitwise` use case). Costs have no column for it. The API integration is later.
+A link-out only (T89, A36): the Splitwise icon on a cost copies "{title} — ${amount}" (`splitwiseText`) and opens the house's group (`settings.splitwise_group`, set by any member in Admin; Splitwise's home page until then), then records a `cost.splitwise_copied` activity row (the `copiedToSplitwise` use case). Costs have no column for it: `HouseQueries.splitwiseCopied` reads the rows back, and the icon is highlighted for a cost that has one. The copy starts and the window opens inside the tap, before anything is awaited, because iPhone Safari allows neither afterwards. Splitwise has no link that pre-fills an expense; its API (OAuth, per-member consent, non-commercial terms) isn't used.
 
 ### 7.7 Offline behavior
 
@@ -1006,4 +1008,5 @@ iPhone UX specifics:
 | A32 | Server error reports outlive the response (T79) | `lib/adapters/sentry/server.ts` (`reportError`, and `captureRequestError` for `onRequestError`) hands `Sentry.flush(2000)` to `waitUntil` from `@vercel/functions` after every capture. Vercel freezes a function once its response ends, and `@sentry/nextjs`'s own wait only runs on the edge runtime, so on Node a report still sending was cut off and counted as a `network_error` discard. Off Vercel `waitUntil` does nothing. The server reporters sit apart from `index.ts` so the browser bundle never pulls in `@vercel/functions`. | Build (T79), found in E2 |
 | A33 | A browser belongs to whoever last turned notifications on with it (T84) | `savePushSubscription` checks you're an active member and saves as the system in one transaction, which moves a browser saved under someone else to you. It moves only if the keys you send match the saved ones (the same browser hands back the same subscription) or the row is already gone; knowing the endpoint alone isn't enough. Sign-out unsubscribes the browser and marks its row `gone_at`. The alternatives were an RLS policy letting a member update a row they can't see by endpoint (it would need a security-definer lookup, a logic RPC, which §4.1 rules out), or refusing the save (the next person on a shared phone could never turn notifications on). | Build (T84) |
 | A34 | Feedback is not an activity event (T91) | A bug, idea or praise sent from Admin goes to its own `feedback` table, which members insert into (in their own name, for their own house) and never read; the owner reads it in the Supabase dashboard. The use case records no `DomainEvent`, so it's neither house history nor a notification: it's a note to whoever runs Roomies, not something the house did. The server stamps the app version (`Config.appVersion`, from `VERCEL_GIT_COMMIT_SHA`) and the request's user agent, so the client sends only the kind and message. No screenshot or page path. | Owner (2026-10-14), built in T91 |
+| A36 | The Splitwise group is a shared house setting (T89) | `settings.splitwise_group` on `houses`, which any active member may change. The policy that let members change only the feeling weights now lets them change those or the link (renamed "houses members set shared settings", helper `only_shared_settings_changed`, by `ALTER … RENAME` so the policy keeps its oid), and a CHECK keeps the link one shape. A separate table was the alternative; one optional key didn't earn its own table, grants and contract. Each change is a `settings.splitwise_changed` activity row, filed under Money, with no notification. | Owner (2026-11-10), built in T89 |
 | A35 | Routines (T96) | Who's on a chore is derived, not stored: a routine holds an anchor (`starts_on`, `starts_with`) and the holder is arithmetic over active members, re-anchored in the join and move-out transactions. A handover is a reminder draft with a dedupe key, not an activity event, since nothing happens to the data then. The migration only adds (DEPLOYMENT D5); the strict chore checks come in a later release. |
