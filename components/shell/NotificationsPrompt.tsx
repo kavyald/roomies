@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { NotificationSteps } from '@/components/house/NotificationSteps'
-import { settlePush, TURN_ON_TOASTS, turnOnPush } from '@/components/house/turn-on-push'
+import { TURN_ON_TOASTS, turnOnPush } from '@/components/house/turn-on-push'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { pushPromptFor, type PushPrompt } from '@/lib/client/install'
 import { useAppClient } from '@/lib/client/provider'
+import { pushState } from '@/lib/client/push'
 
 const DONE_KEY = 'roomies.pushPromptDone'
 
@@ -52,15 +53,10 @@ export function NotificationsPrompt() {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
+    if (answered()) return
     let live = true
     void (async () => {
-      // Allowed but not connected (they just followed the steps): on, with no tap (T95).
-      const { state, connected } = await settlePush(commands, vapidPublicKey)
-      if (connected) {
-        if (live) toast(TURN_ON_TOASTS.on)
-        return
-      }
-      if (answered()) return
+      const state = await pushState()
       const next = pushPromptFor(state, {
         userAgent: navigator.userAgent,
         standalone: isStandalone(),
@@ -71,7 +67,7 @@ export function NotificationsPrompt() {
     return () => {
       live = false
     }
-  }, [commands, vapidPublicKey, toast])
+  }, [])
 
   const done = () => {
     setPrompt(null)
