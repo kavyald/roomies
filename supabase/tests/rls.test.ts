@@ -343,6 +343,29 @@ describe('feeling weights (any member) vs. the rest of the house (admins)', () =
     })
   })
 
+  it('a member links the Splitwise group, only as a group link, and only in their house (T89)', async () => {
+    const setGroup = `update houses set settings = jsonb_set(settings, '{splitwise_group}', $2::jsonb) where id = $1`
+    const group = '"https://secure.splitwise.com/#/groups/12345678"'
+    await asUser(mine.member, async (db) => {
+      expect((await db.query(setGroup, [mine.houseId, group])).rowCount).toBe(1)
+      expect((await db.query(setGroup, [theirs.houseId, group])).rowCount).toBe(0)
+      for (const bad of ['"https://example.com/groups/1"', '"javascript:alert(1)"', '42']) {
+        expect({ bad, code: await refused(db, setGroup, [mine.houseId, bad]) }).toEqual({
+          bad,
+          code: '23514',
+        })
+      }
+      expect(
+        (
+          await db.query(
+            `update houses set settings = settings - 'splitwise_group' where id = $1`,
+            [mine.houseId],
+          )
+        ).rowCount,
+      ).toBe(1)
+    })
+  })
+
   it('weights stay between -20 and +40, in steps of 5', async () => {
     await asUser(mine.member, async (db) => {
       for (const w of ['45', '-25', '12', '"high"']) {

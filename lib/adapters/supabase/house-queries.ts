@@ -253,6 +253,16 @@ export const supabaseHouseQueries = (sb: SupabaseClient): HouseQueries => {
           .order('expires_at', { ascending: false }),
         inviteToDomain,
       ),
+    splitwiseCopied: async (houseId) => {
+      const found = await raw(
+        sb
+          .from('activity_events')
+          .select('cost_id')
+          .eq('house_id', houseId)
+          .eq('kind', 'cost.splitwise_copied'),
+      )
+      return [...new Set(found.map((r) => asId<'cost'>(r.cost_id as string)))]
+    },
     latestActivity: async (houseId, kind) => {
       const [row] = await rows(
         sb

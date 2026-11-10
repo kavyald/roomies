@@ -449,6 +449,39 @@ export const houseQueriesContract = (
       expect(await q.notificationsOff(member)).toEqual(['polls'])
     })
 
+    it('lists the costs someone sent to Splitwise, once each, to members only (T89)', async () => {
+      const { house, member } = await seedHouse(h)
+      const cost = (amount: number) => ({
+        id: h.ids.newId<'cost'>(),
+        houseId: house.id,
+        amount,
+        paidBy: member,
+        createdBy: member,
+        createdAt: T,
+      })
+      const sent = cost(4250)
+      const notSent = cost(999)
+      const copied = (): DomainEvent => ({
+        kind: 'cost.splitwise_copied',
+        costId: sent.id,
+        actionId: h.ids.newId(),
+        by: member,
+      })
+      const q = h.queriesFor(member, house.id)
+      await h.uow.run(system(house.id), async (r) => {
+        await r.costs.add(sent as never)
+        await r.costs.add(notSent as never)
+      })
+      expect(await q.splitwiseCopied(house.id)).toEqual([])
+      await h.uow.run(system(house.id), async (r) => {
+        await r.events.record(house.id, [copied()], T)
+        await r.events.record(house.id, [copied()], T)
+      })
+      expect(await q.splitwiseCopied(house.id)).toEqual([sent.id])
+      const other = await seedHouse(h)
+      expect(await h.queriesFor(other.member, other.house.id).splitwiseCopied(house.id)).toEqual([])
+    })
+
     it('finds the latest activity of one kind', async () => {
       const { house, admin, member } = await withPlaces()
       const weights = (anxious: number): DomainEvent => ({

@@ -18,6 +18,8 @@ export const keys = {
   notificationsOff: (houseId: HouseId) => ['house', houseId, 'notifications-off'] as const,
   /** Under activity, so anything that writes to the log refreshes it. */
   weightsChange: (houseId: HouseId) => ['house', houseId, 'activity', 'weights'] as const,
+  /** Under activity too: a Splitwise tap writes a row there (T89). */
+  splitwiseCopied: (houseId: HouseId) => ['house', houseId, 'activity', 'splitwise'] as const,
   runActivity: (houseId: HouseId, runId: string) =>
     ['house', houseId, 'activity', 'run', runId] as const,
   itemActivity: (houseId: HouseId, itemId: string) =>

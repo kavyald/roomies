@@ -35,7 +35,7 @@ test('a grocery run in about six taps: finishing with $40 records one cost on th
   await run.getByRole('button', { name: 'Finish' }).click()
   const toast = page.getByRole('status').filter({ hasText: 'Finished. $40.00 noted.' })
   await expect(toast).toBeVisible()
-  await expect(toast.getByRole('button', { name: 'Open Splitwise' })).toBeVisible()
+  await expect(toast.getByRole('button', { name: 'Add to Splitwise' })).toBeVisible()
 
   // A cost on an item, paid by someone else.
   await page.goto(`/h/${owner.houseId}/needs`)

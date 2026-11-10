@@ -13,6 +13,7 @@ import {
   removeRoutineAction,
   renameRoomAction,
   setFeelingWeightsAction,
+  setSplitwiseGroupAction,
   setRoleAction,
   changeMyRoomAction,
 } from '@/app/actions/house'
@@ -114,6 +115,7 @@ export function HouseProviders({
       restoreItem: (id) => restoreItemAction(houseId, id),
       setFeeling: (input) => setFeelingAction(houseId, input),
       setFeelingWeights: (weights) => setFeelingWeightsAction(houseId, weights),
+      setSplitwiseGroup: (input) => setSplitwiseGroupAction(houseId, input),
       startRun: (input) => startRunAction(houseId, input),
       addToRun: (input) => addToRunAction(houseId, input),
       markRunItemsDone: (input) => markRunItemsDoneAction(houseId, input),

@@ -12,6 +12,7 @@ import {
   makeMoveRoom,
   makeRenameRoom,
   makeSetFeelingWeights,
+  makeSetSplitwiseGroup,
   makeSetRole,
 } from './house'
 
@@ -152,6 +153,38 @@ describe('feeling weights', () => {
       error: 'out_of_range',
     })
     expect(await set(as('Sam'), DEFAULT_FEELING_WEIGHTS)).toEqual({ ok: false, error: 'no_change' })
+    expect(deps.uow.state.activity.length).toBe(before)
+  })
+})
+
+describe('the Splitwise group (T89)', () => {
+  const GROUP = 'https://secure.splitwise.com/#/groups/12345678'
+
+  it('any roommate links, changes and unlinks it, and each shows in activity', async () => {
+    const { deps, s, as } = await setup()
+    const set = makeSetSplitwiseGroup(deps)
+    const linked = await set(as('Sam'), 'splitwise.com/groups/12345678')
+    expect(linked.ok && linked.value.settings.splitwiseGroup).toBe(GROUP)
+    expect(deps.uow.state.houses.get(s.house.id)?.settings.splitwiseGroup).toBe(GROUP)
+    expect(deps.uow.state.activity.at(-1)).toMatchObject({
+      kind: 'settings.splitwise_changed',
+      actorId: s.people.Sam,
+      changes: { splitwise_group: [null, GROUP] },
+    })
+    expect((await set(as('Wren'), null)).ok).toBe(true)
+    expect(deps.uow.state.houses.get(s.house.id)?.settings.splitwiseGroup).toBeUndefined()
+    expect(deps.uow.state.activity.at(-1)).toMatchObject({ actorId: s.people.Wren })
+  })
+
+  it('refuses a link that is not a group, and a save that changes nothing, writing nothing', async () => {
+    const { deps, as } = await setup()
+    const before = deps.uow.state.activity.length
+    const set = makeSetSplitwiseGroup(deps)
+    expect(await set(as('Sam'), 'https://example.com/groups/1')).toEqual({
+      ok: false,
+      error: 'invalid',
+    })
+    expect(await set(as('Sam'), null)).toEqual({ ok: false, error: 'no_change' })
     expect(deps.uow.state.activity.length).toBe(before)
   })
 })

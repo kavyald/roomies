@@ -100,8 +100,14 @@ export const isMember = (s: MemoryState, a: Actor, houseId: HouseId): boolean =>
 export const isAdmin = (s: MemoryState, a: Actor, houseId: HouseId): boolean =>
   a.kind === 'system' || membership(s, a, houseId)?.role === 'admin'
 
-/** Everything but `settings.feelingWeights` is the same (policy "houses members set feeling weights"). */
-const onlyFeelingWeightsChanged = (before: House, after: House): boolean => {
+/** The CHECK houses_splitwise_group_valid. */
+const SPLITWISE_GROUP_ROW = /^https:\/\/secure\.splitwise\.com\/#\/groups\/[0-9]{1,15}$/
+
+/**
+ * Everything but the settings any member may change (feeling weights, the Splitwise group) is the
+ * same (policy "houses members set shared settings").
+ */
+const onlySharedSettingsChanged = (before: House, after: House): boolean => {
   const rest = (h: House) =>
     JSON.stringify([
       h.id,
@@ -110,7 +116,7 @@ const onlyFeelingWeightsChanged = (before: House, after: House): boolean => {
       h.unit ?? null,
       h.createdBy,
       h.createdAt,
-      { ...h.settings, feelingWeights: null },
+      { ...h.settings, feelingWeights: null, splitwiseGroup: null },
     ])
   return rest(before) === rest(after)
 }
@@ -164,14 +170,17 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
       listAll: async () => [...s.houses.values()].filter((h) => isMember(s, a, h.id)),
       save: async (house) => {
         const exists = s.houses.has(house.id)
-        // Admins edit the house; any member may change just the feeling weights (migration
-        // feeling_weights).
+        // Admins edit the house; any member may change just the feeling weights or the Splitwise
+        // group (migrations feeling_weights, splitwise_group).
         const allowed = exists
           ? isAdmin(s, a, house.id) ||
-            (isMember(s, a, house.id) && onlyFeelingWeightsChanged(s.houses.get(house.id)!, house))
+            (isMember(s, a, house.id) && onlySharedSettingsChanged(s.houses.get(house.id)!, house))
           : a.kind === 'system' || (s.houses.size === 0 && house.createdBy === uid(a))
         if (!Object.values(house.settings.feelingWeights).every(isValidWeight))
           throw new ConstraintViolation('houses_feeling_weights_valid')
+        const group = house.settings.splitwiseGroup
+        if (group !== undefined && !SPLITWISE_GROUP_ROW.test(group))
+          throw new ConstraintViolation('houses_splitwise_group_valid')
         if (!allowed) deny('houses')
         s.houses.set(house.id, house)
       },

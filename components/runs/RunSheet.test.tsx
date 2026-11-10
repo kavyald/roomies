@@ -114,13 +114,13 @@ describe('A grocery run in few taps (T44)', () => {
     await user.click(box('Bread'))
     await waitFor(() => expect(run.textContent).toContain('3 of 3 done'))
 
-    // Finish with an amount: one cost on the run, paid by me; the toast offers Open Splitwise.
+    // Finish with an amount: one cost on the run, paid by me; the toast offers the Splitwise icon.
     await user.type(within(run).getByLabelText('Spent (optional)'), '40')
     expect((within(run).getByLabelText('Who paid') as HTMLSelectElement).value).toBe(admin)
     await user.click(within(run).getByRole('button', { name: 'Finish' }))
     const toast = await screen.findByText('Finished. $40.00 noted.')
     expect(
-      within(toast.parentElement!).getByRole('button', { name: 'Open Splitwise' }),
+      within(toast.parentElement!).getByRole('button', { name: 'Add to Splitwise' }),
     ).toBeTruthy()
 
     const { costs, items } = deps.uow.state

@@ -29,6 +29,9 @@
   --earth-fill: #d7e6cc;
   --earth-ink: #3a5a2e;
   --scrim: rgb(59 47 42 / 0.32);
+  --splitwise: #0f8a6e;
+  --splitwise-fill: #d3eee4;
+  --splitwise-ink: #0b5e4b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -55,6 +58,9 @@
     --earth-fill: #26341f;
     --earth-ink: #bfd9ae;
     --scrim: rgb(0 0 0 / 0.5);
+    --splitwise: #0f8a6e;
+    --splitwise-fill: #173a31;
+    --splitwise-ink: #9fdcc6;
   }
 }
 
@@ -81,6 +87,9 @@
   --earth-fill: #26341f;
   --earth-ink: #bfd9ae;
   --scrim: rgb(0 0 0 / 0.5);
+  --splitwise: #0f8a6e;
+  --splitwise-fill: #173a31;
+  --splitwise-ink: #9fdcc6;
 }
 
 :root {
@@ -117,6 +126,9 @@
   --color-earth-fill: var(--earth-fill);
   --color-earth-ink: var(--earth-ink);
   --color-scrim: var(--scrim);
+  --color-splitwise: var(--splitwise);
+  --color-splitwise-fill: var(--splitwise-fill);
+  --color-splitwise-ink: var(--splitwise-ink);
   --font-sans: var(--font);
   --ease-spring: var(--ease-spring);
   --ease-soft: var(--ease-out);

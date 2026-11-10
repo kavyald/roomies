@@ -54,6 +54,14 @@ export const memoryHouseQueries = (uow: MemoryUnitOfWork, actor: Actor): HouseQu
       .filter((a) => a.houseId === houseId && (a.runId === runId || a.toRunId === runId))
       .sort((a, b) => a.id - b.id)
   },
+  splitwiseCopied: async (houseId) => {
+    const visible = await uow.run(actor, (r) => r.houses.get(houseId))
+    if (!visible) return []
+    const ids = uow.state.activity
+      .filter((a) => a.houseId === houseId && a.kind === 'cost.splitwise_copied' && a.costId)
+      .map((a) => a.costId!)
+    return [...new Set(ids)]
+  },
   latestActivity: async (houseId, kind) => {
     const visible = await uow.run(actor, (r) => r.houses.get(houseId))
     if (!visible) return undefined

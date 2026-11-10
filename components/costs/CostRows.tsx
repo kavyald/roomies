@@ -6,17 +6,18 @@ import { useCardContext } from '@/components/items/useCardContext'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { useToast } from '@/components/ui/Toast'
-import { useEditCost, useRemoveCost } from '@/lib/client/hooks'
+import { useEditCost, useRemoveCost, useSplitwiseCopied } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import type { Cost } from '@/lib/domain/costs'
 import type { HouseId } from '@/lib/domain/ids'
 import { formatCents } from '@/lib/domain/money'
 import { useCostFields } from './CostForm'
+import { SplitwiseButton } from './SplitwiseButton'
 import { useSplitwise } from './useSplitwise'
 
 /**
- * Costs as rows ("$189.00 · Wren paid · Dyson"), each with Open Splitwise and the Pencil / Trash2
- * icons to edit or remove it (T57, T68). `title` is what Splitwise's line is named after (the item or run).
+ * Costs as rows ("$189.00 · Wren paid · Dyson"), each with the Splitwise icon (highlighted once
+ * sent, T89) and the Pencil / Trash2 icons to edit or remove it (T57, T68). `title` is what Splitwise's line is named after (the item or run).
  */
 export function CostRows({
   houseId,
@@ -41,6 +42,7 @@ function CostRow({ houseId, cost, title }: { houseId: HouseId; cost: Cost; title
   const { me } = useAppClient()
   const ctx = useCardContext(houseId)
   const splitwise = useSplitwise(houseId)
+  const sent = useSplitwiseCopied(houseId)
   const [mode, setMode] = useState<'view' | 'edit' | 'remove'>('view')
   const amount = formatCents(cost.amount)
   const payer =
@@ -54,13 +56,11 @@ function CostRow({ houseId, cost, title }: { houseId: HouseId; cost: Cost; title
           {amount} · {payer}
           {cost.note && <span className="font-semibold text-ink-soft"> · {cost.note}</span>}
         </span>
-        <button
-          type="button"
-          className="min-h-11 text-sm font-extrabold text-accent-ink"
+        <SplitwiseButton
+          amount={amount}
+          sent={sent.data?.has(cost.id) ?? false}
           onClick={() => splitwise(cost, title)}
-        >
-          Open Splitwise
-        </button>
+        />
         <IconButton
           icon={Pencil}
           label={`Edit ${amount}`}

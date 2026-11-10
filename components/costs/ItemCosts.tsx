@@ -11,11 +11,12 @@ import type { Item } from '@/lib/domain/items'
 import { formatCents, sumCents } from '@/lib/domain/money'
 import { useCostFields } from './CostForm'
 import { CostRows } from './CostRows'
+import { SplitwiseMark } from './SplitwiseMark'
 import { useSplitwise } from './useSplitwise'
 
 /**
- * "Costs · $189.00" on an item: a closed section with each cost ("$189 · Wren paid", with Open
- * Splitwise and the Edit / Remove icons) and **Add cost** (FRONTEND §5.4).
+ * "Costs · $189.00" on an item: a closed section with each cost ("$189 · Wren paid", with the
+ * Splitwise icon and the Edit / Remove icons) and **Add cost** (FRONTEND §5.4).
  */
 export function ItemCosts({ houseId, item }: { houseId: HouseId; item: Item }) {
   const costs = useCosts(houseId)
@@ -42,7 +43,8 @@ export function ItemCosts({ houseId, item }: { houseId: HouseId; item: Item }) {
               const r = await add.mutateAsync({ ...v, itemId: item.id })
               if (!r.ok) return toast("Couldn't add the cost. Try again.")
               toast(`Added ${formatCents(r.value.amount)}.`, {
-                label: 'Open Splitwise',
+                label: 'Add to Splitwise',
+                icon: <SplitwiseMark />,
                 onClick: () => splitwise(r.value, item.title),
               })
               form.reset()
