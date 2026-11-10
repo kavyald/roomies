@@ -181,6 +181,29 @@ describe('Admin → Rooms (T66, T101)', { timeout: 20_000 }, () => {
     expect(chores(rooms.kitchen.id)).toHaveLength(3)
   })
 
+  it('searches the picks whatever the case', async () => {
+    const { openRoom } = await setup()
+    const sheet = await openRoom('Kitchen, shared space', 'Kitchen')
+    const search = within(sheet).getByRole('searchbox', { name: 'Search chores' })
+    const picks = within(sheet).getByRole('list', { name: 'Chores to add' })
+    const names = () =>
+      within(picks)
+        .getAllByRole('button')
+        .map((b) => b.textContent)
+    await userEvent.type(search, 'cLeAn')
+    expect(names()).toEqual([
+      'Clean sink',
+      'Clean mirror',
+      'Clean shower',
+      'Clean fridge',
+      'New chore',
+    ])
+    await userEvent.clear(search)
+    await userEvent.type(search, 'wipe{Enter}')
+    expect(names()).toEqual(['Wipe counters', 'Wipe stove', 'New chore'])
+    expect(screen.getByRole('dialog', { name: 'Kitchen' })).toBeTruthy()
+  })
+
   it('removes a chore from the room, with Undo', async () => {
     const { deps, me, rooms, chores, openRoom } = await setup()
     await makeCreateItem(deps)(me, {

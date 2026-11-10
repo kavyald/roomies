@@ -1,19 +1,16 @@
 'use client'
 
-import { ArrowDown, ArrowUp, ChevronRight, DoorOpen, Pencil, Plus, X } from 'lucide-react'
-import { useId, useState, type FormEvent } from 'react'
-import { Field, inputClass } from '@/components/auth/fields'
-import { itemProblem } from '@/components/items/ItemSheets'
+import { ArrowDown, ArrowUp, ChevronRight, DoorOpen, Pencil, X } from 'lucide-react'
+import { useId, useState } from 'react'
+import { Field } from '@/components/auth/fields'
+import { AddRoomChores, pickHeadingClass } from '@/components/chores/AddRoomChores'
 import { Button } from '@/components/ui/Button'
 import { ChoreIcon } from '@/components/ui/ChoreIcon'
-import { ChoreIconPicker, iconFor } from '@/components/ui/ChoreIconPicker'
 import { IconButton, IconMark } from '@/components/ui/IconButton'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
-import { Sheet, SheetSave } from '@/components/ui/Sheet'
+import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
-import { cn } from '@/components/ui/cn'
 import {
-  useAddRoomChores,
   useArchiveItem,
   useItems,
   useMoveRoom,
@@ -24,8 +21,7 @@ import {
 } from '@/lib/client/hooks'
 import type { Room } from '@/lib/domain/house'
 import type { HouseId, RoomId } from '@/lib/domain/ids'
-import { choreKey, type Chore, type ChorePick } from '@/lib/domain/items'
-import { choreNames } from '@/lib/domain/lists'
+import type { Chore } from '@/lib/domain/items'
 import { ROOM_GROUPS, roomGroup, roomsInGroup } from '@/lib/domain/rooms'
 import { ROOM_GROUP_LABEL, roomKindLabel } from './room-labels'
 
@@ -136,17 +132,11 @@ function RoomSheet({
 }) {
   const items = useItems(houseId)
   const routines = useRoutines(houseId)
-  const add = useAddRoomChores(houseId)
   const archive = useArchiveItem(houseId)
   const restore = useRestoreItem(houseId)
   const toast = useToast()
-  const formId = useId()
-  const newId = useId()
+  const headingId = useId()
   const [renaming, setRenaming] = useState(false)
-  const [picked, setPicked] = useState<readonly string[]>([])
-  const [writing, setWriting] = useState(false)
-  const [title, setTitle] = useState('')
-  const [icon, setIcon] = useState('')
 
   const all = items.data ?? []
   const here = all
@@ -158,31 +148,7 @@ function RoomSheet({
         i.rooms.includes(room.id),
     )
     .sort((a, b) => a.title.localeCompare(b.title))
-  const has = new Set(here.map((c) => choreKey(c.title)))
-  const options = choreNames(all).filter((o) => !has.has(choreKey(o.title)))
   const routine = routines.data?.find((r) => r.id === room.routineId && !r.removedAt)
-  const typed = title.trim()
-  const picks: ChorePick[] = [
-    ...options.filter((o) => picked.includes(choreKey(o.title))),
-    ...(writing && typed
-      ? [{ title: typed, ...(iconFor(icon, typed) && { icon: iconFor(icon, typed) }) }]
-      : []),
-  ]
-
-  const toggle = (key: string) =>
-    setPicked((now) => (now.includes(key) ? now.filter((k) => k !== key) : [...now, key]))
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (picks.length === 0) return
-    const r = await add.mutateAsync({ roomId: room.id, chores: picks })
-    if (!r.ok) return toast(itemProblem(r.error))
-    toast(r.value.length > 0 ? 'Added.' : `${room.name} already has those.`)
-    setPicked([])
-    setWriting(false)
-    setTitle('')
-    setIcon('')
-  }
 
   const removeChore = async (chore: Chore) => {
     const r = await archive.mutateAsync(chore.id)
@@ -213,8 +179,8 @@ function RoomSheet({
           </Button>
         )}
 
-        <section aria-labelledby={`${formId}-chores`} className="grid gap-1.5">
-          <h3 id={`${formId}-chores`} className={headingClass}>
+        <section aria-labelledby={headingId} className="grid gap-1.5">
+          <h3 id={headingId} className={pickHeadingClass}>
             Deep clean
           </h3>
           <p className="m-0 text-sm text-ink-soft">
@@ -251,92 +217,9 @@ function RoomSheet({
           )}
         </section>
 
-        <form id={formId} onSubmit={submit} className="grid gap-1.5">
-          <h3 className={headingClass}>Add chores</h3>
-          <ul aria-label="Chores to add" className="m-0 flex list-none flex-wrap gap-x-1.5 p-0">
-            {options.map((o) => {
-              const key = choreKey(o.title)
-              const on = picked.includes(key)
-              return (
-                <li key={key}>
-                  <PickChip on={on} icon={o.icon} onClick={() => toggle(key)}>
-                    {o.title}
-                  </PickChip>
-                </li>
-              )
-            })}
-            <li>
-              <PickChip on={writing} icon="pencil" onClick={() => setWriting((w) => !w)}>
-                New chore
-              </PickChip>
-            </li>
-          </ul>
-          {writing && (
-            <div className="grid gap-2.5 rounded-2xl bg-card p-3">
-              <div className="grid gap-1.5">
-                <label htmlFor={newId} className="text-[0.8rem] font-extrabold text-ink-soft">
-                  What needs doing?
-                </label>
-                <input
-                  id={newId}
-                  className={inputClass}
-                  autoFocus
-                  enterKeyHint="done"
-                  maxLength={120}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-              <ChoreIconPicker
-                label="Icon"
-                title={title}
-                value={iconFor(icon, title)}
-                onChange={setIcon}
-              />
-            </div>
-          )}
-          <SheetSave form={formId} label="Add" busy={add.isPending} disabled={picks.length === 0} />
-        </form>
+        <AddRoomChores houseId={houseId} room={room} items={all} />
       </div>
     </Sheet>
-  )
-}
-
-const headingClass = 'm-0 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase'
-
-/** A chore to pick: tap to select it, tap again to drop it. */
-function PickChip({
-  on,
-  icon,
-  onClick,
-  children,
-}: {
-  on: boolean
-  icon?: string
-  onClick: () => void
-  children: string
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      onClick={onClick}
-      className="flex min-h-11 items-center"
-    >
-      <span
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded-full py-1 pr-2.5 pl-2 text-[0.85rem] font-bold',
-          on ? 'bg-accent text-on-accent' : 'bg-neutral-fill text-neutral-ink',
-        )}
-      >
-        {icon === 'pencil' ? (
-          <Plus aria-hidden className="size-4" />
-        ) : (
-          <ChoreIcon name={icon} className="size-4" />
-        )}
-        {children}
-      </span>
-    </button>
   )
 }
 

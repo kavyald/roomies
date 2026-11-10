@@ -18,9 +18,10 @@ import {
 } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import { useNow } from '@/lib/client/use-now'
-import type { HouseId, RoomId } from '@/lib/domain/ids'
+import type { HouseId, RoomId, RoutineId } from '@/lib/domain/ids'
 import { choreBoard, holdingLine } from '@/lib/domain/lists'
 import { localDateOf } from '@/lib/domain/time'
+import { AddChoresSheet } from './AddChoresSheet'
 import { QuickAddSheet } from './QuickAddSheet'
 import { RoomBox } from './RoomBox'
 import { RoomSheet } from './RoomSheet'
@@ -44,6 +45,8 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   const now = useNow()
   const [openRoom, setOpenRoom] = useState<RoomId | null>(null)
   const [adding, setAdding] = useState(false)
+  // Deep clean chores for one of a routine's rooms, from its heading's + Add.
+  const [addingTo, setAddingTo] = useState<RoutineId | null>(null)
 
   if (items.isError || routines.isError) {
     return (
@@ -71,10 +74,10 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   const open = board.cards
     .flatMap((card) => card.rooms.map((box) => ({ card, box })))
     .find(({ box }) => box.room.id === openRoom)
+  const addTo = board.cards.find((c) => c.routine.id === addingTo)
+  // With routines, the tab shows them even before they have chores, so + Add is there.
   const nothing =
-    board.cards.every((c) => c.chores.length === 0) &&
-    board.upkeep.felt.length === 0 &&
-    board.upkeep.calm.length === 0
+    board.cards.length === 0 && board.upkeep.felt.length === 0 && board.upkeep.calm.length === 0
 
   if (nothing && !adding) {
     return (
@@ -110,11 +113,21 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
             aria-label={holder ? `${card.routine.name}, ${holder.name}` : card.routine.name}
             className="grid gap-1.5"
           >
-            <h2 className="m-0 flex items-center gap-1.5 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
-              <ChoreIcon name={card.routine.icon} className="size-4 flex-none text-accent-ink" />
-              <span className="min-w-0 flex-1 truncate">{card.routine.name}</span>
-              {holder && <Avatar name={holder.name} element={holder.element} size={20} />}
-            </h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="m-0 flex min-w-0 flex-1 items-center gap-1.5 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
+                <ChoreIcon name={card.routine.icon} className="size-4 flex-none text-accent-ink" />
+                <span className="min-w-0 flex-1 truncate">{card.routine.name}</span>
+                {holder && <Avatar name={holder.name} element={holder.element} size={20} />}
+              </h2>
+              <button
+                type="button"
+                aria-label={`Add chores: ${card.routine.name}`}
+                onClick={() => setAddingTo(card.routine.id)}
+                className="min-h-11 flex-none px-1 text-sm font-extrabold text-accent-ink"
+              >
+                + Add
+              </button>
+            </div>
             {boxes.length === 0 ? (
               <p className="m-0 text-sm text-ink-soft">No chores here yet.</p>
             ) : (
@@ -142,6 +155,14 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
           houseId={houseId}
           rooms={rooms.data ?? []}
           onClose={() => setAdding(false)}
+        />
+      ) : addTo ? (
+        <AddChoresSheet
+          houseId={houseId}
+          title={addTo.routine.name}
+          rooms={addTo.rooms.map((r) => r.room)}
+          items={items.data}
+          onClose={() => setAddingTo(null)}
         />
       ) : (
         open && (

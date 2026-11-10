@@ -4,7 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { asMember, seedHouse } from '@/lib/adapters/contracts/unit-of-work.contract'
 import { depsForTest } from '@/lib/compose'
-import { makeCreateItem, makeDoChore, makeSetFeeling, makeUndoChore } from '@/lib/app/items'
+import {
+  makeAddRoomChores,
+  makeCreateItem,
+  makeDoChore,
+  makeSetFeeling,
+  makeUndoChore,
+} from '@/lib/app/items'
 import { makeCreateRoutine } from '@/lib/app/routines'
 import { AppClientProvider, makeQueryClient } from '@/lib/client/provider'
 import type { Room } from '@/lib/domain/house'
@@ -69,6 +75,7 @@ const setup = async () => {
     doChore: (id) => makeDoChore(deps)(me, id) as never,
     undoChore: (i) => makeUndoChore(deps)(me, { id: i.id, doneAt: instant(i.doneAt) }) as never,
     setFeeling: (i) => makeSetFeeling(deps)(me, i) as never,
+    addRoomChores: (i) => makeAddRoomChores(deps)(me, i) as never,
   })
   const show = () =>
     render(
@@ -151,7 +158,6 @@ describe('the Chores tab (FRONTEND §5.6, T101)', { timeout: 20_000 }, () => {
     show()
     await userEvent.click(await screen.findByRole('button', { name: 'Garden, Wren' }))
     const sheet = await screen.findByRole('dialog', { name: 'Garden' })
-    expect(sheet.textContent).toContain('Admin → Rooms')
     // The toast sits outside the open sheet; jsdom doesn't load its pointer-events-auto.
     await userEvent.click(within(sheet).getByRole('button', { name: 'Did it: Weeds' }))
     await waitFor(() => expect(lastDone(deps, 'Weeds')).toBeDefined())
@@ -160,13 +166,65 @@ describe('the Chores tab (FRONTEND §5.6, T101)', { timeout: 20_000 }, () => {
     ).toBe('true')
   })
 
-  it('with no chores, points to Admin → Rooms', async () => {
-    const { show } = await setup()
+  it('+ Add on a group gives any of its rooms chores, searched whatever the case', async () => {
+    const { show, deps, dining } = await setup()
     show()
-    expect(await screen.findByText(/Give each room its chores in Admin → Rooms/)).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Set up rooms' }).getAttribute('href')).toMatch(
-      /\/admin$/,
+    // No chores yet: the groups still show, each with + Add.
+    const mine = await screen.findByRole('group', { name: 'Kitchen and dining, Kavya' })
+    expect(mine.textContent).toContain('No chores here yet.')
+    await userEvent.click(
+      within(mine).getByRole('button', { name: 'Add chores: Kitchen and dining' }),
     )
+    const sheet = await screen.findByRole('dialog', { name: 'Add chores' })
+    await userEvent.selectOptions(within(sheet).getByLabelText('Room'), 'Dining')
+    await userEvent.type(within(sheet).getByRole('searchbox', { name: 'Search chores' }), 'SWIF')
+    const picks = within(sheet).getByRole('list', { name: 'Chores to add' })
+    expect(
+      within(picks)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Swiffer', 'New chore'])
+    await userEvent.click(within(picks).getByRole('button', { name: 'Swiffer' }))
+    // A search with no match becomes the new chore's name.
+    await userEvent.clear(within(sheet).getByRole('searchbox', { name: 'Search chores' }))
+    await userEvent.type(
+      within(sheet).getByRole('searchbox', { name: 'Search chores' }),
+      'polish table',
+    )
+    expect(sheet.textContent).toContain('No chore by that name yet.')
+    // The pick stays in view while searching.
+    expect(within(picks).getByRole('button', { name: 'Swiffer' })).toBeTruthy()
+    await userEvent.click(within(picks).getByRole('button', { name: 'New chore' }))
+    expect(within(sheet).getByLabelText<HTMLInputElement>('What needs doing?').value).toBe(
+      'polish table',
+    )
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Add' }))
+
+    const box = await screen.findByRole('region', { name: 'Dining, Kavya' })
+    expect(within(box).getByRole('button', { name: 'Did it: Swiffer' })).toBeTruthy()
+    expect(within(box).getByRole('button', { name: 'Did it: polish table' })).toBeTruthy()
+    const added = [...deps.uow.state.items.values()].filter(
+      (i) => i.category === 'chore' && i.rooms.includes(dining.id),
+    )
+    expect(added.map((c) => c.category === 'chore' && c.kind)).toEqual(['deep_clean', 'deep_clean'])
+  })
+
+  it("adds more chores from a room's sheet", async () => {
+    const { add, show, garden, deps } = await setup()
+    await add({ category: 'chore', title: 'Weeds', kind: 'deep_clean', rooms: [garden.id] })
+    show()
+    await userEvent.click(await screen.findByRole('button', { name: 'Garden, Wren' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Garden' })
+    const picks = within(sheet).getByRole('list', { name: 'Chores to add' })
+    expect(within(picks).queryByRole('button', { name: 'Weeds' })).toBeNull()
+    await userEvent.click(within(picks).getByRole('button', { name: 'Water plants' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Add' }))
+    expect(await within(sheet).findByRole('button', { name: 'Did it: Water plants' })).toBeTruthy()
+    expect(
+      [...deps.uow.state.items.values()].filter(
+        (i) => i.category === 'chore' && i.rooms.includes(garden.id),
+      ),
+    ).toHaveLength(2)
   })
 
   it('+ Add in Upkeep adds Upkeep, with the icon its name suggests', async () => {

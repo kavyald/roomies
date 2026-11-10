@@ -44,6 +44,9 @@ test('the M7 screens: tabs, Admin, You, Home and Tasks, with no monthly total', 
   await expect(page.getByRole('heading', { name: 'Admin', level: 1 })).toBeVisible()
   await expect(page.getByRole('link', { name: /Notifications/ })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: /^(Money|Settings|History)$/ })).toHaveCount(0)
+  // The rows load after the heading; read the page once the last of them is there.
+  await expect(page.getByRole('main').getByText('Feeling weights')).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Rooms' })).toBeVisible()
   const text = await page.locator('main').innerText()
   const at = (s: string) => text.indexOf(s)
   expect(at('Feeling weights')).toBeGreaterThan(-1)
