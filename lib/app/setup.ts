@@ -79,8 +79,12 @@ export const makeSetupHouse =
         const { house, profile, member, rooms, events } = r.value
         await repos.profiles.save(profile)
         await repos.houses.save(house)
-        await repos.members.save(member)
+        // The owner joins first (rooms need an admin to add them), then moves into their bedroom
+        // once it exists, through "members update own" like any member choosing a room (T93).
+        const { roomId, ...joining } = member
+        await repos.members.save(joining)
         for (const room of rooms) await repos.rooms.save(room)
+        if (roomId) await repos.members.save(member)
         await repos.events.record(house.id, events, now)
         return ok(house)
       })

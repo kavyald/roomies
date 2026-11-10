@@ -160,6 +160,19 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await expect(rooms).toBeHidden()
+    // Your own sheet in Roommates, with "Which room is yours?" (T93).
+    const youSheet = page.getByRole('dialog', { name: 'You' })
+    await expect(async () => {
+      if (!(await youSheet.isVisible())) {
+        await page.getByRole('list', { name: 'Roommates' }).getByRole('button').first().click()
+      }
+      await expect(youSheet.getByRole('radiogroup', { name: 'Your room' })).toBeVisible({
+        timeout: 2000,
+      })
+    }).toPass()
+    await check(page, 'roommates (your sheet)')
+    await page.keyboard.press('Escape')
+    await expect(youSheet).toBeHidden()
     // Admin → Send feedback (T91).
     await page.getByRole('button', { name: 'Send feedback' }).click()
     await expect(page.getByRole('dialog', { name: 'Feedback' })).toBeVisible()

@@ -5,7 +5,8 @@ import { actorUser, type HouseActor } from '../domain/actor'
 import type { FeelingWeights } from '../domain/feelings'
 import type { House, Member, Role, Room } from '../domain/house'
 import type { RoomId, UserId } from '../domain/ids'
-import { anonymizeProfile, moveOut, setRole } from '../domain/members'
+import { openBedrooms } from '../domain/invites'
+import { anonymizeProfile, changeMyRoom, moveOut, setRole } from '../domain/members'
 import { err, ok, type Result } from '../domain/result'
 import { moveRoom, renameRoom } from '../domain/rooms'
 import { reanchorRoutines } from '../domain/routines'
@@ -57,6 +58,26 @@ export const makeSetRole =
       const target = members.find((m) => m.userId === input.userId)
       if (!target || !by) return err('not_found')
       const r = setRole(target, input.role, members, by, ids.newId())
+      if (!r.ok) return r
+      await repos.members.save(r.value.member)
+      await repos.events.record(actor.houseId, r.value.events, clock.now())
+      return ok(r.value.member)
+    })
+
+/** Pick, change or clear your own bedroom (T93). Saved as yourself, under "members update own". */
+export const makeChangeMyRoom =
+  ({ uow, clock, ids }: Pick<AppDeps, 'uow' | 'clock' | 'ids'>) =>
+  (
+    actor: HouseActor,
+    input: { roomId: RoomId | null },
+  ): Promise<Result<Member, 'not_found' | 'not_active' | 'no_change' | 'room_taken'>> =>
+    uow.run(actor, async (repos) => {
+      const me = actorUser(actor)
+      const members = await repos.members.listByHouse(actor.houseId)
+      const mine = members.find((m) => m.userId === me)
+      if (!mine) return err('not_found')
+      const rooms = await repos.rooms.listByHouse(actor.houseId)
+      const r = changeMyRoom(mine, input.roomId, openBedrooms(rooms, members), ids.newId())
       if (!r.ok) return r
       await repos.members.save(r.value.member)
       await repos.events.record(actor.houseId, r.value.events, clock.now())

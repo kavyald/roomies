@@ -2,8 +2,8 @@
 // who leaves keeps their row, marked moved out, and their name stays on past items.
 
 import type { DomainEvent } from './events'
-import type { Member, Profile, Role } from './house'
-import type { ActionId, UserId } from './ids'
+import type { Member, Profile, Role, Room } from './house'
+import type { ActionId, RoomId, UserId } from './ids'
 import { err, ok, type Result } from './result'
 import type { Instant } from './time'
 
@@ -75,6 +75,36 @@ export const setRole = (
         changes: { role: [target.role, role] },
         actionId,
         by,
+      },
+    ],
+  })
+}
+
+/**
+ * Pick, change or clear your own bedroom (T93). Only a bedroom nobody else lives in; `null` means
+ * "not yet". Nobody changes someone else's room (RLS "members update own").
+ */
+export const changeMyRoom = (
+  me: Member,
+  roomId: RoomId | null,
+  openBedrooms: readonly Room[],
+  actionId: ActionId,
+): Result<{ member: Member; events: DomainEvent[] }, 'not_active' | 'no_change' | 'room_taken'> => {
+  if (!me.status.active) return err('not_active')
+  if ((me.roomId ?? null) === roomId) return err('no_change')
+  if (roomId && !openBedrooms.some((r) => r.id === roomId && r.houseId === me.houseId)) {
+    return err('room_taken')
+  }
+  const { roomId: _old, ...rest } = me
+  return ok({
+    member: roomId ? { ...rest, roomId } : rest,
+    events: [
+      {
+        kind: 'member.room_changed',
+        memberId: me.userId,
+        ...(roomId && { roomId }),
+        actionId,
+        by: me.userId,
       },
     ],
   })

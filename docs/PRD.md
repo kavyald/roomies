@@ -301,7 +301,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 
 ## 10. Membership, invites & access
 
-- **Creating the house:** done once by the owner through a private one-time setup link. Fields: name, address (optional), unit number. The owner becomes an **organizer**, and the rooms are seeded.
+- **Creating the house:** done once by the owner through a private one-time setup link. Fields: name, address (optional), unit number. The owner becomes an **organizer**, and the rooms are seeded. The owner also answers **"Which room is yours?"** (a bedroom, or Not yet) (T93).
 - **No public sign-up.** Typing an email into the app without an invite does nothing. No code is sent and no account is created.
 - **Inviting:** an organizer shares an **invite link** (`<app>/join/<token>`) in the group chat. The link:
   - expires after 7 days (configurable) or after its use limit (default: number of open spots),
@@ -310,6 +310,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 - **Joining:** open the link → enter name + email → type the 6-digit code → pick your bedroom → you're in. **(owner)** It's instant, with no organizer approval.
 - **Signing in later:** enter your email → type the code. This only works for emails that already have an account.
 - **Roles:** **organizer** (manage invites, remove members) and **member** (everything else, including settings). **(owner)** The data calls the organizer role `admin`; people never see that word for a person, only for the Admin tab (D40, T103).
+- **Changing rooms (T93):** anyone, the organizer included, picks, changes or clears their own bedroom from their row in Admin → Roommates. Only bedrooms nobody lives in can be picked; nobody changes someone else's room. Activity shows the move.
 - **Moving out:** an organizer (or the person themselves) marks a member as moved out. They lose access, and their name stays on past items.
 - **Deleting your account:** removes your email and profile. Your name on past items becomes "Former roommate."
 - **Access guarantee:** nobody outside the house can read or write its data, and this is enforced at the database layer.

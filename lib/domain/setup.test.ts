@@ -64,6 +64,29 @@ describe('setupHouse', () => {
   })
 })
 
+describe('setupHouse with a bedroom (T93)', () => {
+  it("puts the owner in the bedroom they picked, in the house's first action", () => {
+    const r = setupHouse({ ...input, bedroom: 'fire' }, owner, now, seqIds().newId)
+    if (!r.ok) throw new Error(r.error)
+    const fire = r.value.rooms.find((room) => room.element === 'fire')!
+    expect(r.value.member.roomId).toBe(fire.id)
+    const [created, moved] = r.value.events
+    expect(moved).toEqual({
+      kind: 'member.room_changed',
+      memberId: owner,
+      roomId: fire.id,
+      actionId: created!.actionId,
+      by: owner,
+    })
+  })
+
+  it('leaves the owner without a bedroom for "Not yet"', () => {
+    const r = setupHouse(input, owner, now, seqIds().newId)
+    expect(r.ok && r.value.member).not.toHaveProperty('roomId')
+    expect(r.ok && r.value.events.map((e) => e.kind)).toEqual(['house.created'])
+  })
+})
+
 describe('safeEqual', () => {
   it.each([
     ['abc', 'abc', true],

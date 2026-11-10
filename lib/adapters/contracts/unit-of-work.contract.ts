@@ -251,6 +251,38 @@ export const unitOfWorkContract = (name: string, makeHarness: () => Promise<Unit
         ).rejects.toBeInstanceOf(AccessDenied)
       })
 
+      it('a member picks, changes and clears only their own room (T93)', async () => {
+        const { house, admin, member } = await seedHouse(h)
+        const me = asMember(house.id, member)
+        const room: Room = {
+          id: h.ids.newId(),
+          houseId: house.id,
+          name: 'Fire',
+          floor: 'first',
+          kind: 'bedroom',
+          element: 'fire',
+          sortOrder: 1,
+        }
+        await h.uow.run(system(house.id), (r) => r.rooms.save(room))
+        const mine = () => h.uow.run(me, (r) => r.members.get(house.id, member))
+        await h.uow.run(me, async (r) => {
+          const m = await r.members.get(house.id, member)
+          await r.members.save({ ...m!, roomId: room.id })
+        })
+        expect((await mine())?.roomId).toBe(room.id)
+        await h.uow.run(me, async (r) => {
+          const { roomId: _, ...rest } = (await r.members.get(house.id, member))!
+          await r.members.save(rest)
+        })
+        expect((await mine())?.roomId).toBeUndefined()
+        await expect(
+          h.uow.run(me, async (r) => {
+            const theirs = await r.members.get(house.id, admin)
+            await r.members.save({ ...theirs!, roomId: room.id })
+          }),
+        ).rejects.toBeInstanceOf(AccessDenied)
+      })
+
       it("only admins manage invites and members; a member can't edit someone's profile", async () => {
         const { house, admin, member } = await seedHouse(h)
         const me = asMember(house.id, member)

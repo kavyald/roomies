@@ -11,6 +11,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { elementName } from '@/components/ui/elements'
 import {
+  useChangeMyRoom,
   useIsAdmin,
   useMembers,
   useMoveOut,
@@ -18,13 +19,15 @@ import {
   useRooms,
   useSetRole,
 } from '@/lib/client/hooks'
+import { BedroomPicker, type BedroomOption } from '@/components/house/BedroomPicker'
 import { useAppClient } from '@/lib/client/provider'
 import type { Member } from '@/lib/domain/house'
-import type { HouseId } from '@/lib/domain/ids'
+import type { HouseId, RoomId } from '@/lib/domain/ids'
 
 const PROBLEMS: Record<string, string> = {
   last_admin: 'The house needs an organizer. Make someone else an organizer first.',
   not_allowed: 'Only organizers can do that.',
+  room_taken: 'Someone just took that room. Pick another?',
 }
 
 export function RoommatesSection({ houseId }: { houseId: HouseId }) {
@@ -50,6 +53,21 @@ export function RoommatesSection({ houseId }: { houseId: HouseId }) {
     )
   }
 
+  // Your own sheet offers the bedrooms: yours, open ones, and whose the others are (T93).
+  const bedrooms: BedroomOption[] = (rooms.data ?? [])
+    .filter((r) => r.kind === 'bedroom' && !r.archivedAt)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((r) => {
+      const holder = active.find((m) => m.roomId === r.id && m.userId !== me)
+      const takenBy = holder && (nameOf.get(holder.userId) ?? 'Former roommate')
+      return {
+        key: r.id,
+        name: r.name,
+        ...(r.element && { element: r.element }),
+        ...(takenBy && { takenBy }),
+      }
+    })
+
   if (active.length === 0) {
     return <EmptyState icon={Users}>Your roommates will show up here once they join.</EmptyState>
   }
@@ -74,10 +92,11 @@ export function RoommatesSection({ houseId }: { houseId: HouseId }) {
       {open && (
         <MemberSheet
           houseId={houseId}
-          member={open}
+          member={active.find((m) => m.userId === open.userId) ?? open}
           name={nameOf.get(open.userId) ?? 'Former roommate'}
           isMe={open.userId === me}
           isAdmin={isAdmin}
+          bedrooms={bedrooms}
           onClose={() => setOpen(null)}
         />
       )}
@@ -91,6 +110,7 @@ function MemberSheet({
   name,
   isMe,
   isAdmin,
+  bedrooms,
   onClose,
 }: {
   houseId: HouseId
@@ -98,10 +118,12 @@ function MemberSheet({
   name: string
   isMe: boolean
   isAdmin: boolean
+  bedrooms: readonly BedroomOption[]
   onClose: () => void
 }) {
   const moveOut = useMoveOut(houseId)
   const setRole = useSetRole(houseId)
+  const changeRoom = useChangeMyRoom(houseId)
   const toast = useToast()
   const [note, setNote] = useState('')
   const [confirming, setConfirming] = useState(false)
@@ -123,8 +145,29 @@ function MemberSheet({
     onClose()
   }
 
+  const pickRoom = async (key: string | null) => {
+    if (changeRoom.isPending || key === (member.roomId ?? null)) return
+    const r = await changeRoom.mutateAsync({ roomId: key as RoomId | null })
+    if (!r.ok) return toast(PROBLEMS[r.error] ?? "Couldn't do that. Try again.")
+    const room = bedrooms.find((b) => b.key === key)
+    toast(room ? `Your room is ${room.name} now.` : 'No bedroom for now.')
+  }
+
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()} title={isMe ? 'You' : name}>
+      {isMe && bedrooms.length > 0 && (
+        <section aria-labelledby="your-room" className="grid gap-2">
+          <h3 id="your-room" className="m-0 font-bold">
+            Which room is yours?
+          </h3>
+          <BedroomPicker
+            options={bedrooms}
+            value={member.roomId ?? null}
+            onChange={pickRoom}
+            noneLabel="Not yet"
+          />
+        </section>
+      )}
       {isAdmin && (
         <Button variant="secondary" block disabled={setRole.isPending} onClick={toggleAdmin}>
           {member.role === 'admin'

@@ -14,6 +14,7 @@ import {
   renameRoomAction,
   setFeelingWeightsAction,
   setRoleAction,
+  changeMyRoomAction,
 } from '@/app/actions/house'
 import { createInviteAction, revokeInviteAction } from '@/app/actions/invites'
 import {
@@ -95,6 +96,7 @@ export function HouseProviders({
       removeContact: (id) => removeContactAction(houseId, id),
       moveOut: (input) => moveOutAction(houseId, input),
       setRole: (input) => setRoleAction(houseId, input),
+      changeMyRoom: (input) => changeMyRoomAction(houseId, input),
       createRoutine: (input) => createRoutineAction(houseId, input),
       editRoutine: (input) => editRoutineAction(houseId, input),
       removeRoutine: (id) => removeRoutineAction(houseId, id),

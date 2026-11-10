@@ -8,6 +8,7 @@ import {
   makeMoveRoom,
   makeRenameRoom,
   makeSetFeelingWeights,
+  makeChangeMyRoom,
   makeSetRole,
 } from '@/lib/app/house'
 import { makeCreateRoutine, makeEditRoutine, makeRemoveRoutine } from '@/lib/app/routines'
@@ -25,6 +26,7 @@ import {
   nothingSchema,
   renameRoomSchema,
   setRoleSchema,
+  changeMyRoomSchema,
 } from '@/lib/schemas/house'
 import { makeAction } from '@/lib/server/action'
 import { requestSupabase } from '@/lib/server/session'
@@ -57,6 +59,14 @@ export async function moveOutAction(houseId: HouseId, input: unknown) {
     moveOutSchema,
     (deps, actor, i) =>
       makeMoveOut(deps)(actor, { userId: i.userId as UserId, ...(i.note && { note: i.note }) }),
+    houseEnv(houseId),
+  )(input)
+}
+
+export async function changeMyRoomAction(houseId: HouseId, input: unknown) {
+  return makeAction(
+    changeMyRoomSchema,
+    (deps, actor, i) => makeChangeMyRoom(deps)(actor, { roomId: i.roomId as RoomId | null }),
     houseEnv(houseId),
   )(input)
 }
