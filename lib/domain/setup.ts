@@ -1,7 +1,14 @@
 // Setting up the one house (PRD §10, ARCHITECTURE §5.2). Pure: ids and time are passed in.
 
 import type { DomainEvent } from './events'
-import { defaultHouseSettings, type Element, type House, type Member, type Profile, type Room } from './house'
+import {
+  defaultHouseSettings,
+  type Element,
+  type House,
+  type Member,
+  type Profile,
+  type Room,
+} from './house'
 import type { ActionId, HouseId, Id, UserId } from './ids'
 import { err, ok, type Result } from './result'
 import { APARTMENT_ROOMS } from './rooms'

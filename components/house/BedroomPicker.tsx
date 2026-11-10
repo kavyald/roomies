@@ -48,7 +48,10 @@ export function BedroomPicker({
             )}
           >
             <span
-              className={cn('grid size-8 place-items-center rounded-full', elementClasses(b.element))}
+              className={cn(
+                'grid size-8 place-items-center rounded-full',
+                elementClasses(b.element),
+              )}
             >
               {chosen ? <Check aria-hidden className="size-4" /> : null}
             </span>
