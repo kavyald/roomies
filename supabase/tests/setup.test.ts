@@ -43,6 +43,20 @@ describe('house setup policies', () => {
         "insert into rooms (id, house_id, name, floor, kind) values ($1, $2, 'Kitchen', 'first', 'common')",
         [newId(), house],
       )
+      // Then into the bedroom they picked, once it exists ("members update own", T93).
+      const fire = newId()
+      await db.query(
+        "insert into rooms (id, house_id, name, floor, kind, element) values ($1, $2, 'Fire', 'first', 'bedroom', 'fire')",
+        [fire, house],
+      )
+      await db.query('update house_members set room_id = $1 where house_id = $2 and user_id = $3', [
+        fire,
+        house,
+        owner,
+      ])
+      expect(
+        (await db.query('select room_id from house_members where house_id = $1', [house])).rows,
+      ).toEqual([{ room_id: fire }])
       expect((await db.query('select private.no_house_exists() as ok')).rows[0].ok).toBe(false)
 
       // A second house is refused, even for the owner.

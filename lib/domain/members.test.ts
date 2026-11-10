@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { Member } from './house'
-import { asId, type ActionId, type HouseId, type UserId } from './ids'
-import { anonymizeProfile, moveOut, setRole } from './members'
+import type { Member, Room } from './house'
+import { asId, type ActionId, type HouseId, type RoomId, type UserId } from './ids'
+import { anonymizeProfile, changeMyRoom, moveOut, setRole } from './members'
 import { instant } from './time'
 
 const h = asId<'house'>('h') as HouseId
@@ -96,5 +96,38 @@ describe('anonymizeProfile', () => {
         createdAt: instant(5),
       }),
     ).toEqual({ id: sam, displayName: 'Former roommate', theme: 'auto', createdAt: instant(5) })
+  })
+})
+
+describe('changeMyRoom', () => {
+  const room = (id: string): Room =>
+    ({ id: asId<'room'>(id) as RoomId, houseId: h, name: id, kind: 'bedroom' }) as Room
+  const [fire, water] = [room('fire'), room('water')]
+
+  it('moves you into an open bedroom, recording it', () => {
+    const r = changeMyRoom(m(sam), fire.id, [fire, water], a)
+    expect(r.ok && r.value.member.roomId).toBe(fire.id)
+    expect(r.ok && r.value.events).toEqual([
+      { kind: 'member.room_changed', memberId: sam, roomId: fire.id, actionId: a, by: sam },
+    ])
+  })
+
+  it('clears your bedroom with no room on the event', () => {
+    const r = changeMyRoom(m(sam, { roomId: fire.id }), null, [water], a)
+    expect(r.ok && r.value.member).not.toHaveProperty('roomId')
+    expect(r.ok && r.value.events).toEqual([
+      { kind: 'member.room_changed', memberId: sam, actionId: a, by: sam },
+    ])
+  })
+
+  it("refuses a bedroom that isn't open, the same room, and someone who moved out", () => {
+    expect(changeMyRoom(m(sam), fire.id, [water], a)).toEqual({ ok: false, error: 'room_taken' })
+    expect(changeMyRoom(m(sam, { roomId: fire.id }), fire.id, [water], a)).toEqual({
+      ok: false,
+      error: 'no_change',
+    })
+    expect(changeMyRoom(m(sam), null, [], a)).toEqual({ ok: false, error: 'no_change' })
+    const gone = m(sam, { status: { active: false, leftAt: now } })
+    expect(changeMyRoom(gone, water.id, [water], a)).toEqual({ ok: false, error: 'not_active' })
   })
 })

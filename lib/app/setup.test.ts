@@ -127,4 +127,17 @@ describe('house setup', () => {
       ),
     ).rejects.toBeInstanceOf(AccessDenied)
   })
+
+  it('moves the owner into the bedroom they picked (T93)', async () => {
+    const { deps, user, setupHouse } = setup()
+    const owner = user()
+    const r = await setupHouse(IP, owner, TOKEN, { ...input, bedroom: 'water' })
+    if (!r.ok) throw new Error(r.error)
+    const water = [...deps.uow.state.rooms.values()].find((room) => room.element === 'water')!
+    expect(deps.uow.state.members.get(`${r.value.id}|${owner}`)?.roomId).toBe(water.id)
+    expect(deps.uow.state.activity.map((e) => e.kind)).toEqual([
+      'house.created',
+      'member.room_changed',
+    ])
+  })
 })

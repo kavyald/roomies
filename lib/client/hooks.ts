@@ -273,6 +273,12 @@ export const useMoveOut = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Parameters<AppCommands['moveOut']>[0]) => c.moveOut(i), [
     'members',
   ])
+export const useChangeMyRoom = (houseId: HouseId) =>
+  useHouseCommand(
+    houseId,
+    (c, i: Parameters<AppCommands['changeMyRoom']>[0]) => c.changeMyRoom(i),
+    ['members'],
+  )
 export const useSetRole = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Parameters<AppCommands['setRole']>[0]) => c.setRole(i), [
     'members',

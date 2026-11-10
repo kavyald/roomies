@@ -307,7 +307,7 @@ const draftsFor = (
       const role = (e.changes?.role as readonly [unknown, unknown] | undefined)?.[1]
       return to([e.memberId], {
         category: 'people',
-        title: role === 'admin' ? "You're now an admin" : "You're now a member",
+        title: role === 'admin' ? "You're now an organizer" : "You're now a member",
         body: `${actor} changed your role.`,
         url: `${home}/admin`,
       })

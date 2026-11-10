@@ -96,7 +96,7 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 | **Needs** | The shared list of things to buy. Needs with a feeling come first. **Start a run** from here. |
 | **Tasks** | **Requests & visits** (unsent and sent requests, planned visits) with **+ New** (start a request or plan a visit), then tasks with filters *Mine / All / Outside help* |
 | **Chores** | Who has which rooms this period, as cards, and the shared Upkeep list below |
-| **Admin** | Roommates, invite link (admins), contacts, **Routines**, then untitled: **Feeling weights**, **Activity**, **Rooms**. Everyone sees this tab and can change routines; only admins get the invite link and roommate controls. |
+| **Admin** | Roommates, invite link (organizers), contacts, **Routines**, then untitled: **Feeling weights**, **Activity**, **Rooms**. Everyone sees this tab and can change routines; only organizers get the invite link and roommate controls. |
 
 A floating **"+"** opens a picker (Need / Chore / Task / Poll / Run) and then a short form. Only the title is required.
 
@@ -301,16 +301,17 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 
 ## 10. Membership, invites & access
 
-- **Creating the house:** done once by the owner through a private one-time setup link. Fields: name, address (optional), unit number. The owner becomes an **admin**, and the rooms are seeded.
+- **Creating the house:** done once by the owner through a private one-time setup link. Fields: name, address (optional), unit number. The owner becomes an **organizer**, and the rooms are seeded. The owner also answers **"Which room is yours?"** (a bedroom, or Not yet) (T93).
 - **No public sign-up.** Typing an email into the app without an invite does nothing. No code is sent and no account is created.
-- **Inviting:** the admin shares an **invite link** (`<app>/join/<token>`) in the group chat. The link:
+- **Inviting:** an organizer shares an **invite link** (`<app>/join/<token>`) in the group chat. The link:
   - expires after 7 days (configurable) or after its use limit (default: number of open spots),
   - can be revoked or regenerated anytime,
   - is **not** tied to a specific email **(owner)**. Whoever opens it can join, which is why joins notify everyone.
-- **Joining:** open the link → enter name + email → type the 6-digit code → pick your bedroom → you're in. **(owner)** It's instant, with no admin approval.
+- **Joining:** open the link → enter name + email → type the 6-digit code → pick your bedroom → you're in. **(owner)** It's instant, with no organizer approval.
 - **Signing in later:** enter your email → type the code. This only works for emails that already have an account.
-- **Roles:** `admin` (manage invites, remove members) and `member` (everything else, including settings). **(owner)**
-- **Moving out:** an admin (or the person themselves) marks a member as moved out. They lose access, and their name stays on past items.
+- **Roles:** **organizer** (manage invites, remove members) and **member** (everything else, including settings). **(owner)** The data calls the organizer role `admin`; people never see that word for a person, only for the Admin tab (D40, T103).
+- **Changing rooms (T93):** anyone, the organizer included, picks, changes or clears their own bedroom from their row in Admin → Roommates. Only bedrooms nobody lives in can be picked; nobody changes someone else's room. Activity shows the move.
+- **Moving out:** an organizer (or the person themselves) marks a member as moved out. They lose access, and their name stays on past items.
 - **Deleting your account:** removes your email and profile. Your name on past items becomes "Former roommate."
 - **Access guarantee:** nobody outside the house can read or write its data, and this is enforced at the database layer.
 
@@ -335,7 +336,9 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 
 - **Web Push** only, which requires adding the app to the Home Screen on iOS. The email digest fallback comes later (§13).
 - Quiet hours per person (default 10pm–8am), with per-category toggles in personal settings.
-- Notifications follow the person, not the phone: signing out stops that device getting yours, and turning them on moves the device to whoever is signed in (T84). If the push service is briefly down, a notification is tried again after 5 minutes, 30 minutes and 2 hours before it's given up.
+- Notifications follow the person, not the phone: signing out stops that device getting yours, and turning them on moves the device to whoever is signed in (T84); a device that allows Roomies does this by itself when the app opens (D42). If the push service is briefly down, a notification is tried again after 5 minutes, 30 minutes and 2 hours before it's given up.
+- **On from the start (T95, D41):** every category is on by default, and the first time the app opens on a device where push isn't on, one sheet offers it: **Turn on** or **Not now** (or, where push can't work, why: blocked in settings, or this browser can't). Any answer is remembered on that device. On an iPhone in Safari the Add to Home Screen guide comes first, and the sheet waits for the first open from the Home Screen. Blocked or unsupported, the sheet gives numbered steps for that phone or browser.
+- **Allowed means on (owner, D42):** once the browser or phone allows Roomies, notifications are on. A device that allows Roomies but isn't connected to the person signed in (they just followed the steps, or someone else signed in on it) connects itself when the app opens, with no tap, and says "Notifications are on. 🔔". Turning them off is the person's call: switch categories off in the app, or block Roomies again in the browser or phone settings.
 - Everything about notifications sits in one **Notifications** section of personal settings: this device's status with its one button (turn on / blocked / add to Home Screen first), a switch per category with a line saying when you get it, and quiet hours as one row. It is reached only from personal settings (your avatar), not from Admin (T67).
 
 ---
@@ -416,6 +419,9 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D35 | Built from the docs↔code audit: conflict detection on edits, "Handled by" follows the run, an app-wide CSP, `security_events`, undo "Did it", poll withdraw / reopen / deadline, run rename and point person, cost edit and remove, poll and run deep links, notification settings in one section (T50–T58, T61) | Owner |
 | D36 | A feedback button (bug / idea / praise) at the top right of Admin, saved for the owner in Supabase, with the sender, house, app version and browser (§6.8, T91) | Owner |
 | D37 | Feelings on a chore count only if shared after it was last done; 😰/😤 on a chore notifies every active member, not an assignee. Reopening a need or a task is an undo, so its feelings count again (§7, §8.1, T99) | Owner |
+| D42 | Allowed means on: a device that allows Roomies connects itself to whoever is signed in when the app opens, with no Turn on tap (§11, T95) | Owner |
+| D41 | Notifications are offered once per device, the first time the app opens there with push off (not only right after setup or joining), so existing members see it once too; any answer, including closing the sheet, is remembered on the device (§11, T95) | Build call (T95), for the owner to confirm |
+| D40 | The role that manages invites and removes roommates is called **organizer** in every toast, button, activity line and notification, and Roommates rows show no role label at all (owner, 2026-11-10). The Admin tab keeps its name (every member uses it), and the data keeps `role = 'admin'`, as items keep `archived_at` while the app says "deleted". `copy.test.ts` refuses "admin" for a person (§10, T103) | Owner |
 | D39 | A chore is in one room, and a room's chores are set up in Admin → Rooms from one-tap picks of the house's chore names. The Chores tab shows a box per room. **Reverses D38's multi-room chores** (§6.2, T101) | Owner |
 | D38 | Routines: rooms grouped under who's responsible and how often it changes hands; chores are Deep clean or Upkeep, and who's on one is worked out. **Reverses the decided chore rhythms** ("as needed" / "about every N days") and the chore assignee: chores have neither now. Rotations are no longer deferred (§6.2, T96) | Owner |
 

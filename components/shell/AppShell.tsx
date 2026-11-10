@@ -5,10 +5,11 @@ import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { TabBar } from '@/components/ui/TabBar'
 import { InstallGuide } from './InstallGuide'
+import { NotificationsPrompt } from './NotificationsPrompt'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { addKindFor, houseTabs } from './tabs'
 
-/** The signed-in frame: safe-area padding, the 5-tab bar, and the install nudge. */
+/** The signed-in frame: safe-area padding, the 5-tab bar, the install nudge and the notifications prompt. */
 export function AppShell({ base, children }: { base: string; children: ReactNode }) {
   const pathname = usePathname()
   const tabs = houseTabs(base)
@@ -34,6 +35,7 @@ export function AppShell({ base, children }: { base: string; children: ReactNode
       </button>
       <TabBar tabs={tabs} current={current} />
       <InstallGuide />
+      <NotificationsPrompt />
     </div>
   )
 }

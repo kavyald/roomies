@@ -24,6 +24,7 @@ export const fakeAppClient = (
     removeContact: async () => err('unexpected'),
     moveOut: async () => err('unexpected'),
     setRole: async () => err('unexpected'),
+    changeMyRoom: async () => err('unexpected'),
     createRoutine: async () => err('unexpected'),
     editRoutine: async () => err('unexpected'),
     removeRoutine: async () => err('unexpected'),

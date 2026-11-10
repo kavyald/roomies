@@ -66,6 +66,9 @@ export type AppCommands = {
   }): Promise<
     CommandResult<Member, 'not_found' | 'not_allowed' | 'already_moved_out' | 'last_admin'>
   >
+  changeMyRoom(input: {
+    roomId: RoomId | null
+  }): Promise<CommandResult<Member, 'not_found' | 'not_active' | 'no_change' | 'room_taken'>>
   setRole(input: {
     userId: UserId
     role: Role

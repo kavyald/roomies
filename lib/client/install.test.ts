@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { shouldShowInstallGuide } from './install'
+import {
+  allowSteps,
+  connectsItself,
+  platformOf,
+  pushPromptFor,
+  shouldShowInstallGuide,
+} from './install'
 
 const IPHONE_SAFARI =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
@@ -17,5 +23,65 @@ describe('shouldShowInstallGuide', () => {
     ['desktop', DESKTOP_CHROME, false, false, false],
   ])('%s → %s', (_label, userAgent, standalone, dismissed, expected) => {
     expect(shouldShowInstallGuide({ userAgent, standalone, dismissed })).toBe(expected)
+  })
+})
+
+describe('pushPromptFor (T95)', () => {
+  const at = (userAgent: string, standalone = false, dismissed = false) => ({
+    userAgent,
+    standalone,
+    dismissed,
+  })
+  it.each([
+    ['desktop, push off', 'off', at(DESKTOP_CHROME), 'ask'],
+    ['iPhone installed, push off', 'off', at(IPHONE_SAFARI, true), 'ask'],
+    ['iPhone Safari, not installed yet', 'off', at(IPHONE_SAFARI), null],
+    ['iPhone Safari, needs the Home Screen', 'install_first', at(IPHONE_SAFARI), null],
+    ['already on', 'on', at(DESKTOP_CHROME), null],
+    ['blocked in settings', 'blocked', at(DESKTOP_CHROME), 'blocked'],
+    ["can't push at all", 'unsupported', at(IPHONE_CHROME), 'unsupported'],
+    ['answered before on this device', 'off', at(DESKTOP_CHROME, false, true), null],
+  ] as const)('%s → %s', (_label, state, ctx, expected) => {
+    expect(pushPromptFor(state, ctx)).toBe(expected)
+  })
+})
+
+describe('platformOf (T95)', () => {
+  const FIREFOX =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 14.0; rv:130.0) Gecko/20100101 Firefox/130.0'
+  const MAC_SAFARI =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'
+  const ANDROID =
+    'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36'
+  it.each([
+    ['iPhone, installed', IPHONE_SAFARI, true, 'iphone_app'],
+    ['iPhone, in Safari', IPHONE_SAFARI, false, 'iphone_browser'],
+    ['Chrome on iPhone', IPHONE_CHROME, false, 'iphone_browser'],
+    ['Android', ANDROID, false, 'android'],
+    ['desktop Chrome', DESKTOP_CHROME, false, 'desktop_chrome'],
+    ['Safari on a Mac', MAC_SAFARI, false, 'desktop_safari'],
+    ['Firefox', FIREFOX, false, 'desktop_firefox'],
+    ['anything else', 'curl/8', false, 'other'],
+  ] as const)('%s → %s', (_label, ua, standalone, expected) => {
+    expect(platformOf(ua, standalone)).toBe(expected)
+  })
+
+  it('ends every way to un-block with coming back, where they turn on by themselves', () => {
+    for (const [p, steps] of Object.entries(allowSteps)) {
+      if (p === 'iphone_browser') continue
+      expect(steps.at(-1)).toMatch(/turn on by themselves/)
+    }
+  })
+})
+
+describe('connectsItself (T95)', () => {
+  it.each([
+    ['allowed, not connected', 'off', 'granted', true],
+    ['never asked', 'off', 'default', false],
+    ['already on', 'on', 'granted', false],
+    ['blocked', 'blocked', 'denied', false],
+    ["can't push", 'unsupported', 'default', false],
+  ] as const)('%s → %s', (_label, state, permission, expected) => {
+    expect(connectsItself(state, permission)).toBe(expected)
   })
 })

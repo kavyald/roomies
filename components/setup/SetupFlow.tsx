@@ -5,7 +5,10 @@ import { useState, useTransition, type FormEvent } from 'react'
 import { verifyCode } from '@/app/actions/auth'
 import { finishSetup, startSetup } from '@/app/actions/setup'
 import { CodeField, Field, FormMessage } from '@/components/auth/fields'
+import { BedroomPicker } from '@/components/house/BedroomPicker'
 import { Button } from '@/components/ui/Button'
+import type { Element } from '@/lib/domain/house'
+import { APARTMENT_ROOMS } from '@/lib/domain/rooms'
 
 type Step = 'account' | 'code' | 'house'
 
@@ -15,9 +18,17 @@ const MESSAGES: Record<string, string> = {
   invalid_token: 'This setup link doesn’t work.',
   empty_house_name: 'Give the house a name.',
   empty_owner_name: 'Add your name so roommates know who you are.',
+  room_taken: 'Pick one of the bedrooms, or Not yet.',
   wrong_code: "That code didn't work. Check it and try again, or get a new one.",
   rate_limited: 'Too many tries for now. Take a breather and try again in a bit.',
 }
+/** The apartment's bedrooms, before the house (and its room ids) exist: picked by element. */
+const BEDROOMS = APARTMENT_ROOMS.filter((r) => r.kind === 'bedroom' && r.element).map((r) => ({
+  key: r.element!,
+  name: r.name,
+  element: r.element!,
+}))
+
 const fallback = "Couldn't reach the house. Check your connection and try again."
 
 /** One-time setup: your account (name, email, code), then the house (PRD §10). */
@@ -30,6 +41,7 @@ export function SetupFlow({ token, signedIn }: { token: string; signedIn: boolea
   const [houseName, setHouseName] = useState('The apartment')
   const [address, setAddress] = useState('')
   const [unit, setUnit] = useState('')
+  const [bedroom, setBedroom] = useState<Element | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -64,6 +76,7 @@ export function SetupFlow({ token, signedIn }: { token: string; signedIn: boolea
         address,
         unit,
         ownerName,
+        ...(bedroom && { bedroom }),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       })
       if (!r.ok) return say(r.error)
@@ -157,6 +170,15 @@ export function SetupFlow({ token, signedIn }: { token: string; signedIn: boolea
       <p className="m-0 text-sm text-ink-soft">
         We&apos;ll add the apartment&apos;s rooms. You can rename or add rooms later.
       </p>
+      <fieldset className="m-0 grid gap-2 border-0 p-0">
+        <legend className="mb-2 p-0 font-bold">Which room is yours?</legend>
+        <BedroomPicker
+          options={BEDROOMS}
+          value={bedroom}
+          onChange={(k) => setBedroom(k as Element | null)}
+          noneLabel="Not yet"
+        />
+      </fieldset>
       {message && <FormMessage>{message}</FormMessage>}
       <Button type="submit" block disabled={pending || !houseName.trim() || !ownerName.trim()}>
         Create the house

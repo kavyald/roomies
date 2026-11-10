@@ -10,6 +10,7 @@ export const editContactSchema = z.object({
 })
 export const idSchema = z.uuid()
 export const moveOutSchema = z.object({ userId: z.uuid(), note: z.string().max(280).optional() })
+export const changeMyRoomSchema = z.object({ roomId: z.uuid().nullable() })
 export const setRoleSchema = z.object({ userId: z.uuid(), role: z.enum(['admin', 'member']) })
 export const renameRoomSchema = z.object({ roomId: z.uuid(), name: z.string().max(60) })
 export const moveRoomSchema = z.object({ roomId: z.uuid(), direction: z.enum(['up', 'down']) })

@@ -5,12 +5,9 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useAppClient } from '@/lib/client/provider'
-import {
-  pushState,
-  subscribeThisBrowser,
-  thisBrowsersEndpoint,
-  type PushState,
-} from '@/lib/client/push'
+import type { PushState } from '@/lib/client/push'
+import { NotificationSteps } from './NotificationSteps'
+import { settlePush, TURN_ON_TOASTS, turnOnPush } from './turn-on-push'
 
 const LINES: Record<PushState, string> = {
   on: 'On for this device.',
@@ -33,56 +30,47 @@ export function PushSettings() {
   useEffect(() => {
     let live = true
     void (async () => {
-      let s = await pushState()
-      // "On" only if the server has this browser for me too (T84): after someone else used this
-      // phone, or if saving it never went through, it's "off", so the button saves it again.
-      if (s === 'on') {
-        const endpoint = await thisBrowsersEndpoint()
-        const saved = endpoint ? await commands.isPushSubscriptionSaved({ endpoint }) : null
-        if (saved?.ok && !saved.value) s = 'off'
-      }
+      // Connects an allowed browser by itself (T95); "on" only if the server has it for me (T84).
+      const { state: s } = await settlePush(commands, vapidPublicKey)
       if (live) setState(s)
     })()
     return () => {
       live = false
     }
-  }, [commands])
+  }, [commands, vapidPublicKey])
 
   if (!state) return null
 
   const turnOn = async () => {
     setBusy(true)
-    const r = await subscribeThisBrowser(vapidPublicKey)
-    if (!r.ok) {
-      setBusy(false)
-      setState(r.reason === 'denied' ? 'blocked' : 'off')
-      return toast(
-        r.reason === 'denied'
-          ? 'Okay, no notifications. You can turn them on later.'
-          : "Couldn't turn notifications on. Try again.",
-      )
-    }
-    const saved = await commands.savePushSubscription(r.subscription)
+    const r = await turnOnPush(commands, vapidPublicKey)
     setBusy(false)
-    if (!saved.ok) return toast("Couldn't turn notifications on. Try again.")
-    setState('on')
-    toast('Notifications are on. 🔔')
+    if (r !== 'failed') setState(r === 'on' ? 'on' : 'blocked')
+    toast(TURN_ON_TOASTS[r])
   }
 
   const Icon = state === 'on' ? Bell : BellOff
+  const help = state === 'blocked' || state === 'unsupported' ? state : null
   return (
-    <div
-      aria-label="This device"
-      role="group"
-      className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5"
-    >
-      <Icon aria-hidden className="size-5 flex-none text-ink-soft" />
-      <p className="m-0 min-w-0 flex-1 font-semibold">{LINES[state]}</p>
-      {state === 'off' && (
-        <Button size="small" disabled={busy} onClick={turnOn}>
-          Turn on notifications
-        </Button>
+    <>
+      <div
+        aria-label="This device"
+        role="group"
+        className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5"
+      >
+        <Icon aria-hidden className="size-5 flex-none text-ink-soft" />
+        <p className="m-0 min-w-0 flex-1 font-semibold">{LINES[state]}</p>
+        {state === 'off' && (
+          <Button size="small" disabled={busy} onClick={turnOn}>
+            Turn on notifications
+          </Button>
+        )}
+      </div>
+      {help && (
+        <div className="px-3.5 pb-3">
+          <NotificationSteps kind={help} />
+        </div>
       )}
-    </div>
+    </>
   )
 }

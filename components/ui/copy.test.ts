@@ -20,6 +20,9 @@ const ITEM_ROOTS = [
   'components/activity',
 ]
 const ITEM_BANNED = /\barchiv(e|es|ed|ing)?\b|30 days/i // "archivedAt" is a field, not copy
+// The role is "organizer" in copy; `admin` stays in the data (PRD D40, T103). The tab is "Admin",
+// always capitalised, and paths like `${home}/admin` follow a slash, so neither counts.
+const ROLE_BANNED = /(?<![/\w])admins?\b/
 const COPY_ATTRS = new Set(['aria-label', 'title', 'placeholder', 'label', 'description', 'alt'])
 
 const files = (p: string): string[] =>
@@ -75,6 +78,15 @@ describe('copy', () => {
     const offending = ITEM_ROOTS.flatMap(files).flatMap((f) =>
       copyIn(f, true)
         .filter((text) => ITEM_BANNED.test(text))
+        .map((text) => `${f}: ${text}`),
+    )
+    expect(offending).toEqual([])
+  })
+
+  it('calls the role "organizer", never "admin" (the tab keeps its name)', () => {
+    const offending = all.flatMap((f) =>
+      copyIn(f)
+        .filter((text) => ROLE_BANNED.test(text))
         .map((text) => `${f}: ${text}`),
     )
     expect(offending).toEqual([])

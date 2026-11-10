@@ -6,6 +6,7 @@ import type { UserId } from '../domain/ids'
 import { sampleHouse } from '../testing/sample-house'
 import { makeEditContact, makeRemoveContact } from './contacts'
 import {
+  makeChangeMyRoom,
   makeDeleteAccount,
   makeMoveOut,
   makeMoveRoom,
@@ -152,5 +153,35 @@ describe('feeling weights', () => {
     })
     expect(await set(as('Sam'), DEFAULT_FEELING_WEIGHTS)).toEqual({ ok: false, error: 'no_change' })
     expect(deps.uow.state.activity.length).toBe(before)
+  })
+})
+
+describe('your bedroom (T93)', () => {
+  it('clears your room, then picks an open one; the house sees both', async () => {
+    const { deps, s, as, member } = await setup()
+    const change = makeChangeMyRoom(deps)
+    expect((await change(as('Sam'), { roomId: null })).ok).toBe(true)
+    expect(member(s.people.Sam).roomId).toBeUndefined()
+    expect(deps.uow.state.activity.at(-1)).toMatchObject({
+      kind: 'member.room_changed',
+      memberId: s.people.Sam,
+    })
+    expect((await change(as('Sam'), { roomId: s.rooms.Fire!.id })).ok).toBe(true)
+    expect(member(s.people.Sam).roomId).toBe(s.rooms.Fire!.id)
+  })
+
+  it("refuses a bedroom someone lives in, and a room that isn't a bedroom", async () => {
+    const { deps, s, as, member } = await setup()
+    const change = makeChangeMyRoom(deps)
+    expect(await change(as('Sam'), { roomId: s.rooms.Water!.id })).toEqual({
+      ok: false,
+      error: 'room_taken',
+    })
+    const kitchen = Object.values(s.rooms).find((r) => r.kind !== 'bedroom')!
+    expect(await change(as('Sam'), { roomId: kitchen.id })).toEqual({
+      ok: false,
+      error: 'room_taken',
+    })
+    expect(member(s.people.Sam).roomId).toBe(s.rooms.Fire!.id)
   })
 })

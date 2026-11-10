@@ -206,10 +206,11 @@ describe('activityLine: every kind', () => {
     ],
     ['member.joined', { memberId: MAYA, actorId: MAYA }, 'Maya joined the house'],
     ['member.room_changed', { memberId: MAYA, roomId: id('fire') }, 'Maya moved into Fire'],
+    ['member.room_changed', { memberId: MAYA }, 'Maya has no bedroom set for now'],
     [
       'member.role_changed',
       { memberId: MAYA, changes: { role: ['member', 'admin'] } },
-      'Kavya made Maya an admin',
+      'Kavya made Maya an organizer',
     ],
     [
       'member.role_changed',

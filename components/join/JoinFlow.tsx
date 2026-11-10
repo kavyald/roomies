@@ -1,15 +1,12 @@
 'use client'
 
-import { Check } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition, type FormEvent } from 'react'
 import { verifyCode } from '@/app/actions/auth'
 import { acceptJoin, startJoin } from '@/app/actions/invites'
 import { CodeField, Field, FormMessage } from '@/components/auth/fields'
-import { Avatar } from '@/components/ui/Avatar'
+import { BedroomPicker } from '@/components/house/BedroomPicker'
 import { Button } from '@/components/ui/Button'
-import { cn } from '@/components/ui/cn'
-import { elementClasses } from '@/components/ui/elements'
 import type { Bedroom } from '@/lib/app/invites'
 import type { RoomId } from '@/lib/domain/ids'
 import { inviteProblemCopy, type InviteProblem } from '@/lib/domain/invites'
@@ -144,53 +141,16 @@ export function JoinFlow({
           onChange={(e) => setName(e.target.value)}
         />
       )}
-      <div role="radiogroup" aria-label="Your room" className="grid gap-2">
-        {bedrooms.map((b) => {
-          const chosen = roomId === b.id
-          return (
-            <button
-              key={b.id}
-              type="button"
-              role="radio"
-              aria-checked={chosen}
-              disabled={!!b.takenBy}
-              onClick={() => setRoomId(b.id)}
-              className={cn(
-                'flex min-h-14 items-center gap-3 rounded-2xl bg-paper px-3.5 py-3 text-left font-bold shadow-[inset_0_0_0_1.5px_var(--line)] disabled:opacity-60',
-                chosen && 'shadow-[inset_0_0_0_2px_var(--accent)]',
-              )}
-            >
-              <span
-                className={cn(
-                  'grid size-8 place-items-center rounded-full',
-                  elementClasses(b.element),
-                )}
-              >
-                {chosen ? <Check aria-hidden className="size-4" /> : null}
-              </span>
-              <span className="flex-1">{b.name}</span>
-              {b.takenBy && (
-                <span className="flex items-center gap-2 text-sm font-semibold text-ink-soft">
-                  <Avatar name={b.takenBy} element={b.element} size={20} />
-                  {b.takenBy}&apos;s
-                </span>
-              )}
-            </button>
-          )
-        })}
-        <button
-          type="button"
-          role="radio"
-          aria-checked={roomId === null}
-          onClick={() => setRoomId(null)}
-          className={cn(
-            'min-h-11 rounded-2xl px-3.5 py-2 text-left font-bold text-ink-soft',
-            roomId === null && 'bg-neutral-fill text-neutral-ink',
-          )}
-        >
-          None of these
-        </button>
-      </div>
+      <BedroomPicker
+        options={bedrooms.map((b) => ({
+          key: b.id,
+          name: b.name,
+          ...(b.element && { element: b.element }),
+          ...(b.takenBy && { takenBy: b.takenBy }),
+        }))}
+        value={roomId}
+        onChange={(k) => setRoomId(k as RoomId | null)}
+      />
       {message && <FormMessage>{message}</FormMessage>}
       <Button type="submit" block disabled={pending || !name.trim()}>
         Join the house

@@ -34,7 +34,7 @@
 
 **[DECIDED] PWA.** It matches "a link that roommates can access on their phone." If push reliability becomes a real problem, Expo can later reuse the same backend and most TypeScript logic.
 
-Onboarding must actively guide iOS users through **Share → Add to Home Screen**, since that's the only way push works on iOS. We detect standalone mode with `navigator.standalone` / `display-mode: standalone` and show an instruction sheet until the app is installed.
+Onboarding must actively guide iOS users through **Share → Add to Home Screen**, since that's the only way push works on iOS. We detect standalone mode with `navigator.standalone` / `display-mode: standalone` and show an instruction sheet until the app is installed. Once push can work (installed, or any browser that supports it), `NotificationsPrompt` offers it once per device (`pushPromptFor` in `lib/client/install.ts`, T95). A device that already allows Roomies but isn't connected to whoever is signed in connects itself on open, with no tap (`settlePush` in `components/house/turn-on-push.ts`, PRD D42).
 
 ---
 
@@ -236,7 +236,7 @@ create policy "items update" on items for update using (private.is_member(house_
 -- no delete policy: soft-delete via archived_at only (feelings are the one exception, below)
 ```
 
-Admin-only actions (invites, adding and removing members, roles, house details) use an `is_admin(house_id)` policy. The rules beyond that pattern, each mirrored in `lib/adapters/memory/db.ts`:
+Admin-only actions (invites, adding and removing members, roles, house details) use an `is_admin(house_id)` policy. (`admin` is the data's name for the role people see as "organizer", PRD D40.) The rules beyond that pattern, each mirrored in `lib/adapters/memory/db.ts`:
 
 | Policy / helper | Table | What it allows |
 |---|---|---|
@@ -270,7 +270,7 @@ A new table grants its writes to `app_writer`, never to `authenticated`; Member 
 
 **[DECIDED] A4:** no extra "house passcode" on invites. Joins notify everyone, links expire and can be revoked, and admins can remove people in one tap.
 
-**Single-house bootstrap (owner: one house only):** the very first account (you) is created with a one-time `SETUP_TOKEN` env var. Visiting `/setup/<SETUP_TOKEN>` runs the `startSetup` server action and use case (rate-limited; creates your account and sends a code), then `finishSetup` (signed in) runs the `setupHouse` use case, which creates the house and its rooms and makes you admin. After that, the route is permanently disabled once a house exists. It's also blocked by the RLS insert policy "houses setup", which requires `private.no_house_exists()` (a security-definer check that counts houses outside RLS). This avoids a "whoever signs in first owns the house" race.
+**Single-house bootstrap (owner: one house only):** the very first account (you) is created with a one-time `SETUP_TOKEN` env var. Visiting `/setup/<SETUP_TOKEN>` runs the `startSetup` server action and use case (rate-limited; creates your account and sends a code), then `finishSetup` (signed in) runs the `setupHouse` use case, which creates the house and its rooms, makes you admin, and moves you into the bedroom you picked (saved after the rooms, through "members update own", T93). After that, the route is permanently disabled once a house exists. It's also blocked by the RLS insert policy "houses setup", which requires `private.no_house_exists()` (a security-definer check that counts houses outside RLS). This avoids a "whoever signs in first owns the house" race.
 
 **Who can join, summarized:**
 
@@ -714,10 +714,11 @@ select changes, actor_id, at from activity_events
 | `removeCost` | `(cost, { by, now, actionId }) → Result<{ cost; events }, 'already_removed'>` | Sets `removedAt`; `cost.removed`. No restore (no Undo) |
 | `splitwiseText` / `copiedToSplitwise` | `(title, amount) → string` / `(cost, { by, actionId }) → DomainEvent` | The copy text, and its `cost.splitwise_copied` event |
 | **House, people and places** (`setup.ts`, `invites.ts`, `members.ts`, `rooms.ts`, `contacts.ts`, `profile.ts`) | | |
-| `setupHouse` | `(input: NewHouse, owner, now, newId, existingProfile?) → Result<{ house; profile; member; rooms; events }, SetupError>` | Default weights, the owner as admin, and the apartment's rooms (`APARTMENT_ROOMS`). `safeEqual` compares the setup token. |
+| `setupHouse` | `(input: NewHouse, owner, now, newId, existingProfile?) → Result<{ house; profile; member; rooms; events }, SetupError>` | Default weights, the owner as admin, the apartment's rooms (`APARTMENT_ROOMS`), and the owner's bedroom if `NewHouse.bedroom` (an element) is set, with a `member.room_changed` in the same action (T93). `safeEqual` compares the setup token. |
 | `validateInvite` | `(inv: Invite \| undefined, now) → Result<Invite, 'invalid' \| 'expired' \| 'revoked' \| 'used_up'>` | The repo looks the token's hash up first; `isInviteProblem` tells these four apart from the person's own errors (they go to `security_events`, §5.4) |
 | `createInvite` / `revokeInvite` / `acceptInvite` | `(input, ctx: { …, openSpots, tokenHash }) → Result<…, 'bad_limits'>` / `(inv, by, now, actionId) → Result<…, 'already_revoked'>` / `(inv, joining, ctx) → Result<{ invite; member; profile; events }, InviteProblem \| 'already_member' \| 'room_taken' \| 'empty_name'>` | `max_uses` defaults to the open bedrooms (`openBedrooms`, at least 1); 1–20 uses, 1–30 days |
 | `moveOut` / `setRole` | `(target, members, by, now, actionId, note?) → Result<…, 'not_allowed' \| 'already_moved_out' \| 'last_admin'>` / `(target, role, members, by, actionId) → Result<…, 'not_allowed' \| 'no_change' \| 'last_admin' \| 'not_active'>` | The house always keeps an admin |
+| `changeMyRoom` | `(me, roomId \| null, openBedrooms, actionId) → Result<{ member; events }, 'not_active' \| 'no_change' \| 'room_taken'>` | Your own bedroom only (T93); `null` clears it, and `member.room_changed` then has no `roomId` |
 | `anonymizeProfile` | `(p: Profile) → Profile` | "Former roommate" |
 | **Routines** (`routines.ts`, `icons.ts`) | | |
 | `periodStart` / `nextPeriodStart` | `(r: { resets, startsOn }, today) → LocalDate` | Monday, every other Monday from `startsOn`, or the 1st |
@@ -754,7 +755,7 @@ select changes, actor_id, at from activity_events
 | `polls.ts` | `createPoll` (`NewPoll`) · `vote` (`{ pollId, optionId }`) · `addPollOption` (`{ pollId, label, note? }`) · `closePoll` (`{ pollId }`) · `withdrawVote` (`{ pollId }`) · `reopenPoll` (`{ pollId }`) · `setPollDeadline` (`{ pollId, closesAt \| null }`) | `Poll` / `{ poll, result }` | the domain errors above | |
 | `costs.ts` | `addCost` (`NewCost`) · `editCost` (`{ costId, amount?, paidBy?, note? }`) · `removeCost` (`{ costId }`) · `copiedToSplitwise` (`{ costId }`) | `Cost` | `not_positive`, `too_large`, `note_too_long`, `unknown_member`, `not_found`; edit: `no_change`, `removed`; remove: `already_removed` | |
 | `contacts.ts` | `createContact` (`NewContact`) · `editContact` (`{ id, patch }`) · `removeContact` (an id) | `Contact` | `empty_name`, `no_change`, `already_removed` | |
-| `house.ts` | `moveOut` (`{ userId, note? }`: "I moved out", or an admin removing someone) · `setRole` (`{ userId, role }`) · `renameRoom` (`{ roomId, name }`) · `moveRoom` (`{ roomId, direction }`) · `setFeelingWeights` (`FeelingWeights`, any member) | `Member` / `Room` / `Room[]` / `House` | `not_allowed`, `already_moved_out`, `last_admin`, `not_active`, `no_change`, `empty_name`, `at_edge`, `out_of_range` | |
+| `house.ts` | `moveOut` (`{ userId, note? }`: "I moved out", or an admin removing someone) · `setRole` (`{ userId, role }`) · `changeMyRoom` (`{ roomId \| null }`, as yourself, T93) · `renameRoom` (`{ roomId, name }`) · `moveRoom` (`{ roomId, direction }`) · `setFeelingWeights` (`FeelingWeights`, any member) | `Member` / `Room` / `Room[]` / `House` | `not_allowed`, `already_moved_out`, `last_admin`, `not_active`, `no_change`, `room_taken`, `empty_name`, `at_edge`, `out_of_range` | |
 | | `deleteAccount` (none): moves you out, anonymizes your profile, then deletes the auth user | `void` | `last_admin` | `auth` |
 | `me.ts` | `updateMySettings` (`SettingsPatch`: theme, quiet hours) · `setNotificationEnabled` (`{ category, enabled }`) | `Profile` / the input | `bad_time`, `no_change` | uow only |
 | `invites.ts` | `createInvite` (`NewInvite`) · `revokeInvite` (an id) · `listInvites` (admins) | `{ invite, token }` / `Invite` / `Invite[]` | `not_admin`, `bad_limits`, `already_revoked` | `tokens` |
@@ -872,7 +873,7 @@ proxy.ts                     -- Next 16's proxy (was middleware): sets the page 
 components/
   ui/                        -- Avatar (initials + element), Button, Card, Chip, Disclosure, EmptyState, ListRow,
                                 IconButton, SegmentedControl, Sheet (vaul) + SheetSave, Swipeable, TabBar, Toast
-  shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, InstallGuide, ServiceWorker, ThemeSync, DeepLinks (OpenPoll, OpenRun)
+  shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, InstallGuide, NotificationsPrompt, ServiceWorker, ThemeSync, DeepLinks (OpenPoll, OpenRun)
   auth/  setup/  join/       -- sign-in, setup and join flows
   home/  needs/  chores/  tasks/  calendar/  activity/  house/  me/   -- one folder per screen
   items/                     -- ItemCard, ItemForm, ItemSheets, Feelings, HandledByPicker, RoomSelect, WhyHere
