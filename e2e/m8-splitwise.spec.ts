@@ -50,7 +50,6 @@ test('link the Splitwise group, then a cost opens it and shows it was sent', asy
     .getByRole('button', { name: /^Vacuum/ })
     .click()
   const detail = page.getByRole('dialog', { name: 'Vacuum' })
-  await detail.getByRole('button', { name: 'Costs', exact: true }).click()
   const costs = detail.getByRole('region', { name: 'Costs' })
   const popup = context.waitForEvent('page')
   await costs.getByRole('button', { name: 'Add $189.00 to Splitwise' }).click()

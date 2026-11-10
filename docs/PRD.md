@@ -221,7 +221,7 @@ A run is **a batch of items handled together**. There are three kinds:
 
 - **[DECIDED]** Money is a **cost record**: an amount, who paid, an optional note, and what it was for (an item or a run). Nothing requires one.
 - **Adding one:** "Add cost" on any item, or the **Spent** amount beside a batch's **Finish**.
-- **Changing one:** any member can **edit** a cost (amount, who paid, note) or **remove** it ("Remove this cost?"), from the item's Costs section or the run's sheet. A removed cost leaves the item or run; the activity log keeps the edit or removal.
+- **Changing one:** any member can **edit** a cost (amount, who paid, note) or **remove** it ("Remove this cost?"), from the item's Costs section (open right under its main button, and on its Edit sheet, T104) or the run's sheet. A removed cost leaves the item or run; the activity log keeps the edit or removal.
 - **Splitting** is left to Splitwise; Roomies shows no monthly total or shares (T64).
 - **The Splitwise icon** **[DECIDED] (owner, T89)** sits on every cost (an item's Costs, a run's Spent) and in the toast after adding one or finishing with Spent. Tapping it copies "{title} — ${amount}" and opens the house's Splitwise group, where you paste it in (Splitwise has no link that fills in an expense, and there's no Splitwise API). Once anyone has tapped it for a cost, the icon is highlighted with a check; it stays tappable to send it again. It shows that someone tapped, not that Splitwise saved it.
 - **The Splitwise group** **[DECIDED] (owner, T89)** is a house setting any roommate sets, changes or removes in Admin (paste the group's link). Until it's set, the icon opens Splitwise's home page. Activity notes each change under Money ("Kavya linked the Splitwise group").

@@ -3,7 +3,6 @@
 import { Receipt } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Disclosure } from '@/components/ui/Disclosure'
 import { useToast } from '@/components/ui/Toast'
 import { useAddCost, useCosts } from '@/lib/client/hooks'
 import type { HouseId } from '@/lib/domain/ids'
@@ -15,8 +14,9 @@ import { SplitwiseMark } from './SplitwiseMark'
 import { useSplitwise } from './useSplitwise'
 
 /**
- * "Costs · $189.00" on an item: a closed section with each cost ("$189 · Wren paid", with the
- * Splitwise icon and the Edit / Remove icons) and **Add cost** (FRONTEND §5.4).
+ * An item's Costs, always open (T104): "Costs" and the total, each cost ("$189 · Wren paid", with
+ * the Splitwise icon and the Edit / Remove icons) and **Add cost**. It sits right under the item
+ * sheet's main button, and on the Edit sheet too (FRONTEND §5.4).
  */
 export function ItemCosts({ houseId, item }: { houseId: HouseId; item: Item }) {
   const costs = useCosts(houseId)
@@ -30,7 +30,18 @@ export function ItemCosts({ houseId, item }: { houseId: HouseId; item: Item }) {
   const total = sumCents(mine.map((c) => c.amount))
 
   return (
-    <Disclosure title="Costs" summary={mine.length > 0 ? formatCents(total) : undefined}>
+    <section
+      aria-labelledby={`item-costs-${item.id}`}
+      className="grid gap-1.5 rounded-2xl border-[1.5px] border-line p-3"
+    >
+      <div className="flex items-baseline justify-between">
+        <h3 id={`item-costs-${item.id}`} className="m-0 text-base font-extrabold">
+          Costs
+        </h3>
+        {mine.length > 0 && (
+          <span className="font-extrabold tabular-nums">{formatCents(total)}</span>
+        )}
+      </div>
       <CostRows houseId={houseId} costs={mine} title={item.title} />
       {adding ? (
         <div className="grid gap-2 rounded-2xl bg-paper p-3">
@@ -63,6 +74,6 @@ export function ItemCosts({ houseId, item }: { houseId: HouseId; item: Item }) {
           <Receipt aria-hidden className="size-4" /> Add cost
         </button>
       )}
-    </Disclosure>
+    </section>
   )
 }
