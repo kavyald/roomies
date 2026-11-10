@@ -96,7 +96,7 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 | **Needs** | The shared list of things to buy. Needs with a feeling come first. **Start a run** from here. |
 | **Tasks** | **Requests & visits** (unsent and sent requests, planned visits) with **+ New** (start a request or plan a visit), then tasks with filters *Mine / All / Outside help* |
 | **Chores** | Who has which rooms this period, as cards, and the shared Upkeep list below |
-| **Admin** | Roommates, invite link (admins), contacts, **Routines**, then untitled: **Feeling weights**, **Activity**, **Rooms**. Everyone sees this tab and can change routines; only admins get the invite link and roommate controls. |
+| **Admin** | Roommates, invite link (organizers), contacts, **Routines**, then untitled: **Feeling weights**, **Activity**, **Rooms**. Everyone sees this tab and can change routines; only organizers get the invite link and roommate controls. |
 
 A floating **"+"** opens a picker (Need / Chore / Task / Poll / Run) and then a short form. Only the title is required.
 
@@ -301,16 +301,16 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 
 ## 10. Membership, invites & access
 
-- **Creating the house:** done once by the owner through a private one-time setup link. Fields: name, address (optional), unit number. The owner becomes an **admin**, and the rooms are seeded.
+- **Creating the house:** done once by the owner through a private one-time setup link. Fields: name, address (optional), unit number. The owner becomes an **organizer**, and the rooms are seeded.
 - **No public sign-up.** Typing an email into the app without an invite does nothing. No code is sent and no account is created.
-- **Inviting:** the admin shares an **invite link** (`<app>/join/<token>`) in the group chat. The link:
+- **Inviting:** an organizer shares an **invite link** (`<app>/join/<token>`) in the group chat. The link:
   - expires after 7 days (configurable) or after its use limit (default: number of open spots),
   - can be revoked or regenerated anytime,
   - is **not** tied to a specific email **(owner)**. Whoever opens it can join, which is why joins notify everyone.
-- **Joining:** open the link → enter name + email → type the 6-digit code → pick your bedroom → you're in. **(owner)** It's instant, with no admin approval.
+- **Joining:** open the link → enter name + email → type the 6-digit code → pick your bedroom → you're in. **(owner)** It's instant, with no organizer approval.
 - **Signing in later:** enter your email → type the code. This only works for emails that already have an account.
-- **Roles:** `admin` (manage invites, remove members) and `member` (everything else, including settings). **(owner)**
-- **Moving out:** an admin (or the person themselves) marks a member as moved out. They lose access, and their name stays on past items.
+- **Roles:** **organizer** (manage invites, remove members) and **member** (everything else, including settings). **(owner)** The data calls the organizer role `admin`; people never see that word for a person, only for the Admin tab (D40, T103).
+- **Moving out:** an organizer (or the person themselves) marks a member as moved out. They lose access, and their name stays on past items.
 - **Deleting your account:** removes your email and profile. Your name on past items becomes "Former roommate."
 - **Access guarantee:** nobody outside the house can read or write its data, and this is enforced at the database layer.
 
@@ -416,6 +416,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D35 | Built from the docs↔code audit: conflict detection on edits, "Handled by" follows the run, an app-wide CSP, `security_events`, undo "Did it", poll withdraw / reopen / deadline, run rename and point person, cost edit and remove, poll and run deep links, notification settings in one section (T50–T58, T61) | Owner |
 | D36 | A feedback button (bug / idea / praise) at the top right of Admin, saved for the owner in Supabase, with the sender, house, app version and browser (§6.8, T91) | Owner |
 | D37 | Feelings on a chore count only if shared after it was last done; 😰/😤 on a chore notifies every active member, not an assignee. Reopening a need or a task is an undo, so its feelings count again (§7, §8.1, T99) | Owner |
+| D40 | The role that manages invites and removes roommates is called **organizer** in every screen, toast, activity line and notification. The Admin tab keeps its name (every member uses it), and the data keeps `role = 'admin'`, as items keep `archived_at` while the app says "deleted". `copy.test.ts` refuses "admin" for a person (§10, T103) | Owner |
 | D39 | A chore is in one room, and a room's chores are set up in Admin → Rooms from one-tap picks of the house's chore names. The Chores tab shows a box per room. **Reverses D38's multi-room chores** (§6.2, T101) | Owner |
 | D38 | Routines: rooms grouped under who's responsible and how often it changes hands; chores are Deep clean or Upkeep, and who's on one is worked out. **Reverses the decided chore rhythms** ("as needed" / "about every N days") and the chore assignee: chores have neither now. Rotations are no longer deferred (§6.2, T96) | Owner |
 

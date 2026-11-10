@@ -209,7 +209,7 @@ describe('activityLine: every kind', () => {
     [
       'member.role_changed',
       { memberId: MAYA, changes: { role: ['member', 'admin'] } },
-      'Kavya made Maya an admin',
+      'Kavya made Maya an organizer',
     ],
     [
       'member.role_changed',

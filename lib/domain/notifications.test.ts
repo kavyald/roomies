@@ -230,7 +230,7 @@ describe('notificationsFor', () => {
       [wren, 'Sam joined the house 🏠'],
       [kavya, 'Wren moved out'],
       [sam, 'Wren moved out'],
-      [wren, "You're now an admin"],
+      [wren, "You're now an organizer"],
     ])
   })
 

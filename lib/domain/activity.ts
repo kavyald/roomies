@@ -371,7 +371,7 @@ export const activityLine = (
         return `${member(r)} moved into ${room(r)}`
       case 'member.role_changed':
         return change(r, 'role')?.[1] === 'admin'
-          ? `${actor} made ${member(r)} an admin`
+          ? `${actor} made ${member(r)} an organizer`
           : `${actor} made ${member(r)} a member`
       case 'member.moved_out':
         return `${member(r)} moved out`

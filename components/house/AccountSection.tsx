@@ -22,7 +22,7 @@ export function DeleteAccount() {
     if (!r.ok) {
       return toast(
         r.error === 'last_admin'
-          ? 'The house needs an admin. Make someone else an admin first.'
+          ? 'The house needs an organizer. Make someone else an organizer first.'
           : "Couldn't delete your account. Try again.",
       )
     }

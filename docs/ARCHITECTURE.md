@@ -236,7 +236,7 @@ create policy "items update" on items for update using (private.is_member(house_
 -- no delete policy: soft-delete via archived_at only (feelings are the one exception, below)
 ```
 
-Admin-only actions (invites, adding and removing members, roles, house details) use an `is_admin(house_id)` policy. The rules beyond that pattern, each mirrored in `lib/adapters/memory/db.ts`:
+Admin-only actions (invites, adding and removing members, roles, house details) use an `is_admin(house_id)` policy. (`admin` is the data's name for the role people see as "organizer", PRD D40.) The rules beyond that pattern, each mirrored in `lib/adapters/memory/db.ts`:
 
 | Policy / helper | Table | What it allows |
 |---|---|---|

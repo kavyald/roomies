@@ -23,8 +23,8 @@ import type { Member } from '@/lib/domain/house'
 import type { HouseId } from '@/lib/domain/ids'
 
 const PROBLEMS: Record<string, string> = {
-  last_admin: 'The house needs an admin. Make someone else an admin first.',
-  not_allowed: 'Only admins can do that.',
+  last_admin: 'The house needs an organizer. Make someone else an organizer first.',
+  not_allowed: 'Only organizers can do that.',
 }
 
 export function RoommatesSection({ houseId }: { houseId: HouseId }) {
@@ -43,7 +43,7 @@ export function RoommatesSection({ houseId }: { houseId: HouseId }) {
     return (
       [
         room?.element ? `${elementName[room.element]} room` : room?.name,
-        m.role === 'admin' && 'Admin',
+        m.role === 'admin' && 'Organizer',
       ]
         .filter(Boolean)
         .join(' · ') || undefined
@@ -119,7 +119,7 @@ function MemberSheet({
       role: member.role === 'admin' ? 'member' : 'admin',
     })
     if (!r.ok) return toast(PROBLEMS[r.error] ?? "Couldn't do that. Try again.")
-    toast(member.role === 'admin' ? `${name} is a member now.` : `${name} is an admin now.`)
+    toast(member.role === 'admin' ? `${name} is a member now.` : `${name} is an organizer now.`)
     onClose()
   }
 
@@ -129,9 +129,9 @@ function MemberSheet({
         <Button variant="secondary" block disabled={setRole.isPending} onClick={toggleAdmin}>
           {member.role === 'admin'
             ? isMe
-              ? 'Stop being an admin'
+              ? 'Stop being an organizer'
               : 'Make a member'
-            : 'Make an admin'}
+            : 'Make an organizer'}
         </Button>
       )}
       {!confirming ? (
