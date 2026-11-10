@@ -34,7 +34,7 @@
 
 **[DECIDED] PWA.** It matches "a link that roommates can access on their phone." If push reliability becomes a real problem, Expo can later reuse the same backend and most TypeScript logic.
 
-Onboarding must actively guide iOS users through **Share → Add to Home Screen**, since that's the only way push works on iOS. We detect standalone mode with `navigator.standalone` / `display-mode: standalone` and show an instruction sheet until the app is installed.
+Onboarding must actively guide iOS users through **Share → Add to Home Screen**, since that's the only way push works on iOS. We detect standalone mode with `navigator.standalone` / `display-mode: standalone` and show an instruction sheet until the app is installed. Once push can work (installed, or any browser that supports it), `NotificationsPrompt` offers it once per device (`pushPromptFor` in `lib/client/install.ts`, T95).
 
 ---
 
@@ -873,7 +873,7 @@ proxy.ts                     -- Next 16's proxy (was middleware): sets the page 
 components/
   ui/                        -- Avatar (initials + element), Button, Card, Chip, Disclosure, EmptyState, ListRow,
                                 IconButton, SegmentedControl, Sheet (vaul) + SheetSave, Swipeable, TabBar, Toast
-  shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, InstallGuide, ServiceWorker, ThemeSync, DeepLinks (OpenPoll, OpenRun)
+  shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, InstallGuide, NotificationsPrompt, ServiceWorker, ThemeSync, DeepLinks (OpenPoll, OpenRun)
   auth/  setup/  join/       -- sign-in, setup and join flows
   home/  needs/  chores/  tasks/  calendar/  activity/  house/  me/   -- one folder per screen
   items/                     -- ItemCard, ItemForm, ItemSheets, Feelings, HandledByPicker, RoomSelect, WhyHere

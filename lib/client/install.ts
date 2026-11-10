@@ -17,3 +17,20 @@ export const isIosSafari = (ua: string): boolean => IOS.test(ua) && !NOT_SAFARI.
 
 export const shouldShowInstallGuide = (c: InstallContext): boolean =>
   !c.standalone && !c.dismissed && isIosSafari(c.userAgent)
+
+/** What the notifications prompt shows (T95), from this device's push state. */
+export type PushPrompt = 'ask' | 'blocked' | 'unsupported'
+
+/**
+ * Notifications are on from the start (T95): the first time the app opens on a device where push
+ * isn't on, a sheet offers it, once. Not in iPhone Safari before it's installed: the Add to Home
+ * Screen guide comes first, and the prompt waits for the first open from the Home Screen.
+ */
+export const pushPromptFor = (
+  state: 'unsupported' | 'install_first' | 'blocked' | 'off' | 'on',
+  c: InstallContext,
+): PushPrompt | null => {
+  if (c.dismissed || state === 'on' || state === 'install_first') return null
+  if (!c.standalone && isIosSafari(c.userAgent)) return null
+  return state === 'off' ? 'ask' : state
+}

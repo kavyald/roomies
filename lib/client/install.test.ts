@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shouldShowInstallGuide } from './install'
+import { pushPromptFor, shouldShowInstallGuide } from './install'
 
 const IPHONE_SAFARI =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
@@ -17,5 +17,25 @@ describe('shouldShowInstallGuide', () => {
     ['desktop', DESKTOP_CHROME, false, false, false],
   ])('%s → %s', (_label, userAgent, standalone, dismissed, expected) => {
     expect(shouldShowInstallGuide({ userAgent, standalone, dismissed })).toBe(expected)
+  })
+})
+
+describe('pushPromptFor (T95)', () => {
+  const at = (userAgent: string, standalone = false, dismissed = false) => ({
+    userAgent,
+    standalone,
+    dismissed,
+  })
+  it.each([
+    ['desktop, push off', 'off', at(DESKTOP_CHROME), 'ask'],
+    ['iPhone installed, push off', 'off', at(IPHONE_SAFARI, true), 'ask'],
+    ['iPhone Safari, not installed yet', 'off', at(IPHONE_SAFARI), null],
+    ['iPhone Safari, needs the Home Screen', 'install_first', at(IPHONE_SAFARI), null],
+    ['already on', 'on', at(DESKTOP_CHROME), null],
+    ['blocked in settings', 'blocked', at(DESKTOP_CHROME), 'blocked'],
+    ["can't push at all", 'unsupported', at(IPHONE_CHROME), 'unsupported'],
+    ['answered before on this device', 'off', at(DESKTOP_CHROME, false, true), null],
+  ] as const)('%s → %s', (_label, state, ctx, expected) => {
+    expect(pushPromptFor(state, ctx)).toBe(expected)
   })
 })

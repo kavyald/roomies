@@ -347,7 +347,8 @@ Built to fit one iPhone screen in a four-routine house. No numbers and no "due" 
 
 ### 5.12 Join, sign-in, empty states
 
-- Join page: "Sam invited you to the apartment 🏠" → name + email → 6-digit code (six big boxes, `autocomplete="one-time-code"`) → **"Which room is yours?"** (pick from bedrooms, which sets your element color) → Add to Home Screen guide.
+- Join page: "Sam invited you to the apartment 🏠" → name + email → 6-digit code (six big boxes, `autocomplete="one-time-code"`) → **"Which room is yours?"** (pick from bedrooms, which sets your element color) → Add to Home Screen guide (iPhone Safari) or the notifications sheet.
+- **Notifications sheet** (`NotificationsPrompt`, T95, PRD D41): the first open on a device where push is off. "Turn on notifications?" with "A ping when something is yours, a poll needs your vote, or someone joins. You pick which ones in your settings.", then **Not now** · **Turn on** (primary, right). Blocked: "Notifications are blocked" with how to allow them, and **Got it**; a browser that can't: "No notifications on this browser", **Got it**. Shown once per device (`roomies.pushPromptDone`); never over the Add to Home Screen guide.
 - Setup page (`/setup/<token>`, the owner, once): your name + email → code → the house (name, address, unit) with **"Which room is yours?"** under it: the four bedrooms and **Not yet** (T93).
 - **"Which room is yours?"** is one picker everywhere (`BedroomPicker`, T93): each bedroom in its element color, a taken one showing whose it is (and not pickable), and a last choice, **None of these** when joining, **Not yet** at setup and in Roommates.
 - Empty states are text + an icon in a soft neutral circle + one button. For example, Chores all done: "Nothing to do. Enjoy the quiet." Nothing on the calendar: "Nothing coming up. Quiet week." Needs empty: "Nothing to buy. Nice."

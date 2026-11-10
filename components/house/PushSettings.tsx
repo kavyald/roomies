@@ -5,12 +5,8 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useAppClient } from '@/lib/client/provider'
-import {
-  pushState,
-  subscribeThisBrowser,
-  thisBrowsersEndpoint,
-  type PushState,
-} from '@/lib/client/push'
+import { pushState, thisBrowsersEndpoint, type PushState } from '@/lib/client/push'
+import { TURN_ON_TOASTS, turnOnPush } from './turn-on-push'
 
 const LINES: Record<PushState, string> = {
   on: 'On for this device.',
@@ -52,21 +48,10 @@ export function PushSettings() {
 
   const turnOn = async () => {
     setBusy(true)
-    const r = await subscribeThisBrowser(vapidPublicKey)
-    if (!r.ok) {
-      setBusy(false)
-      setState(r.reason === 'denied' ? 'blocked' : 'off')
-      return toast(
-        r.reason === 'denied'
-          ? 'Okay, no notifications. You can turn them on later.'
-          : "Couldn't turn notifications on. Try again.",
-      )
-    }
-    const saved = await commands.savePushSubscription(r.subscription)
+    const r = await turnOnPush(commands, vapidPublicKey)
     setBusy(false)
-    if (!saved.ok) return toast("Couldn't turn notifications on. Try again.")
-    setState('on')
-    toast('Notifications are on. 🔔')
+    if (r !== 'failed') setState(r === 'on' ? 'on' : 'blocked')
+    toast(TURN_ON_TOASTS[r])
   }
 
   const Icon = state === 'on' ? Bell : BellOff
