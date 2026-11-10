@@ -65,7 +65,7 @@ describe('AdminScreen (reads through useX hooks with a fake AppClient)', () => {
     // Admins can manage each roommate, so rows are buttons; the avatar's label is part of the name.
     expect(await within(roommates).findByRole('button', { name: /Wren, Water room/ })).toBeTruthy()
     expect(within(roommates).getByText('Kavya (you)')).toBeTruthy()
-    expect(within(roommates).getByText('Organizer')).toBeTruthy()
+    expect(within(roommates).queryByText('Organizer')).toBeNull()
     const contacts = screen.getByRole('list', { name: 'Contacts' })
     expect(within(contacts).getByText('Super')).toBeTruthy()
     expect(within(contacts).getByText('(555) 010-2231')).toBeTruthy()

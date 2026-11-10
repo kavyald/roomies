@@ -43,14 +43,8 @@ export function RoommatesSection({ houseId }: { houseId: HouseId }) {
   const active = (members.data ?? []).filter((m) => m.status.active)
   const describe = (m: Member) => {
     const room = m.roomId ? roomOf.get(m.roomId) : undefined
-    return (
-      [
-        room?.element ? `${elementName[room.element]} room` : room?.name,
-        m.role === 'admin' && 'Organizer',
-      ]
-        .filter(Boolean)
-        .join(' · ') || undefined
-    )
+    // No role label on the row (owner, 2026-11-10): just the room.
+    return (room?.element ? `${elementName[room.element]} room` : room?.name) || undefined
   }
 
   // Your own sheet offers the bedrooms: yours, open ones, and whose the others are (T93).
