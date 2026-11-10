@@ -190,7 +190,12 @@ function Contents() {
       </Section>
 
       <Section title="Chore icons">
-        <ChoreIconPicker label="Chore icon" value={icon} onChange={setIcon} />
+        <ChoreIconPicker
+          label="Chore icon"
+          title="Swiffer the kitchen"
+          value={icon}
+          onChange={setIcon}
+        />
       </Section>
 
       <Section title="Icon buttons">

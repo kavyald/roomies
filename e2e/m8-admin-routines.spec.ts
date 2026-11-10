@@ -39,7 +39,7 @@ test('a member creates the first routine, assigns rooms, changes it and removes 
 
   // Create: name and icon; it starts weekly, takes turns, with me.
   await newSheet.getByRole('textbox', { name: 'Name' }).fill('Upstairs')
-  await newSheet.getByRole('button', { name: 'Broom' }).click()
+  await newSheet.getByRole('button', { name: 'Broom', exact: true }).click()
   await expect(newSheet.getByRole('button', { name: 'Weekly' })).toHaveAttribute(
     'aria-pressed',
     'true',

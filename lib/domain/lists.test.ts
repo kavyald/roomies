@@ -6,11 +6,13 @@ import type { Item, Task } from './items'
 import type { Routine } from './routines'
 import {
   choreBoard,
+  choreNames,
   daysAgo,
   daysSinceDone,
   doneLine,
   holdingLine,
   needList,
+  STARTER_CHORES,
   taskList,
 } from './lists'
 import type { Chore } from './items'
@@ -171,10 +173,12 @@ describe('chores', () => {
     expect(after.upkeep.calm.map((c) => c.title)).toEqual(['Dishes'])
   })
 
-  it("a card carries its chores' active feelings", () => {
+  it("a card and each of its rooms carry their chores' active feelings", () => {
     const sink = chore('Sink', { rooms: ['Bath'] as never })
     const f: Feeling = { itemId: sink.id, by: me, kind: 'anxious', at: now }
-    expect(board([sink], [f]).cards.find((c) => c.routine.id === 'r2')!.feelings).toEqual([f])
+    const card = board([sink], [f]).cards.find((c) => c.routine.id === 'r2')!
+    expect(card.feelings).toEqual([f])
+    expect(card.rooms.map((r) => [r.room.name, r.feelings])).toEqual([['Bath', [f]]])
   })
 
   describe('holdingLine', () => {
@@ -183,7 +187,7 @@ describe('chores', () => {
       ({
         routine: { ...routine('r', 0, me), ...o },
         mine: true,
-        rooms: roomNames.map((n) => ({ room: room(n, 0), chores: [] })),
+        rooms: roomNames.map((n) => ({ room: room(n, 0), chores: [], feelings: [] })),
         chores: [],
         feelings: [],
       }) satisfies Parameters<typeof holdingLine>[0][number]
@@ -224,5 +228,36 @@ describe('chores', () => {
       ),
     ).toBe(9)
     expect([0, 1, 9].map(daysAgo)).toEqual(['today', 'yesterday', '9 days ago'])
+  })
+})
+
+describe('choreNames (T101)', () => {
+  const c = (title: string, o: Partial<Chore> = {}): Chore =>
+    ({ ...t(title), category: 'chore', kind: 'deep_clean', rooms: [], ...o }) as Chore
+  const r = (id: string) => asId<'room'>(id) as never
+
+  it('offers each house name once, most-used first, with its usual icon, then the starters', () => {
+    const names = choreNames([
+      c('Swiffer', { rooms: [r('a')], icon: 'mop' }),
+      c('swiffer ', { rooms: [r('b')], icon: 'mop' }),
+      c('Swiffer', { rooms: [r('c')], icon: 'broom' }),
+      c('Polish silver', { rooms: [r('a')] }),
+      c('Gone', { archivedAt: instant(5) }),
+      t('A task named Vacuum') as Item,
+    ])
+    expect(names.slice(0, 2)).toEqual([
+      { title: 'Swiffer', icon: 'mop' },
+      { title: 'Polish silver' },
+    ])
+    // Swiffer is the house's own now, so the starter's copy isn't offered twice.
+    const titles = names.map((n) => n.title.toLowerCase())
+    expect(titles.filter((n) => n === 'swiffer')).toHaveLength(1)
+    expect(titles).toContain('vacuum')
+    expect(titles).not.toContain('gone')
+    expect(names).toHaveLength(2 + STARTER_CHORES.length - 1)
+  })
+
+  it('offers just the starters in a house with no chores', () => {
+    expect(choreNames([])).toEqual(STARTER_CHORES)
   })
 })

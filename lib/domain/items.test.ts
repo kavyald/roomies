@@ -12,10 +12,12 @@ import {
 import {
   archiveItem,
   choreDoneChange,
+  choreKey,
   createItem,
   doChore,
   editItem,
   markDone,
+  newRoomChores,
   reopenItem,
   restoreItem,
   undoChore,
@@ -480,5 +482,46 @@ describe('done, did it, undo, archive', () => {
     expect(
       restoreItem(archived.value.item, kavya, a, [need('milk', { id: asId('x') })]),
     ).toMatchObject({ error: 'duplicate_need' })
+  })
+})
+
+describe('newRoomChores (T101)', () => {
+  const kitchen = asId<'room'>('kitchen') as RoomId
+  const bath = asId<'room'>('bath') as RoomId
+  const inRoom = (title: string, o: Partial<Chore> = {}): Chore =>
+    ({
+      ...chore,
+      id: asId<'item'>(title) as ItemId,
+      title,
+      kind: 'deep_clean',
+      rooms: [kitchen],
+      ...o,
+    }) as Chore
+
+  it('keeps the names the room lacks, once each, and skips the ones it has', () => {
+    const existing = [
+      inRoom('Vacuum'),
+      inRoom('Swiffer', { rooms: [bath] }),
+      inRoom('Dust', { archivedAt: now }),
+      inRoom('Wipe counters', { kind: 'upkeep' }),
+    ]
+    expect(
+      newRoomChores(
+        kitchen,
+        [
+          { title: ' vacuum ' },
+          { title: 'Swiffer', icon: 'mop' },
+          { title: 'swiffer' },
+          { title: 'Dust' },
+          { title: 'Wipe counters' },
+          { title: '   ' },
+        ],
+        existing,
+      ),
+    ).toEqual([{ title: 'Swiffer', icon: 'mop' }, { title: 'Dust' }, { title: 'Wipe counters' }])
+  })
+
+  it('matches names whatever their case and spacing', () => {
+    expect(choreKey('  Clean   the Sink ')).toBe('clean the sink')
   })
 })

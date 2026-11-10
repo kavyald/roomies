@@ -36,6 +36,7 @@ export const fakeAppClient = (
     reopenItem: async () => err('unexpected'),
     doChore: async () => err('unexpected'),
     undoChore: async () => err('unexpected'),
+    addRoomChores: async () => err('unexpected'),
     archiveItem: async () => err('unexpected'),
     restoreItem: async () => err('unexpected'),
     setFeeling: async () => err('unexpected'),

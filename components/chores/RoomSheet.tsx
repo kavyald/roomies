@@ -13,10 +13,24 @@ import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { useFeelingsByItem } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
-import type { Room } from '@/lib/domain/house'
 import type { ItemId } from '@/lib/domain/ids'
 import type { Chore } from '@/lib/domain/items'
-import type { RoutineCard as Card } from '@/lib/domain/lists'
+import type { RoomBox, RoutineCard as Card } from '@/lib/domain/lists'
+
+/**
+ * Ticking a Deep clean chore, or tapping a ticked one to undo it (T96). Undo belongs to whoever
+ * did it (lib/domain/items), so a housemate's tick only says so.
+ */
+export const useTick = (ctx: CardContext) => {
+  const { me } = useAppClient()
+  const { didIt, undoIt } = useDidIt(ctx.houseId)
+  const toast = useToast()
+  return async (chore: Chore, done: boolean) => {
+    if (!done) return didIt(chore.id)
+    if (chore.lastDone?.by !== me) return toast('A housemate got this one. Only they can undo it.')
+    if (await undoIt(chore.id, chore.lastDone.at.epochMs)) toast('Back on the list.')
+  }
+}
 
 /** One Deep clean chore: its icon and name open it; 🙂+ and the tick sit beside, never inside. */
 function ChoreRow({
@@ -30,9 +44,7 @@ function ChoreRow({
   done: boolean
   onOpen: (id: ItemId, opts?: { note?: boolean }) => void
 }) {
-  const { me } = useAppClient()
-  const { didIt, undoIt } = useDidIt(ctx.houseId)
-  const toast = useToast()
+  const tick = useTick(ctx)
   const feelings = useFeelingsByItem(ctx.houseId).get(chore.id) ?? []
   const [tray, setTray] = useState(false)
   const feelButton = useRef<HTMLButtonElement>(null)
@@ -43,13 +55,6 @@ function ChoreRow({
   }
   const roomsLabel = chore.rooms.length > 1 ? choreRoomsLabel(chore, ctx.rooms) : ''
   const emojis = feelingEmojis(feelings)
-
-  const tick = async () => {
-    if (!done) return didIt(chore.id)
-    // Tapping a ticked chore undoes it (T96); undo belongs to whoever did it (lib/domain/items).
-    if (chore.lastDone?.by !== me) return toast('A housemate got this one. Only they can undo it.')
-    if (await undoIt(chore.id, chore.lastDone.at.epochMs)) toast('Back on the list.')
-  }
 
   return (
     <li className="grid gap-1">
@@ -88,7 +93,7 @@ function ChoreRow({
           type="button"
           aria-label={`Did it: ${chore.title}`}
           aria-pressed={done}
-          onClick={tick}
+          onClick={() => void tick(chore, done)}
           className="grid size-11 flex-none place-items-center rounded-full"
         >
           <span
@@ -117,21 +122,21 @@ function ChoreRow({
 }
 
 /**
- * A card's sheet (FRONTEND §5.6): whoever has it → whoever's next in the header, then its Deep
- * clean chores by room in house order, each one tap to tick. Anyone may tick. Nothing to save, so
- * no check in the header.
+ * One room's sheet (FRONTEND §5.6, T101): whoever has it → whoever's next in the header, then its
+ * Deep clean chores, each one tap to tick, with 🙂+ and the chore's details. Anyone may tick, so
+ * the ticks show to anyone here. Nothing to save, so no check in the header.
  */
-export function RoutineSheet({
+export function RoomSheet({
+  box,
   card,
   ctx,
   onClose,
-  onAdd,
   onOpenItem,
 }: {
+  box: RoomBox
   card: Card
   ctx: CardContext
   onClose: () => void
-  onAdd: (room: Room) => void
   onOpenItem: (id: ItemId, opts?: { note?: boolean }) => void
 }) {
   const who = (id: string) => ctx.person(id) ?? { name: 'Former roommate' }
@@ -141,8 +146,8 @@ export function RoutineSheet({
     <Sheet
       open
       onOpenChange={(o) => !o && onClose()}
-      title={card.routine.name}
-      description="Deep clean"
+      title={box.room.name}
+      description={`Deep clean · ${card.routine.name}`}
       actions={
         holder && (
           <span className="flex flex-none items-center gap-1.5 pt-0.5">
@@ -160,33 +165,12 @@ export function RoutineSheet({
         )
       }
     >
-      {card.rooms.length === 0 && (
-        <p className="m-0 text-sm text-ink-soft">No rooms here yet. Add some from Admin.</p>
-      )}
-      {card.rooms.map(({ room, chores }) => (
-        <section key={room.id} aria-label={room.name} className="grid gap-1">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="m-0 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
-              {room.name}
-            </h3>
-            <button
-              type="button"
-              aria-label={`Add to ${room.name}`}
-              onClick={() => onAdd(room)}
-              className="min-h-11 px-1 text-sm font-extrabold text-accent-ink"
-            >
-              + Add
-            </button>
-          </div>
-          {chores.length > 0 && (
-            <ul className="m-0 grid list-none gap-0.5 p-0">
-              {chores.map(({ chore, done }) => (
-                <ChoreRow key={chore.id} ctx={ctx} chore={chore} done={done} onOpen={onOpenItem} />
-              ))}
-            </ul>
-          )}
-        </section>
-      ))}
+      <ul aria-label={`${box.room.name} chores`} className="m-0 grid list-none gap-0.5 p-0">
+        {box.chores.map(({ chore, done }) => (
+          <ChoreRow key={chore.id} ctx={ctx} chore={chore} done={done} onOpen={onOpenItem} />
+        ))}
+      </ul>
+      <p className="m-0 text-sm text-ink-soft">Set up this room&apos;s chores in Admin → Rooms.</p>
     </Sheet>
   )
 }

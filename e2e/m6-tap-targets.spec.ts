@@ -42,13 +42,12 @@ test('finishing takes one tap without swiping, and a grocery run about six', asy
   await t.tap(page.getByRole('button', { name: 'Done: Fix the latch' }))
   await expect(page.getByRole('status').filter({ hasText: 'Done. 💛' })).toBeVisible()
   await page.goto(`${h}/chores`)
-  await t.tap(page.getByRole('button', { name: 'Kitchen, Kavya' })) // the chore's card, then…
-  await t.tap(page.getByRole('button', { name: 'Did it: Sink' })) // one tap on its row
+  await t.tap(page.getByRole('button', { name: 'Did it: Sink' })) // one tap, in its room's box (T101)
   await expect(page.getByRole('status').filter({ hasText: 'Did it. Thanks!' })).toBeVisible()
   await page.goto(`${h}/needs`)
   await t.tap(page.getByRole('button', { name: 'Got it: Foil' }))
   await expect(page.getByRole('status').filter({ hasText: 'Got Foil.' })).toBeVisible()
-  expect(t.count).toBe(4)
+  expect(t.count).toBe(3)
 
   // A feeling from a Needs row without swiping: 🙂+, then the emoji.
   await anItem(owner, { category: 'need', title: 'Olive oil' })

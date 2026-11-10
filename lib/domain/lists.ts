@@ -4,7 +4,7 @@ import { activeFeelings, type Feeling } from './feelings'
 import type { Member, Room } from './house'
 import { throughDay } from './format'
 import type { UserId } from './ids'
-import type { Chore, Item, Need, Task } from './items'
+import { choreKey, type Chore, type ChorePick, type Item, type Need, type Task } from './items'
 import {
   choreOwner,
   listOf,
@@ -62,9 +62,55 @@ export const needList = (
       return b.createdAt.epochMs - a.createdAt.epochMs
     })
 
+/** What the chore picker offers before the house has chores of its own (T101). */
+export const STARTER_CHORES: readonly ChorePick[] = [
+  { title: 'Vacuum', icon: 'robot-vacuum' },
+  { title: 'Swiffer', icon: 'mop' },
+  { title: 'Dust', icon: 'feather' },
+  { title: 'Wipe counters', icon: 'spray-can' },
+  { title: 'Clean sink', icon: 'soap-dispenser-droplet' },
+  { title: 'Scrub toilet', icon: 'toilet' },
+  { title: 'Clean mirror', icon: 'spray-can' },
+  { title: 'Clean shower', icon: 'shower-head' },
+  { title: 'Wipe stove', icon: 'flame' },
+  { title: 'Clean fridge', icon: 'refrigerator' },
+  { title: 'Take out trash', icon: 'trash-2' },
+  { title: 'Water plants', icon: 'plant-pot' },
+]
+
+/**
+ * Every chore name in the house, the most-used first, each with the icon it most often has; then
+ * the starter names it doesn't have yet. What Admin → Rooms offers as one-tap picks (T101).
+ */
+export const choreNames = (items: readonly Item[]): ChorePick[] => {
+  const byKey = new Map<string, { title: string; count: number; icons: Map<string, number> }>()
+  for (const i of items) {
+    if (i.category !== 'chore' || i.archivedAt) continue
+    const key = choreKey(i.title)
+    const entry = byKey.get(key) ?? { title: i.title.trim(), count: 0, icons: new Map() }
+    entry.count += Math.max(1, i.rooms.length)
+    if (i.icon) entry.icons.set(i.icon, (entry.icons.get(i.icon) ?? 0) + 1)
+    byKey.set(key, entry)
+  }
+  const house = [...byKey.values()]
+    .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title))
+    .map(({ title, icons }) => {
+      const icon = [...icons].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0]
+      return { title, ...(icon && { icon }) }
+    })
+  return [...house, ...STARTER_CHORES.filter((s) => !byKey.has(choreKey(s.title)))]
+}
+
 /** Calendar days since a chore was last done, as the house sees it, or null if never. */
 export const daysSinceDone = (c: Chore, now: Instant, tz: string): number | null =>
   c.lastDone ? calendarDaysBetween(c.lastDone.at, now, tz) : null
+
+/** One room of a routine on the Chores tab: its Deep clean chores, done or not this period. */
+export type RoomBox = {
+  readonly room: Room
+  readonly chores: readonly { readonly chore: Chore; readonly done: boolean }[]
+  readonly feelings: readonly Feeling[]
+}
 
 /** A routine and what its holder looks after this period (the Chores tab, FRONTEND §5.6). */
 export type RoutineCard = {
@@ -72,11 +118,11 @@ export type RoutineCard = {
   readonly holder?: UserId
   readonly next?: UserId
   readonly mine: boolean
-  /** Its rooms in house order, each with its deep clean chores (a chore under its first room). */
-  readonly rooms: readonly {
-    readonly room: Room
-    readonly chores: readonly { readonly chore: Chore; readonly done: boolean }[]
-  }[]
+  /**
+   * Its rooms in house order, each with its Deep clean chores (a chore under its first room) and
+   * the feelings on them. The Chores tab shows a box for each room that has chores (T101).
+   */
+  readonly rooms: readonly RoomBox[]
   readonly chores: readonly { readonly chore: Chore; readonly done: boolean }[]
   readonly feelings: readonly Feeling[]
 }
@@ -135,10 +181,14 @@ export const choreBoard = (
         mine: holder === ctx.me,
         rooms: live
           .filter((r) => r.routineId === routine.id)
-          .map((room) => ({
-            room,
-            chores: own.filter((c) => firstRoomOf(c.chore)?.id === room.id),
-          })),
+          .map((room) => {
+            const here = own.filter((c) => firstRoomOf(c.chore)?.id === room.id)
+            return {
+              room,
+              chores: here,
+              feelings: here.flatMap((c) => activeFeelings(c.chore, ctx.feelings)),
+            }
+          }),
         chores: own,
         feelings: own.flatMap((c) => activeFeelings(c.chore, ctx.feelings)),
       }

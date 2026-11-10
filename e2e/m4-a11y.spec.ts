@@ -87,18 +87,21 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()
       await check(page, path)
     }
-    // Chores: a routine card's sheet, quick add, and Upkeep with a chore someone feels about (T97).
+    // Chores (T101): your room's box ticked in place, a room's sheet, and quick add to Upkeep.
     await page.goto(`${h}/chores`)
-    await page.getByRole('button', { name: 'Kitchen, Kavya' }).click()
-    const routineSheet = page.getByRole('dialog', { name: 'Kitchen' })
-    await routineSheet.getByRole('button', { name: 'Did it: Sink' }).click()
-    await expect(routineSheet.getByRole('button', { name: 'Did it: Sink' })).toHaveAttribute(
+    const box = page.getByRole('region', { name: 'Kitchen, Kavya' })
+    await box.getByRole('button', { name: 'Did it: Sink' }).click()
+    await expect(box.getByRole('button', { name: 'Did it: Sink' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
-    await check(page, 'chores (routine sheet)')
-    await routineSheet.getByRole('button', { name: 'Add to Kitchen' }).click()
-    await expect(page.getByRole('dialog', { name: 'Add to Kitchen' })).toBeVisible()
+    await check(page, 'chores (room boxes)')
+    await box.getByRole('button', { name: 'Kitchen details' }).click()
+    await expect(page.getByRole('dialog', { name: 'Kitchen' })).toBeVisible()
+    await check(page, 'chores (room sheet)')
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Add to Upkeep' }).click()
+    await expect(page.getByRole('dialog', { name: 'Add to Upkeep' })).toBeVisible()
     await check(page, 'chores (quick add)')
     await page.goto(`${h}/chores`)
     const upkeep = page.getByRole('region', { name: 'Upkeep' })
@@ -135,9 +138,20 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(rooms.getByRole('list', { name: 'Bedrooms' })).toBeVisible({ timeout: 2000 })
     }).toPass()
     await check(page, 'rooms sheet')
-    await rooms.getByRole('button', { name: 'Fire, bedroom', exact: true }).click()
-    await expect(rooms.getByRole('group', { name: 'Edit Fire, bedroom' })).toBeVisible()
-    await check(page, 'rooms sheet (editing)')
+    // A room's own sheet (T101): its chores, the picks to add, and a new chore's icon picker.
+    await rooms.getByRole('button', { name: 'Kitchen, shared space', exact: true }).click()
+    const kitchenRoom = page.getByRole('dialog', { name: 'Kitchen' })
+    await kitchenRoom.getByRole('button', { name: 'Vacuum' }).click()
+    await kitchenRoom.getByRole('button', { name: 'New chore' }).click()
+    await kitchenRoom.getByLabel('What needs doing?').fill('Swiffer')
+    await expect(kitchenRoom.getByRole('group', { name: 'Suggested icons' })).toBeVisible()
+    await check(page, 'room sheet (adding chores)')
+    await kitchenRoom.getByRole('button', { name: 'Rename or move' }).click()
+    await expect(
+      kitchenRoom.getByRole('group', { name: 'Edit Kitchen, shared space' }),
+    ).toBeVisible()
+    await check(page, 'room sheet (editing)')
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await expect(rooms).toBeHidden()
     // Admin → Send feedback (T91).

@@ -1,22 +1,37 @@
 'use client'
 
-import { ArrowDown, ArrowUp, DoorOpen, Pencil } from 'lucide-react'
-import { useState } from 'react'
-import { Field } from '@/components/auth/fields'
+import { ArrowDown, ArrowUp, ChevronRight, DoorOpen, Pencil, Plus, X } from 'lucide-react'
+import { useId, useState, type FormEvent } from 'react'
+import { Field, inputClass } from '@/components/auth/fields'
+import { itemProblem } from '@/components/items/ItemSheets'
 import { Button } from '@/components/ui/Button'
-import { IconMark } from '@/components/ui/IconButton'
+import { ChoreIcon } from '@/components/ui/ChoreIcon'
+import { ChoreIconPicker, iconFor } from '@/components/ui/ChoreIconPicker'
+import { IconButton, IconMark } from '@/components/ui/IconButton'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
-import { Sheet } from '@/components/ui/Sheet'
+import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
-import { useMoveRoom, useRenameRoom, useRooms } from '@/lib/client/hooks'
+import { cn } from '@/components/ui/cn'
+import {
+  useAddRoomChores,
+  useArchiveItem,
+  useItems,
+  useMoveRoom,
+  useRenameRoom,
+  useRestoreItem,
+  useRooms,
+  useRoutines,
+} from '@/lib/client/hooks'
 import type { Room } from '@/lib/domain/house'
 import type { HouseId, RoomId } from '@/lib/domain/ids'
+import { choreKey, type Chore, type ChorePick } from '@/lib/domain/items'
+import { choreNames } from '@/lib/domain/lists'
 import { ROOM_GROUPS, roomGroup, roomsInGroup } from '@/lib/domain/rooms'
 import { ROOM_GROUP_LABEL, roomKindLabel } from './room-labels'
 
 /**
- * House → Rooms (FRONTEND §5.11): one row that opens a sheet of the rooms by group, as plain
- * names. Tap a name to rename it or move it within its group, in place.
+ * Admin → Rooms (FRONTEND §5.11): one row that opens a sheet of the rooms by group. Tap one for
+ * its own sheet: rename it, move it within its group, and set up its Deep clean chores (T101).
  */
 export function RoomsSection({ houseId }: { houseId: HouseId }) {
   const rooms = useRooms(houseId)
@@ -28,7 +43,11 @@ export function RoomsSection({ houseId }: { houseId: HouseId }) {
         <ListRow
           leading={<DoorOpen aria-hidden className="size-5 text-ink-soft" />}
           title="Rooms"
-          subtitle={count ? `${count} rooms · rename or reorder` : 'Rename or reorder'}
+          subtitle={
+            count
+              ? `${count} rooms · rename, reorder or set up chores`
+              : 'Rename, reorder or set up chores'
+          }
           onClick={() => setOpen(true)}
         />
       </ListGroup>
@@ -39,15 +58,25 @@ export function RoomsSection({ houseId }: { houseId: HouseId }) {
 
 function RoomsSheet({ houseId, onClose }: { houseId: HouseId; onClose: () => void }) {
   const rooms = useRooms(houseId)
-  const [editing, setEditing] = useState<RoomId | null>(null)
+  const items = useItems(houseId)
+  const [openId, setOpenId] = useState<RoomId | null>(null)
   const all = rooms.data ?? []
+  const open = all.find((r) => r.id === openId)
+  const choresIn = (id: RoomId) =>
+    (items.data ?? []).filter(
+      (i) =>
+        i.category === 'chore' && !i.archivedAt && i.kind === 'deep_clean' && i.rooms.includes(id),
+    ).length
+
+  // One room's sheet in place of the list; closing it comes back here (T101).
+  if (open) return <RoomSheet houseId={houseId} room={open} onClose={() => setOpenId(null)} />
 
   return (
     <Sheet
       open
       onOpenChange={(o) => !o && onClose()}
       title="Rooms"
-      description="Tap a room to rename it or move it within its group."
+      description="Tap a room to rename it, move it, or set up its chores."
     >
       {ROOM_GROUPS.map((group) => {
         const here = roomsInGroup(all, group)
@@ -62,28 +91,252 @@ function RoomsSheet({ houseId, onClose }: { houseId: HouseId; onClose: () => voi
               aria-label={label}
               className="m-0 grid list-none overflow-hidden rounded-2xl border-[1.5px] border-outline p-0"
             >
-              {here.map((r) => (
-                <li key={r.id} className="border-b-[1.5px] border-line bg-card last:border-b-0">
-                  {editing === r.id ? (
-                    <RoomEditor houseId={houseId} room={r} onDone={() => setEditing(null)} />
-                  ) : (
+              {here.map((r) => {
+                const n = choresIn(r.id)
+                return (
+                  <li key={r.id} className="border-b-[1.5px] border-line bg-card last:border-b-0">
                     <button
                       type="button"
                       aria-label={`${r.name}, ${roomKindLabel(r.kind)}`}
-                      onClick={() => setEditing(r.id)}
+                      aria-description={n ? undefined : 'No chores yet'}
+                      onClick={() => setOpenId(r.id)}
                       className="flex min-h-[max(2.75rem,44px)] w-full items-center gap-2 py-1.5 pr-2 pl-3.5 text-left font-bold"
                     >
                       <span className="min-w-0 flex-1">{r.name}</span>
-                      <IconMark icon={Pencil} />
+                      {n === 0 && (
+                        <span aria-hidden className="text-sm font-semibold text-ink-soft">
+                          No chores yet
+                        </span>
+                      )}
+                      <IconMark icon={ChevronRight} />
                     </button>
-                  )}
-                </li>
-              ))}
+                  </li>
+                )
+              })}
             </ul>
           </section>
         )
       })}
     </Sheet>
+  )
+}
+
+/**
+ * One room (T101): its name and place, the Deep clean chores whoever has it looks after, and
+ * one-tap picks from every chore name in the house to add more. Each room gets its own copy.
+ */
+function RoomSheet({
+  houseId,
+  room,
+  onClose,
+}: {
+  houseId: HouseId
+  room: Room
+  onClose: () => void
+}) {
+  const items = useItems(houseId)
+  const routines = useRoutines(houseId)
+  const add = useAddRoomChores(houseId)
+  const archive = useArchiveItem(houseId)
+  const restore = useRestoreItem(houseId)
+  const toast = useToast()
+  const formId = useId()
+  const newId = useId()
+  const [renaming, setRenaming] = useState(false)
+  const [picked, setPicked] = useState<readonly string[]>([])
+  const [writing, setWriting] = useState(false)
+  const [title, setTitle] = useState('')
+  const [icon, setIcon] = useState('')
+
+  const all = items.data ?? []
+  const here = all
+    .filter(
+      (i): i is Chore =>
+        i.category === 'chore' &&
+        !i.archivedAt &&
+        i.kind === 'deep_clean' &&
+        i.rooms.includes(room.id),
+    )
+    .sort((a, b) => a.title.localeCompare(b.title))
+  const has = new Set(here.map((c) => choreKey(c.title)))
+  const options = choreNames(all).filter((o) => !has.has(choreKey(o.title)))
+  const routine = routines.data?.find((r) => r.id === room.routineId && !r.removedAt)
+  const typed = title.trim()
+  const picks: ChorePick[] = [
+    ...options.filter((o) => picked.includes(choreKey(o.title))),
+    ...(writing && typed
+      ? [{ title: typed, ...(iconFor(icon, typed) && { icon: iconFor(icon, typed) }) }]
+      : []),
+  ]
+
+  const toggle = (key: string) =>
+    setPicked((now) => (now.includes(key) ? now.filter((k) => k !== key) : [...now, key]))
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (picks.length === 0) return
+    const r = await add.mutateAsync({ roomId: room.id, chores: picks })
+    if (!r.ok) return toast(itemProblem(r.error))
+    toast(r.value.length > 0 ? 'Added.' : `${room.name} already has those.`)
+    setPicked([])
+    setWriting(false)
+    setTitle('')
+    setIcon('')
+  }
+
+  const removeChore = async (chore: Chore) => {
+    const r = await archive.mutateAsync(chore.id)
+    if (!r.ok) return toast("Couldn't remove it. Try again.")
+    toast('Removed.', { label: 'Undo', onClick: () => restore.mutate(chore.id) })
+  }
+
+  return (
+    <Sheet
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={room.name}
+      description={roomKindLabel(room.kind)}
+    >
+      <div className="grid gap-4">
+        {renaming ? (
+          <div className="overflow-hidden rounded-2xl border-[1.5px] border-outline">
+            <RoomEditor houseId={houseId} room={room} onDone={() => setRenaming(false)} />
+          </div>
+        ) : (
+          <Button
+            variant="secondary"
+            size="small"
+            className="justify-self-start"
+            onClick={() => setRenaming(true)}
+          >
+            <Pencil aria-hidden className="size-4" /> Rename or move
+          </Button>
+        )}
+
+        <section aria-labelledby={`${formId}-chores`} className="grid gap-1.5">
+          <h3 id={`${formId}-chores`} className={headingClass}>
+            Deep clean
+          </h3>
+          <p className="m-0 text-sm text-ink-soft">
+            {routine
+              ? `Whoever has ${routine.name} looks after these.`
+              : 'This room isn’t in a routine yet, so these show in Upkeep.'}
+          </p>
+          {here.length === 0 ? (
+            <p className="m-0 text-sm font-bold text-ink-soft">No chores here yet.</p>
+          ) : (
+            <ul
+              aria-label={`${room.name} chores`}
+              className="m-0 grid list-none overflow-hidden rounded-2xl border-[1.5px] border-outline p-0"
+            >
+              {here.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex min-h-[max(2.75rem,44px)] items-center gap-2.5 border-b-[1.5px] border-line bg-card py-1 pr-1 pl-3.5 last:border-b-0"
+                >
+                  <ChoreIcon
+                    name={c.icon}
+                    className="size-[max(1.125rem,18px)] flex-none text-ink-soft"
+                  />
+                  <span className="min-w-0 flex-1 font-bold">{c.title}</span>
+                  <IconButton
+                    icon={X}
+                    label={`Remove ${c.title}`}
+                    disabled={archive.isPending}
+                    onClick={() => void removeChore(c)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <form id={formId} onSubmit={submit} className="grid gap-1.5">
+          <h3 className={headingClass}>Add chores</h3>
+          <ul aria-label="Chores to add" className="m-0 flex list-none flex-wrap gap-x-1.5 p-0">
+            {options.map((o) => {
+              const key = choreKey(o.title)
+              const on = picked.includes(key)
+              return (
+                <li key={key}>
+                  <PickChip on={on} icon={o.icon} onClick={() => toggle(key)}>
+                    {o.title}
+                  </PickChip>
+                </li>
+              )
+            })}
+            <li>
+              <PickChip on={writing} icon="pencil" onClick={() => setWriting((w) => !w)}>
+                New chore
+              </PickChip>
+            </li>
+          </ul>
+          {writing && (
+            <div className="grid gap-2.5 rounded-2xl bg-card p-3">
+              <div className="grid gap-1.5">
+                <label htmlFor={newId} className="text-[0.8rem] font-extrabold text-ink-soft">
+                  What needs doing?
+                </label>
+                <input
+                  id={newId}
+                  className={inputClass}
+                  autoFocus
+                  enterKeyHint="done"
+                  maxLength={120}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </div>
+              <ChoreIconPicker
+                label="Icon"
+                title={title}
+                value={iconFor(icon, title)}
+                onChange={setIcon}
+              />
+            </div>
+          )}
+          <SheetSave form={formId} label="Add" busy={add.isPending} disabled={picks.length === 0} />
+        </form>
+      </div>
+    </Sheet>
+  )
+}
+
+const headingClass = 'm-0 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase'
+
+/** A chore to pick: tap to select it, tap again to drop it. */
+function PickChip({
+  on,
+  icon,
+  onClick,
+  children,
+}: {
+  on: boolean
+  icon?: string
+  onClick: () => void
+  children: string
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      className="flex min-h-11 items-center"
+    >
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full py-1 pr-2.5 pl-2 text-[0.85rem] font-bold',
+          on ? 'bg-accent text-on-accent' : 'bg-neutral-fill text-neutral-ink',
+        )}
+      >
+        {icon === 'pencil' ? (
+          <Plus aria-hidden className="size-4" />
+        ) : (
+          <ChoreIcon name={icon} className="size-4" />
+        )}
+        {children}
+      </span>
+    </button>
   )
 }
 

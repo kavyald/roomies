@@ -4,7 +4,7 @@ import { useId, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
 import { itemProblem } from '@/components/items/ItemSheets'
 import { RoomSelect } from '@/components/items/RoomSelect'
-import { ChoreIconPicker } from '@/components/ui/ChoreIconPicker'
+import { ChoreIconPicker, iconFor } from '@/components/ui/ChoreIconPicker'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { useCreateItem } from '@/lib/client/hooks'
@@ -14,19 +14,16 @@ import type { HouseId, RoomId } from '@/lib/domain/ids'
 const labelClass = 'text-[0.8rem] font-extrabold text-ink-soft'
 
 /**
- * Adding a chore from the Chores tab (FRONTEND §5.6): a name and an icon. From a room it's that
- * room's Deep clean, so the kind and room are settled; from Upkeep, a room is optional.
- * Tap + Add, tap an icon if you like, tap the check: three taps and the name.
+ * Adding an Upkeep chore from the Chores tab (FRONTEND §5.6): a name, a room if you like, and an
+ * icon, which the name suggests. A room's Deep clean chores are set up in Admin → Rooms (T101).
+ * Tap + Add, type the name, tap the check.
  */
 export function QuickAddSheet({
   houseId,
-  room,
   rooms,
   onClose,
 }: {
   houseId: HouseId
-  /** The room whose + Add this is: a Deep clean chore there. Absent: an Upkeep chore. */
-  room?: Room
   /** The rooms an Upkeep chore can pick from. */
   rooms: readonly Room[]
   onClose: () => void
@@ -39,17 +36,17 @@ export function QuickAddSheet({
   const formId = useId()
   const nameId = useId()
   const roomFieldId = useId()
+  const shownIcon = iconFor(icon, title)
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
-    const inRoom = room?.id ?? roomId
     const r = await create.mutateAsync({
       category: 'chore',
       title,
-      kind: room ? 'deep_clean' : 'upkeep',
-      ...(icon && { icon }),
-      ...(inRoom && { rooms: [inRoom] }),
+      kind: 'upkeep',
+      ...(shownIcon && { icon: shownIcon }),
+      ...(roomId && { rooms: [roomId] }),
     })
     if (!r.ok) return toast(itemProblem(r.error))
     toast('Added.')
@@ -57,12 +54,7 @@ export function QuickAddSheet({
   }
 
   return (
-    <Sheet
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title={room ? `Add to ${room.name}` : 'Add to Upkeep'}
-      description={room ? 'Deep clean' : undefined}
-    >
+    <Sheet open onOpenChange={(o) => !o && onClose()} title="Add to Upkeep">
       <form id={formId} onSubmit={submit} className="grid gap-3.5">
         <div className="grid gap-1.5">
           <label htmlFor={nameId} className={labelClass}>
@@ -78,15 +70,13 @@ export function QuickAddSheet({
             onChange={(e) => setTitle(e.target.value)}
           />
         </div>
-        {!room && (
-          <div className="grid gap-1.5">
-            <label htmlFor={roomFieldId} className={labelClass}>
-              Room
-            </label>
-            <RoomSelect id={roomFieldId} rooms={rooms} value={roomId} onChange={setRoomId} />
-          </div>
-        )}
-        <ChoreIconPicker label="Icon" value={icon} onChange={setIcon} />
+        <div className="grid gap-1.5">
+          <label htmlFor={roomFieldId} className={labelClass}>
+            Room
+          </label>
+          <RoomSelect id={roomFieldId} rooms={rooms} value={roomId} onChange={setRoomId} />
+        </div>
+        <ChoreIconPicker label="Icon" title={title} value={shownIcon} onChange={setIcon} />
         <SheetSave form={formId} label="Add" busy={create.isPending} disabled={!title.trim()} />
       </form>
     </Sheet>

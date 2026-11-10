@@ -88,41 +88,43 @@ const lastDone = (deps: ReturnType<typeof depsForTest>, title: string) => {
   return c?.category === 'chore' ? c.lastDone : undefined
 }
 
-describe('the Chores tab (FRONTEND §5.6)', { timeout: 20_000 }, () => {
-  it("says what you have, puts your card first, and shows only yours' progress", async () => {
+describe('the Chores tab (FRONTEND §5.6, T101)', { timeout: 20_000 }, () => {
+  it("says what you have, puts your rooms first as boxes, and keeps housemates' progress out", async () => {
     const { add, show, kitchen, garden } = await setup()
     await add({ category: 'chore', title: 'Sink', kind: 'deep_clean', rooms: [kitchen.id] })
     await add({ category: 'chore', title: 'Weeds', kind: 'deep_clean', rooms: [garden.id] })
     show()
 
-    const cards = await screen.findByRole('list', { name: 'Who has what' })
-    const [first, second] = within(cards).getAllByRole('button')
-    expect(first!.getAttribute('aria-label')).toBe('Kitchen and dining, Kavya')
-    expect(second!.getAttribute('aria-label')).toBe('Garden, Wren')
-    expect(first!.querySelectorAll('svg').length).toBe(2) // its icon + its chore's
-    expect(second!.querySelectorAll('svg').length).toBe(1) // its icon: no progress
+    const mine = await screen.findByRole('group', { name: 'Kitchen and dining, Kavya' })
+    const theirs = screen.getByRole('group', { name: 'Garden, Wren' })
+    expect(mine.compareDocumentPosition(theirs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // Your room ticks right there; the dining room has no chores, so it has no box.
+    const kitchenBox = within(mine).getByRole('region', { name: 'Kitchen, Kavya' })
+    expect(within(kitchenBox).getByRole('button', { name: 'Did it: Sink' })).toBeTruthy()
+    expect(within(mine).queryByRole('region', { name: /^Dining/ })).toBeNull()
+    // A housemate's room is one button with its chores' icons and no ticks.
+    const garden_ = within(theirs).getByRole('button', { name: 'Garden, Wren' })
+    expect(within(theirs).queryByRole('button', { name: /^Did it/ })).toBeNull()
+    expect(garden_.querySelectorAll('svg').length).toBe(1)
     expect(screen.getByText(/you have the kitchen and dining · through/)).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/routine/i)
   })
 
-  it('ticks with Undo, and tapping a ticked chore undoes it', async () => {
+  it('ticks in your box with Undo, and tapping a ticked chore undoes it', async () => {
     const { add, show, kitchen, deps } = await setup()
     await add({ category: 'chore', title: 'Sink', kind: 'deep_clean', rooms: [kitchen.id] })
     show()
-    await userEvent.click(await screen.findByRole('button', { name: 'Kitchen and dining, Kavya' }))
-    const sheet = await screen.findByRole('dialog', { name: 'Kitchen and dining' })
+    const box = await screen.findByRole('region', { name: 'Kitchen, Kavya' })
 
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Did it: Sink' }))
+    await userEvent.click(within(box).getByRole('button', { name: 'Did it: Sink' }))
     await waitFor(() => expect(lastDone(deps, 'Sink')).toBeDefined())
-    // The toast sits outside the open sheet; jsdom doesn't load its pointer-events-auto.
-    await userEvent
-      .setup({ pointerEventsCheck: 0 })
-      .click(await screen.findByRole('button', { name: 'Undo' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }))
     await waitFor(() => expect(lastDone(deps, 'Sink')).toBeUndefined())
 
-    const tick = within(sheet).getByRole('button', { name: 'Did it: Sink' })
+    const tick = within(box).getByRole('button', { name: 'Did it: Sink' })
     await userEvent.click(tick)
     await waitFor(() => expect(tick.getAttribute('aria-pressed')).toBe('true'))
+    expect(box.textContent).toContain('✨')
     await userEvent.click(tick)
     await waitFor(() => expect(tick.getAttribute('aria-pressed')).toBe('false'))
     expect(lastDone(deps, 'Sink')).toBeUndefined()
@@ -138,52 +140,50 @@ describe('the Chores tab (FRONTEND §5.6)', { timeout: 20_000 }, () => {
     })
     await makeDoChore(deps)(wren, sink.id)
     show()
-    await userEvent.click(await screen.findByRole('button', { name: 'Kitchen and dining, Kavya' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Did it: Sink' }))
     expect(await screen.findByText(/Only they can undo it/)).toBeTruthy()
     expect(lastDone(deps, 'Sink')).toBeDefined()
   })
 
-  it('shows a multi-room chore once, under its first room, naming its rooms', async () => {
-    const { add, show, kitchen, dining } = await setup()
-    await add({
-      category: 'chore',
-      title: 'Vacuum',
-      kind: 'deep_clean',
-      rooms: [dining.id, kitchen.id],
-    })
+  it("opens a housemate's room, where anyone can tick and see what's done", async () => {
+    const { add, show, garden, deps } = await setup()
+    await add({ category: 'chore', title: 'Weeds', kind: 'deep_clean', rooms: [garden.id] })
     show()
-    await userEvent.click(await screen.findByRole('button', { name: 'Kitchen and dining, Kavya' }))
-    const sheet = await screen.findByRole('dialog', { name: 'Kitchen and dining' })
-    const inKitchen = within(sheet).getByRole('region', { name: 'Kitchen' })
-    expect(inKitchen.textContent).toContain('Vacuum · kitchen, dining')
-    expect(within(sheet).getByRole('region', { name: 'Dining' }).textContent).not.toContain(
-      'Vacuum',
+    await userEvent.click(await screen.findByRole('button', { name: 'Garden, Wren' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Garden' })
+    expect(sheet.textContent).toContain('Admin → Rooms')
+    // The toast sits outside the open sheet; jsdom doesn't load its pointer-events-auto.
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Did it: Weeds' }))
+    await waitFor(() => expect(lastDone(deps, 'Weeds')).toBeDefined())
+    expect(
+      within(sheet).getByRole('button', { name: 'Did it: Weeds' }).getAttribute('aria-pressed'),
+    ).toBe('true')
+  })
+
+  it('with no chores, points to Admin → Rooms', async () => {
+    const { show } = await setup()
+    show()
+    expect(await screen.findByText(/Give each room its chores in Admin → Rooms/)).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Set up rooms' }).getAttribute('href')).toMatch(
+      /\/admin$/,
     )
   })
 
-  it('+ Add in a room adds its Deep clean; + Add in Upkeep adds Upkeep', async () => {
-    const { show, deps, kitchen } = await setup()
+  it('+ Add in Upkeep adds Upkeep, with the icon its name suggests', async () => {
+    const { add, show, deps } = await setup()
+    await add({ category: 'chore', title: 'Dishes' })
     show()
-    await userEvent.click(await screen.findByRole('button', { name: 'Kitchen and dining, Kavya' }))
-    await userEvent.click(await screen.findByRole('button', { name: 'Add to Kitchen' }))
-    const add = await screen.findByRole('dialog', { name: 'Add to Kitchen' })
-    await userEvent.type(within(add).getByLabelText('What needs doing?'), 'Oven')
-    await userEvent.click(within(add).getByRole('button', { name: 'Spray can' }))
-    await userEvent.click(within(add).getByRole('button', { name: 'Add' }))
-    const back = await screen.findByRole('dialog', { name: 'Kitchen and dining' })
-    expect(within(back).getByRole('button', { name: 'Did it: Oven' })).toBeTruthy()
-    const oven = [...deps.uow.state.items.values()].find((i) => i.title === 'Oven')
-    expect(oven).toMatchObject({ kind: 'deep_clean', icon: 'spray-can', rooms: [kitchen.id] })
-
-    await userEvent.keyboard('{Escape}')
     await userEvent.click(await screen.findByRole('button', { name: 'Add to Upkeep' }))
-    const upkeep = await screen.findByRole('dialog', { name: 'Add to Upkeep' })
-    await userEvent.type(within(upkeep).getByLabelText('What needs doing?'), 'Trash')
-    await userEvent.click(within(upkeep).getByRole('button', { name: 'Add' }))
-    await screen.findByRole('button', { name: 'Share a feeling: Trash' })
-    const trash = [...deps.uow.state.items.values()].find((i) => i.title === 'Trash')
-    expect(trash).toMatchObject({ kind: 'upkeep', rooms: [] })
+    const sheet = await screen.findByRole('dialog', { name: 'Add to Upkeep' })
+    await userEvent.type(within(sheet).getByLabelText('What needs doing?'), 'Take out trash')
+    const suggested = within(sheet).getByRole('group', { name: 'Suggested icons' })
+    expect(
+      within(suggested).getByRole('button', { name: 'Trash' }).getAttribute('aria-pressed'),
+    ).toBe('true')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Add' }))
+    await screen.findByRole('button', { name: 'Share a feeling: Take out trash' })
+    const trash = [...deps.uow.state.items.values()].find((i) => i.title === 'Take out trash')
+    expect(trash).toMatchObject({ kind: 'upkeep', rooms: [], icon: 'trash-2' })
   })
 
   it('Upkeep: all calm, a chip opens the tray, and Took care of it quiets the feeling', async () => {

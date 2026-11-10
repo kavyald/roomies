@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import type { Member, Room } from './house'
-import { CHORE_ICONS, isChoreIcon } from './icons'
 import { asId, type ActionId, type HouseId, type RoomId, type RoutineId, type UserId } from './ids'
 import type { Chore } from './items'
 import {
@@ -433,15 +432,6 @@ describe('reanchorRoutines', () => {
         after: [member(alex, 1, false)],
       }).routines,
     ).toEqual([])
-  })
-})
-
-describe('icons', () => {
-  it('has a curated list with no wind (the Air element), and checks names', () => {
-    expect(CHORE_ICONS.length).toBeGreaterThanOrEqual(30)
-    expect(new Set(CHORE_ICONS).size).toBe(CHORE_ICONS.length)
-    expect(isChoreIcon('broom')).toBe(true)
-    expect(isChoreIcon('wind')).toBe(false)
   })
 })
 

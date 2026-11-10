@@ -17,6 +17,7 @@ import { RoomChip } from '@/components/ui/Chip'
 import { DisclosureGroup } from '@/components/ui/Disclosure'
 import { IconButton } from '@/components/ui/IconButton'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { iconFor } from '@/components/ui/ChoreIconPicker'
 import { Sheet } from '@/components/ui/Sheet'
 import { useCelebrate, useToast } from '@/components/ui/Toast'
 import { useCopy } from '@/components/house/useCopy'
@@ -325,7 +326,9 @@ const patchFrom = (item: Item, v: ItemFormValues): ItemPatch => {
       v.rooms.length !== before.rooms.length || v.rooms.some((r) => !before.rooms.includes(r))
     if (moved) p.rooms = v.rooms
     if (v.kind !== before.kind) p.kind = v.kind
-    if (v.icon !== before.icon) p.icon = v.icon || null
+    // Shown chosen in the picker when none was picked, so saved too (T101).
+    const icon = iconFor(v.icon, v.title)
+    if (icon !== before.icon) p.icon = icon || null
   } else if (v.roomId !== before.roomId) p.roomId = v.roomId || null
   if (v.assignee !== before.assignee) p.assignee = v.assignee || null
   if (v.date !== before.date || v.time !== before.time) {

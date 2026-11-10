@@ -6,7 +6,7 @@ import { Field } from '@/components/auth/fields'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { ChoreIcon } from '@/components/ui/ChoreIcon'
-import { ChoreIconPicker } from '@/components/ui/ChoreIconPicker'
+import { ChoreIconPicker, iconFor } from '@/components/ui/ChoreIconPicker'
 import { cn } from '@/components/ui/cn'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { IconButton } from '@/components/ui/IconButton'
@@ -205,7 +205,9 @@ function RoutineSheet({
   const startRooms = ctx.rooms.filter((r) => routine && r.routineId === routine.id).map((r) => r.id)
 
   const [name, setName] = useState(routine?.name ?? '')
-  const [icon, setIcon] = useState(routine?.icon ?? 'sparkles')
+  const [picked, setIcon] = useState(routine?.icon ?? '')
+  // Until one is picked, the icon the name suggests (T101), else sparkles.
+  const icon = iconFor(picked, name) || 'sparkles'
   const [resets, setResets] = useState<Resets>(routine?.resets ?? 'weekly')
   const [mode, setMode] = useState<WhoMode>(routine?.fixedMember ? 'fixed' : 'turns')
   const [pickedPerson, setPickedPerson] = useState<UserId | undefined>(undefined)
@@ -313,7 +315,7 @@ function RoutineSheet({
           />
           <div className="grid gap-1.5">
             <Label>Icon</Label>
-            <ChoreIconPicker label="Icon" value={icon} onChange={setIcon} />
+            <ChoreIconPicker label="Icon" title={name} value={icon} onChange={setIcon} />
           </div>
           <div className="grid gap-1.5">
             <Label>Resets</Label>

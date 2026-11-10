@@ -5,6 +5,7 @@ import type { UserId } from '../domain/ids'
 import { plusMs } from '../domain/time'
 import { sampleHouse } from '../testing/sample-house'
 import {
+  makeAddRoomChores,
   makeArchiveItem,
   makeCreateItem,
   makeDoChore,
@@ -367,5 +368,65 @@ describe('a need for me or for the house (T45)', () => {
     expect(deps.uow.state.activity.at(-1)?.changes).toEqual({
       for_member: [s.people.Wren, s.people.Sam],
     })
+  })
+})
+
+describe("adding a room's chores (T101)", () => {
+  it('gives the room its own Deep clean copies as one action, skipping names it has', async () => {
+    const { deps, s, as, create, kinds } = await setup()
+    const add = makeAddRoomChores(deps)
+    const kitchen = s.rooms.Kitchen!.id
+    const bath = s.rooms['Bathroom 1']!.id
+    // The bathroom's Vacuum is its own: adding one to the kitchen doesn't touch it.
+    const bathVacuum = await create(as('Wren'), {
+      category: 'chore',
+      title: 'Vacuum',
+      kind: 'deep_clean',
+      rooms: [bath],
+    })
+    if (!bathVacuum.ok) throw new Error(bathVacuum.error)
+
+    const r = await add(as('Sam'), {
+      roomId: kitchen,
+      chores: [
+        { title: 'Vacuum', icon: 'robot-vacuum' },
+        { title: 'Swiffer', icon: 'mop' },
+      ],
+    })
+    if (!r.ok) throw new Error(r.error)
+    expect(
+      r.value.map((c) => c.category === 'chore' && [c.title, c.kind, c.rooms, c.icon]),
+    ).toEqual([
+      ['Vacuum', 'deep_clean', [kitchen], 'robot-vacuum'],
+      ['Swiffer', 'deep_clean', [kitchen], 'mop'],
+    ])
+    const created = deps.uow.state.activity.filter((a) => a.kind === 'item.created').slice(-2)
+    expect(new Set(created.map((a) => a.actionId)).size).toBe(1)
+
+    // Again: the kitchen has both now, so nothing is added and nothing is recorded.
+    const before = kinds().length
+    const again = await add(as('Sam'), { roomId: kitchen, chores: [{ title: 'vacuum' }] })
+    expect(again).toEqual({ ok: true, value: [] })
+    expect(kinds()).toHaveLength(before)
+    expect(
+      (await deps.uow.run(as('Sam'), (repos) => repos.items.get(bathVacuum.value.id)))?.category,
+    ).toBe('chore')
+  })
+
+  it('refuses a room from another house and a bad icon', async () => {
+    const { deps, s, as } = await setup()
+    const add = makeAddRoomChores(deps)
+    expect(
+      await add(as('Sam'), {
+        roomId: deps.ids.newId<'room'>() as never,
+        chores: [{ title: 'Dust' }],
+      }),
+    ).toEqual({ ok: false, error: 'unknown_room' })
+    expect(
+      await add(as('Sam'), {
+        roomId: s.rooms.Kitchen!.id,
+        chores: [{ title: 'Dust', icon: 'wind' }],
+      }),
+    ).toEqual({ ok: false, error: 'bad_icon' })
   })
 })

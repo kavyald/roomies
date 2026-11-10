@@ -145,13 +145,14 @@ Two concepts only: a **room** is where chores live, and a **routine** is who's r
 - **Two kinds of chore** **[DECIDED] (owner)**:
   - **Deep clean:** the routine holder's checklist for the period. Every chore, every period. It resets when the period does; what wasn't finished doesn't carry over and nothing is marked.
   - **Upkeep:** shared, everyday (dishes, trash). Nobody's job and no tick: people share a feeling when it piles up, and anyone taps **Took care of it**, after which older feelings stop counting (§7). It comes back only with a new feeling. Chores with no owner count as upkeep too.
-- **Who's on a chore is worked out, never stored:** the chore's first room in house order → that room's routine → who has it this period. No room, or a first room in no routine, means no owner. A chore can cover several rooms; one tick covers them all.
+- **Who's on a chore is worked out, never stored:** the chore's first room in house order → that room's routine → who has it this period. No room, or a first room in no routine, means no owner. **A chore is in one room** **[DECIDED] (owner, T101)**: a room gets its own copy of a chore (the kitchen's Vacuum and the living room's are two chores, ticked by whoever has each room). Chores saved across several rooms before this keep working, under their first room.
 - **Routines:** anyone in the house creates and edits them (Admin → Routines, the only place the word appears). **Resets** weekly (Monday), every 2 weeks (every other Monday) or monthly (the 1st), in the house's time zone. **Who:** takes turns among everyone by when they joined, or always one person; a fixed person's checklist still resets.
 - **Handover:** nothing is written. The holder gets one message when a routine that takes turns changes hands ("You have the kitchen and dining this week"), combined per person, only on the period's first day.
 - **Joining and moving out:** the rotation restarts so this period's holders don't shift. If the holder moves out, the next person in turn takes over; if a fixed person moves out, the routine goes back to taking turns.
+- **Setting up a room's chores** **[DECIDED] (owner, T101)**: in Admin → Rooms, each room lists its Deep clean chores and offers every chore name already in the house (plus a few starters like Vacuum and Swiffer) as one-tap picks, several at once. Upkeep is added on the Chores tab.
 - **Anyone can tick any chore** (helping counts): **Did it** records who and when, with Undo.
 - Chores can go on a run (e.g. a cleaning session).
-- **[DECIDED] (owner)** No numbers, no "due", and no chore balance or "who's done what" view: progress is a row of icons on your own card only, and people are shown as their avatar.
+- **[DECIDED] (owner)** No numbers, no "due", and no chore balance or "who's done what" view: ticks show in your own rooms only (a room's sheet shows them to anyone, so a helper sees what's left), and people are shown as their avatar.
 
 ### 6.3 Tasks (one-offs)
 
@@ -415,6 +416,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D35 | Built from the docs↔code audit: conflict detection on edits, "Handled by" follows the run, an app-wide CSP, `security_events`, undo "Did it", poll withdraw / reopen / deadline, run rename and point person, cost edit and remove, poll and run deep links, notification settings in one section (T50–T58, T61) | Owner |
 | D36 | A feedback button (bug / idea / praise) at the top right of Admin, saved for the owner in Supabase, with the sender, house, app version and browser (§6.8, T91) | Owner |
 | D37 | Feelings on a chore count only if shared after it was last done; 😰/😤 on a chore notifies every active member, not an assignee. Reopening a need or a task is an undo, so its feelings count again (§7, §8.1, T99) | Owner |
+| D39 | A chore is in one room, and a room's chores are set up in Admin → Rooms from one-tap picks of the house's chore names. The Chores tab shows a box per room. **Reverses D38's multi-room chores** (§6.2, T101) | Owner |
 | D38 | Routines: rooms grouped under who's responsible and how often it changes hands; chores are Deep clean or Upkeep, and who's on one is worked out. **Reverses the decided chore rhythms** ("as needed" / "about every N days") and the chore assignee: chores have neither now. Rotations are no longer deferred (§6.2, T96) | Owner |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.

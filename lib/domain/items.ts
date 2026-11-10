@@ -125,6 +125,40 @@ export type NewItem = {
 
 export type ItemError = 'empty_title' | 'title_too_long' | 'invalid_for_category' | 'bad_icon'
 
+/** A chore by name and icon: one picked for a room in Admin → Rooms (T101). */
+export type ChorePick = { readonly title: string; readonly icon?: string }
+
+/** A chore name as people would match it: "  Vacuum " and "vacuum" are the same chore. */
+export const choreKey = (title: string): string => title.trim().replace(/\s+/g, ' ').toLowerCase()
+
+/**
+ * The picks a room doesn't have yet as Deep clean chores: one per name, with names it already has
+ * (or that are picked twice) left out. Each room gets its own copy of a chore (T101).
+ */
+export const newRoomChores = (
+  roomId: RoomId,
+  picks: readonly ChorePick[],
+  items: readonly Item[],
+): ChorePick[] => {
+  const has = new Set(
+    items
+      .filter(
+        (i): i is Chore =>
+          i.category === 'chore' &&
+          !i.archivedAt &&
+          i.kind === 'deep_clean' &&
+          i.rooms.includes(roomId),
+      )
+      .map((c) => choreKey(c.title)),
+  )
+  return picks.filter((p) => {
+    const key = choreKey(p.title)
+    if (!key || has.has(key)) return false
+    has.add(key)
+    return true
+  })
+}
+
 const checkTitle = (title: string): Result<string, 'empty_title' | 'title_too_long'> => {
   const t = title.trim()
   if (!t) return err('empty_title')

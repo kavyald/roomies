@@ -4,7 +4,7 @@ import { ChevronDown } from 'lucide-react'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
-import { ChoreIconPicker } from '@/components/ui/ChoreIconPicker'
+import { ChoreIconPicker, iconFor } from '@/components/ui/ChoreIconPicker'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { SheetSave } from '@/components/ui/Sheet'
 import { useContacts, useMembers, useProfiles, useRooms } from '@/lib/client/hooks'
@@ -14,14 +14,13 @@ import type { LocalDate, LocalTime } from '@/lib/domain/time'
 import { useWhoseChoice, WhoseToggle } from '@/components/needs/Whose'
 import { CHORE_KIND_LABEL } from './meta'
 import { RoomSelect } from './RoomSelect'
-import { RoomsSelect } from './RoomsSelect'
 
 export type ItemFormValues = {
   title: string
   note: string
   /** Needs and tasks. */
   roomId: RoomId | ''
-  /** Chores: any number of rooms, an icon and a kind instead of a room and a person. */
+  /** Chores: a room (kept as a list, as stored), an icon and a kind instead of a room and a person. */
   rooms: readonly RoomId[]
   icon: string
   kind: ChoreKind
@@ -57,7 +56,7 @@ export const toNewItem = (category: Category, v: ItemFormValues): NewItem => ({
   ...(category === 'chore'
     ? {
         kind: v.kind,
-        ...(v.icon && { icon: v.icon }),
+        ...(iconFor(v.icon, v.title) && { icon: iconFor(v.icon, v.title) }),
         ...(v.rooms.length > 0 && { rooms: v.rooms }),
       }
     : v.roomId && { roomId: v.roomId }),
@@ -211,15 +210,21 @@ export function ItemForm({
                 ]}
               />
               <div className="grid gap-1.5">
-                <Label htmlFor="item-rooms">Rooms</Label>
-                <RoomsSelect
-                  id="item-rooms"
+                <Label htmlFor="item-room">Room</Label>
+                {/* One room per chore (T101); the data still allows more, kept as they were. */}
+                <RoomSelect
+                  id="item-room"
                   rooms={rooms.data ?? []}
-                  value={v.rooms}
-                  onChange={(r) => set('rooms', r)}
+                  value={v.rooms[0] ?? ''}
+                  onChange={(r) => set('rooms', r ? [r] : [])}
                 />
               </div>
-              <ChoreIconPicker label="Icon" value={v.icon} onChange={(i) => set('icon', i)} />
+              <ChoreIconPicker
+                label="Icon"
+                title={v.title}
+                value={iconFor(v.icon, v.title)}
+                onChange={(i) => set('icon', i)}
+              />
             </>
           ) : (
             <div className="grid gap-1.5">

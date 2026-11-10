@@ -34,7 +34,7 @@ type RunStartError =
   'already_on_a_run' | 'done_item' | 'tasks_only' | 'title_too_long' | 'not_found'
 type RunMoveError =
   'nothing_selected' | 'not_on_run' | 'same_run' | 'target_closed' | 'tasks_only' | 'not_found'
-import type { Item, ItemError, ItemPatch, NewItem, Version } from '../domain/items'
+import type { ChorePick, Item, ItemError, ItemPatch, NewItem, Version } from '../domain/items'
 import type { NewInvite } from '../domain/invites'
 import type { Result } from '../domain/result'
 
@@ -122,6 +122,11 @@ export type AppCommands = {
     id: ItemId
     doneAt: number
   }): Promise<CommandResult<Item, 'nothing_to_undo' | 'done_again' | 'not_a_chore' | 'not_found'>>
+  /** Admin → Rooms: Deep clean chores for a room by name; names it has are skipped (T101). */
+  addRoomChores(input: {
+    roomId: RoomId
+    chores: readonly ChorePick[]
+  }): Promise<CommandResult<Item[], ItemError | ReferenceError | 'not_found'>>
   archiveItem(id: ItemId): Promise<CommandResult<Item, 'already_archived' | 'not_found'>>
   restoreItem(
     id: ItemId,

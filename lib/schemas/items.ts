@@ -43,6 +43,14 @@ export const itemPatchSchema = z.object({
 export const itemIdSchema = z.uuid()
 
 /** Undo for Did it: the chore, and the last done (ms since epoch) that Did it set. */
+export const addRoomChoresSchema = z.object({
+  roomId: z.uuid(),
+  chores: z
+    .array(z.object({ title: z.string().max(200), icon: z.string().max(40).optional() }))
+    .min(1)
+    .max(40),
+})
+
 export const undoChoreSchema = z.object({ id: z.uuid(), doneAt: z.number().int() })
 
 export const setFeelingSchema = z.object({

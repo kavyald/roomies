@@ -26,6 +26,7 @@ import {
   restoreItemAction,
   setFeelingAction,
   undoChoreAction,
+  addRoomChoresAction,
 } from '@/app/actions/items'
 import {
   addCostAction,
@@ -106,6 +107,7 @@ export function HouseProviders({
       reopenItem: (id) => reopenItemAction(houseId, id),
       doChore: (id) => doChoreAction(houseId, id),
       undoChore: (input) => undoChoreAction(houseId, input),
+      addRoomChores: (input) => addRoomChoresAction(houseId, input),
       archiveItem: (id) => archiveItemAction(houseId, id),
       restoreItem: (id) => restoreItemAction(houseId, id),
       setFeeling: (input) => setFeelingAction(houseId, input),
