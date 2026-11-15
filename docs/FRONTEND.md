@@ -332,6 +332,7 @@ Built to fit one iPhone screen in a four-routine house. No numbers and no "due" 
 ### 5.10 Calendar
 
 - A month grid with dots on days that have something, and the selected day's list below: dated tasks, needs with a needed-by date, and runs. Tap one to open it.
+- It opens on today's month with today selected and ringed, in the house's time zone (T106); until you pick a day or another month, both follow today.
 
 ### 5.11 Admin tab
 
