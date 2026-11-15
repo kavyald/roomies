@@ -19,7 +19,7 @@ lib/compose.ts               server composition root; lib/compose.client.ts is t
 lib/client/                  AppClient, provider, TanStack hooks;  lib/server/ makeAction + session + csp
 lib/testing/                 test-only helpers: builders, sampleHouse, asUser/asOwner (db.ts), Mailpit, JWT minting
 supabase/                    config.toml, migrations/, seed.sql (owner@roomies.test + "The apartment" with its 17 rooms), tests/ (RLS, isolation, setup, grants)
-e2e/                         Playwright journeys (iPhone 15 profile)
+e2e/                         Playwright journeys (iPhone 15 profile; the date fields' desktop check, T69, uses Desktop Safari/Chrome)
 proxy.ts                     Next 16's middleware: sets the page CSP (nonce), refreshes the session, guards /h/*
 ```
 

@@ -5,6 +5,7 @@ import { useId, useRef, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
 import { ChoreIconPicker, iconFor } from '@/components/ui/ChoreIconPicker'
+import { DateField, TimeField } from '@/components/ui/DateTimeField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { SheetSave } from '@/components/ui/Sheet'
 import { useContacts, useMembers, useProfiles, useRooms } from '@/lib/client/hooks'
@@ -171,28 +172,21 @@ export function ItemForm({
         <>
           {category !== 'chore' && (
             <div className="grid grid-cols-[1fr_auto] gap-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="item-date">{category === 'need' ? 'Needed by' : 'Date'}</Label>
-                <input
-                  id="item-date"
-                  type="date"
-                  className={inputClass}
-                  value={v.date}
-                  onChange={(e) => set('date', e.target.value)}
-                />
-              </div>
+              <DateField
+                id="item-date"
+                label={category === 'need' ? 'Needed by' : 'Date'}
+                value={v.date}
+                onChange={(e) => set('date', e.target.value)}
+              />
               {category === 'task' && (
-                <div className="grid gap-1.5">
-                  <Label htmlFor="item-time">Time</Label>
-                  <input
-                    id="item-time"
-                    type="time"
-                    className={`${inputClass} w-32`}
-                    disabled={!v.date}
-                    value={v.time}
-                    onChange={(e) => set('time', e.target.value)}
-                  />
-                </div>
+                <TimeField
+                  id="item-time"
+                  label="Time"
+                  className="w-32 pointer-fine:w-40"
+                  disabled={!v.date}
+                  value={v.time}
+                  onChange={(e) => set('time', e.target.value)}
+                />
               )}
             </div>
           )}

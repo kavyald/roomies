@@ -11,12 +11,13 @@ import {
   Trash2,
   Wind,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Chip, RoomChip, TierChip } from '@/components/ui/Chip'
 import { Disclosure, DisclosureGroup } from '@/components/ui/Disclosure'
+import { DateField, TimeField } from '@/components/ui/DateTimeField'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { ChoreIconPicker } from '@/components/ui/ChoreIconPicker'
@@ -44,6 +45,9 @@ function Contents() {
   const [sheet, setSheet] = useState(false)
   const [icon, setIcon] = useState<string>('broom')
   const [all, setAll] = useState(false)
+  const [date, setDate] = useState('')
+  const [time, setTime] = useState('19:30')
+  const id = useId()
   const toast = useToast()
   return (
     <div className="grid gap-6">
@@ -215,6 +219,27 @@ function Contents() {
           <span className="grid size-[max(2.75rem,44px)] place-items-center">
             <IconMark icon={Pencil} />
           </span>
+        </div>
+      </Section>
+
+      <Section title="Date and time">
+        <p className="m-0 text-[0.8rem] font-medium text-ink-soft">
+          With a mouse, the icon opens the picker; a tap on iPhone opens its own.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <DateField
+            id={`${id}-date`}
+            label="Date (optional)"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <TimeField
+            id={`${id}-time`}
+            label="Time (optional)"
+            disabled={!date}
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+          />
         </div>
       </Section>
 

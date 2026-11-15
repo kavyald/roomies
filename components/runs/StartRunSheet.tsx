@@ -3,6 +3,7 @@
 import { ChevronDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Field } from '@/components/auth/fields'
+import { DateField } from '@/components/ui/DateTimeField'
 import { FeelingCounts } from '@/components/items/Feelings'
 import { SelectAll } from './SelectAll'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
@@ -132,10 +133,9 @@ export function StartRunSheet({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
-          <Field
+          <DateField
             id="run-date"
             label="When (optional)"
-            type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />

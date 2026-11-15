@@ -2,7 +2,7 @@
 
 import { ChevronDown, Moon } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { Field } from '@/components/auth/fields'
+import { TimeField } from '@/components/ui/DateTimeField'
 import { PushSettings } from '@/components/house/PushSettings'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
@@ -168,17 +168,15 @@ function QuietHoursRow({
       {hasQuiet && editing && (
         <div id={`${id}-edit`} className="grid gap-2.5 px-3.5 pb-3">
           <div className="grid grid-cols-2 gap-2">
-            <Field
+            <TimeField
               id="quiet-start"
               label="From"
-              type="time"
               value={start}
               onChange={(e) => setStart(e.target.value)}
             />
-            <Field
+            <TimeField
               id="quiet-end"
               label="Until"
-              type="time"
               value={end}
               onChange={(e) => setEnd(e.target.value)}
             />

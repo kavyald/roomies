@@ -3,6 +3,7 @@
 import { CalendarClock, Check, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Field } from '@/components/auth/fields'
+import { DateField } from '@/components/ui/DateTimeField'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -267,10 +268,9 @@ export function PollSheet({
           </div>
         ) : (
           <div className="grid gap-2 rounded-2xl bg-paper p-3">
-            <Field
+            <DateField
               id="poll-deadline-edit"
               label="Closes"
-              type="date"
               min={today}
               value={deadline}
               onChange={(e) => setDeadlineDraft(e.target.value)}

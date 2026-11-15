@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Field } from '@/components/auth/fields'
+import { DateField, TimeField } from '@/components/ui/DateTimeField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
@@ -121,17 +121,15 @@ export function NewRunSheet({
       )}
       {mode === 'visit' && (
         <div className="grid grid-cols-2 gap-2">
-          <Field
+          <DateField
             id="visit-date"
             label="Date (optional)"
-            type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
-          <Field
+          <TimeField
             id="visit-time"
             label="Time (optional)"
-            type="time"
             disabled={!date}
             value={time}
             onChange={(e) => setTime(e.target.value)}

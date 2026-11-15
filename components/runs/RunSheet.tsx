@@ -2,7 +2,8 @@
 
 import { Check, Pencil } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Field, inputClass } from '@/components/auth/fields'
+import { inputClass } from '@/components/auth/fields'
+import { DateField, TimeField } from '@/components/ui/DateTimeField'
 import { CATEGORY } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Button } from '@/components/ui/Button'
@@ -467,17 +468,15 @@ function RunSheetFor({
               )}
               {target === NEW_VISIT && (
                 <div className="grid grid-cols-2 gap-2">
-                  <Field
+                  <DateField
                     id="new-visit-date"
                     label="Date (optional)"
-                    type="date"
                     value={visitDate}
                     onChange={(e) => setVisitDate(e.target.value)}
                   />
-                  <Field
+                  <TimeField
                     id="new-visit-time"
                     label="Time (optional)"
-                    type="time"
                     disabled={!visitDate}
                     value={visitTime}
                     onChange={(e) => setVisitTime(e.target.value)}

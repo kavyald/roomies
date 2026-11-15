@@ -82,7 +82,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | Push | `web-push` (VAPID) inside the `PushSender` adapter, called by the send-notifications job |
 | Email | A dedicated house Gmail account as Supabase's custom SMTP (`smtp.gmail.com`, app password) for sign-in codes. Required, since Supabase's built-in sender won't reach roommates. Needs no domain. Resend + a custom domain is the upgrade path (A18). Reminder emails come later. |
 | Icons | Lucide |
-| Testing | Vitest (unit, use case, component, contract, and RLS/constraint tests), Playwright with the iPhone 15 device profile (e2e) and axe. One command, `pnpm test:all`. See [TESTING.md](./TESTING.md). |
+| Testing | Vitest (unit, use case, component, contract, and RLS/constraint tests), Playwright with the iPhone 15 device profile (e2e; the date and time fields' desktop check uses Desktop Safari and Chrome, T69) and axe. One command, `pnpm test:all`. See [TESTING.md](./TESTING.md). |
 | Errors / monitoring | Sentry (free tier) through `@sentry/nextjs`: server, edge and browser, errors only (A28). Off until a DSN is set; the account comes with hosting in M5 (E6). |
 
 ---
