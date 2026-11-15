@@ -16,7 +16,14 @@ import {
   type Routine,
 } from './routines'
 import { isRunOpen, type Run } from './runs'
-import { addDays, localDateOf, type Instant, type LocalDate } from './time'
+import {
+  addDays,
+  instantAt,
+  localDateOf,
+  type Instant,
+  type LocalDate,
+  type LocalTime,
+} from './time'
 
 export type ReminderInput = {
   readonly houseId: string
@@ -69,13 +76,19 @@ const handoversFor = (input: ReminderInput, today: LocalDate, home: string): Dra
   })
 }
 
-/** Day-before and day-of reminders; nothing for things already past (no nagging, FRONTEND §7). */
+/**
+ * Day-before and day-of reminders; nothing for things already past (no nagging, FRONTEND §7). Each
+ * expires when its day ends, so one held overnight by quiet hours isn't pushed a day late (T83);
+ * a handover stays true all period, so it doesn't.
+ */
 export const remindersFor = (input: ReminderInput): Draft[] => {
   const today = localDateOf(input.now, input.tz)
   const tomorrow = addDays(today, 1)
   const home = `/h/${input.houseId}`
   const which = (d: LocalDate | null | undefined) =>
     d === today ? 'today' : d === tomorrow ? 'tomorrow' : null
+  // Each says "today" or "tomorrow", so it's stale once today ends (T83).
+  const expiresAt = instantAt(tomorrow, '00:00' as LocalTime, input.tz)
   const drafts: Draft[] = []
 
   // Your tasks, the day before and the day of.
@@ -92,6 +105,7 @@ export const remindersFor = (input: ReminderInput): Draft[] => {
       body: when === 'today' ? "It's on you today." : "Just a heads-up: it's on you tomorrow.",
       url: `${home}/i/${item.id}`,
       dedupeKey: `due:${item.id}:${date}:${when}:${item.assignee}`,
+      expiresAt,
     })
   }
 
@@ -109,6 +123,7 @@ export const remindersFor = (input: ReminderInput): Draft[] => {
         body: "Your vote isn't in yet.",
         url: `${home}/p/${poll.id}`,
         dedupeKey: `poll-closing:${poll.id}:${tomorrow}:${p.userId}`,
+        expiresAt,
       })
     }
   }
@@ -128,6 +143,7 @@ export const remindersFor = (input: ReminderInput): Draft[] => {
             : `${label} is tomorrow${run.when.time ? ` at ${run.when.time}` : ''}.`,
         url: `${home}/r/${run.id}`,
         dedupeKey: `run-tomorrow:${run.id}:${run.when.date}:${p.userId}`,
+        expiresAt,
       })
     }
   }

@@ -265,6 +265,8 @@ export type NotificationsOutboxTable = {
   error: string | null
   dedupe_key: string | null
   attempts: Generated<number>
+  claimed_until: Timestamp | null
+  expires_at: Timestamp | null
 }
 
 export type DB = {

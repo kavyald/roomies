@@ -503,7 +503,7 @@ const LAYERS = [
     ['makeUpdateMySettings · makeSetNotificationEnabled · makeWhereTo','Personal settings and post-sign-in routing.'] ]},
   { name:'notify.ts · push.ts · jobs.ts', desc:'delivery', fns:[
     ['withNotifications(uow)','Wraps every UnitOfWork: after events.record it looks up people, prefs and quiet hours and enqueues outbox rows in the same transaction (A23).'],
-    ['makeSendNotifications','Drains up to 100 due outbox rows and pushes to each browser; marks gone subscriptions.'],
+    ['makeSendNotifications','Claims up to 100 due outbox rows (skip locked, a 10-minute hold), drops ones no longer true (moved out, category off, a reminder past its day), then pushes and marks each in its own transaction; marks gone subscriptions (T83).'],
     ['makeRunReminders · makeCloseDuePolls','Walk every house, each in its own transaction, as the system actor.'],
     ['makeSavePushSubscription','“Turn on notifications” for this browser.'] ]}
  ]},
@@ -836,8 +836,6 @@ renderGaps();
 
 /* ---------------- Recommendations ---------------- */
 const ADV = [
- ['top','Backend','Stop the outbox from double-sending','Two senders can run at once (the after() call following each action and the 5-minute job). pending() selects unsent rows with no lock, so both can push the same message before either marks it sent.','Claim rows first: SELECT … FOR UPDATE SKIP LOCKED, or UPDATE … SET claimed_at = now() WHERE sent_at IS NULL AND claimed_at IS NULL RETURNING *.','lib/adapters/postgres/unit-of-work.ts:406, lib/app/push.ts:46'],
- ['top','Backend','Send pushes outside the database transaction','makeSendNotifications calls the push services inside uow.run, holding a pooled connection for up to 100 messages × browsers of network calls. On Vercel with Supabase\'s transaction pooler, that invites timeouts; a crash after sending but before commit re-sends everything.','Claim in one short transaction, send with no transaction open, then mark sent in a second short one.','lib/app/push.ts'],
  ['normal','Backend','Sign-in enumeration (accepted)','Confirmed on hosted Supabase in E1: /auth/v1/otp answers unknown emails with a 422 and known ones with 200, and the anon key is public. The owner accepted the risk on 2026-10-09; the app\'s own form always answers the same.','If picked up: Supabase CAPTCHA (Turnstile), send codes with the service-role client (it skips the CAPTCHA), and a per-IP limit on requestCode.','DEPLOYMENT §8 (Accepted, not fixed)'],
  ['high','Backend','Bound what the browser loads','items(houseId) and costs(houseId) return every row ever, including done and archived ones, and every activity event refetches items. Fine today; after a year of groceries it\'s thousands of rows on every tap.','Load open items plus a recent-done window (e.g. 30 days), and fetch costs by month.','lib/adapters/supabase/house-queries.ts:85,95'],
  ['normal','Backend','Guard the RLS mirror against drift','memory/db.ts re-implements each policy by hand. Contract tests catch behavior drift, but a new policy with no mirror goes unnoticed until someone writes a test for it.','Add a db test that lists pg_policies and compares it with a named list exported from memory/db.ts.','lib/adapters/memory/db.ts, supabase/tests/rls.test.ts'],

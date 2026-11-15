@@ -278,3 +278,15 @@ describe('dedupe keys', () => {
     expect(dayOf[0]!.dedupeKey).not.toBe(first[0]!.dedupeKey)
   })
 })
+
+describe('expiry (T83)', () => {
+  it('a reminder about today or tomorrow expires when today ends; a handover does not', () => {
+    const midnight = at('2026-09-30', '00:00')
+    const drafts = remindersFor(
+      input({
+        items: [task('Mop', { assignee: wren, when: { date: '2026-09-29' as LocalDate } })],
+      }),
+    )
+    expect(drafts.map((d) => d.expiresAt)).toEqual([midnight])
+  })
+})

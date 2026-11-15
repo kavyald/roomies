@@ -14,7 +14,7 @@ import {
   type Repos,
   type UnitOfWork,
 } from '../../app/ports'
-import type { HouseId, RoomId, UserId } from '../../domain/ids'
+import type { RoomId, UserId } from '../../domain/ids'
 import type { Chore, Need, Version } from '../../domain/items'
 import type { NotificationCategory } from '../../domain/notifications'
 import type { Actor } from '../../domain/actor'
@@ -40,6 +40,7 @@ import {
   memberToRow,
   profileToDomain,
   profileToRow,
+  outboxToPending,
   pushSubToDomain,
   roomToDomain,
   pollOptionToRow,
@@ -50,7 +51,6 @@ import {
   runToDomain,
   runToRow,
   toDate,
-  toInstant,
 } from './mappers'
 import type { DB } from './schema'
 
@@ -542,6 +542,7 @@ const reposFor = (trx: Trx): Repos => {
           url: m.url,
           send_after: toDate(m.sendAfter),
           dedupe_key: m.dedupeKey ?? null,
+          expires_at: m.expiresAt ? toDate(m.expiresAt) : null,
         })
         // ON CONFLICT also applies the SELECT policy ("read own"), so it's used only for reminders,
         // which carry a dedupe key and are written by the system.
@@ -564,31 +565,31 @@ const reposFor = (trx: Trx): Repos => {
         }
         return written
       },
-      pending: async (now, limit) =>
-        (
-          await trx
-            .selectFrom('notifications_outbox')
-            .selectAll()
-            .where('sent_at', 'is', null)
-            .where('send_after', '<=', toDate(now))
-            .orderBy('id')
-            .limit(limit)
-            .execute()
-        ).map((r) => ({
-          id: Number(r.id),
-          userId: r.user_id as UserId,
-          houseId: r.house_id as HouseId,
-          category: r.category as NotificationCategory,
-          title: r.title,
-          body: r.body,
-          url: r.url,
-          sendAfter: toInstant(r.send_after),
-          attempts: r.attempts,
-        })),
+      claim: async (now, limit, until) => {
+        const free = trx
+          .selectFrom('notifications_outbox')
+          .select('id')
+          .where('sent_at', 'is', null)
+          .where('send_after', '<=', toDate(now))
+          .where((eb) =>
+            eb.or([eb('claimed_until', 'is', null), eb('claimed_until', '<=', toDate(now))]),
+          )
+          .orderBy('id')
+          .limit(limit)
+          .forUpdate()
+          .skipLocked()
+        const rows = await trx
+          .updateTable('notifications_outbox')
+          .set({ claimed_until: toDate(until) })
+          .where('id', 'in', free)
+          .returningAll()
+          .execute()
+        return rows.map(outboxToPending).sort((x, y) => x.id - y.id)
+      },
       markSent: async (id, at, error) => {
         const r = await trx
           .updateTable('notifications_outbox')
-          .set({ sent_at: toDate(at), error })
+          .set({ sent_at: toDate(at), error, claimed_until: null })
           .where('id', '=', String(id) as never)
           .executeTakeFirst()
         if (Number(r.numUpdatedRows) === 0) throw new AccessDenied('notifications_outbox')
@@ -596,7 +597,27 @@ const reposFor = (trx: Trx): Repos => {
       retryLater: async (id, at, attempts, error) => {
         const r = await trx
           .updateTable('notifications_outbox')
-          .set({ send_after: toDate(at), attempts, error })
+          .set({ send_after: toDate(at), attempts, error, claimed_until: null })
+          .where('id', '=', String(id) as never)
+          .where('sent_at', 'is', null)
+          .executeTakeFirst()
+        if (Number(r.numUpdatedRows) === 0) throw new AccessDenied('notifications_outbox')
+      },
+      heldFor: async (userId, now) =>
+        (
+          await trx
+            .selectFrom('notifications_outbox')
+            .selectAll()
+            .where('user_id', '=', userId)
+            .where('sent_at', 'is', null)
+            .where('send_after', '>', toDate(now))
+            .orderBy('id')
+            .execute()
+        ).map(outboxToPending),
+      reschedule: async (id, at) => {
+        const r = await trx
+          .updateTable('notifications_outbox')
+          .set({ send_after: toDate(at) })
           .where('id', '=', String(id) as never)
           .where('sent_at', 'is', null)
           .executeTakeFirst()

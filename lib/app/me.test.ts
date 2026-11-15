@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { asMember } from '../adapters/contracts/unit-of-work.contract'
 import { depsForTest } from '../compose'
 import type { UserId } from '../domain/ids'
-import type { LocalTime } from '../domain/time'
+import { MS_PER_HOUR, plusMs, type LocalTime } from '../domain/time'
 import { sampleHouse } from '../testing/sample-house'
 import { makeCreateItem, makeSetFeeling } from './items'
 import { makeSetNotificationEnabled, makeUpdateMySettings } from './me'
@@ -51,5 +51,29 @@ describe('personal settings', () => {
     expect(deps.uow.state.profiles.get(s.people.Jo)).toMatchObject({ theme: 'dark' })
     expect(deps.uow.state.profiles.get(s.people.Kavya)?.theme).toBe('auto')
     expect(await update(as('Jo'), { theme: 'dark' })).toEqual({ ok: false, error: 'no_change' })
+  })
+})
+
+describe('quiet hours changed after messages were held (T83)', () => {
+  it('held messages follow the new quiet hours', async () => {
+    const { deps, s, as } = await setup()
+    deps.clock.set(plusMs(deps.clock.now(), 11 * MS_PER_HOUR)) // 11pm: held until 8am
+    await makeCreateItem(deps)(as('Kavya'), {
+      category: 'task',
+      title: 'Leak',
+      assignee: s.people.Wren,
+    })
+    const held = () => deps.uow.state.outbox.find((m) => m.userId === s.people.Wren)!
+    const eight = held().sendAfter
+    expect(eight.epochMs).toBeGreaterThan(deps.clock.now().epochMs)
+    const update = makeUpdateMySettings(deps)
+    const quiet = (start: string, end: string) =>
+      update(as('Wren'), { quietHours: { start: start as LocalTime, end: end as LocalTime } })
+    // Quiet until 9 instead: an hour later.
+    await quiet('22:00', '09:00')
+    expect(held().sendAfter).toEqual(plusMs(eight, MS_PER_HOUR))
+    // No quiet hours at all: it goes now.
+    await quiet('00:00', '00:00')
+    expect(held().sendAfter).toEqual(deps.clock.now())
   })
 })

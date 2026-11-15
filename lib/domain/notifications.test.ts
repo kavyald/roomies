@@ -17,6 +17,7 @@ import {
   notificationsFor,
   sendAfter,
   type NotificationContext,
+  retimed,
   type QuietHours,
   type Recipient,
 } from './notifications'
@@ -495,5 +496,20 @@ describe('extra pushes (D32)', () => {
       [sam, 'feelings', late],
       [wren, 'polls', at('2026-09-30', '08:00')],
     ])
+  })
+})
+
+describe('retimed (T83: held messages follow new quiet hours)', () => {
+  const now = at('2026-09-30', '07:00')
+  const held = { sendAfter: at('2026-09-30', '08:00'), attempts: 0 }
+  it('moves a held message to the end of the new quiet hours, or to now when they are off', () => {
+    expect(retimed(held, now, NY, q('22:00', '09:00'))).toEqual(at('2026-09-30', '09:00'))
+    expect(retimed(held, now, NY, q('00:00', '00:00'))).toEqual(now)
+    expect(retimed(held, now, NY, q('22:00', '06:30'))).toEqual(now)
+  })
+  it('leaves it when nothing changes, when it has been tried already, or when it is due anyway', () => {
+    expect(retimed(held, now, NY, DEFAULT_QUIET_HOURS)).toBeNull()
+    expect(retimed({ ...held, attempts: 1 }, now, NY, q('00:00', '00:00'))).toBeNull()
+    expect(retimed({ ...held, sendAfter: now }, now, NY, q('22:00', '09:00'))).toBeNull()
   })
 })

@@ -10,7 +10,13 @@ export const dynamic = 'force-dynamic'
 /** The scheduled jobs. `tick` is the heartbeat that proves the schedule reaches the app. */
 const jobs = (): Record<string, CronJob> => ({
   tick: async () => ({}),
-  reminders: async () => (await makeRunReminders(depsForJob())()).value,
+  // Reminders it enqueued go out now rather than at the next send-notifications run (T83).
+  reminders: async () => {
+    const deps = depsForJob()
+    const r = (await makeRunReminders(deps)()).value
+    if (r.enqueued === 0) return r
+    return { ...r, sent: (await makeSendNotifications(deps)()).value }
+  },
   'close-polls': async () => (await makeCloseDuePolls(depsForJob())()).value,
   'send-notifications': async () => {
     const r = await makeSendNotifications(depsForJob())()

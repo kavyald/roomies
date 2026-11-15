@@ -6,6 +6,7 @@ import {
   newSubscription,
   pushPayload,
   RETRY_DELAYS_MS,
+  whyNotSend,
   type PushOutcome,
 } from './push'
 import { instant, MS_PER_DAY, MS_PER_HOUR, MS_PER_MINUTE, plusMs } from './time'
@@ -97,5 +98,25 @@ describe('push', () => {
     expect(afterAttempt([asked(MS_PER_DAY)], 0, now)).toMatchObject({
       at: plusMs(now, MAX_RETRY_AFTER_MS),
     })
+  })
+})
+
+describe('whyNotSend (T83: checked again when a message is due)', () => {
+  const now = instant(10 * MS_PER_DAY)
+  const here = { active: true, off: new Set<never>() }
+  it('sends while the person is in the house, wants the category, and the day is not over', () => {
+    expect(whyNotSend({ category: 'due' }, now, here)).toBeNull()
+    expect(whyNotSend({ category: 'due', expiresAt: plusMs(now, 1) }, now, here)).toBeNull()
+  })
+  it('drops a reminder whose day ended while it waited out quiet hours', () => {
+    expect(whyNotSend({ category: 'due', expiresAt: now }, now, here)).toBe('stale')
+  })
+  it('drops it for someone who switched the category off or moved out since', () => {
+    expect(
+      whyNotSend({ category: 'polls' }, now, { active: true, off: new Set(['polls'] as const) }),
+    ).toBe('category_off')
+    expect(whyNotSend({ category: 'polls' }, now, { active: false, off: new Set() })).toBe(
+      'moved_out',
+    )
   })
 })

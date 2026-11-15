@@ -46,6 +46,11 @@ export type OutboxMessage = {
   readonly sendAfter: Instant
   /** Reminders carry one, so a job run twice doesn't send twice. */
   readonly dedupeKey?: string
+  /**
+   * Reminders are about a day: past this (the end of that day in the house's time zone), a message
+   * still held by quiet hours is dropped as 'stale' rather than pushed a day late (T83).
+   */
+  readonly expiresAt?: Instant
 }
 
 /** Someone in the house, as far as notifications go. */
@@ -77,6 +82,22 @@ export const sendAfter = (now: Instant, tz: string, quiet: QuietHours): Instant 
   const today = localDateOf(now, tz)
   const endToday = instantAt(today, quiet.end, tz)
   return endToday.epochMs > now.epochMs ? endToday : instantAt(addDays(today, 1), quiet.end, tz)
+}
+
+/**
+ * Their quiet hours changed: when a message held by the old ones should go now (T83, owner: held
+ * messages follow the new quiet hours). Null when it stays as it is. Only messages never tried are
+ * re-timed; a retry keeps its own wait.
+ */
+export const retimed = (
+  held: { readonly sendAfter: Instant; readonly attempts: number },
+  now: Instant,
+  tz: string,
+  quiet: QuietHours,
+): Instant | null => {
+  if (held.attempts > 0 || held.sendAfter.epochMs <= now.epochMs) return null
+  const at = sendAfter(now, tz, quiet)
+  return at.epochMs === held.sendAfter.epochMs ? null : at
 }
 
 /** What the events are about, looked up by whoever records them. */

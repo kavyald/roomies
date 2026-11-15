@@ -122,19 +122,21 @@ export const notificationsContract = (
       expect(await h.uow.run(sys, (r) => r.pushSubscriptions.forUsers([member]))).toHaveLength(1)
     })
 
-    it('members see only their own messages; only the system marks them sent', async () => {
-      const { house, admin, member } = await seedHouse(h)
+    it('only the system claims and marks messages; a claim holds them until it runs out (T83)', async () => {
+      const { house, member } = await seedHouse(h)
       const later = instant(T.epochMs + 60 * 60 * 1000)
+      const lease = (at: typeof T) => instant(at.epochMs + 10 * 60 * 1000)
       await h.uow.run(asMember(house.id, member), (r) =>
         r.notifications.enqueue([
           {
             userId: member,
             houseId: house.id,
-            category: 'people',
+            category: 'due',
             title: 'Now',
             body: '',
             url: '/',
             sendAfter: T,
+            expiresAt: later,
           },
           {
             userId: member,
@@ -147,25 +149,92 @@ export const notificationsContract = (
           },
         ]),
       )
-      const own = await h.uow.run(asMember(house.id, member), (r) => r.notifications.pending(T, 10))
-      expect(own.map((m) => [m.userId, m.title])).toEqual([[member, 'Now']])
-      const theirs = await h.uow.run(asMember(house.id, admin), (r) =>
-        r.notifications.pending(T, 10),
-      )
-      expect(theirs.filter((m) => m.houseId === house.id)).toEqual([])
       await expect(
-        h.uow.run(asMember(house.id, member), (r) => r.notifications.markSent(own[0]!.id, T, null)),
+        h.uow.run(asMember(house.id, member), (r) => r.notifications.claim(T, 10, lease(T))),
       ).rejects.toBeInstanceOf(Error)
       const sys = system(house.id)
-      const due = (await h.uow.run(sys, (r) => r.notifications.pending(T, 1000))).filter(
-        (m) => m.houseId === house.id,
+      const claim = async (at: typeof T) =>
+        (await h.uow.run(sys, (r) => r.notifications.claim(at, 1000, lease(at)))).filter(
+          (m) => m.houseId === house.id,
+        )
+      const [now] = await claim(T)
+      expect(now).toMatchObject({ title: 'Now', userId: member, attempts: 0, expiresAt: later })
+      // Held: nobody else takes it until the claim runs out.
+      expect(await claim(T)).toEqual([])
+      expect((await claim(lease(T))).map((m) => m.title)).toEqual(['Now'])
+      await expect(
+        h.uow.run(asMember(house.id, member), (r) => r.notifications.markSent(now!.id, T, null)),
+      ).rejects.toBeInstanceOf(Error)
+      await h.uow.run(sys, (r) => r.notifications.markSent(now!.id, T, null))
+      expect((await claim(later)).map((m) => m.title)).toEqual(['Later'])
+    })
+
+    it('two senders at once never claim the same message (T83)', async () => {
+      const { house, member } = await seedHouse(h)
+      await h.uow.run(asMember(house.id, member), (r) =>
+        r.notifications.enqueue(
+          [1, 2, 3, 4].map((n) => ({
+            userId: member,
+            houseId: house.id,
+            category: 'people' as const,
+            title: `Message ${n}`,
+            body: '',
+            url: '/',
+            sendAfter: T,
+          })),
+        ),
       )
-      expect(due.map((m) => m.title)).toEqual(['Now'])
-      await h.uow.run(sys, (r) => r.notifications.markSent(due[0]!.id, T, null))
-      const after = (await h.uow.run(sys, (r) => r.notifications.pending(later, 1000))).filter(
-        (m) => m.houseId === house.id,
+      const sys = system(house.id)
+      const until = instant(T.epochMs + 10 * 60 * 1000)
+      const both = await Promise.all(
+        [0, 1].map(() => h.uow.run(sys, (r) => r.notifications.claim(T, 1000, until))),
       )
-      expect(after.map((m) => m.title)).toEqual(['Later'])
+      const titles = both
+        .flat()
+        .filter((m) => m.houseId === house.id)
+        .map((m) => m.title)
+      expect(titles.sort()).toEqual(['Message 1', 'Message 2', 'Message 3', 'Message 4'])
+    })
+
+    it("a person's held messages can be moved to a new time, by the system only (T83)", async () => {
+      const { house, member, admin } = await seedHouse(h)
+      const later = instant(T.epochMs + 60 * 60 * 1000)
+      await h.uow.run(asMember(house.id, member), (r) =>
+        r.notifications.enqueue(
+          [member, admin].map((userId) => ({
+            userId,
+            houseId: house.id,
+            category: 'people' as const,
+            title: 'Held',
+            body: '',
+            url: '/',
+            sendAfter: later,
+          })),
+        ),
+      )
+      const sys = system(house.id)
+      // Read like any outbox row: a member sees only their own.
+      expect(
+        await h.uow.run(asMember(house.id, admin), (r) => r.notifications.heldFor(member, T)),
+      ).toEqual([])
+      const held = await h.uow.run(sys, (r) => r.notifications.heldFor(member, T))
+      expect(held).toEqual([
+        expect.objectContaining({ userId: member, title: 'Held', sendAfter: later }),
+      ])
+      await expect(
+        h.uow.run(asMember(house.id, member), (r) => r.notifications.reschedule(held[0]!.id, T)),
+      ).rejects.toBeInstanceOf(Error)
+      await h.uow.run(sys, (r) => r.notifications.reschedule(held[0]!.id, T))
+      expect(await h.uow.run(sys, (r) => r.notifications.heldFor(member, T))).toEqual([])
+      const due = await h.uow.run(sys, (r) =>
+        r.notifications.claim(T, 1000, instant(T.epochMs + 1000)),
+      )
+      expect(due.filter((m) => m.houseId === house.id).map((m) => m.userId)).toEqual([member])
+      await h.uow.run(sys, (r) => r.notifications.markSent(held[0]!.id, T, null))
+      // A sent message isn't moved.
+      await expect(
+        h.uow.run(sys, (r) => r.notifications.reschedule(held[0]!.id, later)),
+      ).rejects.toBeInstanceOf(Error)
     })
 
     it('only the system puts a message off for a retry, counting the try (T84)', async () => {
@@ -186,9 +255,11 @@ export const notificationsContract = (
       )
       const sys = system(house.id)
       const mine = async (at = T) =>
-        (await h.uow.run(sys, (r) => r.notifications.pending(at, 1000))).filter(
-          (m) => m.houseId === house.id,
-        )
+        (
+          await h.uow.run(sys, (r) =>
+            r.notifications.claim(at, 1000, instant(at.epochMs + 60 * 1000)),
+          )
+        ).filter((m) => m.houseId === house.id)
       const [m] = await mine()
       expect(m).toMatchObject({ title: 'Retry me', attempts: 0 })
       await expect(
@@ -198,9 +269,10 @@ export const notificationsContract = (
       ).rejects.toBeInstanceOf(Error)
       await h.uow.run(sys, (r) => r.notifications.retryLater(m!.id, retryAt, 1, 'push_failed'))
       expect(await mine()).toEqual([])
+      // Putting it off releases the claim, so it's taken again when it's due.
       expect(await mine(retryAt)).toEqual([expect.objectContaining({ id: m!.id, attempts: 1 })])
       await h.uow.run(sys, (r) => r.notifications.markSent(m!.id, retryAt, null))
-      expect(await mine(retryAt)).toEqual([])
+      expect(await mine(instant(retryAt.epochMs + 60 * 60 * 1000))).toEqual([])
       // A sent message isn't put off again.
       await expect(
         h.uow.run(sys, (r) => r.notifications.retryLater(m!.id, retryAt, 2, 'push_failed')),
