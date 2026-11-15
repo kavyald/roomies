@@ -867,7 +867,7 @@ app/
     i/[itemId]/              -- a link to an item (notifications): opens its sheet over House
     p/[pollId]/  r/[runId]/  -- links to a poll or a run (notifications): open its sheet over House, or say it isn't there
     welcome/                 -- onboarding after join and setup (T110): welcome, then notifications; no tab bar
-    me/                      -- your settings: two entries (T65), each its own page
+    me/                      -- You (T109): your name, your room, Notifications and Appearance (each its own page, T65), feedback, Sign out, Delete my account
       notifications/         -- notification categories, quiet hours, this device's push
       appearance/            -- theme (auto | light | dark)
   dev/kit/                   -- the UI kit in light + dark (not in production builds)

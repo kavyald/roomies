@@ -43,7 +43,7 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 - **No replacement for the group chat.** There are no comment threads. Each person's feeling + note on an item is the only in-app conversation (§7).
 - **No landlord or super accounts.** They're contacts, not users.
 - **No native Android polish.** It will work in Android Chrome, but we design and QA for iPhone Safari.
-- Everything in §13 (bills, ownership, rotations, and more) waits until after v1.
+- Everything in §13 (bills, ownership, and more) waits until after v1.
 
 ### 2.3 Success metrics
 
