@@ -60,24 +60,34 @@ export const dismissInstallGuide = async (page: Page) => {
   await expect(guide).toBeHidden()
 }
 
-/** Signs in as a fresh owner and opens their Admin tab. */
+/** Signs in as a fresh owner, who lands on the House tab (T107). */
 export const ownerOnHouseTab = async (page: Page) => {
   const owner = await anOwner('Kavya')
   await signIn(page, owner.email)
   await expect(page).toHaveURL(new RegExp(`/h/${owner.houseId}$`))
   await dismissInstallGuide(page)
-  await page.goto(`/h/${owner.houseId}/admin`)
   return owner
 }
 
-/** + → tile → title → Add: three taps and a title. */
+const TAB_FOR: Record<string, string> = {
+  'A need': 'Needs',
+  'A chore': 'Chores',
+  'A task': 'Tasks',
+}
+
+/**
+ * The kind's tab → + → title → Add: three taps and a title. The + shows only on Needs, Tasks and
+ * Chores, and goes straight to that kind's form (T107).
+ */
 export const addWithThreeTaps = async (page: Page, tile: string, title: string) => {
-  await page.getByRole('button', { name: 'Add', exact: true }).click() // 1
   await page
-    .getByRole('dialog', { name: 'Add something' })
-    .getByRole('button', { name: new RegExp(`^${tile}`) })
-    .click() // 2
-  const sheet = page.getByRole('dialog')
+    .getByRole('navigation', { name: 'Tabs' })
+    .getByRole('link', { name: TAB_FOR[tile] })
+    .click() // 1
+  // Wait for the tab to land, or the + still on the last tab adds the last kind.
+  await expect(page.getByRole('heading', { name: TAB_FOR[tile], level: 1 })).toBeVisible()
+  await page.getByRole('button', { name: 'Add', exact: true }).click() // 2
+  const sheet = page.getByRole('dialog', { name: tile })
   await sheet.getByRole('textbox').first().fill(title)
   await sheet.getByRole('button', { name: 'Add', exact: true }).click() // 3
   // The sheet closes once the house has it (added, or pointed at the one already there).

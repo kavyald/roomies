@@ -256,7 +256,7 @@ describe('notificationsFor', () => {
     ['poll.closed', '/h/h/p/p', { kind: 'poll.closed', pollId: 'p', payload: {} }],
     ['run.created', '/h/h/r/g', { kind: 'run.created', runId: 'g' }],
     ['run.date_set', '/h/h/r/v', { kind: 'run.date_set', runId: 'v', changes: {} }],
-    ['member.joined', '/h/h/admin', { kind: 'member.joined', memberId: sam }],
+    ['member.joined', '/h/h/house/roommates', { kind: 'member.joined', memberId: sam }],
   ])('a %s message opens %s', (_, url, event) => {
     const msgs = notificationsFor(
       [{ actionId: act, by: kavya, changes: { anxious: [20, 30] }, ...event } as DomainEvent],
@@ -371,7 +371,7 @@ describe('extra pushes (D32)', () => {
         u,
         'feelings',
         'Kavya set 😰 to +30',
-        'Home is ranked with the new weights.',
+        'Priorities change for everyone.',
         '/h/h',
       ]),
     )

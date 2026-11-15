@@ -30,7 +30,7 @@ import { UpkeepSection } from './UpkeepSection'
 /**
  * Chores (FRONTEND §5.6, T101): what you have this week, then each routine with a box per room
  * that has chores (yours first, ticked right there), then Upkeep, the house's own list. Built to
- * fit one phone screen, with no numbers and no "due". A room's chores are set up in Admin → Rooms.
+ * fit one phone screen, with no numbers and no "due". A room's chores are set up in House → Rooms.
  */
 export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   const { me } = useAppClient()
@@ -85,14 +85,14 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
         icon={Sparkles}
         action={
           <Link
-            href={`/h/${houseId}/admin`}
+            href={`/h/${houseId}`}
             className="sticker inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-3.5 py-2 text-sm font-extrabold text-on-accent [--sticker-edge:color-mix(in_srgb,var(--accent)_60%,#000)]"
           >
             Set up rooms
           </Link>
         }
       >
-        Nothing to do yet. Give each room its chores in Admin → Rooms.
+        Nothing to do yet. Give each room its chores in House → Rooms.
       </EmptyState>
     )
   }

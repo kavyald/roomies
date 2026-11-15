@@ -31,7 +31,7 @@ const writeDismissed = (id: number) => {
   }
 }
 
-/** "Maya set 😰 Anxious to +30" on Home for a few days after the weights change (PRD §8.2). */
+/** "Maya set 😰 Anxious to +30" on House for a few days after the weights change (PRD §8.2). */
 export function WeightsChangedCard({ houseId }: { houseId: HouseId }) {
   const { me } = useAppClient()
   const latest = useLatestWeightsChange(houseId)
@@ -64,8 +64,7 @@ export function WeightsChangedCard({ houseId }: { houseId: HouseId }) {
           {who} {describeWeightsChange(row.changes as FieldChanges | undefined)}
         </span>
         <span className="block text-[0.8rem] font-semibold text-ink-soft">
-          The feed is re-ranked for everyone ·{' '}
-          {relativeTime(row.at, now, house.data.settings.timezone)}
+          Priorities change for everyone · {relativeTime(row.at, now, house.data.settings.timezone)}
         </span>
       </p>
       <button

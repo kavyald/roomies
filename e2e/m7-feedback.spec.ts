@@ -1,14 +1,14 @@
-// T91: Admin's feedback icon sends the owner a bug, an idea or praise, stamped by the server with
-// who sent it, from which house, the app version and the browser.
+// T91: House's feedback icon (Admin's before T107) sends the owner a bug, an idea or praise,
+// stamped by the server with who sent it, from which house, the app version and the browser.
 import { expect, test } from '@playwright/test'
 import { asOwner } from '../lib/testing/db'
 import { ownerOnHouseTab } from './support'
 
-test('a bug sent from Admin is stored with the sender, house, version and browser', async ({
+test('a bug sent from House is stored with the sender, house, version and browser', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
-  await expect(page.getByRole('heading', { name: 'Admin', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'House', level: 1 })).toBeVisible()
 
   const sheet = page.getByRole('dialog', { name: 'Feedback' })
   const icon = page.getByRole('button', { name: 'Send feedback' })

@@ -4,32 +4,30 @@ import { useState } from 'react'
 import { inputClass } from '@/components/auth/fields'
 import { SplitwiseMark } from '@/components/costs/SplitwiseMark'
 import { Button } from '@/components/ui/Button'
-import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { ListRow } from '@/components/ui/ListRow'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { useHouse, useSetSplitwiseGroup } from '@/lib/client/hooks'
 import type { HouseId } from '@/lib/domain/ids'
 
 /**
- * Admin → Splitwise (T89): the house's group link, which every cost's Splitwise icon opens. Any
+ * House → Money → Splitwise (T89): the house's group link, which every cost's Splitwise icon opens. Any
  * roommate can set, change or remove it.
  */
-export function SplitwiseSection({ houseId }: { houseId: HouseId }) {
+export function SplitwiseRow({ houseId }: { houseId: HouseId }) {
   const house = useHouse(houseId)
   const [open, setOpen] = useState(false)
   if (!house.data) return null
   const linked = house.data.settings.splitwiseGroup
   return (
     <>
-      <ListGroup label="Splitwise">
-        <ListRow
-          leading={<SplitwiseMark />}
-          title="Splitwise"
-          subtitle={linked ? 'Costs open your group' : "Add your group's link"}
-          onClick={() => setOpen(true)}
-          editable
-        />
-      </ListGroup>
+      <ListRow
+        leading={<SplitwiseMark />}
+        title="Splitwise"
+        subtitle={linked ? 'Costs open your group' : "Add your group's link"}
+        onClick={() => setOpen(true)}
+        editable
+      />
       {open && <SplitwiseSheet houseId={houseId} current={linked} onClose={() => setOpen(false)} />}
     </>
   )

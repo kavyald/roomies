@@ -40,7 +40,7 @@ export const feelSide = {
 }
 
 /**
- * An item as a card (FRONTEND §5.1): one line with the tier (and, on Home, the category) and the
+ * An item as a card (FRONTEND §5.1): one line with the tier (and, where kinds mix, the category) and the
  * feelings; the title; chips (whose need it is, the room, or all of a chore's rooms, then the run it's on or who's handling it); one
  * meta line. Tapping it opens the detail sheet. Beside it, the check button does the quick action
  * and 🙂+ opens the emoji tray; swiping right and left do the same two things.
@@ -60,11 +60,11 @@ export function ItemCard({
   ctx: CardContext
   /** The meta line: "Due Thu", "Last done 9 days ago · Wren", … */
   meta?: string
-  /** The priority tier, on Home's ranked feed. */
+  /** The priority tier, where a list is ranked. */
   tier?: Tier
   /** The feelings on this item, shown as "😤1 🙏2". */
   feelings?: readonly Feeling[]
-  /** Home mixes needs, chores and tasks, so its cards say which they are. */
+  /** A list that mixes needs, chores and tasks says which each card is. */
   showCategory?: boolean
   onOpen: () => void
   onCheck?: () => void

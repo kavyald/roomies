@@ -52,8 +52,8 @@ function Contents() {
   return (
     <div className="grid gap-6">
       <Section title="Type">
-        <h1 className="m-0 text-[1.75rem] font-extrabold">Home</h1>
-        <p className="m-0 text-xl font-bold">Open polls</p>
+        <h1 className="m-0 text-[1.75rem] font-extrabold">House</h1>
+        <p className="m-0 text-xl font-bold">Polls</p>
         <p className="m-0">Body text, 17pt. This one&apos;s been waiting a couple days.</p>
         <p className="m-0 text-[0.8rem] font-medium text-ink-soft">
           Kitchen · Wren · Needed by Fri

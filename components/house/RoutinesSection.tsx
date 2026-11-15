@@ -83,7 +83,7 @@ type Context = {
 }
 
 /**
- * Admin → Routines (FRONTEND §5.11, T98), for every member: who looks after a set of rooms, when its
+ * House → Routines (FRONTEND §5.11, T98), for every member: who looks after a set of rooms, when its
  * checklist starts fresh, and who has it now. The only screen that says "routine".
  */
 export function RoutinesSection({ houseId }: { houseId: HouseId }) {

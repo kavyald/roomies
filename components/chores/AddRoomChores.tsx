@@ -22,7 +22,7 @@ export const pickHeadingClass =
  * Giving a room Deep clean chores (T101): every chore name in the house as one-tap picks (minus the
  * ones it has), a search that narrows them whatever the case, and **New chore** for a name that
  * isn't there yet. The sheet's header check adds them all as one action, a copy each. Used in
- * Admin → Rooms and on the Chores tab; it must sit inside a `Sheet`.
+ * House → Rooms and on the Chores tab; it must sit inside a `Sheet`.
  */
 export function AddRoomChores({
   houseId,

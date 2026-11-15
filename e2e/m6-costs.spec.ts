@@ -17,7 +17,7 @@ test('a cost on an item is edited, then removed, and Activity follows (T57); Hou
     ),
   )
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Roommates' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'People' })).toBeVisible()
   await expect(page.getByText(/Spent this month/)).toHaveCount(0)
 
   await page.goto(`/h/${owner.houseId}/needs`)

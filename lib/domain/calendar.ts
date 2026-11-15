@@ -42,18 +42,11 @@ export const comingUp = (
   today: LocalDate,
 ): CalendarEntry[] => calendarEntries(items, runs, today, addDays(today, 6))
 
-/**
- * Whether an item is an open task or need dated in the coming week. Home's one list takes these
- * in alongside the feed (T81), so nothing with a date this week drops off Home.
- */
-export const isComingUp = (item: Item, today: LocalDate): boolean =>
-  comingUp([item], [], today).length > 0
-
 const runDate = (r: Batch | Visit) => r.when?.date
 
 /**
- * The runs Home lists (T81): every open batch, plus open visits dated in the coming week. Dated
- * ones first, soonest first; then the rest, oldest first.
+ * The runs in progress (T81; on Needs since T107): every open batch, plus open visits dated in the
+ * coming week. Dated ones first, soonest first; then the rest, oldest first.
  */
 export const homeRuns = (runs: readonly Run[], today: LocalDate): (Batch | Visit)[] => {
   const week = new Set(

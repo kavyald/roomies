@@ -23,7 +23,7 @@ Five concepts cover v1:
 On top of that:
 
 - **Feelings.** Any roommate can add a feeling (😰 anxious, 😤 frustrated, 🙂 fine…) plus a note to any item. Feelings raise priority, so concerns are heard *and* acted on. Feelings are always about the item, never the person.
-- **A ranked Home feed** that says why each thing is there ("Due tomorrow +25, 😰 Maya +20"). The feeling weights are a house-wide setting anyone can change.
+- **Priority from feelings**: each item says why it ranks where it does ("Due tomorrow +25, 😰 Maya +20"), and Needs puts what people feel about first. The feeling weights are a house-wide setting anyone can change.
 - **Requests and visits.** Gather tasks on a landlord list, send one message, then record the reply by moving tasks: accepted ones to a visit, the rest back to the pool with a note.
 - **An activity log** that's the single source of history: every task's path, every earlier feeling, every vote.
 
@@ -37,7 +37,7 @@ It's a PWA for iPhone Safari: roommates open a link, add it to their Home Screen
 open docs/archive/mockup-v1.html
 ```
 
-Things to try: vote on "Which vacuum?", record the landlord's reply on the Landlord request (Tasks tab), finish a grocery run and log the cost, change a feeling weight under Admin → Feeling weights, and check Admin → Activity.
+Things to try: vote on "Which vacuum?", record the landlord's reply on the Landlord request (Tasks tab), finish a grocery run and log the cost, change a feeling weight under House → Priority, and check House → Activity.
 
 ## Docs
 

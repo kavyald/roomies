@@ -6,7 +6,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { useAppClient } from '@/lib/client/provider'
 import type { HouseId } from '@/lib/domain/ids'
 
-/** Your avatar in the Home header: personal settings (FRONTEND §5.1). */
+/** Your avatar in the House header: personal settings (FRONTEND §5.1). */
 export function MeLink({ houseId }: { houseId: HouseId }) {
   const { me } = useAppClient()
   const ctx = useCardContext(houseId)

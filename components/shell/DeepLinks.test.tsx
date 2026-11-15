@@ -21,7 +21,7 @@ beforeEach(() => vi.clearAllMocks())
 afterEach(cleanup)
 
 describe('poll and run deep links', () => {
-  it('open the sheet over Home once the poll or run is in the house', () => {
+  it('open the sheet over House once the poll or run is in the house', () => {
     lists.polls = { data: [{ id: 'p1' }], isError: false }
     lists.runs = { data: [{ id: 'r1' }], isError: false }
     const { container } = render(
@@ -49,7 +49,7 @@ describe('poll and run deep links', () => {
     render(<OpenPoll houseId={house} pollId={'nope' as PollId} />)
     expect(screen.getByRole('heading', { name: 'Poll', level: 1 })).toBeTruthy()
     expect(screen.getByText("We couldn't find that poll. It may have been removed.")).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Go to Home' }).getAttribute('href')).toBe('/h/h1')
+    expect(screen.getByRole('link', { name: 'Go to House' }).getAttribute('href')).toBe('/h/h1')
     cleanup()
     render(<OpenRun houseId={house} runId={'nope' as RunId} />)
     expect(screen.getByText("We couldn't find that run. It may have been removed.")).toBeTruthy()

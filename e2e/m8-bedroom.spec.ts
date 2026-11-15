@@ -1,4 +1,5 @@
-// T93: anyone, the organizer included, picks, changes or clears their own bedroom from Roommates.
+// T93: anyone, the organizer included, picks, changes or clears their own bedroom from
+// House → Roommates.
 import { expect, test } from '@playwright/test'
 import { anOwner, dismissInstallGuide, signIn } from './support'
 
@@ -6,7 +7,7 @@ test('the organizer picks a bedroom, changes it, then clears it', async ({ page 
   const owner = await anOwner('Kavya') // set up the old way: no bedroom
   await signIn(page, owner.email)
   await dismissInstallGuide(page)
-  await page.goto(`/h/${owner.houseId}/admin`)
+  await page.goto(`/h/${owner.houseId}/house/roommates`)
 
   const roommates = page.getByRole('list', { name: 'Roommates' })
   const sheet = page.getByRole('dialog', { name: 'You' })

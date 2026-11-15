@@ -35,7 +35,7 @@ test('take back a vote, move and clear the deadline, close and reopen', async ({
   await dismissInstallGuide(page)
 
   await page
-    .getByRole('region', { name: 'Open polls' })
+    .getByRole('region', { name: 'Polls' })
     .getByRole('button', { name: /^House name\?/ })
     .click()
   const sheet = page.getByRole('dialog', { name: 'House name?' })

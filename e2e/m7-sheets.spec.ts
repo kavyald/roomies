@@ -3,18 +3,18 @@
 import { expect, test, type Page } from '@playwright/test'
 import { ownerOnHouseTab } from './support'
 
+/** + on Needs opens "A need" straight away (T107: the + lives on Needs, Tasks and Chores). */
 const openAddSheet = async (page: Page) => {
+  await page.getByRole('navigation', { name: 'Tabs' }).getByRole('link', { name: 'Needs' }).click()
   await page.getByRole('button', { name: 'Add', exact: true }).click()
-  const sheet = page.getByRole('dialog', { name: 'Add something' })
+  const sheet = page.getByRole('dialog', { name: 'A need' })
   await expect(sheet).toBeVisible()
   return sheet
 }
 
 test('the header check saves a form sheet; there is no bottom Save and no X', async ({ page }) => {
   await ownerOnHouseTab(page)
-  await openAddSheet(page)
-  await page.getByRole('button', { name: /^A need/ }).click()
-  const sheet = page.getByRole('dialog', { name: 'A need' })
+  const sheet = await openAddSheet(page)
   const check = sheet.getByRole('button', { name: 'Add', exact: true })
 
   // One commit button, in the header beside the title, at least 44px; off until there's a title.
@@ -34,7 +34,6 @@ test('the header check saves a form sheet; there is no bottom Save and no X', as
 
   // Enter in the title still submits through the header check.
   await openAddSheet(page)
-  await page.getByRole('button', { name: /^A need/ }).click()
   await sheet.getByLabel('What do we need?').fill('Sponges')
   await page.keyboard.press('Enter')
   await expect(sheet).toBeHidden()
@@ -61,7 +60,7 @@ test('a sheet dismisses by Escape, the Close handle, the backdrop, and a swipe d
   sheet = await openAddSheet(page)
   // Let the opening slide finish first: under load a drag that starts mid-animation is ignored.
   await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
-  const heading = (await sheet.getByRole('heading', { name: 'Add something' }).boundingBox())!
+  const heading = (await sheet.getByRole('heading', { name: 'A need' }).boundingBox())!
   await page.mouse.move(heading.x + 20, heading.y + 5)
   await page.mouse.down()
   await page.mouse.move(heading.x + 20, heading.y + 400, { steps: 15 })

@@ -9,7 +9,7 @@ import { splitwiseUrl } from '@/lib/domain/splitwise'
 
 /**
  * A cost's Splitwise icon (T89): copies "{title} — $42.50", opens the house's Splitwise group (or
- * Splitwise's home page until one is linked in Admin), and notes it, which highlights the icon.
+ * Splitwise's home page until one is linked on House), and notes it, which highlights the icon.
  * Splitwise has no link that fills in an expense, so the copied line is what you paste.
  *
  * The copy starts and the window opens inside the tap itself, before anything is awaited: iPhone

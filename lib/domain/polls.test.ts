@@ -11,6 +11,8 @@ import {
 import {
   addPollOption,
   closePoll,
+  housePolls,
+  RECENT_CLOSED_POLLS,
   createPoll,
   isPollOpen,
   reopenPoll,
@@ -328,5 +330,45 @@ describe('resultLine', () => {
     expect(resultLine(p, { winner: opt('gone'), votes: 1, runnerUp: 0 })).toBe(
       'An option wins (1–0)',
     )
+  })
+})
+
+describe('housePolls (T107)', () => {
+  const at = (ms: number) => instant(ms)
+  const poll = (id: string, o: Partial<Poll>): Poll => ({
+    ...vacuum(),
+    id: asId<'poll'>(id) as PollId,
+    question: id,
+    ...o,
+  })
+  it('lists open polls first, then the latest closed ones with their result', () => {
+    const now = at(10_000)
+    const polls = [
+      poll('closed-early', { state: { open: false, closedAt: at(2_000) } }),
+      poll('open-old', { createdAt: at(1_000) }),
+      poll('due-soon', { closesAt: at(20_000) }),
+      poll('past-deadline', { closesAt: at(5_000) }),
+      castAll(poll('closed-late', { createdAt: at(1_000) }), [[kavya, 'shark']]),
+    ]
+    const closedLate = polls[4]!
+    polls[4] = { ...closedLate, state: { open: false, closedAt: at(9_000) } }
+    const list = housePolls(polls, now)
+    expect(list.map((e) => [e.poll.question, e.open])).toEqual([
+      ['due-soon', true],
+      ['open-old', true],
+      ['closed-late', false],
+      ['past-deadline', false],
+      ['closed-early', false],
+    ])
+    expect(list[2]!.result).toBe('Shark wins (1–0)')
+    expect(list[0]!.result).toBeUndefined()
+  })
+
+  it(`keeps only the ${RECENT_CLOSED_POLLS} most recent closed polls`, () => {
+    const closed = Array.from({ length: 8 }, (_, i) =>
+      poll(`p${i}`, { state: { open: false, closedAt: at(i * 100) } }),
+    )
+    const list = housePolls(closed, at(10_000))
+    expect(list.map((e) => e.poll.question)).toEqual(['p7', 'p6', 'p5', 'p4', 'p3'])
   })
 })

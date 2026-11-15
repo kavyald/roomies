@@ -1,13 +1,12 @@
-// Q7: the M7 screens together. Five tabs in order, Admin's layout (Feeling weights, Activity, then
-// Rooms, no Notifications link), personal settings as two pages, Home as one list, an empty Tasks
-// with no requests block, and no monthly total anywhere while costs still record (T64–T67, T81, T82).
+// Q7: the M7 screens together, as T107 left them. Four tabs in order, House's layout (Polls,
+// Calendar, Activity, then People, Chores, Money and Priority; no Notifications link), personal
+// settings as two pages, an empty Tasks with no requests block, and no monthly total anywhere while
+// costs still record (T64–T67, T82, T107).
 import { expect, test } from '@playwright/test'
 import { asOwner } from '../lib/testing/db'
 import { anItem, anOwner, dismissInstallGuide, signIn } from './support'
 
-test('the M7 screens: tabs, Admin, You, Home and Tasks, with no monthly total', async ({
-  page,
-}) => {
+test('the M7 screens: tabs, House, You and Tasks, with no monthly total', async ({ page }) => {
   const owner = await anOwner('Kavya')
   const plumber = await anItem(owner, { category: 'task', title: 'Plumber comes' })
   await anItem(owner, { category: 'need', title: 'Dish soap' })
@@ -19,14 +18,13 @@ test('the M7 screens: tabs, Admin, You, Home and Tasks, with no monthly total', 
   await expect(page).toHaveURL(new RegExp(`${h}$`))
   await dismissInstallGuide(page)
 
-  // Tabs: Home, Needs, Tasks, Chores, Admin.
+  // Tabs: House, Needs, Tasks, Chores.
   const tabs = page.getByRole('navigation', { name: 'Tabs' }).getByRole('link')
-  await expect(tabs).toHaveText(['Home', 'Needs', 'Tasks', 'Chores', 'Admin'])
+  await expect(tabs).toHaveText(['House', 'Needs', 'Tasks', 'Chores'])
 
-  // Home: one list by priority, no section headings; the dated task is in it once.
-  await expect(page.getByRole('heading', { name: /Coming up|Needs attention/ })).toHaveCount(0)
-  const list = page.getByRole('list', { name: 'By priority' })
-  await expect(list.getByRole('button', { name: 'Plumber comes', exact: true })).toHaveCount(1)
+  // House is first and is where the app opens; the dated task counts on its Calendar row.
+  await expect(page.getByRole('heading', { name: 'House', level: 1 })).toBeVisible()
+  await expect(page.getByRole('link', { name: /^Calendar/ })).toContainText('1 this week')
 
   // You: Notifications and Appearance, each its own page.
   await page.getByRole('link', { name: 'Your settings' }).click()
@@ -37,21 +35,27 @@ test('the M7 screens: tabs, Admin, You, Home and Tasks, with no monthly total', 
   await page.getByRole('link', { name: /^Notifications/ }).click()
   await expect(page).toHaveURL(new RegExp(`${h}/me/notifications$`))
 
-  // Admin (and the old /house link lands there): Feeling weights, Activity, then Rooms, untitled;
-  // no Notifications link and no Money, Settings or History headings.
-  await page.goto(`${h}/house`)
-  await expect(page).toHaveURL(new RegExp(`${h}/admin$`))
-  await expect(page.getByRole('heading', { name: 'Admin', level: 1 })).toBeVisible()
+  // House (old /house and /admin links land there): Polls, then Calendar and Activity, then the
+  // setup groups in order; no Notifications link and no Settings or History headings.
+  await page.goto(`${h}/admin`)
+  await expect(page).toHaveURL(new RegExp(`${h}$`))
   await expect(page.getByRole('link', { name: /Notifications/ })).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: /^(Money|Settings|History)$/ })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: /^(Settings|History)$/ })).toHaveCount(0)
   // The rows load after the heading; read the page once the last of them is there.
-  await expect(page.getByRole('main').getByText('Feeling weights')).toBeVisible()
-  await expect(page.getByRole('list', { name: 'Rooms' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^How feelings raise priority/ })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('heading', { level: 2 })).toHaveText([
+    'Polls',
+    'People',
+    'Chores',
+    'Money',
+    'Priority',
+  ])
   const text = await page.locator('main').innerText()
   const at = (s: string) => text.indexOf(s)
-  expect(at('Feeling weights')).toBeGreaterThan(-1)
-  expect(at('Feeling weights')).toBeLessThan(at('Activity'))
-  expect(at('Activity')).toBeLessThan(at('Rooms'))
+  expect(at('Calendar')).toBeGreaterThan(-1)
+  expect(at('Calendar')).toBeLessThan(at('Activity'))
+  expect(at('Activity')).toBeLessThan(at('Roommates'))
+  expect(at('Roommates')).toBeLessThan(at('Routines'))
 
   // Tasks with nothing open: the Requests & visits heading and its New, no empty-state block.
   await tabs.filter({ hasText: 'Tasks' }).click()
@@ -79,7 +83,7 @@ test('the M7 screens: tabs, Admin, You, Home and Tasks, with no monthly total', 
       }),
     )
     .toEqual([1200])
-  for (const path of ['', '/needs', '/tasks', '/chores', '/admin', '/activity', '/me']) {
+  for (const path of ['', '/needs', '/tasks', '/chores', '/activity', '/calendar', '/me']) {
     await page.goto(`${h}${path}`)
     await expect(page.locator('main')).toBeVisible()
     await expect(page.getByText(/Spent this month|this month's total/i)).toHaveCount(0)

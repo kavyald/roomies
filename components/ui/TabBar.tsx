@@ -23,7 +23,7 @@ export function TabBar({
         'border-t-[1.5px] border-line bg-[color-mix(in_srgb,var(--paper)_92%,transparent)] px-1.5 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] backdrop-blur-[10px]',
       )}
     >
-      <ul className="mx-auto grid max-w-[430px] grid-cols-5">
+      <ul className="mx-auto grid max-w-[430px] auto-cols-fr grid-flow-col">
         {tabs.map(({ href, label, icon: Icon }) => {
           const active = href === current
           return (

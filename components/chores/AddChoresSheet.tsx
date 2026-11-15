@@ -10,7 +10,7 @@ import { AddRoomChores } from './AddRoomChores'
 
 /**
  * Adding Deep clean chores from the Chores tab (T101): pick one of a group's rooms, then its
- * chores, the same way as in Admin → Rooms; adding closes it. Reaches rooms with no chores yet,
+ * chores, the same way as in House → Rooms; adding closes it. Reaches rooms with no chores yet,
  * which have no box.
  */
 export function AddChoresSheet({
@@ -34,7 +34,9 @@ export function AddChoresSheet({
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()} title="Add chores" description={title}>
       {rooms.length === 0 ? (
-        <p className="m-0 text-sm text-ink-soft">No rooms here yet. Group rooms in Admin.</p>
+        <p className="m-0 text-sm text-ink-soft">
+          No rooms here yet. Group rooms in House → Routines.
+        </p>
       ) : (
         <div className="grid gap-3.5">
           <div className="grid gap-1.5">

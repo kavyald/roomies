@@ -86,7 +86,7 @@ describe('the + sheet (FRONTEND §5.3)', { timeout: 20_000 }, () => {
     await waitFor(() => expect(titles()).toEqual(['chore:Water the plants']))
   })
 
-  it('Home keeps the picker, and the form can go back to it for a poll or a run', async () => {
+  it('with no kind the picker opens first, and the form can go back to it for a poll or a run', async () => {
     await setup()
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     const picker = await screen.findByRole('dialog', { name: 'Add something' })

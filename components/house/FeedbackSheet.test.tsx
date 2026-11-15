@@ -53,7 +53,7 @@ const setup = async () => {
   return { deps, member }
 }
 
-describe('Admin → Send feedback (T91)', () => {
+describe('House → Send feedback (T91)', () => {
   it('an icon with no visible text opens a sheet that sends a bug', async () => {
     const { deps, member } = await setup()
     const user = userEvent.setup()

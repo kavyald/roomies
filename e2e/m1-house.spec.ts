@@ -3,6 +3,7 @@ import { ownerOnHouseTab } from './support'
 
 test('the super and landlord are saved, with their numbers', async ({ page }) => {
   await ownerOnHouseTab(page)
+  await page.getByRole('link', { name: /^Contacts/ }).click() // House → People → Contacts (T107)
   await expect(page.getByText('No contacts yet. Add the super or the landlord.')).toBeVisible()
 
   for (const [name, phone] of [
@@ -25,9 +26,9 @@ test('the super and landlord are saved, with their numbers', async ({ page }) =>
   await expect(contacts.getByRole('button', { name: "Copy Super's number" })).toBeVisible()
 })
 
-/** Opens Admin → Rooms: one row, then a sheet of plain names by group (T66). */
+/** Opens House → Chores → Rooms: one row, then a sheet of plain names by group (T66, T107). */
 const openRooms = async (page: Page) => {
-  const row = page.getByRole('list', { name: 'Rooms' }).getByRole('button')
+  const row = page.getByRole('list', { name: 'Chores' }).getByRole('button', { name: /^Rooms/ })
   await expect(row).toHaveCount(1)
   await row.click()
   return page.getByRole('dialog', { name: 'Rooms' })

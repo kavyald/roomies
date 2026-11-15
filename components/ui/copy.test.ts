@@ -16,12 +16,13 @@ const ITEM_ROOTS = [
   'components/needs',
   'components/chores',
   'components/tasks',
-  'components/home',
+  'components/house',
   'components/activity',
 ]
 const ITEM_BANNED = /\barchiv(e|es|ed|ing)?\b|30 days/i // "archivedAt" is a field, not copy
-// The role is "organizer" in copy; `admin` stays in the data (PRD D40, T103). The tab is "Admin",
-// always capitalised, and paths like `${home}/admin` follow a slash, so neither counts.
+// The role is "organizer" in copy; `admin` stays in the data (PRD D40, T103). The old Admin tab
+// (House since T107) was always capitalised, and paths like `${base}/admin` follow a slash, so
+// neither counts.
 const ROLE_BANNED = /(?<![/\w])admins?\b/
 const COPY_ATTRS = new Set(['aria-label', 'title', 'placeholder', 'label', 'description', 'alt'])
 
@@ -60,9 +61,7 @@ describe('copy', () => {
 
   it('reads the whole app (a sanity check that the lint sees real copy)', () => {
     expect(all.length).toBeGreaterThan(100)
-    expect(all.flatMap((f) => copyIn(f))).toContain(
-      'Nothing needs attention right now. Enjoy the quiet.',
-    )
+    expect(all.flatMap((f) => copyIn(f))).toContain('Saved. Priorities change for everyone.')
   })
 
   it('never says "overdue", "failed", or "missed"', () => {
@@ -83,7 +82,7 @@ describe('copy', () => {
     expect(offending).toEqual([])
   })
 
-  it('calls the role "organizer", never "admin" (the tab keeps its name)', () => {
+  it('calls the role "organizer", never "admin"', () => {
     const offending = all.flatMap((f) =>
       copyIn(f)
         .filter((text) => ROLE_BANNED.test(text))

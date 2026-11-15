@@ -69,14 +69,16 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await signIn(page, owner.email)
     await expect(page).toHaveURL(new RegExp(`/h/${owner.houseId}$`))
     await dismissInstallGuide(page)
-    await check(page, 'home')
+    await check(page, 'house')
 
     const h = `/h/${owner.houseId}`
     for (const [path, heading] of [
       ['/needs', 'Needs'],
       ['/chores', 'Chores'],
       ['/tasks', 'Tasks'],
-      ['/admin', 'Admin'],
+      ['/house/roommates', 'Roommates'],
+      ['/house/contacts', 'Contacts'],
+      ['/house/routines', 'Routines'],
       ['/activity', 'Activity'],
       ['/calendar', 'Calendar'],
       ['/me', 'You'],
@@ -117,40 +119,41 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expect(upkeep.getByRole('button', { name: 'Took care of it: Trash' })).toBeVisible()
     await check(page, 'chores (Upkeep, felt)')
 
-    // Admin → Routines (T98): the list, the edit sheet with its rooms, and the new-routine sheet.
-    await page.goto(`${h}/admin`)
+    // House → Routines (T98): the list, the edit sheet with its rooms, and the new-routine sheet.
+    await page.goto(`${h}/house/routines`)
     const routineRow = page.getByRole('list', { name: 'Routines' }).getByRole('button', {
       name: /^Kitchen/,
     })
     await expect(routineRow).toBeVisible()
-    await check(page, 'admin (routines)')
+    await check(page, 'house (routines)')
     const routineEdit = page.getByRole('dialog', { name: 'Kitchen' })
     await expect(async () => {
       if (!(await routineEdit.isVisible())) await routineRow.click()
       await expect(routineEdit).toBeVisible({ timeout: 2000 })
     }).toPass()
-    await check(page, 'admin (routine sheet)')
+    await check(page, 'house (routine sheet)')
     await page.keyboard.press('Escape')
     await expect(routineEdit).toBeHidden()
 
-    // Admin → Splitwise (T89): the group link sheet.
+    // House → Splitwise (T89): the group link sheet.
+    await page.goto(h)
     const splitwiseSheet = page.getByRole('dialog', { name: 'Splitwise group' })
     await expect(async () => {
       if (!(await splitwiseSheet.isVisible()))
-        await page.getByRole('list', { name: 'Splitwise' }).getByRole('button').click()
+        await page.getByRole('button', { name: /^Splitwise/ }).click()
       await expect(splitwiseSheet).toBeVisible({ timeout: 2000 })
     }).toPass()
-    await check(page, 'admin (Splitwise sheet)')
+    await check(page, 'house (Splitwise sheet)')
     await page.keyboard.press('Escape')
     await expect(splitwiseSheet).toBeHidden()
 
-    // Admin → Rooms: the sheet, then a room open to edit in place (T66).
-    await page.goto(`${h}/admin`)
+    // House → Rooms: the sheet, then a room open to edit in place (T66).
+    await page.goto(h)
     const rooms = page.getByRole('dialog', { name: 'Rooms' })
     // Under a full parallel run the first tap can land before the page hydrates; tap again.
     await expect(async () => {
       if (!(await rooms.isVisible())) {
-        await page.getByRole('list', { name: 'Rooms' }).getByRole('button').click()
+        await page.getByRole('button', { name: /^Rooms/ }).click()
       }
       await expect(rooms.getByRole('list', { name: 'Bedrooms' })).toBeVisible({ timeout: 2000 })
     }).toPass()
@@ -172,6 +175,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.keyboard.press('Escape')
     await expect(rooms).toBeHidden()
     // Your own sheet in Roommates, with "Which room is yours?" (T93).
+    await page.goto(`${h}/house/roommates`)
     const youSheet = page.getByRole('dialog', { name: 'You' })
     await expect(async () => {
       if (!(await youSheet.isVisible())) {
@@ -184,7 +188,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await check(page, 'roommates (your sheet)')
     await page.keyboard.press('Escape')
     await expect(youSheet).toBeHidden()
-    // Admin → Send feedback (T91).
+    // House → Send feedback (T91).
+    await page.goto(h)
     await page.getByRole('button', { name: 'Send feedback' }).click()
     await expect(page.getByRole('dialog', { name: 'Feedback' })).toBeVisible()
     await check(page, 'feedback sheet')
@@ -206,7 +211,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expect(page.getByRole('dialog', { name: 'Fix the latch' })).toBeVisible()
     await check(page, 'item')
 
-    // The deep link moves itself back to Home (OpenItem); wait for that instead of racing it.
+    // The deep link moves itself back to House (OpenItem); wait for that instead of racing it.
     await expect(page).toHaveURL(new RegExp(`${h}$`))
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog', { name: 'Fix the latch' })).toBeHidden()
@@ -227,8 +232,13 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await check(page, `${what} (unknown id)`)
     }
 
-    await page.goto(h)
+    // The + picker, reached from a kind's form (House has no +, T107).
+    await page.goto(`${h}/tasks`)
     await page.getByRole('button', { name: 'Add', exact: true }).click()
+    await page
+      .getByRole('dialog', { name: 'A task' })
+      .getByRole('button', { name: 'A poll or a run instead?' })
+      .click()
     await expect(page.getByRole('dialog', { name: 'Add something' })).toBeVisible()
     await check(page, 'add sheet')
 
@@ -253,11 +263,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
 
     // The poll sheet (T55): voted (the take-it-back hint), the deadline editor, and closed.
     await page.goto(h)
-    await page.getByRole('button', { name: 'Add', exact: true }).click()
-    await page
-      .getByRole('dialog', { name: 'Add something' })
-      .getByRole('button', { name: /^A poll/ })
-      .click()
+    await page.getByRole('button', { name: 'New poll' }).click()
     const newPoll = page.getByRole('dialog', { name: 'A poll' })
     await newPoll.getByLabel('Question').fill('House name?')
     await newPoll.getByLabel('Option 1', { exact: true }).fill('The Nest')

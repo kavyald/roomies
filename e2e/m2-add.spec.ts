@@ -38,8 +38,8 @@ test('a task gets its details from "More options", and the detail sheet shows th
   page,
 }) => {
   await ownerOnHouseTab(page)
+  await page.getByRole('navigation', { name: 'Tabs' }).getByRole('link', { name: 'Tasks' }).click()
   await page.getByRole('button', { name: 'Add', exact: true }).click()
-  await page.getByRole('button', { name: /^A task/ }).click()
   const sheet = page.getByRole('dialog', { name: 'A task' })
   await sheet.getByLabel('What needs doing?').fill('Leak under the sink')
   await sheet.getByRole('button', { name: 'More options' }).click()

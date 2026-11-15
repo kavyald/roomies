@@ -80,7 +80,7 @@ export const STARTER_CHORES: readonly ChorePick[] = [
 
 /**
  * Every chore name in the house, the most-used first, each with the icon it most often has; then
- * the starter names it doesn't have yet. What Admin → Rooms offers as one-tap picks (T101).
+ * the starter names it doesn't have yet. What House → Rooms offers as one-tap picks (T101).
  */
 export const choreNames = (items: readonly Item[]): ChorePick[] => {
   const byKey = new Map<string, { title: string; count: number; icons: Map<string, number> }>()

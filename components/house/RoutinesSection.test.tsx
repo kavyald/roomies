@@ -96,7 +96,7 @@ const openRow = async ({ user }: Setup, name: string) => {
   return screen.findByRole('dialog', { name })
 }
 
-describe('Admin → Routines (T98)', () => {
+describe('House → Routines (T98)', () => {
   it('starts empty, and adds the first one for me, weekly, taking turns, with its rooms', async () => {
     const s = await setup()
     expect(

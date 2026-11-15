@@ -84,8 +84,9 @@ test('"Which vacuum?" on a need and a standalone "House name?" both work, and 2â
     }
   })
   // Written straight to the database (no activity rows, so no live update): reload to see them.
+  // House lists the polls, open ones first (T107).
   await page.goto(`/h/${owner.houseId}`)
-  const openPolls = page.getByRole('region', { name: 'Open polls' })
+  const openPolls = page.getByRole('region', { name: 'Polls' })
   await expect(openPolls).toContainText('House name?')
   await expect(openPolls).toContainText('4/4 voted')
   await expect(openPolls).toContainText('Which vacuum?')
@@ -95,7 +96,10 @@ test('"Which vacuum?" on a need and a standalone "House name?" both work, and 2â
   await poll.getByRole('button', { name: 'Close poll' }).click()
   await expect(poll.getByRole('status')).toHaveText("It's a tie. Talk it out?")
   await page.keyboard.press('Escape')
-  await expect(openPolls).not.toContainText('House name?')
+  // Closed, it stays on House under the open ones, with its result.
+  await expect(openPolls.getByRole('button', { name: /^House name\?/ })).toContainText(
+    "Closed Â· It's a tie",
+  )
 
   await openPolls.getByRole('button', { name: /^Which vacuum\?/ }).click()
   poll = page.getByRole('dialog', { name: 'Which vacuum?' })

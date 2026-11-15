@@ -271,7 +271,7 @@ const draftsFor = (
       return to(everyoneBut(e.by), {
         category: 'feelings',
         title: `${actor} ${weightsChange(e.changes)}`,
-        body: 'Home is ranked with the new weights.',
+        body: 'Priorities change for everyone.',
         url: home,
       })
     case 'run.date_set': {
@@ -289,7 +289,7 @@ const draftsFor = (
         category: 'people',
         title: `${nameOf(e.memberId)} joined the house 🏠`,
         body: 'Say hi!',
-        url: `${home}/admin`,
+        url: `${home}/house/roommates`,
       })
     case 'member.moved_out':
     case 'member.removed':
@@ -299,7 +299,7 @@ const draftsFor = (
           category: 'people',
           title: `${nameOf(e.memberId)} moved out`,
           body: 'The house list is up to date.',
-          url: `${home}/admin`,
+          url: `${home}/house/roommates`,
         },
       )
     case 'member.role_changed': {
@@ -309,7 +309,7 @@ const draftsFor = (
         category: 'people',
         title: role === 'admin' ? "You're now an organizer" : "You're now a member",
         body: `${actor} changed your role.`,
-        url: `${home}/admin`,
+        url: `${home}/house/roommates`,
       })
     }
     default:

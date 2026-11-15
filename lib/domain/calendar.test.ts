@@ -4,7 +4,6 @@ import {
   calendarEntries,
   comingUp,
   homeRuns,
-  isComingUp,
   monthGrid,
   monthRange,
   shiftMonth,
@@ -92,16 +91,6 @@ describe('calendar', () => {
       'Groceries',
     ])
     expect(names(comingUp(items, runs, d('2026-10-14')))).toEqual(['Later'])
-  })
-
-  it('isComingUp: an open task or need dated in the coming week (T81)', () => {
-    const today = d('2026-09-30')
-    expect(items.filter((i) => isComingUp(i, today)).map((i) => i.title)).toEqual([
-      'Leak',
-      'Paint',
-      'Milk',
-    ])
-    expect(isComingUp(items[0]!, d('2026-10-02'))).toBe(false) // past is not coming up
   })
 
   it('homeRuns: open batches (any date) and open visits this week, dated soonest first (T81)', () => {

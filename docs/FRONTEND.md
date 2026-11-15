@@ -134,7 +134,7 @@ Inputs are always ≥ 16px, which prevents iOS from zooming in on focus.
 | Concept / state | Icon | Label on chip |
 |---|---|---|
 | Need | `shopping-bag` | Need |
-| Chore | `sparkles` | Chore (on Home; its kind, "Deep clean" or "Upkeep", is plain text under the detail's title) |
+| Chore | `sparkles` | Chore (the Chores tab; its kind, "Deep clean" or "Upkeep", is plain text under the detail's title) |
 | Task | `check-circle` | Task |
 | Task handled by a contact | `phone` | "Handled by: Super" |
 | Poll | `bar-chart-3` | "Poll · 2/4 voted" |
@@ -196,7 +196,7 @@ FIRST FLOOR                                         BASEMENT
 | B | Fitness space | common (door to the garden) | neutral |
 | — | Garden | outdoor | neutral |
 
-- Rooms can be renamed and reordered in Admin → Rooms (one row that opens a sheet), where they're listed as plain names grouped by type, not floor: **Bedrooms** (bedroom), **Bathrooms** (bath), **Spaces** (common, entry, utility, outdoor). The item room picker uses the same three groups. Rooms aren't added or archived from the app; the seeded 17 are the house.
+- Rooms can be renamed and reordered in House → Rooms (one row that opens a sheet), where they're listed as plain names grouped by type, not floor: **Bedrooms** (bedroom), **Bathrooms** (bath), **Spaces** (common, entry, utility, outdoor). The item room picker uses the same three groups. Rooms aren't added or archived from the app; the seeded 17 are the house.
 
 **[DECIDED] (owner)** Air, Fire, Water, and Earth are the four bedrooms, one per roommate. The craft room is shared. The baths are Bathroom 1 and 2 (upstairs, full) and Bathroom 3 (downstairs, half). The space with the garden door is the Fitness space.
 
@@ -221,33 +221,43 @@ FIRST FLOOR                                         BASEMENT
 
 ## 5. Key screens
 
-Tabs: **Home · Needs · Tasks · Chores · Admin** (T67; everyone sees the tab as "Admin", though only organizers (the `admin` role in the data, PRD D40) get the invite link and roommate controls; `/h/[houseId]/house` redirects to `/admin`). The calendar opens from Home.
+Tabs: **House · Needs · Tasks · Chores** (T107, PRD D43; before it, M7's Home · Needs · Tasks · Chores · Admin, T67). House is `/h/[houseId]` and is where the app opens; the old `/house` and `/admin` links redirect there. Calendar, Activity and You open from House and have a **‹ House** link back; so do House's own pages (Roommates and invites, Contacts, Routines). The **+** shows only on Needs, Tasks and Chores.
 
-### 5.1 Home
+### 5.1 House
 
 ```
 ┌───────────────────────────────┐
-│ Home                    (KD)  │  ← your avatar → personal settings
-│ Open polls                    │  ← "Which vacuum? · 2/4 voted"
-│ Runs in progress              │  ← open batches + visits this week
-│ [Thu 10:00 Super visit]       │     ("Wren's grocery run · 1/3 · Sat")
-│ Mine | All        📅 Calendar │  ← no heading: one list by priority
-│ ┌───────────────────────────┐ │
-│ │ ●● Top [✓ Task]   😤1     │ │
-│ │ Leak under the sink       │ │
-│ │ [Kitchen] [📞 Landlord]   │ │
-│ │ (K) Due yesterday         │ │
-│ └───────────────────────────┘ │
-│                          (+)  │
-│ [Home][Needs][Tasks][Chores][Admin]
+│ House               💬  (KD)  │  ← feedback icon; your avatar → You
+│ Polls             [+ New poll]│  ← open first: "Which vacuum? · 2/4 voted",
+│                               │     then the last 5 closed: "Closed · Dyson wins"
+│ [Feeling weights changed]     │  ← only after a change
+│ 📅 Calendar · 3 this week   › │
+│ 🕘 Activity                 › │
+│ PEOPLE                        │
+│ Roommates and invites       › │  ← "Roommates" for members
+│ Contacts                    › │
+│ CHORES                        │
+│ Routines                    › │
+│ Rooms                         │  ← a sheet
+│ MONEY                         │
+│ Splitwise                     │  ← a sheet
+│ PRIORITY                      │
+│ How feelings raise priority   │  ← today's weights; the Feeling weights sheet
+│ [House][Needs][Tasks][Chores] │
 └───────────────────────────────┘
 ```
 
-- **Card:** one line with the tier chip (and, on Home only, the category chip) and the feelings ("😤1 🙏2") → title → chips: "For Kavya" on a personal need (T45), the room (or all of a chore's rooms), then "On X's run" or, when it isn't on a run, "Handled by: Landlord" → one meta line (the assignee's avatar + the date, or "Last done 9 days ago · Wren"). The card's button is named by the title; the rest is its description.
+- **What it is** (T107, PRD D43): the house's own page, replacing Home and Admin. No ranked feed: each tab lists its kind, and an item's priority shows in its detail (**Why is this here?**, §5.4). No + here.
+- **Top:** **Polls** (open ones first, then the 5 most recent closed ones with their result; a row opens the poll sheet; **New poll** in the heading; "No polls yet. Ask the house when you can't decide." with none), the "feeling weights changed" card ("Maya set 😰 Anxious to +30", dismissable), then **Calendar** (its subtitle counts the next 7 days: "3 this week" / "Nothing this week") and **Activity**, which open their pages.
+- **Setup**, each a labelled group of rows (§5.11): **People** (Roommates and invites, Contacts), **Chores** (Routines, Rooms), **Money** (Splitwise), **Priority** ("How feelings raise priority", with today's weights as its subtitle). Rows that open a page end with a chevron; Rooms, Splitwise and Priority open sheets.
+- **Nothing personal:** notifications, theme, sign out and delete my account are on **You** (your avatar).
+
+**Cards** (Needs rows, Tasks, Chores and anywhere items show as cards):
+
+- **Card:** one line with the tier chip (and, where kinds mix, the category chip) and the feelings ("😤1 🙏2") → title → chips: "For Kavya" on a personal need (T45), the room (or all of a chore's rooms), then "On X's run" or, when it isn't on a run, "Handled by: Landlord" → one meta line (the assignee's avatar + the date, or "Last done 9 days ago · Wren"). The card's button is named by the title; the rest is its description.
 - **Beside the card:** the check circle (**Done** / **Got it** / **Did it** / **Took care of it**, whose toast offers **Undo**) and, under it, **🙂+**, which opens the emoji tray under the card (§5.2). Neither sits inside the card's button.
-- **Swipe** (cards here and on Chores and Tasks, and Needs rows): right = finish it (the same as the check circle, with **Undo** in the toast), left = open the emoji tray. Only sideways drags count, so the list still scrolls, and a drag is never a tap. While dragging, the card slides over a strip that says what letting go does ("✓ Done" on the left, "🙂 Feeling" on the right); short of 88px it springs back and nothing happens. The buttons are the non-swipe way for VoiceOver and keyboards, and reduced motion makes the spring back instant.
-- **One list (T81):** there's no "Coming up" or "Needs attention" heading. Everything that needs attention and every open task or need dated in the next 7 days sit in one list ranked by priority (PRD §8.1), each once; a dated card still shows its date on its meta line. VoiceOver names the list "By priority". Dated runs live in **Runs in progress** (every open batch, plus visits dated this week), and **📅 Calendar** beside *Mine | All* opens the month calendar (§5.10).
-- A card appears when someone changes the feeling weights ("Maya set 😰 Anxious to +30").
+- **Swipe** (cards on Chores and Tasks, and Needs rows): right = finish it (the same as the check circle, with **Undo** in the toast), left = open the emoji tray. Only sideways drags count, so the list still scrolls, and a drag is never a tap. While dragging, the card slides over a strip that says what letting go does ("✓ Done" on the left, "🙂 Feeling" on the right); short of 88px it springs back and nothing happens. The buttons are the non-swipe way for VoiceOver and keyboards, and reduced motion makes the spring back instant.
+- **Home's one list (T81) is gone** (T107): Runs in progress moved to Needs (§5.5), dated items reach people through Tasks, Needs and House's Calendar row, and the weights card moved to House.
 
 ### 5.2 Sharing a feeling (the most important interaction)
 
@@ -258,10 +268,10 @@ Two taps from any card: **🙂+** (or a swipe left), then an emoji.
 
 ### 5.3 Add sheet (+)
 
-1. On **Needs, Chores or Tasks**, the + opens that kind's form directly. On Home (and Admin) it asks first: one of five tiles, **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch). The form has a *Need · Chore · Task* switch at the top (the title stays) and **A poll or a run instead?** at the bottom, which goes back to the tiles.
+1. The + (on **Needs, Chores and Tasks** only, T107) opens that kind's form directly. Its **A poll or a run instead?** goes to five tiles: **A need** (something to buy) · **A chore** (ongoing upkeep) · **A task** (one-off) · **A poll** (a question) · **A run** (a batch). The form has a *Need · Chore · Task* switch at the top (the title stays). Polls also start from House's **New poll**, runs from Needs' **Start a run**.
 2. Title (autofocused) + the header check (**Add**), or **Add another**, which adds it and keeps the sheet open with the title (and note) cleared and the other fields kept, so three needs in a row take one sheet. Optional fields by type, behind **More options**:
    - **Need:** needed by, room
-   - **Chore:** kind (Deep clean / Upkeep), room (one, T101), icon (nobody is assigned: who's on a chore follows from its room's routine, PRD §6.2). A room's Deep clean chores are quicker from Admin → Rooms (§5.11), Upkeep from the Chores tab's **+ Add** (§5.6)
+   - **Chore:** kind (Deep clean / Upkeep), room (one, T101), icon (nobody is assigned: who's on a chore follows from its room's routine, PRD §6.2). A room's Deep clean chores are quicker from House → Rooms (§5.11), Upkeep from the Chores tab's **+ Add** (§5.6)
    - **Task:** date, room, assignee, **Handled by** (a contact)
    - **Poll:** a question, 2+ options (each with an optional note), an optional deadline. It can be started from an item ("+ Poll about this") or on its own.
    - **Run:** the item picker (below)
@@ -279,20 +289,21 @@ A sheet, simplest first, so the title, the primary action and the meta rows fit 
 
 ### 5.5 Needs tab
 
-- The shared list. Needs with a feeling come first (by priority), then newest. Each row has a check circle (**Got it**, with **Undo** in the toast), the title, an optional note, its feeling emoji, badges ("On Wren's run", "Poll", "$189"), and **🙂+** at the end, which opens the emoji tray under the row. Rows swipe like cards (§5.1): right = Got it, left = the tray. There's no Soon toggle: a 😰 or 😤 feeling is how someone says "we need this soon."
+- **Runs in progress** at the top (T107; on Home before): every open batch, plus visits dated in the next 7 days ("Wren's grocery run · 1/3 · Sat"); a row opens the run.
+- The shared list. Needs with a feeling come first (by their feelings' weights), then by needed-by date, then newest. Each row has a check circle (**Got it**, with **Undo** in the toast), the title, an optional note, its feeling emoji, badges ("On Wren's run", "Poll", "$189"), and **🙂+** at the end, which opens the emoji tray under the row. Rows swipe like cards (§5.1): right = Got it, left = the tray. There's no Soon toggle: a 😰 or 😤 feeling is how someone says "we need this soon."
 - An add field at the top: "We need…", with a **House / Me** toggle beside it (remembered on this device; the need form has the same toggle). Adding something already on the list (same title, same owner) points to the existing one.
-- A personal need carries a **"For Kavya"** chip here, on Home cards and on run rows. The detail sheet has a **For** row (House / Me, plus the owner's name if it's someone else's) to change it: "Just for you now." / "For the house now."
+- A personal need carries a **"For Kavya"** chip here and on run rows. The detail sheet has a **For** row (House / Me, plus the owner's name if it's someone else's) to change it: "Just for you now." / "For the house now."
 - **Start a run**: a sheet with a checklist of open needs that aren't on a run yet, **all checked to start** (uncheck what you won't get; one *Select all* icon toggle; needs with a feeling show their emoji and are listed first). An optional title ("Amazon order") and date sit behind **More options** → the header check (**Start run · 3 things**). A usual grocery run (start, get 3 things, finish with $40) is about 6 taps.
 
 ### 5.6 Chores tab
 
-Built to fit one iPhone screen in a four-routine house. No numbers and no "due" anywhere on it, and the word "routine" never appears, VoiceOver names included (it's Admin's word).
+Built to fit one iPhone screen in a four-routine house. No numbers and no "due" anywhere on it, and the word "routine" never appears, VoiceOver names included (it's House's word).
 
 - **Top line:** "This week you have the kitchen and dining · through Sunday" (monthly: "This month … · through Nov 30"; on different schedules: "You have the kitchen and garden for now"). Nothing if you hold no routine.
-- **Routines, then a box per room (T101):** each routine is a small heading (its outline icon, name and the holder's avatar, then **+ Add**), yours first, with a box for each of its rooms that has chores in a two-column grid. People are always their avatar here, never text like "Jamie this week". **Your rooms** are full-width boxes, highlighted: the room's name (✨ when all its chores are done, a feeling's emoji), which opens its sheet, then each Deep clean chore as a one-tap tick, **Did it: Vacuum** (icon and name; done in accent with a check). **Housemates' rooms** show only their chores' icons and a feeling's emoji, no ticks (PRD §6.2); the whole box opens the room's sheet. VoiceOver: "Kitchen, Alex", with "Sink and stove done" on your own. Rooms with no chores aren't shown; a routine with none says "No chores here yet." **+ Add** ("Add chores: Kitchen" to VoiceOver) opens **Add chores**: a **Room** select of that routine's rooms, then the same picker as Admin → Rooms (§5.11); adding closes it. The routine heading is a group, not a landmark, since a routine can share its name with a room.
-- **Room sheet:** holder → next as avatars in the header (just the holder when it's a fixed person), then the room's Deep clean chores, then **Add chores**, the same picker as Admin → Rooms (§5.11), with the header check. Each row is its icon and name, which opens the detail; **🙂+**; and a tick, **Did it: Vacuum**, a toggle that keeps its name and says its state with `aria-pressed`. Anyone may tick. Ticking toasts with **Undo**, and tapping a ticked chore undoes it; a housemate's tick stays theirs ("A housemate got this one. Only they can undo it."). Undo puts the chore back to its last done before; if someone has done it again since, it says "It's been done again since. Nothing to undo." Tapping the toast doesn't close a sheet.
+- **Routines, then a box per room (T101):** each routine is a small heading (its outline icon, name and the holder's avatar, then **+ Add**), yours first, with a box for each of its rooms that has chores in a two-column grid. People are always their avatar here, never text like "Jamie this week". **Your rooms** are full-width boxes, highlighted: the room's name (✨ when all its chores are done, a feeling's emoji), which opens its sheet, then each Deep clean chore as a one-tap tick, **Did it: Vacuum** (icon and name; done in accent with a check). **Housemates' rooms** show only their chores' icons and a feeling's emoji, no ticks (PRD §6.2); the whole box opens the room's sheet. VoiceOver: "Kitchen, Alex", with "Sink and stove done" on your own. Rooms with no chores aren't shown; a routine with none says "No chores here yet." **+ Add** ("Add chores: Kitchen" to VoiceOver) opens **Add chores**: a **Room** select of that routine's rooms, then the same picker as House → Rooms (§5.11); adding closes it. The routine heading is a group, not a landmark, since a routine can share its name with a room.
+- **Room sheet:** holder → next as avatars in the header (just the holder when it's a fixed person), then the room's Deep clean chores, then **Add chores**, the same picker as House → Rooms (§5.11), with the header check. Each row is its icon and name, which opens the detail; **🙂+**; and a tick, **Did it: Vacuum**, a toggle that keeps its name and says its state with `aria-pressed`. Anyone may tick. Ticking toasts with **Undo**, and tapping a ticked chore undoes it; a housemate's tick stays theirs ("A housemate got this one. Only they can undo it."). Undo puts the chore back to its last done before; if someone has done it again since, it says "It's been done again since. Nothing to undo." Tapping the toast doesn't close a sheet.
 - **Upkeep**, below the routines and never inside one, so it doesn't read as the holder's job. It also holds chores nobody's on. Chores with a feeling come first (icon, name, rooms, each emoji with the avatar of who shared it, and **Took care of it**, with **Undo**; the row opens the detail), or **All calm** if none has. The rest are small icon chips; tapping one opens the emoji tray, with **See details** beside it. Its own **+ Add** asks for a name, an optional room and an icon (suggested by the name).
-- With no routines and no Upkeep, the empty state: "Nothing to do yet. Give each room its chores in Admin → Rooms." with **Set up rooms**.
+- With no routines and no Upkeep, the empty state: "Nothing to do yet. Give each room its chores in House → Rooms." with **Set up rooms**.
 
 ### 5.7 Tasks tab
 
@@ -331,19 +342,19 @@ Built to fit one iPhone screen in a four-routine house. No numbers and no "due" 
 
 ### 5.10 Calendar
 
-- A month grid with dots on days that have something, and the selected day's list below: dated tasks, needs with a needed-by date, and runs. Tap one to open it.
+- From House's **Calendar** row (with **‹ House** back). A month grid with dots on days that have something, and the selected day's list below: dated tasks, needs with a needed-by date, and runs. Tap one to open it.
 - It opens on today's month with today selected and ringed, in the house's time zone (T106); until you pick a day or another month, both follow today.
 
-### 5.11 Admin tab
+### 5.11 House's setup
 
-- **Order** (T67, owner): **Roommates**, **Invite a roommate** (organizers), **Contacts**, **Routines**, then four untitled rows in this order: **Splitwise** (T89), **Feeling weights**, **Activity**, **Rooms**. No "Settings", "History" or "Money" titles, and no Notifications row: notifications live only in your settings (`/me`, from your avatar). **Sign out** and **Delete my account** sit at the bottom. The header's right side holds the feedback icon (T91, below).
-- **Feedback** (T91, PRD §6.8): an icon-only button (`MessageSquareHeart`, named "Send feedback") at the right of the Admin title opens the **Feedback** sheet: **Bug 🐞 · Idea 💡 · Praise 💛** as one segmented control (Idea to start), a **Message** box whose placeholder follows the kind ("What went wrong?" / "What would make this better?" / "What's working for you?"), and the header check **Send**, which stays off until there's a message. Sent, it closes with "Thanks for telling us!"; if it fails, the text stays.
+- **Order** (T107, owner; T67's Admin order is superseded): under House's top (§5.1), four labelled groups: **People** (**Roommates and invites**, a page with the roommates and, for organizers, **Invite a roommate**; **Contacts**, a page), **Chores** (**Routines**, a page; **Rooms**, a sheet), **Money** (**Splitwise**, a sheet) and **Priority** (**How feelings raise priority**, the Feeling weights sheet). No Notifications row: notifications live only in your settings (`/me`, from your avatar), as do **Sign out** and **Delete my account**. The header's right side holds the feedback icon (T91, below) and your avatar.
+- **Feedback** (T91, PRD §6.8): an icon-only button (`MessageSquareHeart`, named "Send feedback") at the right of the House title opens the **Feedback** sheet: **Bug 🐞 · Idea 💡 · Praise 💛** as one segmented control (Idea to start), a **Message** box whose placeholder follows the kind ("What went wrong?" / "What would make this better?" / "What's working for you?"), and the header check **Send**, which stays off until there's a message. Sent, it closes with "Thanks for telling us!"; if it fails, the text stays.
 - **Routines** (T98, PRD §6.2; the only screen that says "routine"): open to every member. Each row is the routine's icon, its name, how often it resets, and the avatars of who has it now → who's next (just the one avatar for always one person, or when nobody else is next); no names in text. **Add a routine** sits under the list. With none yet: "No routines yet. Group rooms someone looks after, and it rotates." The sheet has **Name**, **Icon** (the shared picker, sparkles to start), **Resets** (Weekly · Every 2 weeks · Monthly, Weekly to start), **Who** (Takes turns · Always one person), then the person: "Who has it this week" (these two weeks / this month), you to start, or "Who looks after it"; last, the rooms to tick by group. A room in another routine says "In Downstairs", and "Moves here from Downstairs" once ticked. The header check adds or saves, sending only what changed. The header's trash icon asks first: "Remove this routine? Its rooms' chores move to the Upkeep section, with no owner. Nothing is deleted." (**Keep it** / **Remove**). Activity calls each by its name, one line per save ("Kavya changed Upstairs").
 - **Splitwise** (T89): a row with the Splitwise mark, "Costs open your group" or "Add your group's link", and the pencil. Its sheet, **Splitwise group** ("Each cost's Splitwise icon opens this group. Anyone can change it."), has **Group link** (a link pasted from the address bar or the app, with or without https://), a hint on where to find it, the header check, and **Remove the link** once one is set. A link that isn't a group says "That isn't a Splitwise group link. Open the group in Splitwise and copy the link." under the field. Saved: "Saved. Costs open your Splitwise group."
-- **Feeling weights**: six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, and the header check saves for the house. "One setting for the whole house. Anyone can change it."
-- **Rooms**: one row (like Feeling weights, T66) that opens a sheet listing the rooms as plain names, no icons, under three headings: **Bedrooms**, **Bathrooms** and **Spaces**. VoiceOver reads each name and kind ("Fire, bedroom"). A room without chores says "No chores yet". Tap one for **its own sheet** (T101): **Rename or move** opens **Name** with **Save** / **Cancel**, and **Move earlier** / **Move later** within its group (the order is `sort_order`); **Deep clean** lists its chores, each with **Remove** (deleted, with Undo), and says whose routine looks after them (or that the room isn't in one, so they show in Upkeep); **Add chores** offers every chore name in the house, most-used first, then starters (Vacuum, Swiffer, Dust…), as toggle chips, plus **New chore** (a name and the icon picker). **Search chores** above them narrows the chips by any part of a name, whatever the case (picked ones stay in view); with no match it says "No chore by that name yet. Tap New chore to add it." and New chore starts with the search as its name. Pick several, then the header check **Add**: the room gets its own copy of each, as Deep clean, in one action. Names it already has aren't offered.
-- **Contacts**, each row ending with the pencil (tap to edit) and a copy icon for the number. **Roommates**: each row is the person and their room, with no role label (owner, 2026-11-10); your own row opens **You**, which starts with **Which room is yours?** (T93); a tap picks, changes or clears your bedroom on the spot ("Your room is Fire now." / "No bedroom for now."). Only you change your room. **Invite link** (organizers). **Activity** opens the house log (`/activity`, below).
-- **Your settings** (`/me`, from your avatar): your avatar and name, then two separate rows, **Notifications** and **Appearance** (showing the current theme), each opening its own page with a "‹ You" link back (T65). No setting sits on `/me` itself, so the theme never reads as a notification setting.
+- **Feeling weights** (the Priority row, "How feelings raise priority", whose subtitle shows today's weights): six rows (emoji, name, a −/+ stepper from −20 to +40 in steps of 5), **Reset to defaults**, and the header check saves for the house ("Saved. Priorities change for everyone."). "One setting for the whole house. Anyone can change it."
+- **Rooms**: one row in the Chores group (T66) that opens a sheet listing the rooms as plain names, no icons, under three headings: **Bedrooms**, **Bathrooms** and **Spaces**. VoiceOver reads each name and kind ("Fire, bedroom"). A room without chores says "No chores yet". Tap one for **its own sheet** (T101): **Rename or move** opens **Name** with **Save** / **Cancel**, and **Move earlier** / **Move later** within its group (the order is `sort_order`); **Deep clean** lists its chores, each with **Remove** (deleted, with Undo), and says whose routine looks after them (or that the room isn't in one, so they show in Upkeep); **Add chores** offers every chore name in the house, most-used first, then starters (Vacuum, Swiffer, Dust…), as toggle chips, plus **New chore** (a name and the icon picker). **Search chores** above them narrows the chips by any part of a name, whatever the case (picked ones stay in view); with no match it says "No chore by that name yet. Tap New chore to add it." and New chore starts with the search as its name. Pick several, then the header check **Add**: the room gets its own copy of each, as Deep clean, in one action. Names it already has aren't offered.
+- **Contacts**, each row ending with the pencil (tap to edit) and a copy icon for the number. **Roommates**: each row is the person and their room, with no role label (owner, 2026-11-10); your own row opens **You**, which starts with **Which room is yours?** (T93); a tap picks, changes or clears your bedroom on the spot ("Your room is Fire now." / "No bedroom for now."). Only you change your room. **Invite link** (organizers), on the Roommates page. **Activity** opens the house log (`/activity`, below).
+- **Your settings** (`/me`, from your avatar, with **‹ House** back): your avatar and name, then two separate rows, **Notifications** and **Appearance** (showing the current theme), each opening its own page with a "‹ You" link back (T65); **Sign out** and **Delete my account** at the bottom (T107). No setting sits on `/me` itself, so the theme never reads as a notification setting.
 - **Notifications** (`/me/notifications`): one section that fits on a 375pt screen, as a single card. First this device's status line with its one button ("Turn on notifications" when it's off; otherwise a line saying it's on, blocked in the browser, or that Roomies needs adding to the Home Screen first). It says on only when the server has this device for you too, so after someone else used the phone it offers the button again (T84). **Sign out** also turns notifications off on this device, so the next person doesn't get yours. Then the six categories as compact switch rows, each a short name (Handed to me, Coming due, Feelings on my things, Polls, Runs, People) with a one-line "you get this when…" under it; VoiceOver reads the name and the line as its description. Last, quiet hours as one row, "Quiet 10pm–8am": tap it to edit From / Until inline, with an on/off switch beside it (never inside it).
 - **Appearance** (`/me/appearance`): the theme as one segmented control, **Auto · Light · Dark**, saved to your profile settings and applied at once; a line under it says Auto follows your phone.
 - **Activity**: everything that happened in the house, newest first, one line per action (a bulk move is one line), under day headings ("Today", "Yesterday", "Mon, Sep 28"). Each line has the person's avatar, the sentence ("Kavya felt 😰 about Lemons"), and a topic icon and word with the time. A filter row (All · Items · Polls & runs · Money · House) narrows it, and **Show earlier** loads older history. A line about an item, run or poll opens its sheet in place.
@@ -419,7 +430,7 @@ Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss (
 | Data | `rooms` table (see Architecture §6), `items.room_id` (optional), `house_members.room_id` for the member's bedroom, which drives their color. No per-user avatar config. |
 | Animation | CSS transitions and keyframes only (Vaul animates the sheets). No Framer Motion. |
 | Safe areas | `env(safe-area-inset-*)` on the tab bar, "+" button, and sheets. `viewport-fit=cover`. |
-| Performance | Home interactive in < 2s on a mid-range iPhone over 4G. No web font on iOS. |
+| Performance | House interactive in < 2s on a mid-range iPhone over 4G. No web font on iOS. |
 | Accessibility | WCAG AA (verified above), emoji have text labels, avatars have labels ("Maya, Fire room"), no color-only meaning (element icons + tier words), a VoiceOver pass per milestone |
 | Visual QA | axe on every screen in light and dark on the iPhone 15 profile (`e2e/m4-a11y.spec.ts`), plus the by-eye check at 375pt in light and dark from each task's definition of done. No screenshot comparisons. |
 

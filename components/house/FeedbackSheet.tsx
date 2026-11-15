@@ -23,7 +23,7 @@ const PLACEHOLDER: Record<FeedbackKind, string> = {
   praise: 'What’s working for you?',
 }
 
-/** Admin's top-right icon (T91): opens the sheet that sends the owner a bug, an idea or praise. */
+/** House's top-right icon (T91): opens the sheet that sends the owner a bug, an idea or praise. */
 export function FeedbackButton({ houseId }: { houseId: HouseId }) {
   const [open, setOpen] = useState(false)
   return (

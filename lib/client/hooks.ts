@@ -123,7 +123,7 @@ export const useItemActivity = (houseId: HouseId, itemId: ItemId) => {
   })
 }
 
-/** The latest change to the feeling weights, for the Home card. */
+/** The latest change to the feeling weights, for the House card. */
 export const useLatestWeightsChange = (houseId: HouseId) => {
   const { queries } = useAppClient()
   return useQuery({
@@ -264,7 +264,7 @@ export const useDoChore = (houseId: HouseId) =>
 export const useUndoChore = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'undoChore'>) => c.undoChore(i), ['items'])
 
-/** Admin → Rooms: several Deep clean chores for a room at once (T101). */
+/** House → Rooms: several Deep clean chores for a room at once (T101). */
 export const useAddRoomChores = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'addRoomChores'>) => c.addRoomChores(i), ['items'])
 export const useArchiveItem = (houseId: HouseId) =>

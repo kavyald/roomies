@@ -1,17 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_FEELING_WEIGHTS, type Feeling, type FeelingKind } from './feelings'
-import { asId, type HouseId, type ItemId, type RunId, type UserId } from './ids'
+import { asId, type HouseId, type ItemId, type UserId } from './ids'
 import type { Chore, Item, Need, Priority, Task } from './items'
-import {
-  describePart,
-  duePoints,
-  homeFeed,
-  isInFeed,
-  scorePriority,
-  signedPoints,
-  tierOf,
-} from './priority'
-import { instantAt, plusMs, type LocalDate, type LocalTime } from './time'
+import { describePart, duePoints, scorePriority, signedPoints, tierOf } from './priority'
+import { instantAt, type LocalDate, type LocalTime } from './time'
 
 const TZ = 'America/New_York'
 const NOW = instantAt('2026-09-29' as LocalDate, '12:00' as LocalTime, TZ) // Tue
@@ -170,129 +162,5 @@ describe('describePart', () => {
     expect(describePart({ kind: 'base', priority: 'urgent', points: 70 }, name)).toBe('Urgent')
     expect(signedPoints(-5)).toBe('−5')
     for (const s of [due(-9)]) expect(s).not.toMatch(/overdue|failed|missed/i)
-  })
-})
-
-describe('isInFeed', () => {
-  const inFeed = (item: Item, feelings: Feeling[] = [], visit?: LocalDate) =>
-    isInFeed(item, feelings, NOW, TZ, { visitDate: () => visit })
-
-  it('a chore goes quiet after it is done, and counts again with a newer feeling (T99)', () => {
-    const c = chore('Dishes')
-    const done = { ...c, lastDone: { at: NOW, by: me } }
-    const old = { ...felt(c, 'frustrated'), at: at(-1) }
-    expect(inFeed(c, [old])).toBe(true)
-    expect(inFeed(done, [old])).toBe(false)
-    expect(score(done, [old])).toBe(score(done))
-    const again = { ...felt(c, 'frustrated'), at: plusMs(NOW, 1000) }
-    expect(inFeed(done, [again])).toBe(true)
-    expect(score(done, [again])).toBeGreaterThan(score(done))
-  })
-
-  it('includes open tasks, but not done or archived ones', () => {
-    expect(inFeed(task('a'))).toBe(true)
-    expect(inFeed(task('a', { done: { at: NOW, by: me } }))).toBe(false)
-    expect(inFeed(task('a', { archivedAt: NOW }))).toBe(false)
-  })
-
-  it('leaves out tasks on a visit, unless someone has a feeling or the visit is within 3 days', () => {
-    const onVisit = task('a', { run: { id: asId<'run'>('r') as RunId, kind: 'visit' } })
-    expect(inFeed(onVisit)).toBe(false)
-    expect(inFeed(onVisit, [], day(5))).toBe(false)
-    expect(inFeed(onVisit, [], day(3))).toBe(true)
-    expect(inFeed(onVisit, [felt(onVisit, 'confused')])).toBe(true)
-    const onRequest = task('b', { run: { id: asId<'run'>('r') as RunId, kind: 'request' } })
-    expect(inFeed(onRequest)).toBe(true)
-  })
-
-  it("leaves a routine's chores out: they're its holder's checklist", () => {
-    const c = chore('Sink', { kind: 'deep_clean' })
-    const owned = isInFeed(c, [felt(c, 'anxious')], NOW, TZ, { hasOwner: () => true })
-    expect(owned).toBe(false)
-    expect(inFeed(c, [felt(c, 'anxious')])).toBe(true) // nobody's on it: it counts as upkeep
-    expect(inFeed(chore('c', { lastDone: { at: at(-30), by: me } }))).toBe(false)
-  })
-
-  it('shows a chore only once someone shares a feeling', () => {
-    const c = chore('Descale the kettle')
-    expect(inFeed(c)).toBe(false)
-    expect(inFeed(c, [felt(c, 'fine')])).toBe(true)
-  })
-
-  it('includes needs with a feeling or needed within 7 days', () => {
-    expect(inFeed(need('n'))).toBe(false)
-    expect(inFeed(need('n', { when: { date: day(7) } }))).toBe(true)
-    expect(inFeed(need('n', { when: { date: day(8) } }))).toBe(false)
-    expect(inFeed(need('n', { when: { date: day(-2) } }))).toBe(true)
-    const n = need('n')
-    expect(inFeed(n, [felt(n, 'anxious')])).toBe(true)
-    expect(inFeed(need('n', { done: { at: NOW, by: me } }), [felt(n, 'anxious')])).toBe(false)
-  })
-})
-
-describe('homeFeed', () => {
-  const items: Item[] = [
-    task('Undated', { createdAt: at(-3) }),
-    task('Newer undated', { createdAt: at(-1) }),
-    task('Leak', { when: { date: day(-1) }, assignee: me }),
-    task('Thursday', { when: { date: day(2) } }),
-    task('Friday', { when: { date: day(3) } }),
-    chore('Descale'),
-    need('Toilet paper'),
-  ]
-  const feelings = [felt(items[6]!, 'anxious'), felt(items[6]!, 'frustrated', me)]
-  const feed = (filter: 'mine' | 'all', weights = DEFAULT_FEELING_WEIGHTS) =>
-    homeFeed(items, (i) => feelings.filter((f) => f.itemId === i.id), {
-      weights,
-      now: NOW,
-      tz: TZ,
-      filter,
-      me,
-    })
-
-  it('ranks by score; ties go to the sooner date, then the newest', () => {
-    expect(feed('all').map((e) => `${e.item.title} ${e.score}`)).toEqual([
-      'Leak 62',
-      'Toilet paper 60',
-      'Thursday 40',
-      'Friday 40',
-      'Newer undated 25',
-      'Undated 25',
-    ])
-  })
-
-  it('re-ranks when the weights change', () => {
-    const calm = { ...DEFAULT_FEELING_WEIGHTS, anxious: 0, frustrated: 0 }
-    expect(feed('all', calm)[0]!.item.title).toBe('Leak')
-    expect(feed('all', calm).find((e) => e.item.title === 'Toilet paper')!.score).toBe(25)
-  })
-
-  it('Mine shows only what is assigned to me', () => {
-    expect(feed('mine').map((e) => e.item.title)).toEqual(['Leak'])
-  })
-
-  it('takes in open tasks and needs dated this week (what Coming up showed), each once (T81)', () => {
-    const visit = { id: asId<'run'>('v') as RunId, kind: 'visit' as const }
-    const dated: Item[] = [
-      task('Super fixes the sink', { run: visit, when: { date: day(5) } }), // visit too far for the feed
-      task('Super paints', { run: visit, when: { date: day(7) } }), // past the week
-      task('Super, undated', { run: visit }),
-      task('Super, last week', { run: visit, when: { date: day(-1) } }),
-      task('Done already', { run: visit, when: { date: day(1) }, done: { at: NOW, by: me } }),
-      need('Milk', { when: { date: day(2) } }), // in the feed and this week: once
-      chore('Mop', { lastDone: { at: at(-1), by: me } }),
-    ]
-    const list = homeFeed(dated, () => [], {
-      weights: DEFAULT_FEELING_WEIGHTS,
-      now: NOW,
-      tz: TZ,
-      filter: 'all',
-      me,
-      visitDate: () => day(5),
-    })
-    expect(list.map((e) => `${e.item.title} ${e.score}`)).toEqual([
-      'Milk 40',
-      'Super fixes the sink 30',
-    ])
   })
 })

@@ -1,4 +1,4 @@
-// T89: any roommate links the house's Splitwise group in Admin; a cost's Splitwise icon opens it,
+// T89: any roommate links the house's Splitwise group on House (Money); a cost's Splitwise icon opens it,
 // and is highlighted once sent.
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
@@ -25,8 +25,8 @@ test('link the Splitwise group, then a cost opens it and shows it was sent', asy
     r.fulfill({ status: 200, body: 'Splitwise' }),
   )
 
-  // Admin → Splitwise: a link that isn't a group is explained, then a pasted one is saved.
-  const row = page.getByRole('list', { name: 'Splitwise' }).getByRole('button')
+  // House → Money → Splitwise: a link that isn't a group is explained, then a pasted one is saved.
+  const row = page.getByRole('list', { name: 'Money' }).getByRole('button', { name: /^Splitwise/ })
   await expect(row).toContainText("Add your group's link")
   const sheet = page.getByRole('dialog', { name: 'Splitwise group' })
   await expect(async () => {

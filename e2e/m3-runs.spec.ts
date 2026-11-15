@@ -78,7 +78,7 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
   await expect(row('Soap')).not.toContainText('On ')
   await expect(row('Bread')).not.toContainText('On ')
 
-  // Eggs keep their history; Home lists the run still going.
+  // Eggs keep their history; Needs lists the run still going under Runs in progress (T107).
   await row('Eggs').getByRole('button', { name: /^Eggs/ }).click()
   const detail = page.getByRole('dialog', { name: 'Eggs' })
   const history = detail.getByRole('region', { name: 'Run history' })
@@ -86,7 +86,6 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
   await expect(history).toContainText('Added to Groceries')
   await expect(history).toContainText('Moved to Saturday · Sold out')
   await page.keyboard.press('Escape')
-  await page.getByRole('link', { name: 'Home' }).click()
   const inProgress = page.getByRole('region', { name: 'Runs in progress' })
   await expect(inProgress).toContainText('Saturday')
   await expect(inProgress).toContainText('0/2')

@@ -1,7 +1,6 @@
-// Priority and the Home feed (PRD §8.1, ARCHITECTURE §7.1). Pure: weights, `now` and the house's
-// time zone are arguments, so the feed, jobs and tests all score the same way.
+// Priority (PRD §8.1, ARCHITECTURE §7.1). Pure: weights, `now` and the house's time zone are
+// arguments, so screens, jobs and tests all score the same way.
 
-import { isComingUp } from './calendar'
 import {
   activeFeelings,
   FEELING_META,
@@ -10,8 +9,8 @@ import {
   type FeelingWeights,
 } from './feelings'
 import type { UserId } from './ids'
-import type { Chore, Item, Priority } from './items'
-import { daysBetween, localDateOf, type Instant, type LocalDate } from './time'
+import type { Item, Priority } from './items'
+import { daysBetween, localDateOf, type Instant } from './time'
 
 export type Tier = 'top' | 'high' | 'normal' | 'low'
 
@@ -87,85 +86,6 @@ export const scorePriority = (
   const score = Math.max(0, Math.min(100, raw))
   return { score, tier: tierOf(score), breakdown }
 }
-
-/**
- * Whether an item belongs in Needs attention (PRD §8.1): open tasks, except ones on a visit
- * (back only with a feeling or the visit within 3 days); chores nobody's on (upkeep, or no routine)
- * with a feeling; needs with a feeling or needed within 7 days. A routine's chores stay on the
- * Chores tab: they're its holder's checklist.
- */
-export const isInFeed = (
-  item: Item,
-  feelings: readonly Feeling[],
-  now: Instant,
-  tz: string,
-  opts: {
-    visitDate?: (item: Item) => LocalDate | undefined
-    /** Whether a routine is on this chore (`choreOwner`). */
-    hasOwner?: (chore: Chore) => boolean
-  } = {},
-): boolean => {
-  if (item.archivedAt) return false
-  if (item.category !== 'chore' && item.done) return false
-  const felt = activeFeelings(item, feelings).length > 0
-  const today = localDateOf(now, tz)
-  switch (item.category) {
-    case 'task': {
-      if (item.run?.kind !== 'visit') return true
-      if (felt) return true
-      const visit = opts.visitDate?.(item)
-      return !!visit && daysBetween(today, visit) <= 3
-    }
-    case 'chore':
-      return felt && !opts.hasOwner?.(item)
-    case 'need':
-      return felt || (!!item.when && daysBetween(today, item.when.date) <= 7)
-  }
-}
-
-export type FeedFilter = 'mine' | 'all'
-export type FeedEntry = { readonly item: Item } & Score
-
-/**
- * Home's one list (T81): what's in the feed plus any open task or need dated in the coming week
- * (what "Coming up" used to show), each once, highest score first; ties go to the sooner date,
- * then the newest. Mine = assigned to me.
- */
-export const homeFeed = (
-  items: readonly Item[],
-  feelingsOf: (item: Item) => readonly Feeling[],
-  ctx: {
-    weights: FeelingWeights
-    now: Instant
-    tz: string
-    filter: FeedFilter
-    me: UserId
-    visitDate?: (item: Item) => LocalDate | undefined
-    hasOwner?: (chore: Chore) => boolean
-  },
-): FeedEntry[] =>
-  items
-    .filter((i) => ctx.filter === 'all' || i.assignee === ctx.me)
-    .filter(
-      (i) =>
-        isInFeed(i, feelingsOf(i), ctx.now, ctx.tz, {
-          visitDate: ctx.visitDate,
-          hasOwner: ctx.hasOwner,
-        }) || isComingUp(i, localDateOf(ctx.now, ctx.tz)),
-    )
-    .map((item) => ({
-      item,
-      ...scorePriority(item, feelingsOf(item), ctx.weights, ctx.now, ctx.tz),
-    }))
-    .sort((a, b) => {
-      if (a.score !== b.score) return b.score - a.score
-      const da = a.item.when?.date
-      const db = b.item.when?.date
-      if (da && db && da !== db) return da.localeCompare(db)
-      if (da && !db) return -1
-      if (db && !da) return 1
-      return b.item.createdAt.epochMs - a.item.createdAt.epochMs
-    })
 
 // ---- "Why is this here?" -------------------------------------------------------------------
 

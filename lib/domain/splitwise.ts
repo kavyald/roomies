@@ -1,4 +1,4 @@
-// The house's Splitwise group (T89): a link any roommate pastes in Admin, which a cost's Splitwise
+// The house's Splitwise group (T89): a link any roommate pastes on House, which a cost's Splitwise
 // icon opens. Splitwise has no link that pre-fills an expense, so the icon copies the line too
 // (`splitwiseText` in costs.ts). Pure.
 

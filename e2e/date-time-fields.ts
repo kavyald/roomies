@@ -39,8 +39,9 @@ export const openTaskForm = async (page: Page) => {
   const owner = await anOwner('Kavya')
   await signIn(page, owner.email)
   await expect(page).toHaveURL(new RegExp(`/h/${owner.houseId}$`))
+  // The + is on the Tasks tab and goes straight to the task form (T107).
+  await page.goto(`/h/${owner.houseId}/tasks`)
   await page.getByRole('button', { name: 'Add', exact: true }).click()
-  await page.getByRole('button', { name: /^A task/ }).click()
   const sheet = page.getByRole('dialog', { name: 'A task' })
   await sheet.getByLabel('What needs doing?').fill('Plumber comes')
   await sheet.getByRole('button', { name: 'More options' }).click()

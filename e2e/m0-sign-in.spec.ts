@@ -32,19 +32,19 @@ test('a known email signs in with the code from Mailpit and sees the empty app s
   await page.getByLabel('6-digit code').fill(code) // six digits submit on their own
 
   await expect(page).toHaveURL(new RegExp(`/h/${owner.houseId}$`))
-  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible()
 
   // On an iPhone in Safari, the Add to Home Screen guide opens first (ARCHITECTURE §2).
   const guide = page.getByRole('dialog', { name: 'Add Roomies to your Home Screen' })
   await expect(guide).toBeVisible()
   await guide.getByRole('button', { name: 'Maybe later' }).click()
   await expect(guide).toBeHidden()
+  await expect(page.getByRole('heading', { name: 'House', level: 1 })).toBeVisible()
 
   const tabs = page.getByRole('navigation', { name: 'Tabs' })
-  for (const name of ['Home', 'Needs', 'Tasks', 'Chores', 'Admin']) {
+  for (const name of ['House', 'Needs', 'Tasks', 'Chores']) {
     await expect(tabs.getByRole('link', { name })).toBeVisible()
   }
-  await expect(tabs.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
+  await expect(tabs.getByRole('link', { name: 'House' })).toHaveAttribute('aria-current', 'page')
 
   // The tab bar sits on the bottom edge and pads for the home indicator.
   const box = await tabs.boundingBox()
@@ -61,9 +61,11 @@ test('a known email signs in with the code from Mailpit and sees the empty app s
   )
   expect(usesSafeArea).toBe(true)
 
-  // The Admin tab reads the signed-in person's data through RLS; sign out ends the session.
-  await tabs.getByRole('link', { name: 'Admin' }).click()
+  // House → Roommates reads the signed-in person's data through RLS; sign out (on You) ends the
+  // session.
+  await page.getByRole('link', { name: /^Roommates/ }).click()
   await expect(page.getByRole('list', { name: 'Roommates' })).toContainText('Kavya')
+  await page.goto(`/h/${owner.houseId}/me`)
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/sign-in$/)
   await page.goto(`/h/${owner.houseId}`)

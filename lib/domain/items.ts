@@ -125,7 +125,7 @@ export type NewItem = {
 
 export type ItemError = 'empty_title' | 'title_too_long' | 'invalid_for_category' | 'bad_icon'
 
-/** A chore by name and icon: one picked for a room in Admin → Rooms (T101). */
+/** A chore by name and icon: one picked for a room in House → Rooms (T101). */
 export type ChorePick = { readonly title: string; readonly icon?: string }
 
 /** A chore name as people would match it: "  Vacuum " and "vacuum" are the same chore. */
