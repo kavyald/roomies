@@ -34,7 +34,7 @@ beforeAll(() => {
   Element.prototype.releasePointerCapture ??= () => {}
 })
 
-const setup = async (commands: Partial<AppCommands> = {}) => {
+const setup = async (commands: Partial<AppCommands> = {}, { organizer = true } = {}) => {
   // The screen's "today" is the real one; the use cases must agree with it.
   const deps = depsForTest({ clock: { now: () => instant(Date.now()) } })
   const { house, admin, member } = await seedHouse({
@@ -57,7 +57,7 @@ const setup = async (commands: Partial<AppCommands> = {}) => {
     await r.rooms.save(kitchen)
     await r.rooms.save(dining)
   })
-  const me = asMember(house.id, admin)
+  const me = asMember(house.id, organizer ? admin : member)
   render(
     <AppClientProvider
       client={fakeAppClient(deps.uow, me, {
@@ -76,7 +76,17 @@ const setup = async (commands: Partial<AppCommands> = {}) => {
   const stored = () => [...deps.uow.state.routines.values()].filter((r) => !r.removedAt)
   const today = () => localDateOf(instant(Date.now()), house.settings.timezone)
   const members = () => [...deps.uow.state.members.values()].filter((m) => m.houseId === house.id)
-  return { deps, admin, member, kitchen, dining, stored, today, members, user: userEvent.setup() }
+  return {
+    deps,
+    admin,
+    member,
+    kitchen,
+    dining,
+    stored,
+    today,
+    members,
+    user: userEvent.setup(),
+  }
 }
 
 type Setup = Awaited<ReturnType<typeof setup>>
@@ -176,6 +186,24 @@ describe('House → Routines (T98)', () => {
     const row = await screen.findByRole('button', { name: /^Upstairs/ })
     await waitFor(() => expect(row.querySelector('.lucide-arrow-right')).toBeNull())
     expect(within(row).getAllByRole('img')).toHaveLength(1)
+    // Now no routine reaches Kavya, and as an organizer she's told (T112).
+    expect(
+      await screen.findByText(
+        /Kavya isn't on a routine yet\. Give them one, or make one take turns\./,
+      ),
+    ).toBeTruthy()
+  })
+
+  it("tells only organizers who's on no routine (T112)", async () => {
+    const s = await setup({}, { organizer: false })
+    // Wren (not an organizer) adds one always Kavya's, so no routine reaches Wren.
+    await addOne(s, async (sheet) => {
+      await s.user.click(within(sheet).getByRole('button', { name: 'Always one person' }))
+      await s.user.click(await within(sheet).findByRole('button', { name: 'Kavya' }))
+    })
+    expect(s.stored()[0]!.fixedMember).toBe(s.admin)
+    await screen.findByRole('button', { name: /^Upstairs/ })
+    expect(screen.queryByText(/on a routine yet/)).toBeNull()
   })
 
   it('says when a ticked room moves from another routine', async () => {

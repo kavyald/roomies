@@ -1,19 +1,18 @@
 'use client'
 
-import { Check, ChevronRight } from 'lucide-react'
+import { Check, ChevronRight, Circle } from 'lucide-react'
 import { useId } from 'react'
 import { feelingEmojis } from '@/components/items/Feelings'
 import type { CardContext } from '@/components/items/ItemCard'
-import { ChoreIcon } from '@/components/ui/ChoreIcon'
 import { cn } from '@/components/ui/cn'
 import { choresLine, doneLine, type RoomBox as Box } from '@/lib/domain/lists'
 import { useTick } from './RoomSheet'
 
 /**
  * A room on the Chores tab (FRONTEND §5.6, T101). Your own rooms list their Deep clean chores as
- * one-tap ticks, done ones in accent, ✨ when all are; the room's name opens its sheet. A
- * housemate's room says its chores in words, never which are done (PRD §6.2), and a feeling's
- * emoji; the whole box opens the room (T105). VoiceOver hears "Kitchen, Alex".
+ * one-tap ticks (an empty circle, then a check in accent, T112), ✨ when all are; the room's name
+ * opens its sheet. A housemate's room says its chores in words, never which are done (PRD §6.2),
+ * and a feeling's emoji; the whole box opens the room (T105). VoiceOver hears "Kitchen, Alex".
  */
 export function RoomBox({
   box,
@@ -110,7 +109,8 @@ export function RoomBox({
                 {done ? (
                   <Check aria-hidden className="size-4" strokeWidth={2.5} />
                 ) : (
-                  <ChoreIcon name={chore.icon} className="size-4" />
+                  // A tick to tap, not a tag (T112): an empty circle until it's done.
+                  <Circle aria-hidden className="size-4 text-ink-soft" strokeWidth={2.5} />
                 )}
                 {chore.title}
               </span>

@@ -680,6 +680,7 @@ select changes, actor_id, at from activity_events
 | **Lists and priority** (`lists.ts`, `priority.ts`) | | |
 | `needList` / `choreBoard` / `taskList` | `(items, feelingScore?)` / `(items, { rooms, routines, members, feelings, me, today, tz })` / `(items, filter: 'mine' \| 'all' \| 'outside', me)` | The Needs, Chores and Tasks screens' order and filters; `isChoreDue`, `choreLateness`, `daysSinceDone` back them |
 | `choreNames` | `(items) → ChorePick[]` | Every chore name in the house, most-used first, each with its most-used icon, then the `STARTER_CHORES` it doesn't have: House → Rooms' one-tap picks (T101). |
+| `whoseLine` / `hasItLine` / `choresLine` | `(routine, holder?) → string` / `(routine, holder?, next?) → string` / `(chores) → string` | Chores tab words, T105: "Alex's this month" under a routine, "Alex has it this week, then you" in a room's sheet, a housemate's room's chores in words |
 | `scorePriority` | `(i: Item, f: Feeling[], w: FeelingWeights, now, tz) → { score, tier, breakdown }` | PRD §8.1; `describePart` words the breakdown ("Why is this here?") |
 | **Feelings and weights** (`feelings.ts`, `weights.ts`) | | |
 | `setFeeling` | `(current: Feeling \| null, next: { kind, note? } \| null, ctx: { itemId, by, now, actionId }) → Result<{ feeling \| null; events }, 'no_change' \| 'note_too_long'>` | The event carries `previous`; `earlierFeelings(rows)` reads them back, leaving out a version whose note was added or edited on the same feeling |
@@ -725,6 +726,7 @@ select changes, actor_id, at from activity_events
 | `periodStart` / `nextPeriodStart` | `(r: { resets, startsOn }, today) → LocalDate` | Monday, every other Monday from `startsOn`, or the 1st |
 | `routineHolder` / `nextHolder` / `rotationOrder` | `(r, members, today) → UserId \| undefined` | The fixed person, or arithmetic over active members by `joinedAt` |
 | `choreOwner` / `doneThisPeriod` / `routineProgress` | `(chore, rooms, routines) → Routine \| undefined` / `(chore, routine, today, tz) → boolean` | First live room's routine; upkeep has none |
+| `onNoRoutine` | `(routines, members) → UserId[]` | Active members no routine reaches, only when every routine is always one person (T112): the Chores tab's notice and organizers' line in House → Routines |
 | `createRoutine` / `editRoutine` / `removeRoutine` / `setRoutineRooms` | → `Result<{ routine; events }, …>` / `{ rooms; events }` | Any member; a changed reset keeps this period's holder |
 | `reanchorRoutines` | `(routines, { before, after, today, by, actionId }) → { routines; events }` | Run when someone joins or moves out, so this period's holders don't shift |
 | `renameRoom` / `moveRoom` | `(room, name, by, actionId) → Result<…, 'empty_name' \| 'no_change'>` / `(rooms, roomId, 'up' \| 'down') → Result<Room[], 'not_found' \| 'at_edge'>` | Moves within the room's group, keeping the group's `sort_order` slots. Reordering isn't recorded |

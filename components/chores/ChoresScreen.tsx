@@ -1,6 +1,6 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
+import { ChevronRight, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useItemSheets } from '@/components/items/ItemSheets'
@@ -20,6 +20,7 @@ import { useAppClient } from '@/lib/client/provider'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId, RoomId, RoutineId } from '@/lib/domain/ids'
 import { choreBoard, holdingLine, whoseLine } from '@/lib/domain/lists'
+import { onNoRoutine } from '@/lib/domain/routines'
 import { localDateOf } from '@/lib/domain/time'
 import { AddChoresSheet } from './AddChoresSheet'
 import { QuickAddSheet } from './QuickAddSheet'
@@ -71,6 +72,8 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
     tz,
   })
   const line = holdingLine(board.cards, today)
+  const unplaced = onNoRoutine(routines.data, members.data ?? []).includes(me)
+  const routinesHref = `/h/${houseId}/house/routines`
   const open = board.cards
     .flatMap((card) => card.rooms.map((box) => ({ card, box })))
     .find(({ box }) => box.room.id === openRoom)
@@ -100,6 +103,22 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   return (
     <div className="grid gap-3">
       {line && <p className="m-0 text-sm leading-snug font-bold text-ink-soft">{line}</p>}
+      {unplaced && (
+        // Someone every group leaves out, like a newcomer (T112). Organizers see them in Routines.
+        <div className="grid gap-2 rounded-[16px] bg-neutral-fill p-3 text-neutral-ink">
+          <p className="m-0 font-bold">You&apos;re not looking after any rooms yet.</p>
+          <p className="m-0 text-sm leading-snug">
+            An organizer can add you, or take some on yourself. Upkeep below is everyone&apos;s
+            meanwhile.
+          </p>
+          <Link
+            href={routinesHref}
+            className="sticker inline-flex min-h-11 items-center justify-self-start rounded-full bg-accent px-3.5 py-2 text-sm font-extrabold text-on-accent [--sticker-edge:color-mix(in_srgb,var(--accent)_60%,#000)]"
+          >
+            Who has which rooms
+          </Link>
+        </div>
+      )}
       {board.cards.map((card) => {
         const holder = card.holder
           ? (ctx.person(card.holder) ?? { name: 'Former roommate' })
@@ -167,6 +186,16 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
           </div>
         )
       })}
+      {!unplaced && board.cards.length > 0 && (
+        // Where who-has-which-rooms is set up, one tap from here (T112).
+        <Link
+          href={routinesHref}
+          className="inline-flex min-h-11 items-center gap-1 justify-self-start text-sm font-extrabold text-accent-ink"
+        >
+          Who has which rooms
+          <ChevronRight aria-hidden className="size-4" />
+        </Link>
+      )}
       <UpkeepSection ctx={ctx} upkeep={board.upkeep} onAdd={() => setAdding(true)} />
 
       {adding ? (

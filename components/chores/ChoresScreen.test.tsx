@@ -29,7 +29,7 @@ beforeAll(() => {
   Element.prototype.hasPointerCapture ??= () => false
 })
 
-const setup = async () => {
+const setup = async ({ as = 'kavya', gardenForWren = true } = {}) => {
   // The screen reads the real time (useNow), and a tick only counts in the current period.
   const deps = depsForTest({ clock: fixedClock(instant(Date.now())) })
   const { house, admin, member } = await seedHouse({
@@ -63,14 +63,14 @@ const setup = async () => {
     if (!made.ok) throw new Error(made.error)
   }
   await routine('Kitchen and dining', admin, [kitchen.id, dining.id])
-  await routine('Garden', member, [garden.id])
+  if (gardenForWren) await routine('Garden', member, [garden.id])
 
   const add = async (input: Parameters<ReturnType<typeof makeCreateItem>>[1]) => {
     const made = await makeCreateItem(deps)(me, input)
     if (!made.ok) throw new Error(made.error)
     return made.value
   }
-  const client = fakeAppClient(deps.uow, me, {
+  const client = fakeAppClient(deps.uow, as === 'kavya' ? me : wren, {
     createItem: (i) => makeCreateItem(deps)(me, i) as never,
     doChore: (id) => makeDoChore(deps)(me, id) as never,
     undoChore: (i) => makeUndoChore(deps)(me, { id: i.id, doneAt: instant(i.doneAt) }) as never,
@@ -120,6 +120,24 @@ describe('the Chores tab (FRONTEND §5.6, T101)', { timeout: 20_000 }, () => {
     expect(within(theirs).queryByRole('button', { name: /^Add chores/ })).toBeNull()
     expect(screen.getByText(/you have the kitchen and dining · through/)).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/routine/i)
+  })
+
+  it('tells someone on no routine so, and where to take rooms on (T112)', async () => {
+    const { show } = await setup({ as: 'wren', gardenForWren: false })
+    show()
+    expect(await screen.findByText("You're not looking after any rooms yet.")).toBeTruthy()
+    const links = screen.getAllByRole('link', { name: 'Who has which rooms' })
+    expect(links).toHaveLength(1)
+    expect(links[0]!.getAttribute('href')).toMatch(/\/house\/routines$/)
+    expect(document.body.textContent).not.toMatch(/routine/i)
+  })
+
+  it('links to who has which rooms, with no notice for someone on one', async () => {
+    const { show } = await setup()
+    show()
+    await screen.findByRole('group', { name: 'Kitchen and dining, Kavya' })
+    expect(screen.getByRole('link', { name: 'Who has which rooms' })).toBeTruthy()
+    expect(screen.queryByText(/not looking after any rooms/)).toBeNull()
   })
 
   it('ticks in your box with Undo, and tapping a ticked chore undoes it', async () => {
@@ -221,11 +239,19 @@ describe('the Chores tab (FRONTEND §5.6, T101)', { timeout: 20_000 }, () => {
     show()
     await userEvent.click(await screen.findByRole('button', { name: 'Garden, Wren' }))
     const sheet = await screen.findByRole('dialog', { name: 'Garden' })
+    // It opens on the checklist; setting up chores is behind Edit chores (T112).
+    expect(within(sheet).queryByRole('list', { name: 'Chores to add' })).toBeNull()
+    const edit = within(sheet).getByRole('button', { name: 'Edit chores' })
+    expect(edit.getAttribute('aria-expanded')).toBe('false')
+    await userEvent.click(edit)
+    expect(edit.getAttribute('aria-expanded')).toBe('true')
     const picks = within(sheet).getByRole('list', { name: 'Chores to add' })
     expect(within(picks).queryByRole('button', { name: 'Weeds' })).toBeNull()
     await userEvent.click(within(picks).getByRole('button', { name: 'Water plants' }))
     await userEvent.click(within(sheet).getByRole('button', { name: 'Add' }))
     expect(await within(sheet).findByRole('button', { name: 'Did it: Water plants' })).toBeTruthy()
+    // Added, it's back on the checklist.
+    expect(within(sheet).queryByRole('list', { name: 'Chores to add' })).toBeNull()
     expect(
       [...deps.uow.state.items.values()].filter(
         (i) => i.category === 'chore' && i.rooms.includes(garden.id),
