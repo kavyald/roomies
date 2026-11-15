@@ -175,24 +175,27 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     await expect(rooms).toBeHidden()
-    // Your own sheet in Roommates, with "Which room is yours?" (T93).
+    // Your own sheet in Roommates (move out, organizer; your room is on You since T109).
     await page.goto(`${h}/house/roommates`)
     const youSheet = page.getByRole('dialog', { name: 'You' })
     await expect(async () => {
       if (!(await youSheet.isVisible())) {
         await page.getByRole('list', { name: 'Roommates' }).getByRole('button').first().click()
       }
-      await expect(youSheet.getByRole('radiogroup', { name: 'Your room' })).toBeVisible({
-        timeout: 2000,
-      })
+      await expect(youSheet).toBeVisible({ timeout: 2000 })
     }).toPass()
     await check(page, 'roommates (your sheet)')
     await page.keyboard.press('Escape')
     await expect(youSheet).toBeHidden()
-    // House → Send feedback (T91).
-    await page.goto(h)
-    await page.getByRole('button', { name: 'Send feedback' }).click()
-    await expect(page.getByRole('dialog', { name: 'Feedback' })).toBeVisible()
+    // You → Send a bug, idea or praise (T91, T109).
+    await page.goto(`${h}/me`)
+    const feedbackRow = page.getByRole('button', { name: 'Send a bug, idea or praise' })
+    await expect(async () => {
+      if (!(await page.getByRole('dialog', { name: 'Feedback' }).isVisible())) {
+        await feedbackRow.click()
+      }
+      await expect(page.getByRole('dialog', { name: 'Feedback' })).toBeVisible({ timeout: 2000 })
+    }).toPass()
     await check(page, 'feedback sheet')
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog', { name: 'Feedback' })).toBeHidden()

@@ -1,3 +1,4 @@
+import { MeLink } from '@/components/shell/MeLink'
 import { ScreenHeader } from '@/components/shell/ScreenHeader'
 import { TasksScreen } from '@/components/tasks/TasksScreen'
 import type { HouseId } from '@/lib/domain/ids'
@@ -8,7 +9,7 @@ export default async function TasksPage({ params }: PageProps<'/h/[houseId]/task
   const { houseId } = await params
   return (
     <main>
-      <ScreenHeader title="Tasks" />
+      <ScreenHeader title="Tasks" trailing={<MeLink houseId={houseId as HouseId} />} />
       <TasksScreen houseId={houseId as HouseId} />
     </main>
   )

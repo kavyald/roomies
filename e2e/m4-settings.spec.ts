@@ -5,9 +5,22 @@ test('personal settings: turn a category off, keep quiet hours, and switch to da
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
-  await page.goto(`/h/${owner.houseId}`)
+  // T109: your avatar sits top-right on every tab and opens You.
+  for (const tab of ['Needs', 'Tasks', 'Chores', 'House']) {
+    await page.getByRole('navigation', { name: 'Tabs' }).getByRole('link', { name: tab }).click()
+    await expect(page.getByRole('heading', { name: tab, level: 1 })).toBeVisible()
+    // The screen's own header sits inside <main>, so it isn't a banner landmark.
+    await expect(
+      page.locator('main header').getByRole('link', { name: 'Your settings' }),
+    ).toHaveAttribute('href', `/h/${owner.houseId}/me`)
+  }
   await page.getByRole('link', { name: 'Your settings' }).click()
   await expect(page.getByRole('heading', { name: 'You', level: 1 })).toBeVisible()
+  // Everything personal is here (T109): your room, feedback, and your account at the bottom.
+  await expect(page.getByRole('heading', { name: 'Your room' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Send a bug, idea or praise' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Delete my account' })).toBeVisible()
 
   // T65: two separate entries; neither setting sits on this page.
   const settings = page.getByRole('navigation', { name: 'Settings' })

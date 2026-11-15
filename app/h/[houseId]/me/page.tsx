@@ -14,7 +14,7 @@ export default async function MePage({ params }: PageProps<'/h/[houseId]/me'>) {
       <BackToHouse houseId={houseId as HouseId} />
       <ScreenHeader title="You" />
       <MeScreen houseId={houseId as HouseId} />
-      {/* Your account, not the house's (T107): moved here from Admin. */}
+      {/* Your account, not the house's (T107), always at the bottom (T109). */}
       <div className="mt-8 grid justify-items-center gap-2">
         <SignOutButton />
         <DeleteAccount />

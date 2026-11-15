@@ -1,4 +1,5 @@
 import { ChoresScreen } from '@/components/chores/ChoresScreen'
+import { MeLink } from '@/components/shell/MeLink'
 import { ScreenHeader } from '@/components/shell/ScreenHeader'
 import type { HouseId } from '@/lib/domain/ids'
 
@@ -8,7 +9,7 @@ export default async function ChoresPage({ params }: PageProps<'/h/[houseId]/cho
   const { houseId } = await params
   return (
     <main>
-      <ScreenHeader title="Chores" />
+      <ScreenHeader title="Chores" trailing={<MeLink houseId={houseId as HouseId} />} />
       <ChoresScreen houseId={houseId as HouseId} />
     </main>
   )

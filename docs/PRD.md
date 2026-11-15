@@ -92,12 +92,12 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 
 | Tab | Contents |
 |---|---|
-| **House** | Where the app opens. **Polls** (open ones first with how many have voted, then the latest closed ones, and **New poll**), the "feeling weights changed" card, **Calendar** ("3 this week") and **Activity**, then the house's setup in labelled groups: **People** (Roommates and the invite link for organizers; Contacts), **Chores** (Routines, Rooms), **Money** (the Splitwise group) and **Priority** (how feelings raise priority: the feeling weights). Everyone sees this tab and can change everything on it except the invite link and roommate controls, which are the organizer's. Nothing personal: that's on **You** (your avatar, top right). |
+| **House** | Where the app opens. **Polls** (open ones first with how many have voted, then the latest closed ones, and **New poll**), the "feeling weights changed" card, **Calendar** ("3 this week") and **Activity**, then the house's setup in labelled groups: **People** (Roommates and the invite link for organizers; Contacts), **Chores** (Routines, Rooms), **Money** (the Splitwise group) and **Priority** (how feelings raise priority: the feeling weights). Everyone sees this tab and can change everything on it except the invite link and roommate controls, which are the organizer's. Nothing personal: that's on **You** (your avatar, top right of every tab, T109). |
 | **Needs** | **Runs in progress** (open batches), then the shared list of things to buy, ranked by priority (§8.1). **Start a run** from here. |
 | **Tasks** | **Coming up** (visits dated in the next 7 days), then tasks ranked by priority with filters *Mine / All / Outside help*, then the other open **Requests & visits** (unsent and sent requests, later visits). Requests and visits start from the + or from a task (T108). |
 | **Chores** | Who has which rooms this period, as cards, and the shared Upkeep list below, ranked by priority |
 
-There is no Home feed (T107, D43): each tab ranks its own kind by priority (T108, D44), and an item's detail says why (**Why it's near the top**). A tab with something Urgent on it carries a dot. Calendar, Activity and You open over House with a back button to it; old Home and Admin links land on House.
+There is no Home feed (T107, D43): each tab ranks its own kind by priority (T108, D44), and an item's detail says why (**Why it's near the top**). A tab with something Urgent on it carries a dot. Calendar, Activity and You open over House with a back button to it; **You** (your avatar, top right on all four tabs) holds everything that's yours: your room, Notifications, Appearance, feedback, Sign out and Delete my account (T109); old Home and Admin links land on House.
 
 A floating **"+"** on Needs, Tasks and Chores opens that tab's form (a need, a task, a chore). Only the title is required. Polls start from House, runs from Needs.
 
@@ -236,7 +236,7 @@ A run is **a batch of items handled together**. There are three kinds:
 
 ### 6.8 Feedback **[DECIDED] (owner)**
 
-- An icon at the top right of **House** (no text; VoiceOver reads "Send feedback") opens a sheet: **Bug 🐞 · Idea 💡 · Praise 💛** (Idea to start), a message, and the header check, **Send**.
+- The row **Send a bug, idea or praise** on **You** (T109; an icon on House before) opens a sheet: **Bug 🐞 · Idea 💡 · Praise 💛** (Idea to start), a message, and the header check, **Send**.
 - It goes to the owner, not the house: it's saved for the owner to read in the Supabase dashboard, isn't in the activity log, and notifies nobody. Housemates can't read each other's feedback.
 - Each one carries who sent it, their house, the app version and the browser. No screenshot or page.
 
@@ -313,7 +313,7 @@ Users see a **tier**: ●● **Urgent** (≥ 70), **Soon** (45–69), Normal (20
 - **Joining:** open the link → enter name + email → type the 6-digit code → pick your bedroom → you're in. **(owner)** It's instant, with no organizer approval.
 - **Signing in later:** enter your email → type the code. This only works for emails that already have an account.
 - **Roles:** **organizer** (manage invites, remove members) and **member** (everything else, including settings). **(owner)** The data calls the organizer role `admin`; people never see that word for a person, (D40, T103).
-- **Changing rooms (T93):** anyone, the organizer included, picks, changes or clears their own bedroom from their row in House → Roommates. Only bedrooms nobody lives in can be picked; nobody changes someone else's room. Activity shows the move.
+- **Changing rooms (T93):** anyone, the organizer included, picks, changes or clears their own bedroom on **You** (T109; House → Roommates before, which still shows everyone's room). Only bedrooms nobody lives in can be picked; nobody changes someone else's room. Activity shows the move.
 - **Moving out:** an organizer (or the person themselves) marks a member as moved out. They lose access, and their name stays on past items.
 - **Deleting your account:** removes your email and profile. Your name on past items becomes "Former roommate."
 - **Access guarantee:** nobody outside the house can read or write its data, and this is enforced at the database layer.

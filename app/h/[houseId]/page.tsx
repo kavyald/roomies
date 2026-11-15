@@ -1,4 +1,3 @@
-import { FeedbackButton } from '@/components/house/FeedbackSheet'
 import { HouseScreen } from '@/components/house/HouseScreen'
 import { MeLink } from '@/components/shell/MeLink'
 import { ScreenHeader } from '@/components/shell/ScreenHeader'
@@ -13,15 +12,7 @@ export default async function HousePage({ params, searchParams }: PageProps<'/h/
   const showWeights = 'priority' in (await searchParams)
   return (
     <main>
-      <ScreenHeader
-        title="House"
-        trailing={
-          <div className="flex items-center gap-1">
-            <FeedbackButton houseId={houseId as HouseId} />
-            <MeLink houseId={houseId as HouseId} />
-          </div>
-        }
-      />
+      <ScreenHeader title="House" trailing={<MeLink houseId={houseId as HouseId} />} />
       <HouseScreen houseId={houseId as HouseId} showWeights={showWeights} />
     </main>
   )
