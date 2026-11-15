@@ -1,6 +1,6 @@
 # Roomies — Architecture & System Design
 
-**Status:** v1 scope (2026-09-28): one items table, polls, runs, costs. Items point at their current run, and the activity table is the history. DI structure unchanged. Resynced with the build on `v1` after M4 (2026-10-02, T46): ports, schema, function catalog, jobs, Realtime and the file tree describe what shipped.
+**Status:** v1 (M0–M7, launched) and v2 (M8); the v1 scope was set on 2026-09-28: one items table, polls, runs, costs. Items point at their current run, and the activity table is the history. DI structure unchanged. Resynced with the build on `v1` after M4 (2026-10-02, T46): ports, schema, function catalog, jobs, Realtime and the file tree describe what shipped.
 **Companions:** [PRD.md](./PRD.md) · [FRONTEND.md](./FRONTEND.md) (visual design, UI, copy)
 
 > Same convention as the PRD: **[DECIDED]**, with *(owner)* marking the ones you answered directly. The design targets **one house, 2–8 users, built by one person, on free tiers**. The priorities are low cost, low ops, fast iteration, and making sure only house members can read house data.
@@ -206,7 +206,7 @@ If you'd rather go minimal, the Vite SPA option is the runner-up. Everything els
 | Phone SMS OTP | Everyone has a phone | Costs money per SMS (Twilio), and SIM-swap risk |
 | Passkeys (WebAuthn) | Best UX + security on iPhone | Newer in Supabase, and needs a fallback for new devices |
 
-**[DECIDED] Email with a 6-digit OTP code only.** The email template contains just the code, no clickable link. **Passkeys come in phase 2.** Sessions are long-lived (refresh token rotation, ~30-day inactivity expiry), so people rarely re-auth.
+**[DECIDED] Email with a 6-digit OTP code only.** The email template contains just the code, no clickable link. **Passkeys are iceboxed** (PRD §13). Sessions are long-lived (refresh token rotation, ~30-day inactivity expiry), so people rarely re-auth.
 
 ### 5.2 "Credential matching": how only house members get in
 
@@ -291,7 +291,7 @@ A new table grants its writes to `app_writer`, never to `authenticated`; Member 
 | The 6-digit code | Supabase Auth, **hashed**, single use | Expires after 10 minutes (we set this, default is 1h). Rate-limited per email/IP. |
 | Session | A refresh token in Supabase Auth, plus an access token (JWT) in the phone's browser storage/cookie | Signing out, or an admin removing a member, revokes it |
 | Display name, timezone, quiet hours | Our `profiles` table (same database) | Readable only by members of the same house |
-| House data (items, feelings, polls, runs, costs) | Our tables, same project (no file storage in v1) | Access controlled by RLS as above |
+| House data (items, feelings, polls, runs, costs) | Our tables, same project (no file storage in v1 or v2) | Access controlled by RLS as above |
 
 - **Physical location:** one Supabase project in the region you pick when creating it (e.g. `us-east-1`). The data is encrypted at rest and in transit (TLS). Only you, as the Supabase project owner, can see the raw tables in the dashboard.
 - **Who else touches it:**
@@ -305,7 +305,7 @@ A new table grants its writes to `app_writer`, never to `authenticated`; Member 
 
 - RLS is **enabled on every table**, and a test (`supabase/tests/rls.test.ts`, "RLS is on everywhere") fails if any public table lacks RLS.
 - The service-role key lives only in server env vars (read by `loadConfig`) and is never shipped to the client.
-- **Sensitive fields** (Wi‑Fi, door codes) come later with info items (PRD §13). v1 stores no secrets.
+- **Sensitive fields** (Wi‑Fi, door codes) are iceboxed with info items (PRD §13). v1 and v2 store no secrets.
 - File attachments come later (PRD §13). When added: private buckets, `house/<house_id>/<item_id>/<file>` paths, and signed URLs.
 - Rate limits: Supabase Auth's built-in OTP limits, plus our own per-IP limits through the `RateLimiter` port (the `rate_limits` counter table, service role only, no extra vendor). The rules live in `lib/app/invites.ts`: `INVITE_RATE` (10 per 10 minutes) for joining, step 1 (`invite:start:<ip>`) and the last step (`invite:accept:<ip>`), and `SETUP_RATE` (10 per hour) for `startSetup` (`setup:<ip>`). Refused attempts are recorded in `security_events` through the `SecurityLog` port (written outside the use case's transaction, service role only, never shown to members): `invite_refused` (an unknown, expired, revoked or used-up invite token, with that reason, from the join page or either join step), `setup_token_refused` (a wrong setup token, from the setup page, `startSetup` or `finishSetup`), and `rate_limited` (any of the limits above). Each row has its step (`join.view`, `join.start`, `join.accept`, `setup.view`, `setup.start`, `setup.finish`), the time, and the caller's IP as the rate limiter sees it. The IP is stored plainly, like the `rate_limits` keys: the app has no secret to salt a hash with, and an unsalted hash of an IPv4 address can be reversed in seconds. Sign-in attempts stay with Supabase Auth.
 - Headers (`next.config.ts`): `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` and `Referrer-Policy: strict-origin-when-cross-origin` on every route; `/sw.js` gets its own `Content-Security-Policy: default-src 'self'; script-src 'self'` (and no caching). No third-party scripts.
@@ -314,7 +314,7 @@ A new table grants its writes to `app_writer`, never to `authenticated`; Member 
 
 ---
 
-## 6. Data model (v1)
+## 6. Data model (v1 and v2)
 
 ### 6.1 Storage strategy — **[DECIDED] (owner) D18: one `items` table**
 
@@ -935,7 +935,7 @@ iPhone UX specifics:
 | Secrets | Vercel env vars (service-role key, `SETUP_TOKEN`, VAPID private key, cron secret, `SENTRY_AUTH_TOKEN` for source-map uploads at build time, Splitwise secret later). The Gmail app password lives only in Supabase's SMTP settings, never in the app. `.env.example` checked in. |
 | Backups | Free tier: `.github/workflows/backup.yml` runs weekly (off until `BACKUP_ENABLED` is `true`, E5): `scripts/backup.sh` dumps prod's data (`public` plus `auth.users` / `auth.identities`; the schema is the migrations), gzips it and encrypts it with OpenSSL CMS for the owner's certificate in one pipe, and only the encrypted file becomes a 90-day artifact. `scripts/restore.sh` loads one into a migrated database, replacing its data in one transaction; `scripts/backup-roundtrip.sh` proves the pair on local Supabase. Scheduled jobs on a hosted project get their Vault secrets from `pnpm cron:vault set`, and `pnpm cron:vault check` shows whether they reach the app (E3, E5). |
 | Monitoring | Sentry (client + server, A28; E6), Supabase logs, a Vercel Cron failure alert, and an uptime ping (free UptimeRobot/Better Stack) |
-| Domain | `*.vercel.app` for v1. A custom domain (~$12/yr) comes with the move to Resend (A18). |
+| Domain | `*.vercel.app` for v1 and v2. A custom domain (~$12/yr) comes with the move to Resend (A18). |
 
 ---
 
@@ -956,7 +956,7 @@ iPhone UX specifics:
 
 ## 11. Scalability & future-proofing (brief)
 
-- v1 is one house. Everything is still keyed by `house_id`, so opening it to more houses later means replacing the setup-token bootstrap with a "create a house" flow. The schema and RLS stay the same.
+- v1 and v2 are one house. Everything is still keyed by `house_id`, so opening it to more houses later means replacing the setup-token bootstrap with a "create a house" flow. The schema and RLS stay the same.
 - The only fan-out is notifications, which already go through an outbox. It can move to a proper queue (e.g. Supabase Queues/pgmq) if volume grows.
 - If a native app is needed later, `lib/domain` and `lib/app` are framework-free, so an Expo app reuses them as-is and only needs its own adapters and UI.
 
@@ -978,13 +978,15 @@ iPhone UX specifics:
 
 ## 13. Technical decision log
 
+Rows tagged **[v2]** came with M8.
+
 | # | Question | Decision | Source |
 |---|---|---|---|
 | A1 | PWA vs React Native vs SwiftUI | PWA | Default |
 | A2 | Frontend/backend stack | Next.js + Supabase + Vercel (Vite SPA is the runner-up) | Owner had no preference, so my pick |
 | A3 | Auth method | Email 6-digit code, passkeys later | Default |
 | A4 | Extra house passcode on invites | No | Default |
-| A5 | Priority computed in client TS or SQL | Client TS for v1 | Default |
+| A5 | Priority computed in client TS or SQL | Client TS (v1 and v2) | Default |
 | A6 | Accounts | New free accounts: GitHub, Vercel, Supabase, and a dedicated house Gmail for sending codes | Default (no preference given), Gmail per A18 |
 | A7 | Budget | Free tiers. Upgrade only if the Supabase pause or cron limits bite. | Owner |
 | A8 | Scope | One house (setup token for the first account), keep `house_id` everywhere | Owner |
@@ -995,9 +997,9 @@ iPhone UX specifics:
 | A13 | Data objects | Standalone, immutable domain types (discriminated unions), mapped to/from rows in adapters | Owner (DI request) |
 | A14 | Activity log + notifications | Domain events recorded in the same transaction (transactional outbox). No triggers. | Owner (DI request) |
 | A15 | v1 storage | One `items` table (need / chore / task) with CHECKs. Polls, runs, costs, and feelings are their own tables. Detail tables come back per category only if one grows. | Owner (D18) |
-| A16 | v1 scope | Needs, chores, tasks, polls, runs, costs, feeling weights. Bills, belongings, outside-help stages, heads-ups, info, and email come later. | Owner (D13) |
+| A16 | v1 scope | Needs, chores, tasks, polls, runs, costs, feeling weights. Bills, belongings, outside-help stages, heads-ups, info, and email are iceboxed (PRD §13); v2 (M8) kept the same scope. | Owner (D13) |
 | A17 | History storage | `items.run_id` holds the current run. `activity_events` (typed subject columns, append-only, `action_id` grouping) is the only history store. `run_items` / `run_claims` dropped. | Owner |
-| A18 | Sign-in email sender | A dedicated house Gmail as Supabase custom SMTP, with the app on `*.vercel.app`. No domain in v1. Move to Resend + a custom domain when delivery logs or reminder emails are needed, or if Google flags the account. | Owner |
+| A18 | Sign-in email sender | A dedicated house Gmail as Supabase custom SMTP, with the app on `*.vercel.app`. No domain in v1 or v2. Move to Resend + a custom domain when delivery logs or reminder emails are needed, or if Google flags the account. | Owner |
 | A19 | External services | Kept out of M0–M4. The core runs on local Supabase (CLI + Docker) with its local inbox. Hosted Supabase, the Gmail sender, Vercel, Sentry, and on-iPhone checks are the M5 "E" tasks, and no core task depends on them. | Owner |
 | A20 | Test suite | One runner (Vitest) for everything but E2E, plus Playwright. RLS tests in Vitest via `asUser()`, not pgTAP. One house per test for isolation. `pnpm test:all` is the gate, and each milestone ends with a test task (Q0–Q6). | Owner |
 | A21 | UnitOfWork and EventSink details (T06) | `uow.run` also rolls back when the use case resolves to `{ ok: false }`, so bailing out halfway never leaves partial writes. `EventSink.record(houseId, events, at)` takes the house and the injected `now`, so activity times come from the same clock as the rest of the use case (no `default now()` drift in tests). | Build (T06) |
@@ -1014,8 +1016,8 @@ iPhone UX specifics:
 | A32 | Server error reports outlive the response (T79) | `lib/adapters/sentry/server.ts` (`reportError`, and `captureRequestError` for `onRequestError`) hands `Sentry.flush(2000)` to `waitUntil` from `@vercel/functions` after every capture. Vercel freezes a function once its response ends, and `@sentry/nextjs`'s own wait only runs on the edge runtime, so on Node a report still sending was cut off and counted as a `network_error` discard. Off Vercel `waitUntil` does nothing. The server reporters sit apart from `index.ts` so the browser bundle never pulls in `@vercel/functions`. | Build (T79), found in E2 |
 | A33 | A browser belongs to whoever last turned notifications on with it (T84) | `savePushSubscription` checks you're an active member and saves as the system in one transaction, which moves a browser saved under someone else to you. It moves only if the keys you send match the saved ones (the same browser hands back the same subscription) or the row is already gone; knowing the endpoint alone isn't enough. Sign-out unsubscribes the browser and marks its row `gone_at`. The alternatives were an RLS policy letting a member update a row they can't see by endpoint (it would need a security-definer lookup, a logic RPC, which §4.1 rules out), or refusing the save (the next person on a shared phone could never turn notifications on). | Build (T84) |
 | A34 | Feedback is not an activity event (T91) | A bug, idea or praise sent from Admin (House since T107) goes to its own `feedback` table, which members insert into (in their own name, for their own house) and never read; the owner reads it in the Supabase dashboard. The use case records no `DomainEvent`, so it's neither house history nor a notification: it's a note to whoever runs Roomies, not something the house did. The server stamps the app version (`Config.appVersion`, from `VERCEL_GIT_COMMIT_SHA`) and the request's user agent, so the client sends only the kind and message. No screenshot or page path. | Owner (2026-10-14), built in T91 |
-| A36 | The Splitwise group is a shared house setting (T89) | `settings.splitwise_group` on `houses`, which any active member may change. The policy that let members change only the feeling weights now lets them change those or the link (renamed "houses members set shared settings", helper `only_shared_settings_changed`, by `ALTER … RENAME` so the policy keeps its oid), and a CHECK keeps the link one shape. A separate table was the alternative; one optional key didn't earn its own table, grants and contract. Each change is a `settings.splitwise_changed` activity row, filed under Money, with no notification. | Owner (2026-11-10), built in T89 |
-| A37 | Claim before sending, re-check when due (T83) | The sender claims rows with a lease column (`claimed_until`) set by `update … where id in (select … for update skip locked) returning`, then pushes and marks each message in its own short transaction. Before, one transaction read the batch without a lock and marked everything at the end, so the after-action sender and the 5-minute job could both send a row, and any throw rolled back every mark and re-sent the batch. A lease rather than a plain flag, so a sender that dies mid-batch frees its rows after 10 minutes instead of stranding them. At claim time each message is checked again (`whyNotSend`): still an active member, category still on, reminder not past `expires_at`; a skipped row keeps why in `error`. Owner decisions (2026-11-10): held rows are re-timed when quiet hours change, and a message dropped as `no_subscription` stays dropped (turning push on later delivers nothing from before). | Owner (2026-11-10), built in T83 |
-| A35 | Routines (T96) | Who's on a chore is derived, not stored: a routine holds an anchor (`starts_on`, `starts_with`) and the holder is arithmetic over active members, re-anchored in the join and move-out transactions. A handover is a reminder draft with a dedupe key, not an activity event, since nothing happens to the data then. The migration only adds (DEPLOYMENT D5); the strict chore checks come in a later release. |
-| A37 | No Home feed (T107, PRD D43) | The House tab replaces Home and Admin, so the domain's feed (`homeFeed`, `isInFeed`, `isComingUp`) is removed rather than kept unused; priority stays one function (`scorePriority`), shown per item. House reads its polls through `housePolls` and counts the week with `comingUp`. `/h/[houseId]` is House itself, so `whereTo` and old Home links land on it with no redirect; `/admin` and `/house` redirect there, and people notifications open `/house/roommates`. | Owner (2026-11-14), built in T107 |
-| A38 | Each tab ranks in the browser (T108, PRD D44) | `rankItems` scores every open item with `scorePriority` and sorts by score, then date, then newest; `needList`, `taskList` and `choreBoard`'s Upkeep take a `Ranking` (`{ feelings, weights, now, tz }`, `useRanking`). Tiers are `urgent` / `soon` / `normal` / `low`, and the chip takes only the first two (`chipTier`), so a Normal chip can't be drawn. `urgentTabs` gives the tab dots (Chores: Upkeep only). No stored score and no new query: ranking depends on today. | Owner (2026-11-14), built in T108 |
+| A36 | **[v2]** The Splitwise group is a shared house setting (T89) | `settings.splitwise_group` on `houses`, which any active member may change. The policy that let members change only the feeling weights now lets them change those or the link (renamed "houses members set shared settings", helper `only_shared_settings_changed`, by `ALTER … RENAME` so the policy keeps its oid), and a CHECK keeps the link one shape. A separate table was the alternative; one optional key didn't earn its own table, grants and contract. Each change is a `settings.splitwise_changed` activity row, filed under Money, with no notification. | Owner (2026-11-10), built in T89 |
+| A37 | **[v2]** Claim before sending, re-check when due (T83) | The sender claims rows with a lease column (`claimed_until`) set by `update … where id in (select … for update skip locked) returning`, then pushes and marks each message in its own short transaction. Before, one transaction read the batch without a lock and marked everything at the end, so the after-action sender and the 5-minute job could both send a row, and any throw rolled back every mark and re-sent the batch. A lease rather than a plain flag, so a sender that dies mid-batch frees its rows after 10 minutes instead of stranding them. At claim time each message is checked again (`whyNotSend`): still an active member, category still on, reminder not past `expires_at`; a skipped row keeps why in `error`. Owner decisions (2026-11-10): held rows are re-timed when quiet hours change, and a message dropped as `no_subscription` stays dropped (turning push on later delivers nothing from before). | Owner (2026-11-10), built in T83 |
+| A35 | **[v2]** Routines (T96) | Who's on a chore is derived, not stored: a routine holds an anchor (`starts_on`, `starts_with`) and the holder is arithmetic over active members, re-anchored in the join and move-out transactions. A handover is a reminder draft with a dedupe key, not an activity event, since nothing happens to the data then. The migration only adds (DEPLOYMENT D5); the strict chore checks come in a later release. |
+| A39 | **[v2]** No Home feed (T107, PRD D43) | The House tab replaces Home and Admin, so the domain's feed (`homeFeed`, `isInFeed`, `isComingUp`) is removed rather than kept unused; priority stays one function (`scorePriority`), shown per item. House reads its polls through `housePolls` and counts the week with `comingUp`. `/h/[houseId]` is House itself, so `whereTo` and old Home links land on it with no redirect; `/admin` and `/house` redirect there, and people notifications open `/house/roommates`. | Owner (2026-11-14), built in T107 |
+| A38 | **[v2]** Each tab ranks in the browser (T108, PRD D44) | `rankItems` scores every open item with `scorePriority` and sorts by score, then date, then newest; `needList`, `taskList` and `choreBoard`'s Upkeep take a `Ranking` (`{ feelings, weights, now, tz }`, `useRanking`). Tiers are `urgent` / `soon` / `normal` / `low`, and the chip takes only the first two (`chipTier`), so a Normal chip can't be drawn. `urgentTabs` gives the tab dots (Chores: Upkeep only). No stored score and no new query: ranking depends on today. | Owner (2026-11-14), built in T108 |
