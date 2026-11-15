@@ -16,7 +16,8 @@ import type { RoomId, UserId } from '@/lib/domain/ids'
 import type { Room } from '@/lib/domain/house'
 import { fakeAppClient } from '@/lib/testing/app-client'
 import { ToastProvider } from '@/components/ui/Toast'
-import { RoomsSection } from './RoomsSection'
+import { ListGroup } from '@/components/ui/ListRow'
+import { RoomsRow } from './RoomsSection'
 
 afterEach(cleanup)
 beforeAll(() => {
@@ -76,7 +77,9 @@ const setup = async () => {
       queryClient={makeQueryClient()}
     >
       <ToastProvider>
-        <RoomsSection houseId={house.id} />
+        <ListGroup label="Rooms">
+          <RoomsRow houseId={house.id} />
+        </ListGroup>
       </ToastProvider>
     </AppClientProvider>,
   )
@@ -93,7 +96,7 @@ const setup = async () => {
   return { deps, me, rooms, chores, openRoom }
 }
 
-describe('Admin → Rooms (T66, T101)', { timeout: 20_000 }, () => {
+describe('House → Rooms (T66, T101)', { timeout: 20_000 }, () => {
   it('is one row that opens the rooms by group; a room opens its own sheet to rename or move', async () => {
     const { deps } = await setup()
     const user = userEvent.setup()

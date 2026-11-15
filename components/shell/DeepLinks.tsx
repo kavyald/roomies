@@ -13,7 +13,7 @@ import { ScreenHeader } from './ScreenHeader'
 type Listing = { readonly data?: readonly { readonly id: string }[]; readonly isError: boolean }
 
 /**
- * Once the house's list has loaded: if `id` is in it, open its sheet and move to Home underneath
+ * Once the house's list has loaded: if `id` is in it, open its sheet and move to House underneath
  * (like OpenItem); otherwise say it isn't there.
  */
 const useOpenWhenFound = (
@@ -57,7 +57,7 @@ function NotThere({
             href={base}
             className="sticker inline-flex min-h-11 items-center justify-center rounded-full bg-neutral-fill px-3.5 py-2 text-sm font-extrabold text-neutral-ink"
           >
-            Go to Home
+            Go to House
           </Link>
         }
       >
@@ -67,7 +67,7 @@ function NotThere({
   )
 }
 
-/** A link straight to a poll (from a notification) opens its sheet over Home. */
+/** A link straight to a poll (from a notification) opens its sheet over House. */
 export function OpenPoll({ houseId, pollId }: { houseId: HouseId; pollId: PollId }) {
   const { openPoll } = useItemSheets()
   const base = `/h/${houseId}`
@@ -81,7 +81,7 @@ export function OpenPoll({ houseId, pollId }: { houseId: HouseId; pollId: PollId
   )
 }
 
-/** A link straight to a run, request or visit (from a notification) opens its sheet over Home. */
+/** A link straight to a run, request or visit (from a notification) opens its sheet over House. */
 export function OpenRun({ houseId, runId }: { houseId: HouseId; runId: RunId }) {
   const { openRun } = useItemSheets()
   const base = `/h/${houseId}`

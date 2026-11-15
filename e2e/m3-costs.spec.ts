@@ -56,8 +56,8 @@ test('a grocery run in about six taps: finishing with $40 records one cost on th
   await expect(costs.getByRole('heading', { name: 'Costs' })).toBeVisible()
   await expect(costs.getByText('$189.00', { exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
-  // Admin shows no monthly total (T64).
-  await page.getByRole('link', { name: 'Admin' }).click()
-  await expect(page.getByRole('heading', { name: 'Roommates' })).toBeVisible()
+  // House shows no monthly total (T64).
+  await page.getByRole('navigation', { name: 'Tabs' }).getByRole('link', { name: 'House' }).click()
+  await expect(page.getByRole('heading', { name: 'House', level: 1 })).toBeVisible()
   await expect(page.getByText(/Spent this month/)).toHaveCount(0)
 })

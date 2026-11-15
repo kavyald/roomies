@@ -7,7 +7,7 @@ import { AddRoomChores, pickHeadingClass } from '@/components/chores/AddRoomChor
 import { Button } from '@/components/ui/Button'
 import { ChoreIcon } from '@/components/ui/ChoreIcon'
 import { IconButton, IconMark } from '@/components/ui/IconButton'
-import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { ListRow } from '@/components/ui/ListRow'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import {
@@ -26,27 +26,26 @@ import { ROOM_GROUPS, roomGroup, roomsInGroup } from '@/lib/domain/rooms'
 import { ROOM_GROUP_LABEL, roomKindLabel } from './room-labels'
 
 /**
- * Admin → Rooms (FRONTEND §5.11): one row that opens a sheet of the rooms by group. Tap one for
- * its own sheet: rename it, move it within its group, and set up its Deep clean chores (T101).
+ * House → Chores → Rooms (FRONTEND §5.11): one row (in a ListGroup) that opens a sheet of the rooms
+ * by group. Tap one for its own sheet: rename it, move it within its group, and set up its Deep
+ * clean chores (T101).
  */
-export function RoomsSection({ houseId }: { houseId: HouseId }) {
+export function RoomsRow({ houseId }: { houseId: HouseId }) {
   const rooms = useRooms(houseId)
   const [open, setOpen] = useState(false)
   const count = rooms.data?.length ?? 0
   return (
     <>
-      <ListGroup label="Rooms">
-        <ListRow
-          leading={<DoorOpen aria-hidden className="size-5 text-ink-soft" />}
-          title="Rooms"
-          subtitle={
-            count
-              ? `${count} rooms · rename, reorder or set up chores`
-              : 'Rename, reorder or set up chores'
-          }
-          onClick={() => setOpen(true)}
-        />
-      </ListGroup>
+      <ListRow
+        leading={<DoorOpen aria-hidden className="size-5 text-ink-soft" />}
+        title="Rooms"
+        subtitle={
+          count
+            ? `${count} rooms · rename, reorder or set up chores`
+            : 'Rename, reorder or set up chores'
+        }
+        onClick={() => setOpen(true)}
+      />
       {open && <RoomsSheet houseId={houseId} onClose={() => setOpen(false)} />}
     </>
   )

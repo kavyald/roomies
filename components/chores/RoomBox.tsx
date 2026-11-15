@@ -1,19 +1,18 @@
 'use client'
 
-import { Check, ChevronRight } from 'lucide-react'
+import { Check, ChevronRight, Circle } from 'lucide-react'
 import { useId } from 'react'
 import { feelingEmojis } from '@/components/items/Feelings'
 import type { CardContext } from '@/components/items/ItemCard'
-import { ChoreIcon } from '@/components/ui/ChoreIcon'
 import { cn } from '@/components/ui/cn'
-import { doneLine, type RoomBox as Box } from '@/lib/domain/lists'
+import { choresLine, doneLine, type RoomBox as Box } from '@/lib/domain/lists'
 import { useTick } from './RoomSheet'
 
 /**
  * A room on the Chores tab (FRONTEND §5.6, T101). Your own rooms list their Deep clean chores as
- * one-tap ticks, done ones in accent, ✨ when all are; the room's name opens its sheet. A
- * housemate's room shows only its chores' icons (PRD §6.2 keeps out who's-done-what) and a
- * feeling's emoji; the whole box opens the room. VoiceOver hears "Kitchen, Alex".
+ * one-tap ticks (an empty circle, then a check in accent, T112), ✨ when all are; the room's name
+ * opens its sheet. A housemate's room says its chores in words, never which are done (PRD §6.2),
+ * and a feeling's emoji; the whole box opens the room (T105). VoiceOver hears "Kitchen, Alex".
  */
 export function RoomBox({
   box,
@@ -35,27 +34,28 @@ export function RoomBox({
   const allDone = box.chores.every((c) => c.done)
 
   if (!mine) {
+    // Full width like your own, the name on its own line and the chores in words under it (T105).
     return (
       <button
         type="button"
         onClick={onOpen}
         aria-label={name}
-        aria-describedby={emojis ? id : undefined}
-        className="sticker flex h-full min-h-11 w-full items-center gap-1.5 rounded-[16px] border-[1.5px] border-outline bg-card px-2.5 py-2 text-left"
+        aria-describedby={emojis ? `${id}-chores ${id}-feel` : `${id}-chores`}
+        className="sticker grid min-h-11 w-full gap-0.5 rounded-[16px] border-[1.5px] border-outline bg-card px-2.5 py-2 text-left"
       >
-        <span className="min-w-0 flex-1 text-[0.9rem] leading-tight font-bold">
-          {box.room.name}
-        </span>
-        <span aria-hidden className="flex flex-none flex-wrap items-center justify-end gap-1">
-          {box.chores.map(({ chore }) => (
-            <ChoreIcon key={chore.id} name={chore.icon} className="size-4 text-ink-soft" />
-          ))}
-        </span>
-        {emojis && (
-          <span id={id} className="flex-none text-sm leading-none">
-            {emojis}
+        <span className="flex items-center gap-1.5">
+          <span className="min-w-0 flex-1 text-[0.95rem] leading-tight font-bold">
+            {box.room.name}
+            {emojis && <span id={`${id}-feel`}> {emojis}</span>}
           </span>
-        )}
+          <ChevronRight aria-hidden className="size-4 flex-none text-ink-soft" />
+        </span>
+        <span
+          id={`${id}-chores`}
+          className="line-clamp-2 text-[0.85rem] leading-snug text-ink-soft"
+        >
+          {choresLine(box.chores)}
+        </span>
       </button>
     )
   }
@@ -109,7 +109,8 @@ export function RoomBox({
                 {done ? (
                   <Check aria-hidden className="size-4" strokeWidth={2.5} />
                 ) : (
-                  <ChoreIcon name={chore.icon} className="size-4" />
+                  // A tick to tap, not a tag (T112): an empty circle until it's done.
+                  <Circle aria-hidden className="size-4 text-ink-soft" strokeWidth={2.5} />
                 )}
                 {chore.title}
               </span>

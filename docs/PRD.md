@@ -28,7 +28,7 @@ Roomies is a shared, phone-first house hub built on **five concepts**:
 | **Poll** | A question with options, about an item or on its own | Which vacuum? Keep it? House name? |
 | **Run** | A batch of items handled together: by a roommate (**batch**), asked of a contact (**request**), or taken on by a contact (**visit**) | Grocery run, landlord request, super visit, party setup |
 
-Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e.g. 😰 anxious) plus a note to any item. Feelings raise priority, so concerns are both *heard* and *acted on*. A **Home feed** ranks what needs attention, and a **calendar** shows anything with a date.
+Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e.g. 😰 anxious) plus a note to any item. Feelings raise priority, so concerns are both *heard* and *acted on*. Each list puts what people feel about first, and a **calendar** shows anything with a date.
 
 ### 2.1 Goals
 
@@ -43,7 +43,7 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 - **No replacement for the group chat.** There are no comment threads. Each person's feeling + note on an item is the only in-app conversation (§7).
 - **No landlord or super accounts.** They're contacts, not users.
 - **No native Android polish.** It will work in Android Chrome, but we design and QA for iPhone Safari.
-- Everything in §13 (bills, ownership, rotations, and more) waits until after v1.
+- Everything in §13 (bills, ownership, and more) waits until after v1.
 
 ### 2.3 Success metrics
 
@@ -88,17 +88,18 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 - **Contacts:** super, landlord, providers. Name, phone, and a note.
 - **Members:** the roommates (§10).
 
-### 4.3 Navigation (bottom tab bar, 5 tabs)
+### 4.3 Navigation (bottom tab bar, 4 tabs)
 
 | Tab | Contents |
 |---|---|
-| **Home** | **Open polls**, **Runs in progress** (open batches, plus visits dated in the next 7 days), then one unlabeled list ranked by priority (*Mine / All*): the feed (§8.1) plus any task or need dated in the next 7 days, each once. A **Calendar** link beside *Mine / All* opens the month calendar. |
-| **Needs** | The shared list of things to buy. Needs with a feeling come first. **Start a run** from here. |
-| **Tasks** | **Requests & visits** (unsent and sent requests, planned visits) with **+ New** (start a request or plan a visit), then tasks with filters *Mine / All / Outside help* |
-| **Chores** | Who has which rooms this period, as cards, and the shared Upkeep list below |
-| **Admin** | Roommates, invite link (organizers), contacts, **Routines**, then untitled: **Feeling weights**, **Activity**, **Rooms**. Everyone sees this tab and can change routines; only organizers get the invite link and roommate controls. |
+| **House** | Where the app opens. **Polls** (open ones first with how many have voted, then the latest closed ones, and **New poll**), the "feeling weights changed" card, **Calendar** ("3 this week") and **Activity**, then the house's setup in labelled groups: **People** (Roommates and the invite link for organizers; Contacts), **Chores** (Routines, Rooms), **Money** (the Splitwise group) and **Priority** (how feelings raise priority: the feeling weights). Everyone sees this tab and can change everything on it except the invite link and roommate controls, which are the organizer's. Nothing personal: that's on **You** (your avatar, top right of every tab, T109). |
+| **Needs** | **Runs in progress** (open batches), then the shared list of things to buy, ranked by priority (§8.1). **Start a run** from here. |
+| **Tasks** | **Coming up** (visits dated in the next 7 days), then tasks ranked by priority with filters *Mine / All / Outside help*, then the other open **Requests & visits** (unsent and sent requests, later visits). Requests and visits start from the + or from a task (T108). |
+| **Chores** | Who has which rooms this period, as cards, and the shared Upkeep list below, ranked by priority |
 
-A floating **"+"** opens a picker (Need / Chore / Task / Poll / Run) and then a short form. Only the title is required.
+There is no Home feed (T107, D43): each tab ranks its own kind by priority (T108, D44), and an item's detail says why (**Why it's near the top**). A tab with something Urgent on it carries a dot. Calendar, Activity and You open over House with a back button to it; **You** (your avatar, top right on all four tabs) holds everything that's yours: your room, Notifications, Appearance, feedback, Sign out and Delete my account (T109); old Home and Admin links land on House.
+
+A floating **"+"** on Needs, Tasks and Chores opens that tab's form (a need, a task, a chore). Only the title is required. Polls start from House, runs from Needs.
 
 ---
 
@@ -136,7 +137,7 @@ Every item has:
   - **On a run:** it's checked off when the run finishes (§6.5).
 - **Money is optional.** Tomatoes never ask for a price. For a bigger need, anyone can **add a cost** when it's bought (§6.6).
 - **Bigger needs** use the same item plus the other concepts: a **poll** to choose ("Which vacuum?"), a **run** to order it (an Amazon order), a **cost**, and later new **tasks** ("Assemble it") or **polls** ("Keep it?").
-- Needs appear in the Home feed only when someone shares a feeling on them or the needed-by date is close. The list itself lives on the Needs tab.
+- Needs with a feeling come first on the Needs tab, ranked by their feelings' weights (§8.2).
 
 ### 6.2 Chores (ongoing upkeep)
 
@@ -146,21 +147,22 @@ Two concepts only: a **room** is where chores live, and a **routine** is who's r
   - **Deep clean:** the routine holder's checklist for the period. Every chore, every period. It resets when the period does; what wasn't finished doesn't carry over and nothing is marked.
   - **Upkeep:** shared, everyday (dishes, trash). Nobody's job and no tick: people share a feeling when it piles up, and anyone taps **Took care of it**, after which older feelings stop counting (§7). It comes back only with a new feeling. Chores with no owner count as upkeep too.
 - **Who's on a chore is worked out, never stored:** the chore's first room in house order → that room's routine → who has it this period. No room, or a first room in no routine, means no owner. **A chore is in one room** **[DECIDED] (owner, T101)**: a room gets its own copy of a chore (the kitchen's Vacuum and the living room's are two chores, ticked by whoever has each room). Chores saved across several rooms before this keep working, under their first room.
-- **Routines:** anyone in the house creates and edits them (Admin → Routines, the only place the word appears). **Resets** weekly (Monday), every 2 weeks (every other Monday) or monthly (the 1st), in the house's time zone. **Who:** takes turns among everyone by when they joined, or always one person; a fixed person's checklist still resets.
+- **Routines:** anyone in the house creates and edits them (House → Routines, the only place the word appears). **Resets** weekly (Monday), every 2 weeks (every other Monday) or monthly (the 1st), in the house's time zone. **Who:** takes turns among everyone by when they joined, or always one person; a fixed person's checklist still resets.
 - **Handover:** nothing is written. The holder gets one message when a routine that takes turns changes hands ("You have the kitchen and dining this week"), combined per person, only on the period's first day.
 - **Joining and moving out:** the rotation restarts so this period's holders don't shift. If the holder moves out, the next person in turn takes over; if a fixed person moves out, the routine goes back to taking turns.
-- **Setting up a room's chores** **[DECIDED] (owner, T101)**: in Admin → Rooms, or on the Chores tab (a room's sheet, or **+ Add** on a group of rooms), a room offers every chore name already in the house (plus a few starters like Vacuum and Swiffer) as one-tap picks, several at once, with a search that ignores case. Upkeep is added on the Chores tab.
+- **Setting up a room's chores** **[DECIDED] (owner, T101)**: in House → Rooms, or on the Chores tab (a room's sheet, or **+ Add** on a group of rooms), a room offers every chore name already in the house (plus a few starters like Vacuum and Swiffer) as one-tap picks, several at once, with a search that ignores case. On the Chores tab they sit behind **Edit chores**, so a room's sheet opens on its checklist (T112). Upkeep is added on the Chores tab.
+- **Someone on no routine** **[DECIDED] (owner, T112)**: when every routine is always one person and none is theirs (a newcomer, say), the Chores tab tells them and links to House → Routines, and organizers see a line there naming them. A line, not a push: it isn't urgent.
 - **Anyone can tick any chore** (helping counts): **Did it** records who and when, with Undo.
 - Chores can go on a run (e.g. a cleaning session).
-- **[DECIDED] (owner)** No numbers, no "due", and no chore balance or "who's done what" view: ticks show in your own rooms only (a room's sheet shows them to anyone, so a helper sees what's left), and people are shown as their avatar.
+- **[DECIDED] (owner)** No numbers, no "due", and no chore balance or "who's done what" view: ticks show in your own rooms only (a room's sheet shows them to anyone, so a helper sees what's left), and people are shown as their avatar with their name ("Alex's this week", T105).
 
 ### 6.3 Tasks (one-offs)
 
 - Anything done once: fix the latch, get renter's insurance, assemble the vacuum, set up for the party.
 - **Optional "Handled by":** pick a **contact** (super, landlord, provider) when someone outside the house needs to do it. The task shows "Handled by: Super," the contact's number (copy button), and appears under the *Outside help* filter.
-  - **Setting it:** when adding the task, or **any time later** from the task's detail ("Needs outside help?" / "Change"). You can pick an existing contact, **add someone new** right there (name + optional phone, saved to Contacts), or switch back to "One of us." **[DECIDED] (owner)**
+  - **Setting it:** when adding the task, or **any time later** from the task's detail, where it's one field with the assignee, **Who's doing it** (T111): any of us, a roommate, or a contact. You can pick an existing contact, **add someone new** right there (name + optional phone, saved to Contacts), or switch back to "Any of us." **I'll do it** claims an unclaimed task in one tap. **[DECIDED] (owner)**
   - Planning a visit or adding it to a contact's list also sets it.
-  - **While the task is on a request or visit, "Handled by" follows that run.** To change it, move the task (Move to…, Back to the pool…, Hand to…); "Who's handling it?" says so and opens the run.
+  - **While the task is on a request or visit, "Handled by" follows that run.** To change it, move the task (Move to…, Back to the pool…, Hand to…); "Who's doing it?" says so and opens the run.
 - **"Handled by" is who *should* handle it.** Whether they've actually taken it on is tracked by the **request** and **visit** it's on (§6.5): *on the landlord list · not sent* → *sent to landlord · 2 days ago* → *landlord visit · Thu 10:00* → *fixed*.
 - **"Add to Landlord list"** on a task with a contact puts it on that contact's unsent request (starting one if needed).
 - Tasks can have a date (shows on the calendar) and an assignee.
@@ -173,7 +175,7 @@ Two concepts only: a **room** is where chores live, and a **routine** is who's r
 - **Voting:** each member picks one option and can change their vote, or take it back, until the poll closes.
 - **Closing:** anyone can close it, or it closes at an optional deadline. Anyone can change or clear the deadline while it's open, and anyone can reopen a closed poll: the votes stay, the result goes away until it closes again, and a deadline that has already passed comes off.
 - **[DECIDED] (owner) Result:** the option with the most votes wins. **If the top options are tied, the result is "Tie,"** the app does nothing automatically, and the house talks it out (in feeling notes or in person).
-- Open polls show on Home with how many people have voted.
+- Polls show on House, open ones first with how many people have voted, then the latest closed ones with their result.
 - Polls don't change other items. Acting on a result ("buy the Dyson," "return it") is a new task or need someone adds.
 
 ### 6.5 Runs: batches, requests & visits **[DECIDED] (owner)**
@@ -189,7 +191,7 @@ A run is **a batch of items handled together**. There are three kinds:
 **Responsibility moves when a task moves from a request to a visit.** Before that, it's still on the house.
 
 **Requests**
-- **Starting one:** Tasks → Requests & visits → **+ New** → *Ask someone (request)* → pick a contact (or add someone new) and any tasks. It can start empty. Or tap "Add to Landlord list" on a task, or use "Hand to…" from another run.
+- **Starting one:** the **+** → *A poll or a run instead?* → **A request** (T108; Requests & visits had a + New before) → *Ask someone (request)* → pick a contact (or add someone new) and any tasks. It can start empty. Or tap "Add to Landlord list" on a task, or use "Hand to…" from another run.
 - **Gathering:** anyone can add tasks while it's unsent.
 - **Send request** builds a message (a numbered list with rooms and notes), which you copy and send by text, email, the portal, or in person. **Roomies never sends on your behalf.** "Mark as sent" records when and how.
 - **Waiting:** the request shows "Sent 2 days ago · waiting on 3." There's no automatic nudge in v1.
@@ -206,16 +208,16 @@ A run is **a batch of items handled together**. There are three kinds:
 - **Bulk by design:** one reply usually covers several tasks, so every action works on a selection.
 - **A request closes on its own** once nothing is left on it.
 - **History:** each task keeps a history of every request and visit it passed through, with the notes ("Sent to landlord by text → Moved to Landlord visit · Sending a plumber → Fixed").
-- The same actions work in batches and visits too (e.g. move an item from Wren's run to Saturday's run). In a batch they sit behind **Move or put back…**, since a tap on a row there marks it done.
+- The same actions work in batches and visits too (e.g. move an item from Wren's run to Saturday's run). In a batch they sit behind **Move some, or put them back**, since a tap on a row there marks it done.
 
 **Visits and batches**
-- **Planning a visit** directly (when they've already agreed): Tasks → Requests & visits → **+ New** → *They've agreed (visit)*. It's also created by "Move to a visit → New visit."
+- **Planning a visit** directly (when they've already agreed): the **+** → *A poll or a run instead?* → **A request** → *They've agreed (visit)*. It's also created by "Move to a visit → New visit."
 - **Requests and visits hold tasks only.** Needs and chores stay in batches.
 - **Finishing:** mark things done or fixed as you go, then **Finish**. Anything left goes back to the pool with the note "Not done this time."
 - **Batches** have an optional **Spent** amount beside **Finish** ("Did you spend money?" without a separate step): an amount records one cost paid by you (who paid can be changed), and leaving it empty records none (§6.6).
 - **Fewer taps:** *Start a run* opens with every open need not already on a run checked, and in a batch tapping an item marks it done (tap again to put it back on the run). A grocery run (start, get 3 things, finish with $40) is about 6 taps.
 - While open, items show **"On Kavya's run"** or **"Sent to Landlord · 2 days ago"** so nobody doubles up. **An item can be on only one open run at a time.**
-- Runs with a date show on the calendar; open batches and visits dated in the next 7 days also show on Home under Runs in progress.
+- Runs with a date show on the calendar; open batches also show on Needs under Runs in progress, and visits dated in the next 7 days on Tasks under Coming up (T108).
 
 ### 6.6 Money (costs)
 
@@ -224,17 +226,17 @@ A run is **a batch of items handled together**. There are three kinds:
 - **Changing one:** any member can **edit** a cost (amount, who paid, note) or **remove** it ("Remove this cost?"), from the item's Costs section (open right under its main button, and on its Edit sheet, T104) or the run's sheet. A removed cost leaves the item or run; the activity log keeps the edit or removal.
 - **Splitting** is left to Splitwise; Roomies shows no monthly total or shares (T64).
 - **The Splitwise icon** **[DECIDED] (owner, T89)** sits on every cost (an item's Costs, a run's Spent) and in the toast after adding one or finishing with Spent. Tapping it copies "{title} — ${amount}" and opens the house's Splitwise group, where you paste it in (Splitwise has no link that fills in an expense, and there's no Splitwise API). Once anyone has tapped it for a cost, the icon is highlighted with a check; it stays tappable to send it again. It shows that someone tapped, not that Splitwise saved it.
-- **The Splitwise group** **[DECIDED] (owner, T89)** is a house setting any roommate sets, changes or removes in Admin (paste the group's link). Until it's set, the icon opens Splitwise's home page. Activity notes each change under Money ("Kavya linked the Splitwise group").
+- **The Splitwise group** **[DECIDED] (owner, T89)** is a house setting any roommate sets, changes or removes on House → Money (paste the group's link). Until it's set, the icon opens Splitwise's home page. Activity notes each change under Money ("Kavya linked the Splitwise group").
 
 ### 6.7 Calendar
 
 - Shows **anything with a date**: tasks, needs with a needed-by date, and runs (grocery runs, deliveries, visits, party setup).
-- Home takes in the next 7 days (dated tasks and needs join its ranked list, dated runs show under Runs in progress) and links to the calendar. The full calendar is a month grid with a day list.
+- House's Calendar row says how many things are dated in the next 7 days and opens the calendar: a month grid with a day list.
 - A plain heads-up ("Jo's parents staying Sat") is a **task with a date** in v1.
 
 ### 6.8 Feedback **[DECIDED] (owner)**
 
-- An icon at the top right of **Admin** (no text; VoiceOver reads "Send feedback") opens a sheet: **Bug 🐞 · Idea 💡 · Praise 💛** (Idea to start), a message, and the header check, **Send**.
+- The row **Send a bug, idea or praise** on **You** (T109; an icon on House before) opens a sheet: **Bug 🐞 · Idea 💡 · Praise 💛** (Idea to start), a message, and the header check, **Send**.
 - It goes to the owner, not the house: it's saved for the owner to read in the Supabase dashboard, isn't in the activity log, and notifies nobody. Housemates can't read each other's feedback.
 - Each one carries who sent it, their house, the app version and the browser. No screenshot or page.
 
@@ -266,7 +268,7 @@ The weights are editable (§8.2).
 
 ### 8.1 Formula
 
-The score is computed when the feed is shown, because it depends on today's date.
+The score is computed when it's shown (each tab's order and an item's **Why it's near the top**), because it depends on today's date.
 
 ```
 score = base(priority) + due_pressure(when) + Σ feeling_weight(each member's active feeling)
@@ -279,15 +281,15 @@ clamped to 0–100
 | due pressure | overdue: +35, +2/day overdue (up to +15 more) · due today: +25 · within 3 days: +15 · within 7 days: +5 · no date: 0. Chores have none. |
 | feelings | from the **feeling weights** setting (§8.2). Only **active** feelings count: on a chore, those shared after it was last done (§7) |
 
-Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (20–44), **Low** (< 20). Tapping it shows **"Why is this here?"**, the breakdown (e.g. "Due tomorrow +25, 😰 Maya +20").
+Users see a **tier**: ●● **Urgent** (≥ 70), **Soon** (45–69), Normal (20–44), Low (< 20). Only Urgent and Soon get a chip on a card; Normal and Low show nothing (T108). An item's **"Why it's near the top"** says what moved it, in words rather than points ("Normal priority", "Maya is 😰", "Due Friday"), and links to House → How feelings raise priority, which gives the scale ("Items start at 25 out of 100; each feeling adds this much").
 
-**What's in the feed:** tasks that aren't done, **except tasks on a visit** (the contact has taken them on). Those come back only if someone shares a feeling or the visit is within 3 days. Chores with no owner (upkeep, or in no routine) with a feeling; a routine's own chores stay on the Chores tab. Needs with a feeling or a needed-by date within 7 days. Polls and runs have their own sections on Home. Home's list also takes in any open task or need dated in the next 7 days, so nothing with a date this week drops off Home.
+**Each tab ranks (T108, D44):** Home and its feed are gone (T107, D43), so each list ranks itself: Needs, Tasks and Chores' Upkeep list are ordered by score, highest first (equal scores by date, then newest). Every open item shows; nothing is left out for its score. A dot on the Needs, Tasks or Chores tab says something on it is Urgent (on Chores, in Upkeep: routine rooms aren't ranked).
 
 ### 8.2 Settings: feeling weights **[DECIDED] (owner)**
 
-- **Admin → Feeling weights**: one row per feeling with its emoji, name, and a number (−20 to +40, in steps of 5), plus **Reset to defaults**.
+- **House → Priority** ("How feelings raise priority", showing today's weights) opens **Feeling weights**: one row per feeling with its emoji, name, and a number (−20 to +40, in steps of 5), plus **Reset to defaults**.
 - **One setting for the whole house.** **Any member** can change it. **(owner)**
-- Saving re-ranks the feed for everyone, is logged, and shows a card on Home ("Maya set 😰 Anxious to +30"). Everyone else also gets a push ("Maya set 😰 to +30", §11, D32).
+- Saving changes everyone's priorities (and the order of every tab), is logged, and shows a card on House ("Maya set 😰 Anxious to +30"). Everyone else also gets a push ("Maya set 😰 to +30", §11, D32).
 - The other parts of the formula are fixed in v1.
 
 ---
@@ -310,8 +312,8 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
   - is **not** tied to a specific email **(owner)**. Whoever opens it can join, which is why joins notify everyone.
 - **Joining:** open the link → enter name + email → type the 6-digit code → pick your bedroom → you're in. **(owner)** It's instant, with no organizer approval.
 - **Signing in later:** enter your email → type the code. This only works for emails that already have an account.
-- **Roles:** **organizer** (manage invites, remove members) and **member** (everything else, including settings). **(owner)** The data calls the organizer role `admin`; people never see that word for a person, only for the Admin tab (D40, T103).
-- **Changing rooms (T93):** anyone, the organizer included, picks, changes or clears their own bedroom from their row in Admin → Roommates. Only bedrooms nobody lives in can be picked; nobody changes someone else's room. Activity shows the move.
+- **Roles:** **organizer** (manage invites, remove members) and **member** (everything else, including settings). **(owner)** The data calls the organizer role `admin`; people never see that word for a person, (D40, T103).
+- **Changing rooms (T93):** anyone, the organizer included, picks, changes or clears their own bedroom on **You** (T109; House → Roommates before, which still shows everyone's room). Only bedrooms nobody lives in can be picked; nobody changes someone else's room. Activity shows the move.
 - **Moving out:** an organizer (or the person themselves) marks a member as moved out. They lose access, and their name stays on past items.
 - **Deleting your account:** removes your email and profile. Your name on past items becomes "Former roommate."
 - **Access guarantee:** nobody outside the house can read or write its data, and this is enforced at the database layer.
@@ -338,9 +340,9 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 - **Web Push** only, which requires adding the app to the Home Screen on iOS. The email digest fallback comes later (§13).
 - Quiet hours per person (default 10pm–8am), with per-category toggles in personal settings.
 - Notifications follow the person, not the phone: signing out stops that device getting yours, and turning them on moves the device to whoever is signed in (T84); a device that allows Roomies does this by itself when the app opens (D42). If the push service is briefly down, a notification is tried again after 5 minutes, 30 minutes and 2 hours before it's given up.
-- **On from the start (T95, D41):** every category is on by default, and the first time the app opens on a device where push isn't on, one sheet offers it: **Turn on** or **Not now** (or, where push can't work, why: blocked in settings, or this browser can't). Any answer is remembered on that device. On an iPhone in Safari the Add to Home Screen guide comes first, and the sheet waits for the first open from the Home Screen. Blocked or unsupported, the sheet gives numbered steps for that phone or browser.
+- **On from the start (T95, T110, D41):** every category is on by default. Joining and setup end in **onboarding** before the app opens: a welcome ("Welcome to <house>", a line each on Needs, Tasks, Chores and House), then a notifications step that fits the device: **Turn on** or **Not now** ("Not now" says they can turn them on later from You → Notifications); on an iPhone in Safari, the Add to Home Screen guide (the question comes on the first open from the Home Screen); blocked, the numbered steps for that phone or browser with **Skip for now**; a browser that can't, one line and **Continue**. Then House. Members who never answered on a device get one sheet asking (**Turn on** · **Not now**) the first time the app opens there with push off; a blocked or unsupported device gets no sheet on open (nobody's first screen is a problem), and You → Notifications has the steps. Any answer is remembered on that device.
 - **Allowed means on (owner, D42):** once the browser or phone allows Roomies, notifications are on. A device that allows Roomies but isn't connected to the person signed in (they just followed the steps, or someone else signed in on it) connects itself when the app opens, with no tap, and says "Notifications are on. 🔔". Turning them off is the person's call: switch categories off in the app, or block Roomies again in the browser or phone settings.
-- Everything about notifications sits in one **Notifications** section of personal settings: this device's status with its one button (turn on / blocked / add to Home Screen first), a switch per category with a line saying when you get it, and quiet hours as one row. It is reached only from personal settings (your avatar), not from Admin (T67).
+- Everything about notifications sits in one **Notifications** section of personal settings: this device's status with its one button (turn on / blocked / add to Home Screen first), a switch per category with a line saying when you get it, and quiet hours as one row. It is reached only from personal settings (your avatar), not from House (T67).
 
 ---
 
@@ -355,7 +357,7 @@ Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (2
 | **M4: Notifications & polish** | Push, reminders, polish, end-to-end tests | Reminders and push work locally, and the E2E suite is green in CI |
 | **M5: Hosting & launch** | The external services: hosted Supabase, the Gmail sender, Vercel, iPhone checks, production | Everyone is on production from their phones |
 | **M6: Usability & personal needs** | Fewer taps (swipe, simpler item views, quicker runs), needs for one person or the house, the gaps chosen from the docs↔code audit (D35), docs that match the build | Every action hits its tap target, item views fit at 375pt without scrolling, and personal needs work end to end |
-| **M7: Simpler screens** | Tabs Home, Needs, Tasks, Chores, Admin; Home as one priority list; check-to-save sheets; icon buttons for edit and delete; Appearance apart from Notifications; rooms renamed from one sheet; no monthly cost total | Every M7 screen passes axe at 375pt in light and dark, and the M7 journeys pass |
+| **M7: Simpler screens** | Tabs Home, Needs, Tasks, Chores, Admin (four tabs since T107, D43); Home as one priority list; check-to-save sheets; icon buttons for edit and delete; Appearance apart from Notifications; rooms renamed from one sheet; no monthly cost total | Every M7 screen passes axe at 375pt in light and dark, and the M7 journeys pass |
 
 M6 and M7 are built locally before launch, so production waits on M7's test task (Q7). Work after launch (dates and times, undo, run history, speed, money) is M8. The tasks are on the **roomies** board in Weyve.
 
@@ -405,7 +407,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D20 | Anyone can add poll options until the poll closes | Owner |
 | D21 | Runs have three kinds: batch, request (gathering → sent → closed), visit (contact has taken it on) | Owner |
 | D22 | Recording a reply = bulk actions on tasks in a run: move to a visit/run, back to the pool with a note, hand to another contact, done. No reply form. | Owner |
-| D23 | Tasks on a visit leave the Home feed unless there's a feeling or the visit is within 3 days | Default |
+| D23 | Tasks on a visit leave the Home feed unless there's a feeling or the visit is within 3 days. **Moot since D43** (no feed) | Default |
 | D24 | No automatic "no reply" nudge in v1, only a "Sent N days ago" label | Default |
 | D25 | Items point at their current run. The activity log (typed columns, append-only) is the single store of history, including run moves. | Owner |
 | D26 | No "needed soon" flag on needs. Feelings and the needed-by date carry urgency. | Owner |
@@ -413,17 +415,19 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D28 | Sign-in codes come from a house Gmail address, and the app lives at a `*.vercel.app` URL. No custom domain in v1. | Owner |
 | D29 | Everything that needs an outside account is its own, later milestone (M5). M0–M4 are built and checked entirely on one Mac. | Owner |
 | D30 | Removing an item is called "Delete" in the app. The row stays for history and the toast offers Undo. No archive list, no 30-day window (T62). | Owner |
-| D31 | Admin → Rooms is one row that opens a sheet of plain names grouped Bedrooms / Bathrooms / Spaces, renamed in place (T66; T60's grid had icons) | Owner |
+| D31 | Rooms (Admin then, House → Chores since T107) is one row that opens a sheet of plain names grouped Bedrooms / Bathrooms / Spaces, renamed in place (T66; T60's grid had icons) | Owner |
 | D32 | Extra pushes: feeling weights changed, a new poll option, a new point person, tasks moved into a visit (T59) | Owner |
 | D33 | Offline shows the offline page only. No cached data. | Owner |
 | D34 | Not building: deleting the house, a move-in checklist, a "Handled 💛" toast, adding or archiving rooms, a room's element setting, item counts on rooms | Owner |
 | D35 | Built from the docs↔code audit: conflict detection on edits, "Handled by" follows the run, an app-wide CSP, `security_events`, undo "Did it", poll withdraw / reopen / deadline, run rename and point person, cost edit and remove, poll and run deep links, notification settings in one section (T50–T58, T61) | Owner |
-| D36 | A feedback button (bug / idea / praise) at the top right of Admin, saved for the owner in Supabase, with the sender, house, app version and browser (§6.8, T91) | Owner |
+| D36 | A feedback button (bug / idea / praise) at the top right of Admin (House since T107), saved for the owner in Supabase, with the sender, house, app version and browser (§6.8, T91) | Owner |
 | D37 | Feelings on a chore count only if shared after it was last done; 😰/😤 on a chore notifies every active member, not an assignee. Reopening a need or a task is an undo, so its feelings count again (§7, §8.1, T99) | Owner |
+| D44 | Each tab ranks by priority: Needs, Tasks and Chores' Upkeep list are ordered by score (§8.1), and every open item shows. Only **Urgent** and **Soon** get a chip (the tiers were Top / High / Normal / Low; Normal shows nothing now). A dot on a tab with something Urgent. Tasks shows visits coming up this week first and has one add button, the +; requests and visits start from its sheet or from a task. "Why is this here?" becomes **Why it's near the top**, in words, not points (T108, 2026-11-15) | Owner |
+| D43 | Four tabs, **House · Needs · Tasks · Chores**, House first and where the app opens. Home and its ranked feed are removed (the feed rule hid items from newcomers); Admin becomes House: polls, Calendar and Activity on top, then the house's setup in labelled groups, and nothing personal (sign out and delete account are on You). Runs in progress moves to Needs. The + shows on Needs, Tasks and Chores only. Supersedes the M7 tab set (§4.3, T107, 2026-11-14) | Owner |
 | D42 | Allowed means on: a device that allows Roomies connects itself to whoever is signed in when the app opens, with no Turn on tap (§11, T95) | Owner |
-| D41 | Notifications are offered once per device, the first time the app opens there with push off (not only right after setup or joining), so existing members see it once too; any answer, including closing the sheet, is remembered on the device (§11, T95) | Build call (T95), for the owner to confirm |
-| D40 | The role that manages invites and removes roommates is called **organizer** in every toast, button, activity line and notification, and Roommates rows show no role label at all (owner, 2026-11-10). The Admin tab keeps its name (every member uses it), and the data keeps `role = 'admin'`, as items keep `archived_at` while the app says "deleted". `copy.test.ts` refuses "admin" for a person (§10, T103) | Owner |
-| D39 | A chore is in one room, and a room's chores are set up in Admin → Rooms from one-tap picks of the house's chore names. The Chores tab shows a box per room. **Reverses D38's multi-room chores** (§6.2, T101) | Owner |
+| D41 | Notifications are asked about in onboarding, right after joining or setup and before the app opens (owner, T110), after a welcome that says what each tab is for. Members who never answered on a device are asked once, the first time the app opens there with push off, but only with the question: a blocked or unsupported device gets no sheet on open, so nobody's first screen is "Notifications are blocked" (T110); You → Notifications has the steps. Any answer, including closing the sheet, is remembered on the device (§11, T95) | Owner (T110); the once-per-device sheet was a build call (T95) |
+| D40 | The role that manages invites and removes roommates is called **organizer** in every toast, button, activity line and notification, and Roommates rows show no role label at all (owner, 2026-11-10). The Admin tab kept its name (every member uses it) until T107 made it House, and the data keeps `role = 'admin'`, as items keep `archived_at` while the app says "deleted". `copy.test.ts` refuses "admin" for a person (§10, T103) | Owner |
+| D39 | A chore is in one room, and a room's chores are set up in House → Rooms from one-tap picks of the house's chore names. The Chores tab shows a box per room. **Reverses D38's multi-room chores** (§6.2, T101) | Owner |
 | D38 | Routines: rooms grouped under who's responsible and how often it changes hands; chores are Deep clean or Upkeep, and who's on one is worked out. **Reverses the decided chore rhythms** ("as needed" / "about every N days") and the chore assignee: chores have neither now. Rotations are no longer deferred (§6.2, T96) | Owner |
 
 Earlier drafts had more decisions (categories, bills, purchases, heads-ups, outside-help stages). They're superseded by D13–D18 and parked in §13, and the git history keeps the full versions.

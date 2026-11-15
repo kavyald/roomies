@@ -44,8 +44,12 @@ export function CalendarScreen({ houseId }: { houseId: HouseId }) {
   const view = useEntryView(houseId)
   const tz = house.data?.settings.timezone ?? 'UTC'
   const today = localDateOf(now, tz)
-  const [month, setMonth] = useState(today.slice(0, 7))
-  const [selected, setSelected] = useState<LocalDate>(today)
+  // Until the person picks a month or a day, both follow today, so the first render (before the
+  // house's time zone has loaded, when today is UTC's) can't pin the calendar to the wrong day.
+  const [pick, setPick] = useState<{ month?: string; day?: LocalDate }>({})
+  const month = pick.month ?? today.slice(0, 7)
+  const selected = pick.day ?? today
+  const setSelected = (day: LocalDate) => setPick({ month, day })
 
   const { first, last } = monthRange(month)
   const days = byDay(calendarEntries(items.data ?? [], runs.data ?? [], first, last))
@@ -53,8 +57,7 @@ export function CalendarScreen({ houseId }: { houseId: HouseId }) {
   const onDay = days.get(selected) ?? []
   const go = (by: number) => {
     const next = shiftMonth(month, by)
-    setMonth(next)
-    setSelected(next === today.slice(0, 7) ? today : monthRange(next).first)
+    setPick(next === today.slice(0, 7) ? {} : { month: next, day: monthRange(next).first })
   }
 
   return (

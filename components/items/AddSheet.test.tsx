@@ -86,7 +86,7 @@ describe('the + sheet (FRONTEND §5.3)', { timeout: 20_000 }, () => {
     await waitFor(() => expect(titles()).toEqual(['chore:Water the plants']))
   })
 
-  it('Home keeps the picker, and the form can go back to it for a poll or a run', async () => {
+  it('with no kind the picker opens first, and the form can go back to it for a poll or a run', async () => {
     await setup()
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     const picker = await screen.findByRole('dialog', { name: 'Add something' })
@@ -94,6 +94,24 @@ describe('the + sheet (FRONTEND §5.3)', { timeout: 20_000 }, () => {
     const form = await screen.findByRole('dialog', { name: 'A task' })
     await userEvent.click(within(form).getByRole('button', { name: 'A poll or a run instead?' }))
     expect(await screen.findByRole('dialog', { name: 'Add something' })).toBeTruthy()
+  })
+
+  it("doesn't ask the kind again once it's picked on the chooser, and the toast says where it went", async () => {
+    const { titles } = await setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+    const picker = await screen.findByRole('dialog', { name: 'Add something' })
+    expect(within(picker).getByRole('button', { name: /^A run/ }).textContent).toContain(
+      'A shopping trip',
+    )
+    await userEvent.click(within(picker).getByRole('button', { name: /^A need/ }))
+    const form = await screen.findByRole('dialog', { name: 'A need' })
+    expect(within(form).queryByRole('button', { name: 'Chore' })).toBeNull()
+    // The House / Me toggle is labelled "For", as on the item sheet.
+    expect(within(form).getByText('For')).toBeTruthy()
+    await userEvent.type(within(form).getByLabelText('What do we need?'), 'Lemons')
+    await userEvent.click(within(form).getByRole('button', { name: 'Add' }))
+    expect(await screen.findByText('Added to Needs.')).toBeTruthy()
+    expect(titles()).toEqual(['need:Lemons'])
   })
 
   it('addKindFor maps Needs, Chores and Tasks to their kind', () => {

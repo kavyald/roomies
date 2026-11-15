@@ -51,7 +51,7 @@ export const setFeelingWeights = (
 const signed = (n: number) => (n < 0 ? `−${-n}` : `+${n}`)
 
 /**
- * What a weights change did, for the activity log and the Home card: "set 😰 Anxious to +30",
+ * What a weights change did, for the activity log and the House card: "set 😰 Anxious to +30",
  * "reset the feeling weights", or "changed the feeling weights".
  */
 export const describeWeightsChange = (changes: FieldChanges | undefined): string => {

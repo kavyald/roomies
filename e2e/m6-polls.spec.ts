@@ -35,7 +35,7 @@ test('take back a vote, move and clear the deadline, close and reopen', async ({
   await dismissInstallGuide(page)
 
   await page
-    .getByRole('region', { name: 'Open polls' })
+    .getByRole('region', { name: 'Polls' })
     .getByRole('button', { name: /^House name\?/ })
     .click()
   const sheet = page.getByRole('dialog', { name: 'House name?' })
@@ -62,11 +62,11 @@ test('take back a vote, move and clear the deadline, close and reopen', async ({
   await expect(sheet.getByRole('button', { name: 'Add a deadline' })).toBeVisible()
 
   // Close it (Burrow wins), reopen it, and the votes can change again.
-  await sheet.getByRole('button', { name: 'Close poll' }).click()
+  await sheet.getByRole('button', { name: 'End voting' }).click()
   await expect(sheet.getByRole('status')).toHaveText('Burrow wins (1–0)')
   await expect(theNest).toBeDisabled()
   await sheet.getByRole('button', { name: 'Reopen poll' }).click()
-  await expect(sheet.getByRole('button', { name: 'Close poll' })).toBeVisible()
+  await expect(sheet.getByRole('button', { name: 'End voting' })).toBeVisible()
   await expect(sheet.getByRole('status')).toBeHidden()
   await theNest.click()
   await expect(sheet).toContainText('2 of 2 voted')

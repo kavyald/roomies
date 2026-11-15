@@ -19,8 +19,9 @@ test("an existing task is handed to the super later, and shows under Outside hel
     .getByRole('button', { name: /^Radiator clanking/ })
     .click()
   const detail = page.getByRole('dialog', { name: 'Radiator clanking' })
-  await expect(detail).toContainText('One of us')
-  await detail.getByRole('button', { name: 'Needs outside help?' }).click()
+  await expect(detail).toContainText('Any of us')
+  // One field for who does it (T111); its Pencil opens the picker.
+  await detail.getByRole('button', { name: "Change who's doing it" }).click()
   await detail.getByRole('button', { name: 'Someone new' }).click()
   await detail.getByLabel('Name').fill('Super')
   await detail.getByLabel('Phone (optional)').fill('(555) 010-2231')
@@ -35,13 +36,24 @@ test("an existing task is handed to the super later, and shows under Outside hel
   await expect(list.getByRole('listitem')).toHaveCount(1)
   await expect(list).toContainText('Handled by: Super')
 
-  // And back to "One of us" takes it off that list.
+  // And back to "Any of us" takes it off that list.
   await list.getByRole('button', { name: /^Radiator clanking/ }).click()
-  await detail.getByRole('button', { name: "Change who's handling it" }).click()
-  await detail.getByRole('radio', { name: 'One of us' }).click()
-  await expect(detail).toContainText('One of us')
+  await detail.getByRole('button', { name: "Change who's doing it" }).click()
+  await detail.getByRole('radio', { name: 'Any of us' }).click()
+  await expect(detail).toContainText('Any of us')
   await page.keyboard.press('Escape')
   await expect(page.getByText('Nothing is waiting on outside help.')).toBeVisible()
+
+  // "I'll do it" claims it in one tap (T111), with Undo.
+  await page.getByRole('button', { name: 'All', exact: true }).click()
+  await page
+    .getByRole('list', { name: 'Tasks' })
+    .getByRole('button', { name: /^Radiator clanking/ })
+    .click()
+  await detail.getByRole('button', { name: "I'll do it" }).click()
+  await expect(page.getByRole('status').filter({ hasText: "It's yours." })).toBeVisible()
+  await expect(detail.getByRole('button', { name: "I'll do it" })).toHaveCount(0)
+  await expect(detail).not.toContainText('Any of us')
 })
 
 test('Mine shows only my tasks, and Done takes a task off the list with undo', async ({ page }) => {

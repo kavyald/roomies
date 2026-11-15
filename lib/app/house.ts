@@ -1,4 +1,4 @@
-// Admin tab use cases: people and rooms (PRD §10, FRONTEND §5.11).
+// House tab use cases (Admin before T107): people and rooms (PRD §10, FRONTEND §5.11).
 
 import type { AppDeps } from './ports'
 import { actorUser, type HouseActor } from '../domain/actor'
@@ -165,7 +165,7 @@ export const makeSetFeelingWeights =
       return ok(r.value.house)
     })
 
-/** Admin → Splitwise (T89): link, change or (with `null`) unlink the house's group. Any member. */
+/** House → Splitwise (T89): link, change or (with `null`) unlink the house's group. Any member. */
 export const makeSetSplitwiseGroup =
   ({ uow, clock, ids }: Pick<AppDeps, 'uow' | 'clock' | 'ids'>) =>
   (

@@ -35,14 +35,12 @@ describe('TierChip', () => {
   it('always says the tier in words', () => {
     render(
       <>
-        <TierChip tier="top" />
-        <TierChip tier="high" />
-        <TierChip tier="low" />
+        <TierChip tier="urgent" />
+        <TierChip tier="soon" />
       </>,
     )
-    expect(screen.getByText('Top')).toBeTruthy()
-    expect(screen.getByText('High')).toBeTruthy()
-    expect(screen.getByText('Low')).toBeTruthy()
+    expect(screen.getByText('Urgent')).toBeTruthy()
+    expect(screen.getByText('Soon')).toBeTruthy()
   })
 })
 

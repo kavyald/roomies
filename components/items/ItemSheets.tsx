@@ -1,6 +1,6 @@
 'use client'
 
-import { BarChart3, Copy, Pencil, ShoppingCart, Trash2 } from 'lucide-react'
+import { BarChart3, Copy, Pencil, Send, ShoppingCart, Trash2 } from 'lucide-react'
 import {
   createContext,
   useCallback,
@@ -40,11 +40,12 @@ import {
 import { useNow } from '@/lib/client/use-now'
 import { useAppClient } from '@/lib/client/provider'
 import { relativeTime } from '@/lib/domain/format'
-import type { HouseId, ItemId, PollId, RunId } from '@/lib/domain/ids'
-import { ItemCosts } from '@/components/costs/ItemCosts'
+import type { HouseId, ItemId, PollId, RunId, UserId } from '@/lib/domain/ids'
+import { ItemCosts, useItemCosts } from '@/components/costs/ItemCosts'
 import { ItemPolls } from '@/components/polls/ItemPolls'
 import { NewPollSheet } from '@/components/polls/NewPollSheet'
 import { PollSheet } from '@/components/polls/PollSheet'
+import { NewRunSheet } from '@/components/runs/NewRunSheet'
 import { RunSheet } from '@/components/runs/RunSheet'
 import { StartRunSheet } from '@/components/runs/StartRunSheet'
 import { ItemRunPath } from '@/components/runs/ItemRunPath'
@@ -107,6 +108,8 @@ export function ItemSheetsProvider({
   const [open, setOpen] = useState<{ id: ItemId; note?: boolean } | null>(null)
   const [runId, setRunId] = useState<RunId | null>(null)
   const [starting, setStarting] = useState(false)
+  // New request or visit, from the + sheet's tile (T108: Tasks has no New button of its own).
+  const [asking, setAsking] = useState(false)
   const [pollId, setPollId] = useState<PollId | null>(null)
   const [newPoll, setNewPoll] = useState<{ about?: { id: ItemId; title: string } } | null>(null)
   const sheets = useMemo<Sheets>(
@@ -151,6 +154,20 @@ export function ItemSheetsProvider({
           onRun={() => {
             setAdding(null)
             setStarting(true)
+          }}
+          onRequest={() => {
+            setAdding(null)
+            setAsking(true)
+          }}
+        />
+      )}
+      {asking && (
+        <NewRunSheet
+          houseId={houseId}
+          onClose={() => setAsking(false)}
+          onCreated={(id) => {
+            setAsking(false)
+            setRunId(id)
           }}
         />
       )}
@@ -209,6 +226,7 @@ function AddSheet({
   onOpen,
   onPoll,
   onRun,
+  onRequest,
 }: {
   houseId: HouseId
   initialCategory?: Category
@@ -216,8 +234,12 @@ function AddSheet({
   onOpen: (id: ItemId) => void
   onPoll: () => void
   onRun: () => void
+  onRequest: () => void
 }) {
   const [category, setCategory] = useState<Category | null>(initialCategory ?? null)
+  // Picked on the chooser: the form doesn't ask Need / Chore / Task again (T111). From a tab's +,
+  // the kind was a guess from the tab, so the form still offers the other two.
+  const [picked, setPicked] = useState(false)
   const create = useCreateItem(houseId)
   const toast = useToast()
 
@@ -226,7 +248,10 @@ function AddSheet({
     if (!category) return false
     const r = await create.mutateAsync(toNewItem(category, v))
     if (r.ok) {
-      toast('Added.', { label: 'Open', onClick: () => onOpen(r.value.id) })
+      toast(`Added to ${CATEGORY[category].label}s.`, {
+        label: 'Open',
+        onClick: () => onOpen(r.value.id),
+      })
       return true
     }
     if (r.error === 'duplicate_need' && r.detail?.existingId) {
@@ -240,9 +265,14 @@ function AddSheet({
     return false
   }
 
+  const pick = (c: Category) => {
+    setPicked(true)
+    setCategory(c)
+  }
+
   if (!category) {
     const tiles: {
-      key: Category | 'poll' | 'run'
+      key: Category | 'poll' | 'run' | 'request'
       label: string
       blurb: string
       icon: typeof ShoppingCart
@@ -252,7 +282,8 @@ function AddSheet({
       { key: 'chore', label: 'A chore', blurb: 'Ongoing upkeep', icon: CATEGORY.chore.icon },
       { key: 'task', label: 'A task', blurb: 'A one-off', icon: CATEGORY.task.icon },
       { key: 'poll', label: 'A poll', blurb: 'A question', icon: BarChart3 },
-      { key: 'run', label: 'A run', blurb: 'A batch', icon: ShoppingCart },
+      { key: 'run', label: 'A run', blurb: 'A shopping trip', icon: ShoppingCart },
+      { key: 'request', label: 'A request', blurb: 'Or a visit', icon: Send },
     ]
     return (
       <Sheet open onOpenChange={(o) => !o && onClose()} title="Add something">
@@ -263,7 +294,13 @@ function AddSheet({
               type="button"
               disabled={t.soon}
               onClick={() =>
-                t.key === 'poll' ? onPoll() : t.key === 'run' ? onRun() : setCategory(t.key)
+                t.key === 'poll'
+                  ? onPoll()
+                  : t.key === 'run'
+                    ? onRun()
+                    : t.key === 'request'
+                      ? onRequest()
+                      : pick(t.key)
               }
               className="sticker grid gap-2 rounded-[20px] bg-paper px-3.5 py-4 text-left font-extrabold shadow-[inset_0_0_0_1.5px_var(--line),0_2px_0_var(--line)] disabled:opacity-50"
             >
@@ -279,17 +316,19 @@ function AddSheet({
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()} title={CATEGORY[category].article}>
-      <SegmentedControl
-        wide
-        label="What are you adding?"
-        value={category}
-        onChange={setCategory}
-        options={[
-          { value: 'need', label: 'Need' },
-          { value: 'chore', label: 'Chore' },
-          { value: 'task', label: 'Task' },
-        ]}
-      />
+      {!picked && (
+        <SegmentedControl
+          wide
+          label="What are you adding?"
+          value={category}
+          onChange={setCategory}
+          options={[
+            { value: 'need', label: 'Need' },
+            { value: 'chore', label: 'Chore' },
+            { value: 'task', label: 'Task' },
+          ]}
+        />
+      )}
       <ItemForm
         houseId={houseId}
         category={category}
@@ -379,6 +418,8 @@ function ItemDetailSheet({
   const cardCtx = useCardContext(houseId)
   const addToRequest = useAddToRequest(houseId)
   const { openRun } = useItemSheets()
+  // With costs, Costs sits under the main button; without, Add cost is a link low down (T111).
+  const hasCosts = useItemCosts(houseId, id).length > 0
   const busy =
     edit.isPending ||
     done.isPending ||
@@ -420,6 +461,13 @@ function ItemDetailSheet({
     r.ok
       ? toast(success, undo && { label: 'Undo', onClick: undo })
       : toast(PROBLEM[r.error ?? ''] ?? oops)
+  /** "I'll do it": a task is yours in one tap (T111). */
+  const claim = async () =>
+    say(
+      await edit.mutateAsync({ id: item.id, patch: { assignee: me }, version: item.version }),
+      "It's yours. Thanks! 💛",
+      () => edit.mutate({ id: item.id, patch: { assignee: null } }),
+    )
 
   if (editing) {
     return (
@@ -520,57 +568,61 @@ function ItemDetailSheet({
   if (when)
     rows.push([item.category === 'need' ? 'Needed by' : 'When', when.replace(/^Needed by /, '')])
   if (item.category === 'task') {
-    rows.push([
-      "Who's on it",
-      item.assignee ? (
-        <span className="flex items-center gap-2">
-          <Avatar name={nameOf(item.assignee)!} element={elementOf(item.assignee)} size={20} />
-          {nameOf(item.assignee)}
-        </span>
-      ) : (
-        'Anyone'
-      ),
-    ])
-  }
-  if (item.category === 'task') {
-    // Editing who's handling it is the same Pencil as every other edit (T68).
-    const changeHandler = (
+    // One field for who does it (T111): any of us, a roommate, or a contact from outside. The
+    // Pencil opens the picker, like every other edit (T68).
+    const changeWho = (
       <IconButton
         icon={Pencil}
-        label="Change who's handling it"
+        label="Change who's doing it"
         aria-expanded={pickingHandler}
         onClick={() => setPickingHandler((p) => !p)}
       />
     )
+    const person = (u: UserId) => (
+      <span className="flex items-center gap-2">
+        <Avatar name={nameOf(u)!} element={elementOf(u)} size={20} />
+        {u === me ? 'You' : nameOf(u)}
+      </span>
+    )
+    const canClaim = !item.archivedAt && !item.done && !item.assignee && !contact
     rows.push([
-      'Handled by',
+      "Who's doing it",
       contact ? (
-        <span className="flex flex-wrap items-center gap-x-2">
-          {contact.name}
-          {contact.phone && (
-            <>
-              <span className="tabular-nums">{contact.phone}</span>
-              <IconButton
-                icon={Copy}
-                label={`Copy ${contact.name}'s number`}
-                onClick={() => copy(contact.phone!, 'Number copied.')}
-              />
-            </>
+        <span className="grid">
+          <span className="flex flex-wrap items-center gap-x-2">
+            {contact.name}
+            {contact.phone && (
+              <>
+                <span className="tabular-nums">{contact.phone}</span>
+                <IconButton
+                  icon={Copy}
+                  label={`Copy ${contact.name}'s number`}
+                  onClick={() => copy(contact.phone!, 'Number copied.')}
+                />
+              </>
+            )}
+            {!item.archivedAt && changeWho}
+          </span>
+          {item.assignee && (
+            <span className="text-sm text-ink-soft">
+              {item.assignee === me ? "You're" : `${nameOf(item.assignee)}'s`} arranging it
+            </span>
           )}
-          {changeHandler}
+        </span>
+      ) : item.assignee ? (
+        <span className="flex flex-wrap items-center gap-x-2">
+          {person(item.assignee)}
+          {!item.archivedAt && changeWho}
         </span>
       ) : (
         <span className="flex flex-wrap items-center gap-x-2">
-          One of us{' '}
-          {!item.archivedAt && (
-            <button
-              type="button"
-              className="min-h-11 text-sm font-extrabold text-accent-ink"
-              onClick={() => setPickingHandler((p) => !p)}
-            >
-              Needs outside help?
-            </button>
+          Any of us
+          {canClaim && (
+            <Button size="small" disabled={busy} onClick={claim}>
+              I&apos;ll do it
+            </Button>
           )}
+          {!item.archivedAt && changeWho}
         </span>
       ),
     ])
@@ -657,42 +709,22 @@ function ItemDetailSheet({
       title={item.title}
       description={item.archivedAt ? `${kind} · Deleted` : kind}
       actions={
-        // Edit and Delete sit in the header as icons (T68); a deleted item has neither.
+        // Edit is the header's Pencil (T68); Delete sits apart, at the bottom (T111). A deleted
+        // item has neither.
         !item.archivedAt && (
-          <>
-            <IconButton icon={Pencil} label="Edit" onClick={() => setEditing(item)} />
-            <IconButton
-              icon={Trash2}
-              label="Delete"
-              aria-expanded={confirmDelete}
-              onClick={() => setConfirmDelete(true)}
-            />
-          </>
+          <IconButton icon={Pencil} label="Edit" onClick={() => setEditing(item)} />
         )
       }
     >
-      {confirmDelete && !item.archivedAt ? (
-        <DeleteConfirm
-          busy={busy}
-          onKeep={() => setConfirmDelete(false)}
-          onDelete={async () => {
-            // Deleting keeps the row (archived_at) so history still points at it; Undo restores.
-            const r = await archive.mutateAsync(item.id)
-            say(r, 'Deleted.', () => restore.mutate(item.id))
-            if (r.ok) onClose()
-          }}
-        />
-      ) : (
-        <Button
-          block
-          variant={primary.quiet ? 'secondary' : 'primary'}
-          disabled={busy}
-          onClick={primary.run}
-        >
-          {primary.label}
-        </Button>
-      )}
-      <ItemCosts houseId={houseId} item={item} />
+      <Button
+        block
+        variant={primary.quiet ? 'secondary' : 'primary'}
+        disabled={busy}
+        onClick={primary.run}
+      >
+        {primary.label}
+      </Button>
+      {hasCosts && <ItemCosts houseId={houseId} item={item} />}
       {rows.length > 0 && (
         <dl className="m-0 grid grid-cols-[auto_1fr] items-center gap-x-3.5 gap-y-2">
           {rows.map(([k, val]) => (
@@ -725,16 +757,44 @@ function ItemDetailSheet({
       />
       <DisclosureGroup>
         {isOpen(item) && (
-          <WhyHere houseId={houseId} item={item} name={(u) => nameOf(u) ?? 'Former roommate'} />
+          <WhyHere
+            houseId={houseId}
+            item={item}
+            name={(u) => nameOf(u) ?? 'Former roommate'}
+            onLeave={onClose}
+          />
         )}
         <ItemPolls houseId={houseId} item={item} />
         <ItemRunPath houseId={houseId} itemId={item.id} />
       </DisclosureGroup>
+      {!hasCosts && !item.archivedAt && <ItemCosts houseId={houseId} item={item} />}
+      {!item.archivedAt &&
+        (confirmDelete ? (
+          <DeleteConfirm
+            busy={busy}
+            onKeep={() => setConfirmDelete(false)}
+            onDelete={async () => {
+              // Deleting keeps the row (archived_at) so history still points at it; Undo restores.
+              const r = await archive.mutateAsync(item.id)
+              say(r, 'Deleted.', () => restore.mutate(item.id))
+              if (r.ok) onClose()
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            className="flex min-h-[44px] items-center gap-1.5 justify-self-start text-sm font-bold text-ink-soft"
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 aria-hidden className="size-4" />
+            Delete
+          </button>
+        ))}
     </Sheet>
   )
 }
 
-/** "Delete this?" in place of the primary action, after Delete in the "…" menu (PRD D30). */
+/** "Delete this?" in place of the Delete link at the bottom of the sheet (PRD D30, T111). */
 function DeleteConfirm({
   busy,
   onKeep,

@@ -3,6 +3,7 @@
 import { Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import { Field, inputClass } from '@/components/auth/fields'
+import { DateField } from '@/components/ui/DateTimeField'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { useCreatePoll, useHouse } from '@/lib/client/hooks'
@@ -123,10 +124,9 @@ export function NewPollSheet({
           <Plus aria-hidden className="size-4" /> Another option
         </button>
       </fieldset>
-      <Field
+      <DateField
         id="poll-deadline"
         label="Closes (optional)"
-        type="date"
         value={deadline}
         onChange={(e) => setDeadline(e.target.value)}
       />

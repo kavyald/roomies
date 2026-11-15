@@ -15,7 +15,9 @@ export default async function HouseLayout({ children, params }: LayoutProps<'/h/
   if (dest.to !== 'house' || dest.houseId !== houseId) redirect('/')
   return (
     <HouseProviders houseId={houseId as HouseId} me={me}>
-      <AppShell base={`/h/${houseId}`}>{children}</AppShell>
+      <AppShell houseId={houseId as HouseId} base={`/h/${houseId}`}>
+        {children}
+      </AppShell>
     </HouseProviders>
   )
 }

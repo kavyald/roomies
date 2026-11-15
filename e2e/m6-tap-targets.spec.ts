@@ -167,10 +167,12 @@ test.describe('at 375pt', () => {
         await expect(page.getByRole('dialog', { name: title })).toBeHidden()
       }
 
-      // Admin, its Rooms sheet (T66) and notification settings (T61): nothing runs off the side,
+      // House, its Rooms sheet (T66) and notification settings (T61): nothing runs off the side,
       // and axe.
-      await page.goto(`${h}/admin`)
-      const roomsRow = page.getByRole('list', { name: 'Rooms' }).getByRole('button')
+      await page.goto(h)
+      const roomsRow = page
+        .getByRole('list', { name: 'Chores' })
+        .getByRole('button', { name: /^Rooms/ })
       await expect(roomsRow).toBeVisible()
       await fitsSideways(page, 'house')
       await roomsRow.click()

@@ -138,6 +138,18 @@ export const nextHolder = (
   r.fixedMember ?? rotated(r, rotationOrder(members), periodsElapsed(r, today) + 1)
 
 /**
+ * Active members no routine reaches (T112), longest here first: only when every routine is always
+ * one person and none is theirs, since one that takes turns takes in everyone. A house with no
+ * routines yet has nobody to add, so it's nobody.
+ */
+export const onNoRoutine = (routines: readonly Routine[], members: readonly Member[]): UserId[] => {
+  const live = routines.filter((r) => !r.removedAt)
+  if (live.length === 0 || live.some((r) => !r.fixedMember)) return []
+  const fixed = new Set(live.map((r) => r.fixedMember))
+  return rotationOrder(members).filter((id) => !fixed.has(id))
+}
+
+/**
  * The routine a chore belongs to: its first room in house order, that room's routine. Upkeep has no
  * owner, and neither does a chore with no room or whose first room is in no routine.
  */

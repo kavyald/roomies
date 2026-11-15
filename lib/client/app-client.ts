@@ -125,7 +125,7 @@ export type AppCommands = {
     id: ItemId
     doneAt: number
   }): Promise<CommandResult<Item, 'nothing_to_undo' | 'done_again' | 'not_a_chore' | 'not_found'>>
-  /** Admin → Rooms: Deep clean chores for a room by name; names it has are skipped (T101). */
+  /** House → Rooms: Deep clean chores for a room by name; names it has are skipped (T101). */
   addRoomChores(input: {
     roomId: RoomId
     chores: readonly ChorePick[]

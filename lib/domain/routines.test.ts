@@ -9,6 +9,7 @@ import {
   editRoutine,
   nextHolder,
   nextPeriodStart,
+  onNoRoutine,
   periodStart,
   reanchorRoutines,
   removeRoutine,
@@ -97,6 +98,26 @@ describe('periodStart', () => {
     expect(nextPeriodStart(routine({ resets: 'biweekly' }), d('2026-11-08'))).toBe('2026-11-16')
     expect(nextPeriodStart(routine({ resets: 'monthly' }), d('2027-01-31'))).toBe('2027-02-01')
     expect(nextPeriodStart(routine({ resets: 'monthly' }), d('2026-12-05'))).toBe('2027-01-01')
+  })
+})
+
+describe('onNoRoutine (T112)', () => {
+  const always = (who: UserId, o: Partial<Routine> = {}) =>
+    routine({ fixedMember: who, startsWith: undefined, ...o })
+  it('is everyone no fixed routine names, when none takes turns', () => {
+    const house = [...people, member(sam, 4), member(asId<'user'>('gone') as UserId, 0, false)]
+    expect(onNoRoutine([always(alex), always(jamie)], house)).toEqual([rio, sam])
+    expect(onNoRoutine([always(alex), always(jamie), always(rio), always(sam)], house)).toEqual([])
+  })
+  it('is nobody when one takes turns, since that takes in everyone', () => {
+    expect(onNoRoutine([always(alex), routine()], people)).toEqual([])
+  })
+  it('is nobody with no routines, and leaves removed ones out', () => {
+    expect(onNoRoutine([], people)).toEqual([])
+    expect(onNoRoutine([always(alex), routine({ removedAt: instant(5) })], people)).toEqual([
+      jamie,
+      rio,
+    ])
   })
 })
 

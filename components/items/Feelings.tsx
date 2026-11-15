@@ -167,7 +167,8 @@ export function FeelingTray({
       aria-label="How do you feel about this?"
       data-keeps-escape
       onKeyDown={escape}
-      className={cn('grid grid-cols-6 gap-1', className)}
+      // With words, two rows of three so "Frustrated" and "Not a big deal" fit at 375pt (T111).
+      className={cn('grid gap-1', labels ? 'grid-cols-3 gap-1.5' : 'grid-cols-6', className)}
     >
       {FEELING_KINDS.map((k) => {
         const pressed = mine?.kind === k
@@ -349,7 +350,8 @@ export function HouseFeels({
       {picking && (
         <div className="grid gap-1.5">
           <p className="m-0 text-sm text-ink-soft">
-            Only if it matters to you. The house will see it.
+            Only if it matters to you. The house will see it, and a strong feeling moves this up the
+            list.
             {mine && ' Tap yours again to remove it.'}
           </p>
           <FeelingTray

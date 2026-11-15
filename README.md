@@ -23,7 +23,7 @@ Five concepts cover v1:
 On top of that:
 
 - **Feelings.** Any roommate can add a feeling (😰 anxious, 😤 frustrated, 🙂 fine…) plus a note to any item. Feelings raise priority, so concerns are heard *and* acted on. Feelings are always about the item, never the person.
-- **A ranked Home feed** that says why each thing is there ("Due tomorrow +25, 😰 Maya +20"). The feeling weights are a house-wide setting anyone can change.
+- **Priority from feelings**: each item says why it ranks where it does ("Due tomorrow +25, 😰 Maya +20"), and Needs puts what people feel about first. The feeling weights are a house-wide setting anyone can change.
 - **Requests and visits.** Gather tasks on a landlord list, send one message, then record the reply by moving tasks: accepted ones to a visit, the rest back to the pool with a note.
 - **An activity log** that's the single source of history: every task's path, every earlier feeling, every vote.
 
@@ -37,7 +37,7 @@ It's a PWA for iPhone Safari: roommates open a link, add it to their Home Screen
 open docs/archive/mockup-v1.html
 ```
 
-Things to try: vote on "Which vacuum?", record the landlord's reply on the Landlord request (Tasks tab), finish a grocery run and log the cost, change a feeling weight under Admin → Feeling weights, and check Admin → Activity.
+Things to try: vote on "Which vacuum?", record the landlord's reply on the Landlord request (Tasks tab), finish a grocery run and log the cost, change a feeling weight under House → Priority, and check House → Activity.
 
 ## Docs
 
@@ -71,9 +71,9 @@ Everything targets free tiers for one house of 2–8 people.
 | **M5 Hosting & launch** | Deploy tooling and security hardening first (server-only database writes, repo secret scanning), then everything that needs an outside account: hosted Supabase, the Gmail sender, Sentry, Vercel, staging, iPhone checks, production |
 | **M6 Usability & personal needs** | Fewer taps (swipe, simpler item views, quicker runs), needs for one person or the house, the gaps from the docs↔code audit, docs that match the build |
 | **M7 Simpler screens** | Tabs Home, Needs, Tasks, Chores, Admin; Home as one list in priority order; check-to-save sheets that swipe closed; icon buttons for edit and delete; Appearance apart from Notifications; rooms renamed from one sheet; no monthly cost total; a feedback button on Admin |
-| **M8 After launch** | Easier dates and times, undo and redo, run history, faster loads, money done properly with Splitwise |
+| **M8 After launch** | Easier dates and times, money done properly with Splitwise, deep cleaning on rotation (routines), pick your bedroom, then the newcomer pass: four tabs with House first, each tab ranked by priority, You for your own settings, a welcome and notifications step after joining, clearer words; reminders for needs, polls and routines, and push that's claimed before sending; faster loads still to come |
 
-Each milestone ends with a test task. Everything except M5 runs on one Mac with no accounts; M5 is where the sign-ups happen, and launch waits for M7. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, rotating chores, and the Splitwise API ([PRD §13](docs/PRD.md)).
+Each milestone ends with a test task. Everything except M5 runs on one Mac with no accounts; M5 is where the sign-ups happen, and launch waits for M7. Parked for v2: bills, ownership of shared things, heads-ups with a calendar button, and the Splitwise API ([PRD §13](docs/PRD.md)).
 
 The tasks, their dependencies and progress are on the **roomies** board in Weyve.
 
@@ -93,7 +93,7 @@ One command runs the whole suite, stopping at the first failure:
 pnpm install && pnpm test:all
 ```
 
-It resets the local database, then runs typecheck, lint, formatting, unit, use-case and component tests (with coverage targets), contract and row-level-security tests against local Supabase, and the end-to-end journeys on the iPhone 15 profile (including axe on every screen, light and dark). It takes a few minutes. The pieces run on their own too: `pnpm test`, `pnpm test:db`, `pnpm test:e2e`. See [docs/TESTING.md](docs/TESTING.md).
+It resets the local database, then runs typecheck, lint, formatting, unit, use-case and component tests (with coverage targets), contract and row-level-security tests against local Supabase, and the end-to-end journeys on the iPhone 15 profile (plus a desktop check of the date fields; including axe on every screen, light and dark). It takes a few minutes. The pieces run on their own too: `pnpm test`, `pnpm test:db`, `pnpm test:e2e`. See [docs/TESTING.md](docs/TESTING.md).
 
 ## Repo layout
 

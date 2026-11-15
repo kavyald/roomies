@@ -249,7 +249,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
       <div class="ms done" role="listitem"><b>M7</b><span>Simpler screens</span></div>
       <div class="ms todo" role="listitem"><b>M8</b><span>After launch</span></div>
     </div>
-    <p class="small soft">M0–M4 are done and passed <code>pnpm test:all</code> at Q4; T40 (the Activity tab's first pass) and T41 (the join name field) landed after. M6 (T42–T63 + Q6) is complete; <code>pnpm test:all</code> passed at Q6 (<code>7623de6</code>); M7 (simpler screens: T64–T68, T80–T82, T87, T90 + Q7) is the last milestone before launch, so E5 now waits on Q7: tabs Home, Needs, Tasks, Chores, Admin; Home as one priority list; check-to-save sheets that swipe closed; icon buttons through one <code>IconButton</code>. M8 (dates, undo, run history, speed, money) comes after launch. M5 (E1–E5 + Q5) needs your Supabase, Gmail and Vercel accounts, so the app so far has only run on your Mac against local Supabase in Docker.</p>
+    <p class="small soft">M0–M4 are done and passed <code>pnpm test:all</code> at Q4; T40 (the Activity tab's first pass) and T41 (the join name field) landed after. M6 (T42–T63 + Q6) is complete; <code>pnpm test:all</code> passed at Q6 (<code>7623de6</code>); M7 (simpler screens: T64–T68, T80–T82, T87, T90 + Q7) is the last milestone before launch, so E5 now waits on Q7: tabs Home, Needs, Tasks, Chores, Admin; Home as one priority list; check-to-save sheets that swipe closed; icon buttons through one <code>IconButton</code>. M8 came after launch: dates, money with Splitwise, routines, bedrooms, then the newcomer pass (four tabs with House first, ranked tabs, You, onboarding, clearer words) and reminders; all but T88 (speed) are built, and undo and run history moved to M9. M5 (E1–E5 + Q5) needs your Supabase, Gmail and Vercel accounts, so the app so far has only run on your Mac against local Supabase in Docker.</p>
     <div class="stats">
       <div class="stat"><b>~20k</b><span>lines of app code (tests excluded)</span></div>
       <div class="stat"><b>87</b><span>test files, plus 29 Playwright journeys</span></div>
@@ -344,12 +344,12 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
             <tr><td class="mono">/sign-in</td><td>Email → 6-digit code (one field, iOS one-time-code autofill)</td></tr>
             <tr><td class="mono">/setup/[token]</td><td>One-time house creation; dead once a house exists</td></tr>
             <tr><td class="mono">/join/[token]</td><td>Name, email, code, pick your bedroom</td></tr>
-            <tr><td class="mono">/h/[id]</td><td>Home: Open polls, Runs in progress, one ranked list (Mine / All) with a Calendar link</td></tr>
-            <tr><td class="mono">/h/[id]/needs · chores · tasks</td><td>The three item tabs; Tasks also holds Requests &amp; visits</td></tr>
-            <tr><td class="mono">/h/[id]/admin</td><td>Roommates, invites, contacts, feeling weights, activity, rooms (/house redirects here)</td></tr>
-            <tr><td class="mono">/h/[id]/activity · calendar · me</td><td>History log, month calendar, personal settings</td></tr>
-            <tr><td class="mono">/h/[id]/i/[itemId]</td><td>Deep link that opens an item's sheet over Home</td></tr>
-            <tr><td class="mono">/h/[id]/p/[pollId] · r/[runId]</td><td>Deep links (poll and run notifications) that open a poll's or run's sheet over Home, or say it isn't there</td></tr>
+            <tr><td class="mono">/h/[id]</td><td>House, the first tab (T107): Polls, Calendar, Activity, then People, Chores, Money and Priority (/admin and /house redirect here)</td></tr>
+            <tr><td class="mono">/h/[id]/needs · chores · tasks</td><td>The three item tabs; ranked by priority (T108); Needs also holds Runs in progress, Tasks Coming up and Requests &amp; visits</td></tr>
+            <tr><td class="mono">/h/[id]/house/roommates · contacts · routines</td><td>House's own pages: roommates and invites, contacts, routines</td></tr>
+            <tr><td class="mono">/h/[id]/activity · calendar · me</td><td>History log, month calendar, personal settings (each with a back link to House)</td></tr>
+            <tr><td class="mono">/h/[id]/i/[itemId]</td><td>Deep link that opens an item's sheet over House</td></tr>
+            <tr><td class="mono">/h/[id]/p/[pollId] · r/[runId]</td><td>Deep links (poll and run notifications) that open a poll's or run's sheet over House, or say it isn't there</td></tr>
             <tr><td class="mono">/offline · /dev/kit</td><td>Offline fallback; UI kit in light + dark (dev only)</td></tr>
           </tbody>
         </table>
@@ -394,7 +394,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
       </div>
       <div class="result">
         <div><b id="c-score">40</b> <span class="soft">/ 100</span></div>
-        <span class="chip" id="c-tier">Normal</span>
+        <span class="chip" id="c-tier">Normal (no chip)</span>
       </div>
       <div class="scorebar" aria-hidden="true"><i id="c-bar" style="width:40%"></i></div>
       <p class="breakdown" id="c-break"></p>
@@ -436,7 +436,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
     <div class="list" id="advlist"></div>
   </section>
 
-  <footer>Built from <code>docs/</code> (PRD, ARCHITECTURE, FRONTEND, TESTING) and a read of the source on <code>v1</code> at <code>21ecdb5</code> (Q4); file references point at that commit. Updated 1 Oct 2026 for T40 (A24), 2 Oct 2026 for M6 and the owner's decisions D30–D35, 3 Oct 2026 for Q6 (M6 complete), and 14 Oct 2026 for Q7 (M7 complete). The implementation plan and build log it first drew on were retired on 1 Oct; tasks and their decisions now live on the Weyve cards.</footer>
+  <footer>Built from <code>docs/</code> (PRD, ARCHITECTURE, FRONTEND, TESTING) and a read of the source on <code>v1</code> at <code>21ecdb5</code> (Q4); file references point at that commit. Updated 1 Oct 2026 for T40 (A24), 2 Oct 2026 for M6 and the owner's decisions D30–D35, 3 Oct 2026 for Q6 (M6 complete), 14 Oct 2026 for Q7 (M7 complete), and 15 Nov 2026 for Q8 (M8 built except T88). The implementation plan and build log it first drew on were retired on 1 Oct; tasks and their decisions now live on the Weyve cards.</footer>
 </div>
 
 <dialog class="sheet" id="sheet" aria-labelledby="sheet-title">
@@ -510,11 +510,10 @@ const LAYERS = [
  { id:'domain', n:'3', title:'Domain · lib/domain', sub:'Pure TypeScript: no I/O, no Date.now(), no random ids. Returns values and Result, never throws for business rules.', mods:[
   { name:'items.ts · lists.ts', desc:'needs, chores, tasks', fns:[
     ['createItem · editItem · markDone · reopenItem · doChore · archiveItem · restoreItem','Each returns { item, events }. Category never changes (D15).'],
-    ['needList · choreBoard · taskList','Tab ordering: needs by feeling score, chores as routine cards then Upkeep, tasks by date.'],
+    ['needList · choreBoard · taskList','Tab ordering by priority score (rankItems, T108): needs and tasks ranked, chores as routine cards then a ranked Upkeep; urgentTabs puts the dots on the tabs.'],
     ['choreLateness · isChoreDue · daysSinceDone','Measured in calendar days in the house time zone.'] ]},
-  { name:'priority.ts · feelings.ts · weights.ts', desc:'the feed', fns:[
+  { name:'priority.ts · feelings.ts · weights.ts', desc:'priority', fns:[
     ['scorePriority(item, feelings, weights, now, tz)','base + due pressure + Σ feeling weights, clamped 0–100 → { score, tier, breakdown }.'],
-    ['isInFeed · homeFeed','PRD §8.1 rules, e.g. tasks on a visit leave the feed unless felt about or within 3 days.'],
     ['setFeeling · earlierFeelings · feelingScore · feelingCounts','One current feeling per person per item.'],
     ['setFeelingWeights · isValidWeight · stepWeight','−20…+40 in steps of 5.'],
     ['parseSplitwiseGroup · setSplitwiseGroup · splitwiseUrl','The house’s Splitwise group link, one shape; any member (T89).'] ]},
@@ -538,7 +537,7 @@ const LAYERS = [
     ['remindersFor · choreDueDate','Day-before and day-of reminders with dedupe keys, so reruns enqueue nothing.'],
     ['isQuiet · sendAfter · deliver · pushPayload · afterAttempt','Quiet hours hold a message until they end; a passing push failure is tried again (5 min, 30 min, 2 h).'] ]},
   { name:'calendar · invites · members · setup · time', desc:'the rest', fns:[
-    ['calendarEntries · comingUp · homeRuns · byDay · monthGrid','Built from items and runs already loaded; no separate calendar query.'],
+    ['calendarEntries · comingUp · runsInProgress · visitsComingUp · byDay · monthGrid','Built from items and runs already loaded; no separate calendar query.'],
     ['validateInvite · createInvite · acceptInvite · openBedrooms','Expired / revoked / used_up as typed errors.'],
     ['moveOut · setRole · anonymizeProfile · setupHouse · safeEqual','“Former roommate” keeps history intact.'],
     ['localDateOf · instantAt · startOfDay · calendarDaysBetween','Hand-written time zone and DST handling, tested across both DST nights.'] ]}
@@ -569,7 +568,7 @@ const LAYERS = [
     ['AppClient','queries (HouseQueries), commands (server actions), changes (ChangeFeed), me, vapid key.'],
     ['hooks.ts','TanStack Query hooks: useItems, useFeelings, useRuns, usePolls, useActivity (infinite), mutations that invalidate keys.'],
     ['useLiveHouse','ChangeFeed → keysForTable → invalidateQueries.'],
-    ['push.ts · install.ts · use-now.ts','Web Push subscribe, Home Screen install detection, a ticking “now”.'] ]},
+    ['push.ts · install.ts · device-memory.ts · use-now.ts','Web Push subscribe, Home Screen install detection and which prompt fits the device, what this device remembers, a ticking “now”.'] ]},
   { name:'components/', desc:'95 files', fns:[
     ['ui/','Button, Card, Chip, Avatar, Sheet (vaul; a header check saves, no X), IconButton, Disclosure, Swipeable, TabBar, ListRow, SegmentedControl, Toast, EmptyState. Contrast and copy are unit-tested.'],
     ['items/ · runs/ · polls/ · costs/','ItemSheets (600 lines) and RunSheet (560) are the two heaviest screens.'],
@@ -655,7 +654,7 @@ const FLOWS = [
   'A screen calls a hook like <code>useItems(houseId)</code>.',
   'TanStack Query asks <code>HouseQueries</code>, backed by the Supabase JS client.',
   'PostgREST runs the query as you; RLS returns only your house\'s rows.',
-  'The browser ranks the feed itself with <code>scorePriority</code> and <code>homeFeed</code>, using today\'s date.'] },
+  'The browser orders each list itself (<code>needList</code>, <code>taskList</code> and Upkeep by <code>scorePriority</code>, T108) and scores an item with <code>scorePriority</code>, using today\'s date.'] },
  {id:'live', name:'See a roommate’s change', nodes:['pg','rt','sbjs','ui'], edges:['l1','rt'], steps:[
   'A roommate\'s change commits with its <code>activity_events</code> row.',
   'Realtime broadcasts the insert to members of that house (RLS applies).',
@@ -774,7 +773,7 @@ const FRONT = [
  ['A25','Online only','The service worker caches build assets and the last copy of each page, and falls back to /offline. House data is never cached, so nothing is readable or writable offline.',['Cached data, read-only (persisting the TanStack cache): considered and not built (owner, 2026-10-02).']],
  ['A26','A CSP nonce on every page','proxy.ts sets a Content-Security-Policy with a fresh nonce and \'strict-dynamic\', so only Next\'s own scripts run; connect-src names the Supabase origin from config. Every page renders per request; styles keep \'unsafe-inline\' for Vaul and Radix.',['\'unsafe-inline\' scripts: static pages stay, but any injected script runs.','Experimental SRI hashes: static pages, but experimental.']],
  ['§8','Client components + TanStack Query','Screens are client components reading through hooks; Realtime invalidates query keys. Server rendering is mostly the shell.',['Server components for data: harder to combine with live updates and the AppClient seam.']],
- ['T19','Sheets, not pages, for items','Add and detail open as bottom sheets over the current tab (vaul). /h/[id]/i/[itemId] deep-links to a sheet over Home.',['Nested sheets were avoided: pickers are inline inside the sheet.']],
+ ['T19','Sheets, not pages, for items','Add and detail open as bottom sheets over the current tab (vaul). /h/[id]/i/[itemId] deep-links to a sheet over the house's first tab (House since T107).',['Nested sheets were avoided: pickers are inline inside the sheet.']],
  ['T19','Native pickers','Rooms and people are native selects (rooms grouped as Bedrooms, Bathrooms, Spaces); dates are native inputs.',['Custom pickers: more code, worse accessibility on iPhone.']],
  ['D11','Cozy via color, shape and tone','Cream paper, brown ink, a plum accent, pill buttons and a “sticker” edge instead of blurry shadows. No custom art.',['Focus Friend-style characters: parked; also its guilt mechanic.']],
  ['FRONTEND §3','Color means something','Four element colors say who and where; plum says how urgent. Item types get icon + label on a neutral chip. All pairs pass WCAG AA, tested in contrast.test.ts.',[]],
@@ -786,7 +785,7 @@ const PROD = [
  ['D10 · D8','One house, invite-only','A one-time setup link creates the house; after that, the only way in is an invite link (expires in 7 days, max uses = open bedrooms). Joins notify everyone.',[]],
  ['D15','Things never change type','When the vacuum arrives, the need is done; “Assemble the vacuum” is a new task and “Keep it?” a new poll.',[]],
  ['D5 · D26','Feelings instead of urgency flags','😰 Anxious, 😤 Frustrated, 😕 Confused, 🙂 Fine, 😌 Not a big deal, 🙏 Thanks. Always named, always about items (never people), with an optional note. They replace comments.',[]],
- ['D7','Feeling weights are the house\'s','One house-wide setting any member can change (−20…+40). Saving re-ranks everyone\'s feed and shows a card on Home.',[]],
+ ['D7','Feeling weights are the house\'s','One house-wide setting any member can change (−20…+40). Saving changes everyone\'s priorities and shows a card on House (Home before T107).',[]],
  ['D2 · D6','No scoreboards','No chore balance, no “who\'s done what”, no weekly check-in or house mood.',[]],
  ['D3 · D20','Polls: ties are ties','Most votes wins. A tie says “Tie” and the app does nothing automatic. Anyone can add options while it\'s open.',[]],
  ['D14 · D4','Money is optional','A cost record on an item or run, only when something was spent. The Splitwise icon copies “title — $amount” and opens the house’s Splitwise group (T89); no Splitwise API.',[]],
@@ -877,8 +876,8 @@ function calc(){
   $('#c-bar').style.width = score+'%';
   const t = $('#c-tier');
   t.className = 'chip'+(tier==='top'?' top':tier==='high'?' high':'');
-  t.textContent = tier==='top'?'●● Top':tier==='high'?'High':tier==='normal'?'Normal':'Low';
-  $('#c-break').textContent = 'Why is this here? '+parts.join(', ')+(raw!==score?' (clamped from '+raw+')':'')+'.';
+  t.textContent = tier==='top'?'●● Urgent':tier==='high'?'Soon':tier==='normal'?'Normal (no chip)':'Low (no chip)';
+  $('#c-break').textContent = 'Why it\'s near the top: '+parts.join(', ')+(raw!==score?' (clamped from '+raw+')':'')+'.';
   feelEl.querySelectorAll('button').forEach(b=>{ const n=counts[b.dataset.k]; b.querySelector('.c').textContent='×'+n; b.classList.toggle('has',n>0); b.setAttribute('aria-label',b.querySelector('.n').textContent+', '+n+' roommates. Tap to add one'); });
 }
 $('#c-base').addEventListener('change',calc); $('#c-due').addEventListener('change',calc);

@@ -1,54 +1,28 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { NotificationSteps } from '@/components/house/NotificationSteps'
 import { settlePush, TURN_ON_TOASTS, turnOnPush } from '@/components/house/turn-on-push'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
-import { pushPromptFor, type PushPrompt } from '@/lib/client/install'
+import { isStandalone, pushAnswered, rememberPushAnswered } from '@/lib/client/device-memory'
+import { pushPromptFor } from '@/lib/client/install'
 import { useAppClient } from '@/lib/client/provider'
 
-const DONE_KEY = 'roomies.pushPromptDone'
-
-const answered = (): boolean => {
-  try {
-    return localStorage.getItem(DONE_KEY) !== null
-  } catch {
-    return false
-  }
-}
-
-const isStandalone = (): boolean =>
-  window.matchMedia?.('(display-mode: standalone)').matches ||
-  (navigator as Navigator & { standalone?: boolean }).standalone === true
-
-const COPY: Record<PushPrompt, { title: string; description: string }> = {
-  ask: {
-    title: 'Turn on notifications?',
-    description:
-      'A ping when something is yours, a poll needs your vote, or someone joins. You pick which ones in your settings.',
-  },
-  blocked: {
-    title: 'Notifications are blocked',
-    description:
-      'They were turned off for Roomies on this device. Here’s how to turn them back on:',
-  },
-  unsupported: {
-    title: 'No notifications on this browser',
-    description: 'You’ll still see everything in the app. To get pings:',
-  },
-}
+/** One line on what notifications bring, shared with onboarding's step (T110). */
+export const PUSH_PITCH =
+  'A ping when something is yours, a poll needs your vote, or someone joins. You pick which ones in your settings.'
 
 /**
- * Notifications on from the start (T95): the first time the app opens on a device where push
- * isn't on, one sheet offers it. Any answer is remembered on this device; Me → Notifications is
- * where to change it later.
+ * Notifications on from the start (T95): the first time the app opens on a device where push is
+ * off, one sheet asks. New members answer in onboarding (T110), so this is for members who never
+ * did on this device. Blocked or unsupported devices get no sheet here (nobody's first screen is a
+ * problem); You → Notifications has the steps. Any answer is remembered on this device.
  */
 export function NotificationsPrompt() {
   const { commands, vapidPublicKey } = useAppClient()
   const toast = useToast()
-  const [prompt, setPrompt] = useState<PushPrompt | null>(null)
+  const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -60,13 +34,12 @@ export function NotificationsPrompt() {
         if (live) toast(TURN_ON_TOASTS.on)
         return
       }
-      if (answered()) return
       const next = pushPromptFor(state, {
         userAgent: navigator.userAgent,
         standalone: isStandalone(),
-        dismissed: answered(),
+        dismissed: pushAnswered(),
       })
-      if (live && next) setPrompt(next)
+      if (live && next) setOpen(true)
     })()
     return () => {
       live = false
@@ -74,12 +47,8 @@ export function NotificationsPrompt() {
   }, [commands, vapidPublicKey, toast])
 
   const done = () => {
-    setPrompt(null)
-    try {
-      localStorage.setItem(DONE_KEY, String(Date.now()))
-    } catch {
-      // Private mode: it asks again next time.
-    }
+    setOpen(false)
+    rememberPushAnswered(Date.now())
   }
 
   const turnOn = async () => {
@@ -90,27 +59,22 @@ export function NotificationsPrompt() {
     if (r !== 'failed') done()
   }
 
-  if (!prompt) return null
-  const { title, description } = COPY[prompt]
+  if (!open) return null
   return (
-    <Sheet open onOpenChange={(o) => !o && done()} title={title} description={description}>
-      {prompt === 'ask' ? (
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="secondary" block onClick={done}>
-            Not now
-          </Button>
-          <Button block disabled={busy} onClick={turnOn}>
-            Turn on
-          </Button>
-        </div>
-      ) : (
-        <>
-          <NotificationSteps kind={prompt} />
-          <Button variant="secondary" block onClick={done}>
-            Got it
-          </Button>
-        </>
-      )}
+    <Sheet
+      open
+      onOpenChange={(o) => !o && done()}
+      title="Turn on notifications?"
+      description={PUSH_PITCH}
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <Button variant="secondary" block onClick={done}>
+          Not now
+        </Button>
+        <Button block disabled={busy} onClick={turnOn}>
+          Turn on
+        </Button>
+      </div>
     </Sheet>
   )
 }

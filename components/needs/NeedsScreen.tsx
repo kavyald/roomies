@@ -10,7 +10,7 @@ import { whenLabel } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
 import { onRunLabel, RUN_ICON } from '@/components/runs/meta'
 import { Button } from '@/components/ui/Button'
-import { Chip, RoomChip } from '@/components/ui/Chip'
+import { Chip, RoomChip, TierChip } from '@/components/ui/Chip'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Swipeable } from '@/components/ui/Swipeable'
 import { useCelebrate, useToast } from '@/components/ui/Toast'
@@ -23,20 +23,22 @@ import {
   useReopenItem,
   useFeelingsByItem,
   usePolls,
+  useRanking,
 } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
-import { feelingScore } from '@/lib/domain/feelings'
 import { needList } from '@/lib/domain/lists'
+import { chipTier } from '@/lib/domain/priority'
 import { ForChip, useWhoseChoice, WhoseToggle } from './Whose'
 
 /**
  * The shared shopping list (FRONTEND §5.5): "We need…" at the top, then each open need with a
- * Got it circle and a 🙂+ (swipe right and left do the same). No Soon flag: a feeling says "we need
- * this soon" (T23).
+ * Got it circle and a 🙂+ (swipe right and left do the same), ranked by priority (T108). No Soon
+ * toggle: a feeling raises a need, so it says "we need this soon" (T23).
  */
 export function NeedsScreen({ houseId }: { houseId: HouseId }) {
   const items = useItems(houseId)
+  const ranking = useRanking(houseId)
   const house = useHouse(houseId)
   const ctx = useCardContext(houseId)
   const feelingsBy = useFeelingsByItem(houseId)
@@ -104,10 +106,7 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
   }
 
   const tz = house.data?.settings.timezone ?? 'UTC'
-  const weights = house.data?.settings.feelingWeights
-  const needs = items.data
-    ? needList(items.data, (id) => (weights ? feelingScore(feelingsBy.get(id) ?? [], weights) : 0))
-    : []
+  const needs = items.data ? needList(items.data, ranking) : []
 
   return (
     <div className="grid gap-4">
@@ -149,7 +148,8 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
           aria-label="Needs"
           className="sticker m-0 list-none overflow-hidden rounded-[20px] border-[1.5px] border-outline p-0"
         >
-          {needs.map((n) => {
+          {needs.map(({ item: n, score }) => {
+            const tier = chipTier(score.tier)
             const room = n.roomId ? ctx.rooms.get(n.roomId) : undefined
             const when = whenLabel(n, now, tz)
             const onRun = n.run ? ctx.run(n.run.id) : undefined
@@ -191,8 +191,9 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
                         <span className="font-bold">{n.title}</span>
                         <FeelingCounts feelings={feelingsBy.get(n.id) ?? []} />
                       </span>
-                      {(n.note || room || when || onRun || polled || n.forMember) && (
+                      {(tier || n.note || room || when || onRun || polled || n.forMember) && (
                         <span className="flex flex-wrap items-center gap-1.5 text-[0.8rem] font-semibold text-ink-soft">
+                          {tier && <TierChip tier={tier} />}
                           {onRun && (
                             <Chip icon={RUN_ICON[onRun.run.kind]}>
                               {onRunLabel(onRun.run, onRun.label)}
@@ -234,7 +235,7 @@ export function NeedsScreen({ houseId }: { houseId: HouseId }) {
           })}
         </ul>
       )}
-      {needs.some((n) => !n.run) && (
+      {needs.some(({ item: n }) => !n.run) && (
         <Button variant="secondary" block onClick={startRun}>
           <ShoppingCart aria-hidden className="size-5" /> Start a run
         </Button>

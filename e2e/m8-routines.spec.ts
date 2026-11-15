@@ -1,18 +1,18 @@
-// Q8 (routines part): the journey across T96–T99 and T101. Set up a routine in Admin, give its rooms
-// the same chores from one-tap picks in Admin → Rooms, tick one in its box on Chores with Undo, then
-// 😤 an Upkeep chore until someone takes care of it.
+// Q8 (routines part): the journey across T96–T99 and T101. Set up a routine in House → Routines,
+// give its rooms the same chores from one-tap picks in House → Rooms, tick one in its box on Chores
+// with Undo, then 😤 an Upkeep chore until someone takes care of it.
 import { expect, test } from '@playwright/test'
 import { aRoommate, anItem, ownerOnHouseTab } from './support'
 
-test('a routine from Admin to the Chores tab; Upkeep goes quiet once it is taken care of', async ({
+test('a routine from House to the Chores tab; Upkeep goes quiet once it is taken care of', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
   await aRoommate(owner, 'Sam')
   await anItem(owner, { category: 'chore', title: 'Dishes', icon: 'utensils' })
 
-  // Admin → Routines: the first routine, with the kitchen.
-  await page.goto(`/h/${owner.houseId}/admin`)
+  // House → Routines: the first routine, with the kitchen.
+  await page.goto(`/h/${owner.houseId}/house/routines`)
   const newSheet = page.getByRole('dialog', { name: 'New routine' })
   await expect(async () => {
     if (!(await newSheet.isVisible())) {
@@ -27,13 +27,17 @@ test('a routine from Admin to the Chores tab; Upkeep goes quiet once it is taken
   await newSheet.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(newSheet).toBeHidden()
 
-  // Admin → Rooms: Vacuum and Swiffer for the kitchen from the picks, then the same two for the
+  // House → Rooms: Vacuum and Swiffer for the kitchen from the picks, then the same two for the
   // living room, now the house's own names. Each room gets its own copy.
+  await page.goto(`/h/${owner.houseId}`)
   const roomsSheet = page.getByRole('dialog', { name: 'Rooms' })
   const giveChores = async (room: string) => {
     await expect(async () => {
       if (!(await roomsSheet.isVisible()))
-        await page.getByRole('list', { name: 'Rooms' }).getByRole('button').click()
+        await page
+          .getByRole('list', { name: 'Chores' })
+          .getByRole('button', { name: /^Rooms/ })
+          .click()
       await expect(roomsSheet).toBeVisible({ timeout: 2000 })
     }).toPass()
     await roomsSheet.getByRole('button', { name: `${room}, shared space`, exact: true }).click()
@@ -48,7 +52,7 @@ test('a routine from Admin to the Chores tab; Upkeep goes quiet once it is taken
   await giveChores('Kitchen')
   await giveChores('Living room')
 
-  // Chores: it's mine this week, a box per room, and the word "routine" stays in Admin.
+  // Chores: it's mine this week, a box per room, and the word "routine" stays on House.
   await page.goto(`/h/${owner.houseId}/chores`)
   await expect(page.getByText(/you have the kitchen and living room · through/)).toBeVisible()
   await expect(page.getByRole('main')).not.toContainText(/routine/i)
@@ -73,25 +77,15 @@ test('a routine from Admin to the Chores tab; Upkeep goes quiet once it is taken
       .getByRole('button', { name: 'Did it: Vacuum' }),
   ).toHaveAttribute('aria-pressed', 'false')
 
-  // A deep clean chore isn't Home's business, even felt; an Upkeep chore with a feeling is.
+  // An Upkeep chore with a feeling piles up; taking care of it quiets it.
   const upkeep = page.getByRole('region', { name: 'Upkeep' })
   await upkeep.getByRole('button', { name: 'Share a feeling: Dishes' }).click()
   await upkeep.getByRole('button', { name: 'Frustrated' }).click()
   await expect(upkeep.getByRole('list', { name: 'Piling up' })).toContainText('Dishes')
-  await page.getByRole('link', { name: 'Home' }).click()
-  const feed = page.getByRole('list', { name: 'By priority' })
-  await expect(feed).toContainText('Dishes')
-  await expect(feed).not.toContainText('Vacuum')
-
-  // Took care of it: quiet on Chores and off Home.
-  await page.getByRole('link', { name: 'Chores' }).click()
   await upkeep.getByRole('button', { name: 'Took care of it: Dishes' }).click()
   await expect(upkeep).toContainText('All calm')
-  await page.getByRole('link', { name: 'Home' }).click()
-  await expect(feed.getByText('Dishes')).toHaveCount(0)
 
   // A new feeling counts again.
-  await page.getByRole('link', { name: 'Chores' }).click()
   await upkeep.getByRole('button', { name: 'Share a feeling: Dishes' }).click()
   await upkeep.getByRole('button', { name: 'Frustrated' }).click()
   await expect(upkeep.getByRole('list', { name: 'Piling up' })).toContainText('Dishes')

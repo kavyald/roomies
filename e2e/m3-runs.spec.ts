@@ -50,7 +50,7 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
   await expect(run).toContainText('1 of 4 done')
 
   // Moving and putting back still work on a selection, behind "Move or put back…".
-  await run.getByRole('button', { name: 'Move or put back…' }).click()
+  await run.getByRole('button', { name: 'Move some, or put them back' }).click()
   await rows.getByRole('checkbox', { name: 'Eggs' }).check()
   await run.getByRole('button', { name: 'Move to…' }).click()
   await run.getByLabel(/Move it to/).selectOption({ label: 'Saturday' })
@@ -58,7 +58,7 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
   await run.getByRole('button', { name: 'Move', exact: true }).click()
   await expect(run).toContainText('Moved → Saturday · Sold out')
 
-  await run.getByRole('button', { name: 'Move or put back…' }).click()
+  await run.getByRole('button', { name: 'Move some, or put them back' }).click()
   await rows.getByRole('checkbox', { name: 'Soap' }).check()
   await run.getByRole('button', { name: 'Back to the pool…' }).click()
   await run.getByLabel('Note').fill('We have some')
@@ -78,7 +78,7 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
   await expect(row('Soap')).not.toContainText('On ')
   await expect(row('Bread')).not.toContainText('On ')
 
-  // Eggs keep their history; Home lists the run still going.
+  // Eggs keep their history; Needs lists the run still going under Runs in progress (T107).
   await row('Eggs').getByRole('button', { name: /^Eggs/ }).click()
   const detail = page.getByRole('dialog', { name: 'Eggs' })
   const history = detail.getByRole('region', { name: 'Run history' })
@@ -86,7 +86,6 @@ test('a run from Needs: done, moved to another run, put back with a note, and fi
   await expect(history).toContainText('Added to Groceries')
   await expect(history).toContainText('Moved to Saturday · Sold out')
   await page.keyboard.press('Escape')
-  await page.getByRole('link', { name: 'Home' }).click()
   const inProgress = page.getByRole('region', { name: 'Runs in progress' })
   await expect(inProgress).toContainText('Saturday')
   await expect(inProgress).toContainText('0/2')
@@ -117,7 +116,8 @@ test("a run can be renamed, handed to a roommate, and named back; a visit's poin
 
   let run = page.getByRole('dialog', { name: "Kavya's run" })
   await expect(run).toContainText("Kavya's on it")
-  await run.getByRole('button', { name: 'Rename this run' }).click()
+  // One Pencil edits the name and who's on it (T111).
+  await run.getByRole('button', { name: 'Edit this run' }).click()
   await expect(run.getByRole('textbox', { name: 'Name', exact: true })).toHaveAttribute(
     'placeholder',
     "Kavya's run",
@@ -127,28 +127,30 @@ test("a run can be renamed, handed to a roommate, and named back; a visit's poin
   run = page.getByRole('dialog', { name: 'Saturday shop' })
   await expect(run).toBeVisible()
 
-  await run.getByRole('button', { name: "Change who's on it" }).click()
+  await run.getByRole('button', { name: 'Edit this run' }).click()
   await run.getByLabel("Who's on it?", { exact: true }).selectOption({ label: 'Sam' })
   await run.getByRole('button', { name: 'Save' }).click()
   await expect(run).toContainText("Sam's on it")
   await expect(page.getByRole('status').filter({ hasText: "Sam's on it now." })).toBeVisible()
 
-  await run.getByRole('button', { name: 'Rename this run' }).click()
+  await run.getByRole('button', { name: 'Edit this run' }).click()
   await run.getByRole('button', { name: "Use “Sam's run”" }).click()
   await expect(page.getByRole('dialog', { name: "Sam's run" })).toBeVisible()
   await page.keyboard.press('Escape')
 
-  // A visit has a point person instead.
+  // A visit has a point person instead. It starts from the +'s "A request" tile (T108).
   await page.goto(`/h/${owner.houseId}/tasks`)
-  const section = page.getByRole('region', { name: 'Requests & visits' })
-  await section.getByRole('button', { name: 'New', exact: true }).click()
+  await page.getByRole('heading', { level: 1, name: 'Tasks' }).waitFor()
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await page.getByRole('button', { name: 'A poll or a run instead?' }).click()
+  await page.getByRole('button', { name: /^A request/ }).click()
   const newRun = page.getByRole('dialog', { name: 'New request or visit' })
   await newRun.getByRole('button', { name: "They've agreed" }).click()
   await newRun.getByLabel('Who', { exact: true }).selectOption({ label: 'Landlord' })
   await newRun.getByRole('button', { name: 'Plan visit' }).click()
   const visit = page.getByRole('dialog', { name: 'Landlord visit' })
   await expect(visit).toContainText('Point person: Kavya')
-  await visit.getByRole('button', { name: 'Change the point person' }).click()
+  await visit.getByRole('button', { name: 'Edit this run' }).click()
   await visit.getByLabel('Point person', { exact: true }).selectOption({ label: 'Sam' })
   await visit.getByRole('button', { name: 'Save' }).click()
   await expect(visit).toContainText('Point person: Sam')

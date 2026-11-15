@@ -3,28 +3,25 @@ import { expect, test } from '@playwright/test'
 import { asOwner } from '../lib/testing/db'
 import { aRoommate, anOwner, dismissInstallGuide, signIn } from './support'
 
-test('a roommate who is not an admin sets 😰 to +40, and the feed re-ranks for everyone', async ({
+test('a roommate who is not an organizer sets 😰 to +40, and Needs re-ranks for everyone', async ({
   browser,
 }) => {
   const owner = await anOwner('Kavya')
   const sam = await aRoommate(owner, 'Sam')
-  // Two items tied at 45: a High-priority task (newer, so it wins the tie) and a need Sam is
-  // anxious about (Normal 25 + 😰 20).
+  // Needs ranks the ones people feel about by their feelings' weights (FRONTEND §5.5): dish soap
+  // (😤 15 + 😤 15 = 30) above toilet paper (😰 20), until 😰 is worth 40.
   const paper = randomUUID()
+  const soap = randomUUID()
   await asOwner(async (db) => {
     await db.query(
-      `insert into items (id, house_id, category, title, created_by, created_at)
-       values ($1, $2, 'need', 'Toilet paper', $3, now() - interval '1 hour')`,
-      [paper, owner.houseId, owner.userId],
+      `insert into items (id, house_id, category, title, created_by)
+       values ($1, $2, 'need', 'Toilet paper', $3), ($4, $2, 'need', 'Dish soap', $3)`,
+      [paper, owner.houseId, owner.userId, soap],
     )
     await db.query(
-      `insert into items (id, house_id, category, title, priority, created_by)
-       values ($1, $2, 'task', 'Replace hallway bulb', 'high', $3)`,
-      [randomUUID(), owner.houseId, owner.userId],
-    )
-    await db.query(
-      `insert into feelings (item_id, user_id, house_id, kind) values ($1, $2, $3, 'anxious')`,
-      [paper, sam.userId, owner.houseId],
+      `insert into feelings (item_id, user_id, house_id, kind)
+       values ($1, $2, $3, 'anxious'), ($4, $2, $3, 'frustrated'), ($4, $5, $3, 'frustrated')`,
+      [paper, sam.userId, owner.houseId, soap, owner.userId],
     )
   })
 
@@ -36,14 +33,14 @@ test('a roommate who is not an admin sets 😰 to +40, and the feed re-ranks for
     return page
   }
   const kavya = await open(owner.email)
-  const feed = kavya.getByRole('list', { name: 'By priority' }).getByRole('listitem')
-  await expect(feed.first()).toContainText('Replace hallway bulb')
-  await expect(feed.nth(1)).toContainText('Toilet paper')
+  await kavya.goto(`/h/${owner.houseId}/needs`)
+  const needs = kavya.getByRole('list', { name: 'Needs' }).getByRole('listitem')
+  await expect(needs.first()).toContainText('Dish soap')
+  await expect(needs.nth(1)).toContainText('Toilet paper')
 
-  // Sam (a member, not an admin) changes the weights on the Admin tab.
+  // Sam (a member, not an organizer) changes the weights from House → Priority.
   const samPage = await open(sam.email)
-  await samPage.goto(`/h/${owner.houseId}/admin`)
-  await samPage.getByRole('button', { name: /^Feeling weights/ }).click()
+  await samPage.getByRole('button', { name: /^How feelings raise priority/ }).click()
   const sheet = samPage.getByRole('dialog', { name: 'Feeling weights' })
   await expect(sheet.getByRole('status', { name: 'Anxious weight' })).toHaveText('+20')
   for (let i = 0; i < 4; i++) await sheet.getByRole('button', { name: 'Raise Anxious' }).click()
@@ -51,12 +48,13 @@ test('a roommate who is not an admin sets 😰 to +40, and the feed re-ranks for
   await expect(sheet.getByRole('button', { name: 'Raise Anxious' })).toBeDisabled()
   await sheet.getByRole('button', { name: 'Save' }).click()
   await expect(
-    samPage.getByRole('status').filter({ hasText: 'The feed is re-ranked for everyone.' }),
+    samPage.getByRole('status').filter({ hasText: 'Saved. Priorities change for everyone.' }),
   ).toBeVisible()
 
-  // Kavya's feed re-ranks live (no reload), with a card saying why.
-  await expect(feed.first()).toContainText('Toilet paper')
-  await expect(feed.first()).toContainText('High') // Normal 25 + 😰 40 = 65
+  // Kavya's Needs re-ranks live (no reload), and House has a card saying why.
+  await expect(needs.first()).toContainText('Toilet paper')
+  await expect(needs.nth(1)).toContainText('Dish soap')
+  await kavya.getByRole('navigation', { name: 'Tabs' }).getByRole('link', { name: 'House' }).click()
   await expect(kavya.getByRole('complementary', { name: 'Feeling weights changed' })).toContainText(
     'Sam set 😰 Anxious to +40',
   )

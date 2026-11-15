@@ -18,20 +18,36 @@ export const isIosSafari = (ua: string): boolean => IOS.test(ua) && !NOT_SAFARI.
 export const shouldShowInstallGuide = (c: InstallContext): boolean =>
   !c.standalone && !c.dismissed && isIosSafari(c.userAgent)
 
-/** What the notifications prompt shows (T95), from this device's push state. */
-export type PushPrompt = 'ask' | 'blocked' | 'unsupported'
+type PushStateLike = 'unsupported' | 'install_first' | 'blocked' | 'off' | 'on'
 
 /**
  * Notifications are on from the start (T95): the first time the app opens on a device where push
- * isn't on, a sheet offers it, once. Not in iPhone Safari before it's installed: the Add to Home
- * Screen guide comes first, and the prompt waits for the first open from the Home Screen.
+ * is off, a sheet asks, once. Blocked or unsupported devices get no sheet on open (T110: nobody's
+ * first screen is "Notifications are blocked"); onboarding and You → Notifications show the steps.
+ * Not in iPhone Safari before it's installed: the Add to Home Screen guide comes first, and the
+ * question waits for the first open from the Home Screen.
  */
-export const pushPromptFor = (
-  state: 'unsupported' | 'install_first' | 'blocked' | 'off' | 'on',
-  c: InstallContext,
-): PushPrompt | null => {
-  if (c.dismissed || state === 'on' || state === 'install_first') return null
+export const pushPromptFor = (state: PushStateLike, c: InstallContext): 'ask' | null => {
+  if (c.dismissed || state !== 'off') return null
   if (!c.standalone && isIosSafari(c.userAgent)) return null
+  return 'ask'
+}
+
+/** The notifications step of onboarding (T110), from this device's push state. */
+export type OnboardingPush = 'ask' | 'add_to_home_screen' | 'blocked' | 'unsupported' | 'on'
+
+/**
+ * Right after joining or setting up (T110): push already on needs no step; iPhone Safari before
+ * it's installed gets the Add to Home Screen guide (the question comes on the first open from the
+ * Home Screen, T95); otherwise the question, or why it can't be asked.
+ */
+export const onboardingPushStep = (
+  state: PushStateLike,
+  c: Pick<InstallContext, 'userAgent' | 'standalone'>,
+): OnboardingPush => {
+  if (state === 'on') return 'on'
+  if (state === 'install_first' || (!c.standalone && isIosSafari(c.userAgent)))
+    return 'add_to_home_screen'
   return state === 'off' ? 'ask' : state
 }
 
@@ -116,7 +132,5 @@ export const unsupportedSteps = (p: Platform): readonly string[] =>
  * not connected to me connects itself when the app opens, with no tap. Turning them off is done by
  * blocking them again, or with the categories in the app.
  */
-export const connectsItself = (
-  state: 'unsupported' | 'install_first' | 'blocked' | 'off' | 'on',
-  permission: NotificationPermission,
-): boolean => state === 'off' && permission === 'granted'
+export const connectsItself = (state: PushStateLike, permission: NotificationPermission): boolean =>
+  state === 'off' && permission === 'granted'

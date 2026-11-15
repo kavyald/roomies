@@ -44,16 +44,12 @@ test('icon buttons: Select all toggles, one Pencil edits, Edit and Delete are di
   await dismissInstallGuide(page)
   const h = `/h/${owner.houseId}`
 
-  // The item sheet: Pencil and Trash2 in the header, no "…" menu; Handled by copies and edits.
+  // The item sheet: Pencil in the header and Delete at the bottom (T111), no "…" menu; who's
+  // doing it copies the contact's number and edits.
   await page.goto(`${h}/i/${task}`)
   const detail = page.getByRole('dialog', { name: 'Fix the radiator valve' })
   await expect(detail.getByRole('button', { name: 'More actions' })).toHaveCount(0)
-  for (const name of [
-    'Edit',
-    'Delete',
-    "Copy Super's number",
-    "Change who's handling it",
-  ] as const) {
+  for (const name of ['Edit', 'Delete', "Copy Super's number", "Change who's doing it"] as const) {
     const button = detail.getByRole('button', { name, exact: true })
     await expect(button).toBeVisible()
     await isTapTarget(button)
@@ -77,17 +73,17 @@ test('icon buttons: Select all toggles, one Pencil edits, Edit and Delete are di
   await page.keyboard.press('Escape')
   await expect(start).toBeHidden()
 
-  // A run: Rename is the header's Pencil; who's on it is a Pencil too.
+  // A run: one Pencil in the header edits its name and who's on it (T111).
   await page.goto(`${h}/r/${run}`)
   const sheet = page.getByRole('dialog', { name: 'Costco trip' })
-  for (const name of ['Rename this run', "Change who's on it"]) {
+  for (const name of ['Edit this run']) {
     const button = sheet.getByRole('button', { name })
     await expect(button).toBeVisible()
     await isTapTarget(button)
   }
   await page.keyboard.press('Escape')
   await expect(sheet).toBeHidden()
-  await expect(page).toHaveURL(new RegExp(`${h}$`)) // a deep-linked sheet closes back to Home
+  await expect(page).toHaveURL(new RegExp(`${h}$`)) // a deep-linked sheet closes back to House
 
   // A poll's deadline is changed with the Pencil.
   await page.goto(`${h}/p/${poll}`)
@@ -99,8 +95,9 @@ test('icon buttons: Select all toggles, one Pencil edits, Edit and Delete are di
   await expect(pollSheet).toBeHidden()
   await expect(page).toHaveURL(new RegExp(`${h}$`))
 
-  // Admin: a contact row ends with the Pencil (it opens the editor) and copies with an icon.
-  await page.goto(`${h}/admin`)
+  // House → Contacts: a contact row ends with the Pencil (it opens the editor) and copies with an
+  // icon.
+  await page.goto(`${h}/house/contacts`)
   const contacts = page.getByRole('list', { name: 'Contacts' })
   const copy = contacts.getByRole('button', { name: "Copy Super's number" })
   await expect(copy).toBeVisible()

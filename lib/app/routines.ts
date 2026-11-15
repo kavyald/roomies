@@ -1,4 +1,4 @@
-// Admin → Routines use cases (PRD §6.2, T96). Any member can create and change them. Every change
+// House → Routines use cases (PRD §6.2, T96). Any member can create and change them. Every change
 // records its event; who has a routine is never written (lib/domain/routines.ts).
 
 import type { AppDeps } from './ports'

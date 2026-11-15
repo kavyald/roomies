@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Field } from '@/components/auth/fields'
+import { DateField, TimeField } from '@/components/ui/DateTimeField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
@@ -80,6 +80,10 @@ export function NewRunSheet({
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()} title="New request or visit">
+      {/* Who it's for, before anything else (T111): people outside the house. */}
+      <p className="m-0 leading-snug">
+        For someone outside the house, like the landlord, a plumber or the super.
+      </p>
       <SegmentedControl
         label="What kind"
         wide
@@ -92,8 +96,8 @@ export function NewRunSheet({
       />
       <p className="m-0 text-sm text-ink-soft">
         {mode === 'request'
-          ? 'A list to send them. You can start it empty and add to it.'
-          : "They've taken these on. The date can wait."}
+          ? "Ask someone: you haven't asked yet. Gather what to ask, then send it as one message. It can start empty."
+          : "They've agreed: they're coming to do these. Plan the visit; the date can wait."}
       </p>
       {contact.field}
       {tasks.length > 0 && (
@@ -121,17 +125,15 @@ export function NewRunSheet({
       )}
       {mode === 'visit' && (
         <div className="grid grid-cols-2 gap-2">
-          <Field
+          <DateField
             id="visit-date"
             label="Date (optional)"
-            type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
-          <Field
+          <TimeField
             id="visit-time"
             label="Time (optional)"
-            type="time"
             disabled={!date}
             value={time}
             onChange={(e) => setTime(e.target.value)}

@@ -9,7 +9,6 @@ import { ChoreIcon } from '@/components/ui/ChoreIcon'
 import { ChoreIconPicker, iconFor } from '@/components/ui/ChoreIconPicker'
 import { cn } from '@/components/ui/cn'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { IconButton } from '@/components/ui/IconButton'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
@@ -31,8 +30,10 @@ import type { Element, Member, Room } from '@/lib/domain/house'
 import type { HouseId, RoomId, UserId } from '@/lib/domain/ids'
 import { ROOM_GROUPS, roomsInGroup } from '@/lib/domain/rooms'
 import {
+  listOf,
   MAX_ROUTINE_NAME,
   nextHolder,
+  onNoRoutine,
   RESETS,
   routineHolder,
   rotationOrder,
@@ -83,8 +84,9 @@ type Context = {
 }
 
 /**
- * Admin → Routines (FRONTEND §5.11, T98), for every member: who looks after a set of rooms, when its
- * checklist starts fresh, and who has it now. The only screen that says "routine".
+ * House → Routines (FRONTEND §5.11, T98), for every member: who looks after a set of rooms, when its
+ * checklist starts fresh, and who has it now. The only screen that says "routine". Organizers also
+ * see who no routine reaches (T112).
  */
 export function RoutinesSection({ houseId }: { houseId: HouseId }) {
   const house = useHouse(houseId)
@@ -93,6 +95,7 @@ export function RoutinesSection({ houseId }: { houseId: HouseId }) {
   const members = useMembers(houseId)
   const profiles = useProfiles(houseId)
   const now = useNow()
+  const { me } = useAppClient()
   // A copy from when the sheet opened: saving it after someone else changed it is a conflict.
   const [sheet, setSheet] = useState<{ routine?: Routine } | null>(null)
 
@@ -124,9 +127,25 @@ export function RoutinesSection({ houseId }: { houseId: HouseId }) {
     routines: routines.data,
   }
   const add = <Button onClick={() => setSheet({})}>Add a routine</Button>
+  // Organizers hear who no routine reaches, such as someone who just joined (T112).
+  const organizer = members.data.some((m) => m.userId === me && m.role === 'admin')
+  const leftOut = organizer ? onNoRoutine(routines.data, members.data).map(person) : []
 
   return (
-    <>
+    <div className="grid gap-2.5">
+      {leftOut.length > 0 && (
+        <p className="m-0 flex items-center gap-2 rounded-[16px] bg-neutral-fill p-3 text-sm leading-snug font-bold text-neutral-ink">
+          <span aria-hidden className="flex flex-none -space-x-1.5">
+            {leftOut.map((p) => (
+              <PersonAvatar key={p.id} person={p} />
+            ))}
+          </span>
+          <span className="min-w-0 flex-1">
+            {listOf(leftOut.map((p) => p.name))} {leftOut.length === 1 ? "isn't" : "aren't"} on a
+            routine yet. Give them one, or make one take turns.
+          </span>
+        </p>
+      )}
       {routines.data.length === 0 ? (
         <EmptyState icon={CalendarSync} action={add}>
           No routines yet. Group rooms someone looks after, and it rotates.
@@ -171,7 +190,7 @@ export function RoutinesSection({ houseId }: { houseId: HouseId }) {
         </div>
       )}
       {sheet && <RoutineSheet ctx={ctx} routine={sheet.routine} onClose={() => setSheet(null)} />}
-    </>
+    </div>
   )
 }
 
@@ -279,15 +298,6 @@ function RoutineSheet({
       onOpenChange={(o) => !o && onClose()}
       title={routine ? routine.name : 'New routine'}
       {...(!routine && { description: 'Group rooms someone looks after.' })}
-      actions={
-        routine && !confirmRemove ? (
-          <IconButton
-            icon={Trash2}
-            label="Remove this routine"
-            onClick={() => setConfirmRemove(true)}
-          />
-        ) : undefined
-      }
     >
       {confirmRemove ? (
         <RemoveConfirm
@@ -354,6 +364,17 @@ function RoutineSheet({
             onChange={setPickedPerson}
           />
           <RoomTicks ctx={ctx} routine={routine} value={roomIds} onToggle={toggleRoom} />
+          {routine && (
+            // Apart from the header's Save check, at the bottom (T111).
+            <button
+              type="button"
+              className="flex min-h-[44px] items-center gap-1.5 justify-self-start text-sm font-bold text-ink-soft"
+              onClick={() => setConfirmRemove(true)}
+            >
+              <Trash2 aria-hidden className="size-4" />
+              Remove this routine
+            </button>
+          )}
           <SheetSave
             label={routine ? 'Save' : 'Add'}
             form="routine-form"

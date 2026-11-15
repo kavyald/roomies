@@ -2,7 +2,8 @@
 
 import { Copy, Pencil } from 'lucide-react'
 import { useState } from 'react'
-import { Field, inputClass } from '@/components/auth/fields'
+import { inputClass } from '@/components/auth/fields'
+import { DateField, TimeField } from '@/components/ui/DateTimeField'
 import { useCopy } from '@/components/house/useCopy'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -242,17 +243,15 @@ export function VisitDate({ houseId, run }: { houseId: HouseId; run: Visit }) {
   return (
     <div className="grid gap-2 rounded-2xl bg-paper p-3">
       <div className="grid grid-cols-2 gap-2">
-        <Field
+        <DateField
           id="visit-date-edit"
           label="Date"
-          type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
         />
-        <Field
+        <TimeField
           id="visit-time-edit"
           label="Time (optional)"
-          type="time"
           disabled={!date}
           value={time}
           onChange={(e) => setTime(e.target.value)}

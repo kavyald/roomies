@@ -8,6 +8,7 @@ import { useItemSheets } from '@/components/items/ItemSheets'
 import { useDidIt } from '@/components/items/useDidIt'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
+import { TierChip } from '@/components/ui/Chip'
 import { ChoreIcon } from '@/components/ui/ChoreIcon'
 import { cn } from '@/components/ui/cn'
 import { FEELING_META, type Feeling } from '@/lib/domain/feelings'
@@ -20,10 +21,12 @@ function FeltRow({
   ctx,
   chore,
   feelings,
+  tier,
 }: {
   ctx: CardContext
   chore: Chore
   feelings: readonly Feeling[]
+  tier?: 'urgent' | 'soon'
 }) {
   const { openItem } = useItemSheets()
   const { didIt } = useDidIt(ctx.houseId)
@@ -47,6 +50,7 @@ function FeltRow({
             id={`${id}-more`}
             className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.8rem] font-semibold text-ink-soft"
           >
+            {tier && <TierChip tier={tier} />}
             {rooms && <span>{rooms}</span>}
             {feelings.map((f) => {
               const who = ctx.person(f.by) ?? { name: 'Former roommate' }
@@ -75,8 +79,9 @@ function FeltRow({
 
 /**
  * Upkeep (FRONTEND §5.6): the house's, never inside a card, so it doesn't read as the holder's
- * job; it also holds chores nobody's on. What someone feels something about comes first, the rest
- * are small chips: a tap opens the emoji tray, with the chore's details one more tap away.
+ * job; it also holds chores nobody's on, ranked by priority (T108). Rows first (a feeling, or
+ * Urgent or Soon), the rest are small chips: a tap opens the emoji tray, with the chore's details
+ * one more tap away.
  */
 export function UpkeepSection({
   ctx,
@@ -120,8 +125,8 @@ export function UpkeepSection({
         <p className="m-0 text-sm font-bold text-ink-soft">All calm</p>
       ) : (
         <ul aria-label="Piling up" className="m-0 grid list-none gap-1 p-0">
-          {upkeep.felt.map(({ chore, feelings }) => (
-            <FeltRow key={chore.id} ctx={ctx} chore={chore} feelings={feelings} />
+          {upkeep.felt.map(({ chore, feelings, tier }) => (
+            <FeltRow key={chore.id} ctx={ctx} chore={chore} feelings={feelings} tier={tier} />
           ))}
         </ul>
       )}

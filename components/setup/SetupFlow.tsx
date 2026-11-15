@@ -31,7 +31,7 @@ const BEDROOMS = APARTMENT_ROOMS.filter((r) => r.kind === 'bedroom' && r.element
 
 const fallback = "Couldn't reach the house. Check your connection and try again."
 
-/** One-time setup: your account (name, email, code), then the house (PRD §10). */
+/** One-time setup: your account (name, email, code), then the house, then onboarding (PRD §10, T110). */
 export function SetupFlow({ token, signedIn }: { token: string; signedIn: boolean }) {
   const router = useRouter()
   const [step, setStep] = useState<Step>(signedIn ? 'house' : 'account')
@@ -80,7 +80,7 @@ export function SetupFlow({ token, signedIn }: { token: string; signedIn: boolea
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       })
       if (!r.ok) return say(r.error)
-      router.replace(`/h/${r.value}`)
+      router.replace(`/h/${r.value}/welcome`)
     })
   }
 

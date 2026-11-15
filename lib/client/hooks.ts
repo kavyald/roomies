@@ -2,13 +2,20 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
-import { isFeelingActive, type Feeling, type FeelingWeights } from '../domain/feelings'
+import {
+  DEFAULT_FEELING_WEIGHTS,
+  isFeelingActive,
+  type Feeling,
+  type FeelingWeights,
+} from '../domain/feelings'
+import type { Ranking } from '../domain/lists'
 import type { NewContact } from '../domain/contacts'
 import type { AppCommands } from './app-client'
 import type { ContactId, HouseId, InviteId, ItemId, RoutineId, RunId } from '../domain/ids'
 import type { NewItem } from '../domain/items'
 import type { NewInvite } from '../domain/invites'
 import { useAppClient } from './provider'
+import { useNow } from './use-now'
 import { keys, keysForTable } from './query-keys'
 
 export const useHouse = (houseId: HouseId) => {
@@ -123,7 +130,7 @@ export const useItemActivity = (houseId: HouseId, itemId: ItemId) => {
   })
 }
 
-/** The latest change to the feeling weights, for the Home card. */
+/** The latest change to the feeling weights, for the House card. */
 export const useLatestWeightsChange = (houseId: HouseId) => {
   const { queries } = useAppClient()
   return useQuery({
@@ -264,7 +271,7 @@ export const useDoChore = (houseId: HouseId) =>
 export const useUndoChore = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'undoChore'>) => c.undoChore(i), ['items'])
 
-/** Admin → Rooms: several Deep clean chores for a room at once (T101). */
+/** House → Rooms: several Deep clean chores for a room at once (T101). */
 export const useAddRoomChores = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'addRoomChores'>) => c.addRoomChores(i), ['items'])
 export const useArchiveItem = (houseId: HouseId) =>
@@ -398,4 +405,22 @@ export const useActiveFeelings = (houseId: HouseId): readonly Feeling[] => {
       return !item || isFeelingActive(item, f)
     })
   }, [feelings.data, items.data])
+}
+
+const NO_FEELINGS: readonly Feeling[] = []
+
+/**
+ * What a ranked tab needs (T108): the house's feelings and weights, now, and its time zone. Before
+ * the house loads, the default weights and UTC.
+ */
+export const useRanking = (houseId: HouseId): Ranking => {
+  const house = useHouse(houseId)
+  const feelings = useFeelings(houseId)
+  const now = useNow()
+  return {
+    feelings: feelings.data ?? NO_FEELINGS,
+    weights: house.data?.settings.feelingWeights ?? DEFAULT_FEELING_WEIGHTS,
+    now,
+    tz: house.data?.settings.timezone ?? 'UTC',
+  }
 }

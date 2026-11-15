@@ -24,10 +24,13 @@ test('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; 
 
   await page.goto(`/h/${owner.houseId}/tasks`)
   const section = page.getByRole('region', { name: 'Requests & visits' })
-  // T82: with nothing open the section is just its heading and + New, no empty state.
-  await expect(section.getByRole('button', { name: 'New' })).toBeVisible()
-  await expect(section.getByRole('list')).toHaveCount(0)
-  await expect(section).not.toContainText('No requests yet')
+  // T108: with nothing open there's no section (requests start from the + or a task), and no empty
+  // state; Tasks has one add button, the +.
+  await expect(section).toHaveCount(0)
+  await expect(page.getByText(/No requests yet/)).toHaveCount(0)
+  await expect(page.getByRole('main').getByRole('button', { name: /New|Add a task/ })).toHaveCount(
+    0,
+  )
 
   // "Add to Landlord list" on each task.
   for (const title of ['Leak under the sink', 'Mold in the bathroom', 'Window latch']) {
@@ -87,7 +90,7 @@ test('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; 
   await expect(detail.getByRole('region', { name: 'Run history' })).toContainText(
     "Back in the pool from Landlord request · That one's on us",
   )
-  await expect(detail).toContainText('One of us')
+  await expect(detail).toContainText('Any of us')
   await page.keyboard.press('Escape')
   await expect(detail).toBeHidden()
   await tasks.getByRole('button', { name: 'Leak under the sink', exact: true }).click()
@@ -98,10 +101,10 @@ test('Landlord list → sent → 2 tasks to a new visit and 1 back to the pool; 
   await expect(history).toContainText('Moved to Landlord visit · Sending a plumber Thu')
 
   // "Handled by" follows the visit (T51): the picker says so and opens the visit instead.
-  await detail.getByRole('button', { name: "Change who's handling it" }).click()
-  const picker = detail.getByRole('region', { name: "Who's handling it?" })
+  await detail.getByRole('button', { name: "Change who's doing it" }).click()
+  const picker = detail.getByRole('region', { name: "Who's doing it?" })
   await expect(picker).toContainText(
-    "It's on the Landlord visit. Move it to change who's handling it.",
+    "It's on the Landlord visit. Move it to change who's doing it.",
   )
   await expect(picker.getByRole('radiogroup')).toHaveCount(0)
   await picker.getByRole('button', { name: 'Open the Landlord visit' }).click()

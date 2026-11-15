@@ -1,6 +1,6 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
+import { ChevronRight, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useItemSheets } from '@/components/items/ItemSheets'
@@ -9,7 +9,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { ChoreIcon } from '@/components/ui/ChoreIcon'
 import { EmptyState } from '@/components/ui/EmptyState'
 import {
-  useFeelings,
+  useRanking,
   useHouse,
   useItems,
   useMembers,
@@ -19,7 +19,8 @@ import {
 import { useAppClient } from '@/lib/client/provider'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId, RoomId, RoutineId } from '@/lib/domain/ids'
-import { choreBoard, holdingLine } from '@/lib/domain/lists'
+import { choreBoard, holdingLine, whoseLine } from '@/lib/domain/lists'
+import { onNoRoutine } from '@/lib/domain/routines'
 import { localDateOf } from '@/lib/domain/time'
 import { AddChoresSheet } from './AddChoresSheet'
 import { QuickAddSheet } from './QuickAddSheet'
@@ -30,7 +31,7 @@ import { UpkeepSection } from './UpkeepSection'
 /**
  * Chores (FRONTEND §5.6, T101): what you have this week, then each routine with a box per room
  * that has chores (yours first, ticked right there), then Upkeep, the house's own list. Built to
- * fit one phone screen, with no numbers and no "due". A room's chores are set up in Admin → Rooms.
+ * fit one phone screen, with no numbers and no "due". A room's chores are set up in House → Rooms.
  */
 export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   const { me } = useAppClient()
@@ -39,7 +40,7 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   const rooms = useRooms(houseId)
   const members = useMembers(houseId)
   const house = useHouse(houseId)
-  const feelings = useFeelings(houseId)
+  const ranking = useRanking(houseId)
   const ctx = useCardContext(houseId)
   const { openItem } = useItemSheets()
   const now = useNow()
@@ -65,12 +66,14 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
     rooms: rooms.data ?? [],
     routines: routines.data,
     members: members.data ?? [],
-    feelings: feelings.data ?? [],
+    ...ranking,
     me,
     today,
     tz,
   })
   const line = holdingLine(board.cards, today)
+  const unplaced = onNoRoutine(routines.data, members.data ?? []).includes(me)
+  const routinesHref = `/h/${houseId}/house/routines`
   const open = board.cards
     .flatMap((card) => card.rooms.map((box) => ({ card, box })))
     .find(({ box }) => box.room.id === openRoom)
@@ -85,14 +88,14 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
         icon={Sparkles}
         action={
           <Link
-            href={`/h/${houseId}/admin`}
+            href={`/h/${houseId}`}
             className="sticker inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-3.5 py-2 text-sm font-extrabold text-on-accent [--sticker-edge:color-mix(in_srgb,var(--accent)_60%,#000)]"
           >
             Set up rooms
           </Link>
         }
       >
-        Nothing to do yet. Give each room its chores in Admin → Rooms.
+        Nothing to do yet. Give each room its chores in House → Rooms.
       </EmptyState>
     )
   }
@@ -100,6 +103,22 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   return (
     <div className="grid gap-3">
       {line && <p className="m-0 text-sm leading-snug font-bold text-ink-soft">{line}</p>}
+      {unplaced && (
+        // Someone every group leaves out, like a newcomer (T112). Organizers see them in Routines.
+        <div className="grid gap-2 rounded-[16px] bg-neutral-fill p-3 text-neutral-ink">
+          <p className="m-0 font-bold">You&apos;re not looking after any rooms yet.</p>
+          <p className="m-0 text-sm leading-snug">
+            An organizer can add you, or take some on yourself. Upkeep below is everyone&apos;s
+            meanwhile.
+          </p>
+          <Link
+            href={routinesHref}
+            className="sticker inline-flex min-h-11 items-center justify-self-start rounded-full bg-accent px-3.5 py-2 text-sm font-extrabold text-on-accent [--sticker-edge:color-mix(in_srgb,var(--accent)_60%,#000)]"
+          >
+            Who has which rooms
+          </Link>
+        </div>
+      )}
       {board.cards.map((card) => {
         const holder = card.holder
           ? (ctx.person(card.holder) ?? { name: 'Former roommate' })
@@ -113,27 +132,46 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
             aria-label={holder ? `${card.routine.name}, ${holder.name}` : card.routine.name}
             className="grid gap-1.5"
           >
-            <div className="flex items-center gap-1.5">
-              <h2 className="m-0 flex min-w-0 flex-1 items-center gap-1.5 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
-                <ChoreIcon name={card.routine.icon} className="size-4 flex-none text-accent-ink" />
-                <span className="min-w-0 flex-1 truncate">{card.routine.name}</span>
-                {holder && <Avatar name={holder.name} element={holder.element} size={20} />}
-              </h2>
-              <button
-                type="button"
-                aria-label={`Add chores: ${card.routine.name}`}
-                onClick={() => setAddingTo(card.routine.id)}
-                className="min-h-11 flex-none px-1 text-sm font-extrabold text-accent-ink"
-              >
-                + Add
-              </button>
+            <div className="flex min-h-11 items-center gap-1.5">
+              <div className="grid min-w-0 flex-1 gap-0.5">
+                <h2 className="m-0 flex items-center gap-1.5 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
+                  <ChoreIcon
+                    name={card.routine.icon}
+                    className="size-4 flex-none text-accent-ink"
+                  />
+                  <span className="min-w-0 flex-1">{card.routine.name}</span>
+                </h2>
+                {holder && (
+                  // Whose it is, in words as well as the avatar (T105).
+                  <p className="m-0 flex items-center gap-1.5 text-sm leading-tight font-bold">
+                    <span aria-hidden className="flex-none">
+                      <Avatar name={holder.name} element={holder.element} size={20} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      {whoseLine(card.routine, card.mine ? undefined : holder.name)}
+                    </span>
+                  </p>
+                )}
+              </div>
+              {/* A housemate's rooms take chores from their own sheet: + Add here reads as yours. */}
+              {(card.mine || boxes.length === 0) && (
+                <button
+                  type="button"
+                  aria-label={`Add chores: ${card.routine.name}`}
+                  onClick={() => setAddingTo(card.routine.id)}
+                  className="min-h-11 flex-none self-start px-1 text-sm font-extrabold text-accent-ink"
+                >
+                  + Add
+                </button>
+              )}
             </div>
             {boxes.length === 0 ? (
               <p className="m-0 text-sm text-ink-soft">No chores here yet.</p>
             ) : (
-              <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0">
+              // One box a row, yours and a housemate's alike: no half-width box, no broken names.
+              <ul className="m-0 grid list-none gap-2 p-0">
                 {boxes.map((box) => (
-                  <li key={box.room.id} className={card.mine ? 'col-span-2' : undefined}>
+                  <li key={box.room.id}>
                     <RoomBox
                       box={box}
                       mine={card.mine}
@@ -148,6 +186,16 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
           </div>
         )
       })}
+      {!unplaced && board.cards.length > 0 && (
+        // Where who-has-which-rooms is set up, one tap from here (T112).
+        <Link
+          href={routinesHref}
+          className="inline-flex min-h-11 items-center gap-1 justify-self-start text-sm font-extrabold text-accent-ink"
+        >
+          Who has which rooms
+          <ChevronRight aria-hidden className="size-4" />
+        </Link>
+      )}
       <UpkeepSection ctx={ctx} upkeep={board.upkeep} onAdd={() => setAdding(true)} />
 
       {adding ? (

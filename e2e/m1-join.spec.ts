@@ -7,13 +7,13 @@ test('the owner invites, and a roommate joins with a code and picks their room',
 }) => {
   const owner = await anOwner('Kavya')
 
-  // The owner, in their own browser, makes an invite link on the Admin tab.
+  // The owner, in their own browser, makes an invite link on House → Roommates and invites.
   const ownerCtx = await browser.newContext()
   const ownerPage = await ownerCtx.newPage()
   await signIn(ownerPage, owner.email)
   await expect(ownerPage).toHaveURL(new RegExp(`/h/${owner.houseId}$`))
   await dismissInstallGuide(ownerPage)
-  await ownerPage.goto(`/h/${owner.houseId}/admin`)
+  await ownerPage.goto(`/h/${owner.houseId}/house/roommates`)
   await ownerPage.getByRole('button', { name: 'Make an invite link' }).click()
   const inviteSection = ownerPage.getByRole('region', { name: 'Invite link' })
   await expect(inviteSection).toContainText('for up to 4 people') // four free bedrooms
@@ -36,11 +36,22 @@ test('the owner invites, and a roommate joins with a code and picks their room',
   await expect(maya.getByRole('heading', { name: 'Which room is yours?' })).toBeVisible()
   await maya.getByRole('radio', { name: 'Fire' }).click()
   await maya.getByRole('button', { name: 'Join the house' }).click()
+
+  // Onboarding (T110): the welcome, then (iPhone Safari, not installed) the Add to Home Screen
+  // guide in place of the notifications question, then House, with no guide on top.
+  await expect(maya).toHaveURL(new RegExp(`/h/${owner.houseId}/welcome$`))
+  await expect(maya.getByRole('heading', { level: 1 })).toHaveText('Welcome to The apartment 👋')
+  await maya.getByRole('button', { name: 'Next' }).click()
+  await expect(maya.getByRole('heading', { level: 1 })).toHaveText(
+    'Add Roomies to your Home Screen',
+  )
+  await maya.getByRole('button', { name: 'Continue' }).click()
   await expect(maya).toHaveURL(new RegExp(`/h/${owner.houseId}$`))
-  await dismissInstallGuide(maya)
+  await expect(maya.getByRole('heading', { level: 1, name: 'House' })).toBeVisible()
+  await expect(maya.getByRole('dialog')).toHaveCount(0)
 
   // Maya sees the house, and herself in Fire.
-  await maya.goto(`/h/${owner.houseId}/admin`)
+  await maya.goto(`/h/${owner.houseId}/house/roommates`)
   const roommates = maya.getByRole('list', { name: 'Roommates' })
   await expect(roommates.getByRole('button', { name: /Maya, Fire room/ })).toBeVisible()
   await expect(roommates).toContainText('Kavya')
@@ -53,7 +64,7 @@ test('the owner invites, and a roommate joins with a code and picks their room',
   await expect(feed).not.toContainText('Maya moved into Fire')
 
   // The link keeps working for the other open rooms, and says how many are used.
-  await ownerPage.goto(`/h/${owner.houseId}/admin`)
+  await ownerPage.goto(`/h/${owner.houseId}/house/roommates`)
   await expect(ownerPage.getByRole('list', { name: 'Invite links' })).toContainText('1 of 4 used')
 
   // The owner removes Maya; she loses access right away.
@@ -66,7 +77,7 @@ test('the owner invites, and a roommate joins with a code and picks their room',
   await sheet.getByRole('button', { name: 'Remove Maya' }).click()
   await expect(ownerPage.getByRole('list', { name: 'Roommates' })).not.toContainText('Maya')
 
-  await maya.goto(`/h/${owner.houseId}/admin`)
+  await maya.goto(`/h/${owner.houseId}`)
   await expect(maya).toHaveURL(/\/$/)
   await expect(
     maya.getByText("You're no longer a member of this house.", { exact: false }),

@@ -1,7 +1,6 @@
-// Priority and the Home feed (PRD §8.1, ARCHITECTURE §7.1). Pure: weights, `now` and the house's
-// time zone are arguments, so the feed, jobs and tests all score the same way.
+// Priority (PRD §8.1, ARCHITECTURE §7.1). Pure: weights, `now` and the house's time zone are
+// arguments, so screens, jobs and tests all score the same way.
 
-import { isComingUp } from './calendar'
 import {
   activeFeelings,
   FEELING_META,
@@ -9,17 +8,23 @@ import {
   type FeelingKind,
   type FeelingWeights,
 } from './feelings'
+import { nearDay } from './format'
 import type { UserId } from './ids'
-import type { Chore, Item, Priority } from './items'
+import type { Item, Priority } from './items'
 import { daysBetween, localDateOf, type Instant, type LocalDate } from './time'
 
-export type Tier = 'top' | 'high' | 'normal' | 'low'
+/**
+ * What a score means (T108): Urgent (≥ 70) and Soon (45–69) get a chip on a card; Normal and Low
+ * show nothing.
+ */
+export type Tier = 'urgent' | 'soon' | 'normal' | 'low'
 
-/** One line of "Why is this here?". */
+/** One line of "Why it's near the top". */
 export type ScorePart =
   | { readonly kind: 'base'; readonly priority: Priority; readonly points: number }
   | {
       readonly kind: 'due'
+      readonly date: LocalDate
       /** Days until it's due (negative: days past). */
       readonly days: number
       readonly points: number
@@ -55,13 +60,13 @@ export const duePoints = (days: number): number =>
           : 0
 
 export const tierOf = (score: number): Tier =>
-  score >= 70 ? 'top' : score >= 45 ? 'high' : score >= 20 ? 'normal' : 'low'
+  score >= 70 ? 'urgent' : score >= 45 ? 'soon' : score >= 20 ? 'normal' : 'low'
 
 const dueOf = (item: Item, now: Instant, tz: string): ScorePart | null => {
   if (item.category === 'chore' || !item.when) return null
   const days = daysBetween(localDateOf(now, tz), item.when.date)
   const points = duePoints(days)
-  return points ? { kind: 'due', days, points } : null
+  return points ? { kind: 'due', date: item.when.date, days, points } : null
 }
 
 /**
@@ -88,111 +93,36 @@ export const scorePriority = (
   return { score, tier: tierOf(score), breakdown }
 }
 
-/**
- * Whether an item belongs in Needs attention (PRD §8.1): open tasks, except ones on a visit
- * (back only with a feeling or the visit within 3 days); chores nobody's on (upkeep, or no routine)
- * with a feeling; needs with a feeling or needed within 7 days. A routine's chores stay on the
- * Chores tab: they're its holder's checklist.
- */
-export const isInFeed = (
-  item: Item,
-  feelings: readonly Feeling[],
-  now: Instant,
-  tz: string,
-  opts: {
-    visitDate?: (item: Item) => LocalDate | undefined
-    /** Whether a routine is on this chore (`choreOwner`). */
-    hasOwner?: (chore: Chore) => boolean
-  } = {},
-): boolean => {
-  if (item.archivedAt) return false
-  if (item.category !== 'chore' && item.done) return false
-  const felt = activeFeelings(item, feelings).length > 0
-  const today = localDateOf(now, tz)
-  switch (item.category) {
-    case 'task': {
-      if (item.run?.kind !== 'visit') return true
-      if (felt) return true
-      const visit = opts.visitDate?.(item)
-      return !!visit && daysBetween(today, visit) <= 3
-    }
-    case 'chore':
-      return felt && !opts.hasOwner?.(item)
-    case 'need':
-      return felt || (!!item.when && daysBetween(today, item.when.date) <= 7)
-  }
-}
-
-export type FeedFilter = 'mine' | 'all'
-export type FeedEntry = { readonly item: Item } & Score
-
-/**
- * Home's one list (T81): what's in the feed plus any open task or need dated in the coming week
- * (what "Coming up" used to show), each once, highest score first; ties go to the sooner date,
- * then the newest. Mine = assigned to me.
- */
-export const homeFeed = (
-  items: readonly Item[],
-  feelingsOf: (item: Item) => readonly Feeling[],
-  ctx: {
-    weights: FeelingWeights
-    now: Instant
-    tz: string
-    filter: FeedFilter
-    me: UserId
-    visitDate?: (item: Item) => LocalDate | undefined
-    hasOwner?: (chore: Chore) => boolean
-  },
-): FeedEntry[] =>
-  items
-    .filter((i) => ctx.filter === 'all' || i.assignee === ctx.me)
-    .filter(
-      (i) =>
-        isInFeed(i, feelingsOf(i), ctx.now, ctx.tz, {
-          visitDate: ctx.visitDate,
-          hasOwner: ctx.hasOwner,
-        }) || isComingUp(i, localDateOf(ctx.now, ctx.tz)),
-    )
-    .map((item) => ({
-      item,
-      ...scorePriority(item, feelingsOf(item), ctx.weights, ctx.now, ctx.tz),
-    }))
-    .sort((a, b) => {
-      if (a.score !== b.score) return b.score - a.score
-      const da = a.item.when?.date
-      const db = b.item.when?.date
-      if (da && db && da !== db) return da.localeCompare(db)
-      if (da && !db) return -1
-      if (db && !da) return 1
-      return b.item.createdAt.epochMs - a.item.createdAt.epochMs
-    })
-
-// ---- "Why is this here?" -------------------------------------------------------------------
+// ---- "Why it's near the top" ----------------------------------------------------------------
 
 const PRIORITY_LABEL: Record<Priority, string> = {
   low: 'Low priority',
   normal: 'Normal priority',
   high: 'High priority',
-  urgent: 'Urgent',
+  urgent: 'Urgent priority',
 }
 
-const dayCount = (n: number) => (n === 1 ? '1 day' : `${n} days`)
-
-/** The words for one part of the breakdown, without its points ("Due tomorrow", "😰 Maya"). */
+/**
+ * The words for one part of the breakdown, never its points (T108): "Normal priority", "Maya is
+ * 😰", "Due Friday", "Was due yesterday".
+ */
 export const describePart = (part: ScorePart, name: (id: UserId) => string): string => {
   switch (part.kind) {
     case 'base':
       return PRIORITY_LABEL[part.priority]
     case 'feeling':
-      return `${FEELING_META[part.feeling].emoji} ${name(part.by)}`
+      return `${name(part.by)} is ${FEELING_META[part.feeling].emoji}`
     case 'due':
-      if (part.days < 0)
-        return part.days === -1 ? 'Was due yesterday' : `Was due ${dayCount(-part.days)} ago`
       if (part.days === 0) return 'Due today'
       if (part.days === 1) return 'Due tomorrow'
-      return `Due in ${dayCount(part.days)}`
+      if (part.days === -1) return 'Was due yesterday'
+      return `${part.days < 0 ? 'Was due' : 'Due'} ${nearDay(part.date, part.days)}`
   }
 }
+
+/** The tier a card shows a chip for (T108): Urgent or Soon; Normal and Low show none. */
+export const chipTier = (tier: Tier): 'urgent' | 'soon' | undefined =>
+  tier === 'urgent' || tier === 'soon' ? tier : undefined
 
 /** "+25", "−5". */
 export const signedPoints = (n: number): string => (n < 0 ? `−${-n}` : `+${n}`)

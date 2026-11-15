@@ -49,21 +49,24 @@ test('dated items and runs show on the right days, and tapping one opens it', as
     )
   })
 
-  // Home (T81): the dated items this week sit in the one list by priority, with their dates, and
-  // the dated run sits under Runs in progress; tapping one opens it.
+  // House's Calendar row counts this week's dated things (T107); the dated task sits on Tasks
+  // with its date, and the dated run under Runs in progress on Needs. Tapping one opens it.
   await page.goto(`/h/${owner.houseId}`)
-  await expect(page.getByRole('heading', { name: /Coming up|Needs attention/ })).toHaveCount(0)
-  const ranked = page.getByRole('list', { name: 'By priority' })
-  const plumber = ranked.getByRole('listitem').filter({ hasText: 'Plumber comes' })
-  await expect(plumber).toHaveCount(1)
-  await expect(plumber).toContainText('Due tomorrow 10:00')
-  await expect(ranked.getByRole('listitem').filter({ hasText: 'Paper towels' })).toHaveCount(1)
+  await expect(page.getByRole('link', { name: /^Calendar/ })).toContainText('3 this week')
+  await page.getByRole('link', { name: 'Needs' }).click()
   await expect(page.getByRole('region', { name: 'Runs in progress' })).toContainText('Groceries')
+  await page.getByRole('link', { name: 'Tasks' }).click()
+  const plumber = page
+    .getByRole('list', { name: 'Tasks' })
+    .getByRole('listitem')
+    .filter({ hasText: 'Plumber comes' })
+  await expect(plumber).toContainText('Due tomorrow 10:00')
   await plumber.getByRole('button', { name: 'Plumber comes', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Plumber comes' })).toBeVisible()
   await page.keyboard.press('Escape')
 
-  // The month calendar: pick the run's day, open it.
+  // The month calendar, from House: pick the run's day, open it.
+  await page.getByRole('navigation', { name: 'Tabs' }).getByRole('link', { name: 'House' }).click()
   await page.getByRole('link', { name: 'Calendar' }).click()
   await expect(page).toHaveURL(/\/calendar$/)
   const pick = async (ymd: string) => {

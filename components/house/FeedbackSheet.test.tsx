@@ -9,7 +9,7 @@ import { AppClientProvider, makeQueryClient } from '@/lib/client/provider'
 import type { UserId } from '@/lib/domain/ids'
 import { fakeAppClient } from '@/lib/testing/app-client'
 import { ToastProvider } from '@/components/ui/Toast'
-import { FeedbackButton } from './FeedbackSheet'
+import { FeedbackRow } from './FeedbackSheet'
 
 afterEach(cleanup)
 beforeAll(() => {
@@ -46,19 +46,18 @@ const setup = async () => {
       queryClient={makeQueryClient()}
     >
       <ToastProvider>
-        <FeedbackButton houseId={house.id} />
+        <FeedbackRow houseId={house.id} />
       </ToastProvider>
     </AppClientProvider>,
   )
   return { deps, member }
 }
 
-describe('Admin → Send feedback (T91)', () => {
-  it('an icon with no visible text opens a sheet that sends a bug', async () => {
+describe('You → Send a bug, idea or praise (T91, T109)', () => {
+  it('a labelled row opens a sheet that sends a bug', async () => {
     const { deps, member } = await setup()
     const user = userEvent.setup()
-    const button = screen.getByRole('button', { name: 'Send feedback' })
-    expect(button.textContent).toBe('')
+    const button = screen.getByRole('button', { name: 'Send a bug, idea or praise' })
     await user.click(button)
 
     const sheet = await screen.findByRole('dialog', { name: 'Feedback' })

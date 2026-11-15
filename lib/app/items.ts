@@ -86,7 +86,7 @@ export const makeCreateItem =
     })
 
 /**
- * Admin → Rooms (T101): give a room several Deep clean chores at once, one copy each, as one
+ * House → Rooms (T101): give a room several Deep clean chores at once, one copy each, as one
  * action. Names the room already has are skipped, so adding none is fine (an empty list back).
  */
 export const makeAddRoomChores =

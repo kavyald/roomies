@@ -1,9 +1,9 @@
 'use client'
 
 import { Minus, Plus, SlidersHorizontal } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { ListRow } from '@/components/ui/ListRow'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { useHouse, useSetFeelingWeights } from '@/lib/client/hooks'
@@ -14,30 +14,40 @@ import {
   type FeelingWeights,
 } from '@/lib/domain/feelings'
 import type { HouseId } from '@/lib/domain/ids'
-import { signedPoints } from '@/lib/domain/priority'
+import { BASE_POINTS, signedPoints } from '@/lib/domain/priority'
 import { stepWeight, WEIGHT_MAX, WEIGHT_MIN } from '@/lib/domain/weights'
 
-/** Admin (PRD §8.2). Feeling weights is the one setting any member can change. */
-export function FeelingWeightsSection({ houseId }: { houseId: HouseId }) {
+/**
+ * House → Priority (PRD §8.2, T107): one row, "How feelings raise priority", showing today's
+ * feeling weights; it opens the sheet. The one setting any member can change. Sits in a ListGroup.
+ */
+export function FeelingWeightsRow({ houseId, linked }: { houseId: HouseId; linked?: boolean }) {
   const house = useHouse(houseId)
-  const [open, setOpen] = useState(false)
+  // An item's "How feelings raise priority" link (`?priority`, T108) opens the sheet; the URL then
+  // goes back to plain House, so a reload doesn't open it again.
+  const [open, setOpen] = useState(!!linked)
+  const [wasLinked, setWasLinked] = useState(linked)
+  if (linked !== wasLinked) {
+    setWasLinked(linked)
+    if (linked) setOpen(true)
+  }
+  useEffect(() => {
+    if (linked) window.history.replaceState(null, '', `/h/${houseId}`)
+  }, [linked, houseId])
   if (!house.data) return null
+  const weights = house.data.settings.feelingWeights
   return (
     <>
-      <ListGroup label="Feeling weights">
-        <ListRow
-          leading={<SlidersHorizontal aria-hidden className="size-5 text-ink-soft" />}
-          title="Feeling weights"
-          subtitle="How much each feeling raises priority"
-          onClick={() => setOpen(true)}
-        />
-      </ListGroup>
+      <ListRow
+        leading={<SlidersHorizontal aria-hidden className="size-5 text-ink-soft" />}
+        title="How feelings raise priority"
+        subtitle={FEELING_KINDS.map(
+          (k) => `${FEELING_META[k].emoji} ${signedPoints(weights[k])}`,
+        ).join(' · ')}
+        onClick={() => setOpen(true)}
+      />
       {open && (
-        <FeelingWeightsSheet
-          houseId={houseId}
-          current={house.data.settings.feelingWeights}
-          onClose={() => setOpen(false)}
-        />
+        <FeelingWeightsSheet houseId={houseId} current={weights} onClose={() => setOpen(false)} />
       )}
     </>
   )
@@ -62,7 +72,7 @@ function FeelingWeightsSheet({
   const submit = async () => {
     const r = await save.mutateAsync(weights)
     if (!r.ok && r.error !== 'no_change') return toast("Couldn't save the weights. Try again.")
-    if (r.ok) toast('Saved. The feed is re-ranked for everyone.')
+    if (r.ok) toast('Saved. Priorities change for everyone.')
     onClose()
   }
 
@@ -73,6 +83,9 @@ function FeelingWeightsSheet({
       title="Feeling weights"
       description="One setting for the whole house. Anyone can change it."
     >
+      <p className="m-0 text-sm font-semibold text-ink-soft">
+        Items start at {BASE_POINTS.normal} out of 100; each feeling adds this much.
+      </p>
       <ul aria-label="Feeling weights" className="m-0 grid list-none gap-1 p-0">
         {FEELING_KINDS.map((k) => {
           const { emoji, label } = FEELING_META[k]

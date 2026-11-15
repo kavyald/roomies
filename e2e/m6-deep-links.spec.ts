@@ -1,4 +1,4 @@
-// T58: a poll or run notification opens that sheet over Home; an unknown link says so kindly.
+// T58: a poll or run notification opens that sheet over House; an unknown link says so kindly.
 import { expect, test } from '@playwright/test'
 import { asOwner } from '../lib/testing/db'
 import { aPoll, aRoommate, aRun, anOwner, dismissInstallGuide, signIn } from './support'
@@ -17,12 +17,8 @@ test('a poll push opens the poll, a run link opens the run, and a stranger’s l
   await expect(page).toHaveURL(new RegExp(`${h}$`))
   await dismissInstallGuide(page)
 
-  // Kavya starts a poll; Sam's notification points at it.
-  await page.getByRole('button', { name: 'Add', exact: true }).click()
-  await page
-    .getByRole('dialog', { name: 'Add something' })
-    .getByRole('button', { name: /^A poll/ })
-    .click()
+  // Kavya starts a poll from House; Sam's notification points at it.
+  await page.getByRole('button', { name: 'New poll' }).click()
   const sheet = page.getByRole('dialog', { name: 'A poll' })
   await sheet.getByLabel('Question').fill('Movie night?')
   await sheet.getByLabel('Option 1', { exact: true }).fill('Friday')
@@ -58,7 +54,7 @@ test('a poll push opens the poll, a run link opens the run, and a stranger’s l
   await expect.poll(samsPollUrl).toBe(`${h}/p/${pollId}`)
   const url = (await samsPollUrl())!
 
-  // Tapping it opens the poll over Home, ready to vote.
+  // Tapping it opens the poll over House, ready to vote.
   await page.goto(url)
   const poll = page.getByRole('dialog', { name: 'Movie night?' })
   await expect(poll).toBeVisible()
@@ -86,6 +82,6 @@ test('a poll push opens the poll, a run link opens the run, and a stranger’s l
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.goto(`${h}/r/not-a-run`)
   await expect(page.getByText("We couldn't find that run. It may have been removed.")).toBeVisible()
-  await page.getByRole('link', { name: 'Go to Home' }).click()
+  await page.getByRole('link', { name: 'Go to House' }).click()
   await expect(page).toHaveURL(new RegExp(`${h}$`))
 })

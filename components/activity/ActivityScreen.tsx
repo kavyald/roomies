@@ -43,6 +43,21 @@ import {
 import type { HouseId } from '@/lib/domain/ids'
 import { useNow } from '@/lib/client/use-now'
 
+/**
+ * The emoji in a line ("felt 😤 about") as its own inline box with a little room either side:
+ * Safari draws a color emoji over the plain space after it, so it read "felt 😤about" (T111).
+ */
+const withEmojiSpace = (text: string) =>
+  text.split(/(\p{Extended_Pictographic}\uFE0F?)/u).map((part, i) =>
+    i % 2 === 1 ? (
+      <span key={i} className="inline-block px-[0.12em]">
+        {part}
+      </span>
+    ) : (
+      part
+    ),
+  )
+
 /** An icon and a word for what each line is about, so the log scans at a glance. */
 const TOPIC: Record<FeedTopic, { icon: LucideIcon; label: string }> = {
   need: { icon: ShoppingBag, label: 'Need' },
@@ -189,7 +204,7 @@ function Line({
   const body = (
     <>
       <span data-line-text className="block leading-snug font-semibold">
-        {line.text}
+        {withEmojiSpace(line.text)}
       </span>
       {line.detail && (
         <span className="mt-0.5 block text-[0.85rem] leading-snug text-ink-soft">

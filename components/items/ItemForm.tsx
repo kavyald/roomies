@@ -1,10 +1,10 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Plus } from 'lucide-react'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { inputClass } from '@/components/auth/fields'
-import { Button } from '@/components/ui/Button'
 import { ChoreIconPicker, iconFor } from '@/components/ui/ChoreIconPicker'
+import { DateField, TimeField } from '@/components/ui/DateTimeField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { SheetSave } from '@/components/ui/Sheet'
 import { useContacts, useMembers, useProfiles, useRooms } from '@/lib/client/hooks'
@@ -155,7 +155,15 @@ export function ItemForm({
         />
       </div>
 
-      {showWhose && <WhoseToggle value={whose} onChange={setWhose} />}
+      {showWhose && (
+        <div className="flex items-center justify-between gap-3">
+          {/* "For", as the item sheet labels it (T111); the toggle keeps its own name. */}
+          <span aria-hidden className="text-[0.8rem] font-extrabold text-ink-soft">
+            For
+          </span>
+          <WhoseToggle value={whose} onChange={setWhose} />
+        </div>
+      )}
 
       {!expanded && (
         <button
@@ -171,28 +179,21 @@ export function ItemForm({
         <>
           {category !== 'chore' && (
             <div className="grid grid-cols-[1fr_auto] gap-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="item-date">{category === 'need' ? 'Needed by' : 'Date'}</Label>
-                <input
-                  id="item-date"
-                  type="date"
-                  className={inputClass}
-                  value={v.date}
-                  onChange={(e) => set('date', e.target.value)}
-                />
-              </div>
+              <DateField
+                id="item-date"
+                label={category === 'need' ? 'Needed by' : 'Date'}
+                value={v.date}
+                onChange={(e) => set('date', e.target.value)}
+              />
               {category === 'task' && (
-                <div className="grid gap-1.5">
-                  <Label htmlFor="item-time">Time</Label>
-                  <input
-                    id="item-time"
-                    type="time"
-                    className={`${inputClass} w-32`}
-                    disabled={!v.date}
-                    value={v.time}
-                    onChange={(e) => set('time', e.target.value)}
-                  />
-                </div>
+                <TimeField
+                  id="item-time"
+                  label="Time"
+                  className="w-32 pointer-fine:w-40"
+                  disabled={!v.date}
+                  value={v.time}
+                  onChange={(e) => set('time', e.target.value)}
+                />
               )}
             </div>
           )}
@@ -239,20 +240,41 @@ export function ItemForm({
           )}
 
           {category === 'task' && (
+            // One field for who does it (T111): a roommate, or a contact from outside.
             <div className="grid gap-1.5">
-              <Label htmlFor="item-assignee">Who&apos;s on it</Label>
+              <Label htmlFor="item-who">Who&apos;s doing it</Label>
               <select
-                id="item-assignee"
+                id="item-who"
                 className={inputClass}
-                value={v.assignee}
-                onChange={(e) => set('assignee', e.target.value as UserId | '')}
+                value={v.contactId ? `c:${v.contactId}` : v.assignee ? `u:${v.assignee}` : ''}
+                onChange={(e) => {
+                  const [kind, id = ''] = e.target.value.split(/:(.*)/)
+                  setV((p) => ({
+                    ...p,
+                    assignee: kind === 'u' ? (id as UserId) : '',
+                    contactId: kind === 'c' ? (id as ContactId) : '',
+                  }))
+                }}
               >
-                <option value="">Anyone</option>
-                {people.map((m) => (
-                  <option key={m.userId} value={m.userId}>
-                    {names.get(m.userId) ?? 'Roommate'}
-                  </option>
-                ))}
+                <option value="">Any of us</option>
+                <optgroup label="Roommates">
+                  {people.map((m) => (
+                    <option key={m.userId} value={`u:${m.userId}`}>
+                      {names.get(m.userId) ?? 'Roommate'}
+                    </option>
+                  ))}
+                </optgroup>
+                {(contacts.data ?? []).some((c) => !c.archivedAt) && (
+                  <optgroup label="Outside help">
+                    {(contacts.data ?? [])
+                      .filter((c) => !c.archivedAt)
+                      .map((c) => (
+                        <option key={c.id} value={`c:${c.id}`}>
+                          {c.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
               </select>
             </div>
           )}
@@ -274,27 +296,6 @@ export function ItemForm({
             </div>
           )}
 
-          {category === 'task' && (
-            <div className="grid gap-1.5">
-              <Label htmlFor="item-contact">Handled by</Label>
-              <select
-                id="item-contact"
-                className={inputClass}
-                value={v.contactId}
-                onChange={(e) => set('contactId', e.target.value as ContactId | '')}
-              >
-                <option value="">One of us</option>
-                {(contacts.data ?? [])
-                  .filter((c) => !c.archivedAt)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          )}
-
           <div className="grid gap-1.5">
             <Label htmlFor="item-note">Note</Label>
             <textarea
@@ -310,9 +311,16 @@ export function ItemForm({
 
       <SheetSave form={formId} label={submitLabel} busy={busy} disabled={!v.title.trim()} />
       {onAddAnother && (
-        <Button variant="secondary" block disabled={busy || !v.title.trim()} onClick={another}>
+        // Quieter than the header check, which is the main action (T111).
+        <button
+          type="button"
+          className="flex min-h-[44px] items-center gap-1 justify-self-center text-sm font-bold text-accent-ink disabled:opacity-50"
+          disabled={busy || !v.title.trim()}
+          onClick={another}
+        >
+          <Plus aria-hidden className="size-4" />
           Add another
-        </Button>
+        </button>
       )}
     </form>
   )

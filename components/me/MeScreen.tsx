@@ -2,12 +2,14 @@
 
 import { Bell, ChevronRight, SunMoon } from 'lucide-react'
 import Link from 'next/link'
+import { FeedbackRow } from '@/components/house/FeedbackSheet'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Avatar } from '@/components/ui/Avatar'
 import { useProfiles } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import type { HouseId } from '@/lib/domain/ids'
 import { THEME_LABEL } from './theme'
+import { YourRoom } from './YourRoom'
 
 function SettingsLink({
   href,
@@ -34,8 +36,9 @@ function SettingsLink({
 }
 
 /**
- * Your settings (FRONTEND §5.11, PRD §11): two separate entries, Notifications and Appearance,
- * each its own page (T65), so the theme never reads as a notification setting.
+ * You (FRONTEND §5.11, PRD §11, T109): everything that's yours, not the house's. Your name and
+ * avatar, your room, Notifications and Appearance (each its own page, T65, so the theme never
+ * reads as a notification setting), and feedback to the owner. The page adds Sign out and Delete my account below.
  */
 export function MeScreen({ houseId }: { houseId: HouseId }) {
   const { me } = useAppClient()
@@ -47,13 +50,15 @@ export function MeScreen({ houseId }: { houseId: HouseId }) {
   const person = ctx.person(me)
 
   return (
-    <>
+    <div className="grid gap-6">
       <div className="flex items-center gap-3">
         <Avatar name={mine.displayName} element={person?.element} size={48} />
         <p className="m-0 text-lg font-extrabold">{mine.displayName}</p>
       </div>
 
-      <nav aria-label="Settings" className="mt-6 grid gap-3">
+      <YourRoom houseId={houseId} />
+
+      <nav aria-label="Settings" className="grid gap-3">
         <SettingsLink
           href={`/h/${houseId}/me/notifications`}
           icon={<Bell aria-hidden className="size-5 text-ink-soft" />}
@@ -66,6 +71,8 @@ export function MeScreen({ houseId }: { houseId: HouseId }) {
           value={THEME_LABEL[mine.theme]}
         />
       </nav>
-    </>
+
+      <FeedbackRow houseId={houseId} />
+    </div>
   )
 }

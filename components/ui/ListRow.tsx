@@ -1,8 +1,9 @@
-import { Pencil } from 'lucide-react'
+import { ChevronRight, Pencil } from 'lucide-react'
+import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { IconMark } from './IconButton'
 
-/** Rows grouped in one rounded box (Admin tab lists, settings). */
+/** Rows grouped in one rounded box (House lists, settings). */
 export function ListGroup({ children, label }: { children: ReactNode; label?: string }) {
   return (
     <div
@@ -21,6 +22,7 @@ export function ListRow({
   subtitle,
   trailing,
   onClick,
+  href,
   editable = false,
 }: {
   leading?: ReactNode
@@ -29,6 +31,8 @@ export function ListRow({
   /** A control beside the row (e.g. "Copy number"): kept outside the row's own button. */
   trailing?: ReactNode
   onClick?: () => void
+  /** The row goes to another page: a link ending with a chevron (T107). */
+  href?: string
   /** The row opens an editor: it ends with the edit Pencil (T68), as part of its own button. */
   editable?: boolean
 }) {
@@ -48,7 +52,12 @@ export function ListRow({
       role="listitem"
       className="flex min-h-11 items-center gap-2 border-b-[1.5px] border-line bg-card pr-2"
     >
-      {onClick ? (
+      {href ? (
+        <Link href={href} className="flex min-h-11 flex-1 items-center gap-3 py-3 pl-3.5 text-left">
+          {body}
+          <ChevronRight aria-hidden className="size-5 flex-none text-ink-soft" />
+        </Link>
+      ) : onClick ? (
         <button
           type="button"
           className="flex min-h-11 flex-1 items-center gap-3 py-3 pl-3.5 text-left"

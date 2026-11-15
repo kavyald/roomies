@@ -1,25 +1,30 @@
 'use client'
 
+import Link from 'next/link'
 import { TierChip } from '@/components/ui/Chip'
 import { Disclosure } from '@/components/ui/Disclosure'
 import { useFeelings, useHouse } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId, UserId } from '@/lib/domain/ids'
 import type { Item } from '@/lib/domain/items'
-import { describePart, scorePriority, signedPoints } from '@/lib/domain/priority'
+import { chipTier, describePart, scorePriority } from '@/lib/domain/priority'
 
 /**
- * "Why is this here?" (FRONTEND §5.4): a closed section showing the item's tier; open, the score
- * breakdown behind it.
+ * "Why it's near the top" (FRONTEND §5.4, T108): a closed section showing the item's Urgent or Soon
+ * chip, if it has one; open, what moved it, in words ("Normal priority", "Kavya is 😤", "Due
+ * Friday"), never points, and a link to House → How feelings raise priority.
  */
 export function WhyHere({
   houseId,
   item,
   name,
+  onLeave,
 }: {
   houseId: HouseId
   item: Item
   name: (id: UserId) => string
+  /** Closes the sheet as the link goes to House. */
+  onLeave: () => void
 }) {
   const house = useHouse(houseId)
   const feelings = useFeelings(houseId)
@@ -33,20 +38,23 @@ export function WhyHere({
     now,
     house.data.settings.timezone,
   )
+  const tier = chipTier(s.tier)
   return (
-    <Disclosure title="Why is this here?" summary={<TierChip tier={s.tier} />}>
-      <dl className="m-0 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 rounded-2xl bg-paper px-3.5 py-3 text-sm">
-        {s.breakdown.map((p, i) => (
-          <div key={i} className="contents">
-            <dt className="font-semibold">{describePart(p, name)}</dt>
-            <dd className="m-0 text-right font-bold tabular-nums">{signedPoints(p.points)}</dd>
-          </div>
-        ))}
-        <div className="col-span-2 flex justify-between border-t border-line pt-1.5 font-extrabold">
-          <dt>Score</dt>
-          <dd className="m-0 tabular-nums">{s.score}</dd>
-        </div>
-      </dl>
+    <Disclosure title="Why it's near the top" summary={tier && <TierChip tier={tier} />}>
+      <div className="grid gap-2 rounded-2xl bg-paper px-3.5 py-3 text-sm">
+        <ul className="m-0 grid list-none gap-1.5 p-0 font-semibold">
+          {s.breakdown.map((p, i) => (
+            <li key={i}>{describePart(p, name)}</li>
+          ))}
+        </ul>
+        <Link
+          href={`/h/${houseId}?priority`}
+          onClick={onLeave}
+          className="flex min-h-11 items-center font-extrabold text-accent-ink"
+        >
+          How feelings raise priority
+        </Link>
+      </div>
     </Disclosure>
   )
 }

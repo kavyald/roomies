@@ -15,7 +15,7 @@ const labelClass = 'text-[0.8rem] font-extrabold text-ink-soft'
 
 /**
  * Adding an Upkeep chore from the Chores tab (FRONTEND §5.6): a name, a room if you like, and an
- * icon, which the name suggests. A room's Deep clean chores are set up in Admin → Rooms (T101).
+ * icon, which the name suggests. A room's Deep clean chores are set up in House → Rooms (T101).
  * Tap + Add, type the name, tap the check.
  */
 export function QuickAddSheet({

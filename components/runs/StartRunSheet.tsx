@@ -1,22 +1,22 @@
 'use client'
 
 import { ChevronDown } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Field } from '@/components/auth/fields'
+import { DateField } from '@/components/ui/DateTimeField'
 import { FeelingCounts } from '@/components/items/Feelings'
 import { SelectAll } from './SelectAll'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/components/ui/cn'
-import { useFeelingsByItem, useHouse, useItems, useStartRun } from '@/lib/client/hooks'
-import { feelingScore } from '@/lib/domain/feelings'
+import { useFeelingsByItem, useItems, useRanking, useStartRun } from '@/lib/client/hooks'
 import type { HouseId, ItemId, RunId } from '@/lib/domain/ids'
 import { needList } from '@/lib/domain/lists'
 import type { LocalDate } from '@/lib/domain/time'
 
 /**
- * "Start a run" (FRONTEND §5.5): every open need that isn't on a run yet, already checked (the ones
- * with a feeling first), so the usual run is one tap. Uncheck what you won't get; a title and date
+ * "Start a run" (FRONTEND §5.5): every open need that isn't on a run yet, already checked (in the
+ * Needs tab's order, T108), so the usual run is one tap. Uncheck what you won't get; a title and date
  * sit behind More options (T44).
  */
 export function StartRunSheet({
@@ -29,7 +29,7 @@ export function StartRunSheet({
   onStarted: (id: RunId) => void
 }) {
   const items = useItems(houseId)
-  const house = useHouse(houseId)
+  const ranking = useRanking(houseId)
   const feelingsBy = useFeelingsByItem(houseId)
   const start = useStartRun(houseId)
   const toast = useToast()
@@ -39,14 +39,10 @@ export function StartRunSheet({
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
 
-  const weights = house.data?.settings.feelingWeights
-  const needs = useMemo(
-    () =>
-      needList(items.data ?? [], (id) =>
-        weights ? feelingScore(feelingsBy.get(id) ?? [], weights) : 0,
-      ).filter((n) => !n.run),
-    [items.data, feelingsBy, weights],
-  )
+  // In the Needs tab's order (T108).
+  const needs = needList(items.data ?? [], ranking)
+    .map((r) => r.item)
+    .filter((n) => !n.run)
   const picked = needs.filter((n) => !skipped.has(n.id)).map((n) => n.id)
   const all = picked.length === needs.length && needs.length > 0
 
@@ -132,10 +128,9 @@ export function StartRunSheet({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
-          <Field
+          <DateField
             id="run-date"
             label="When (optional)"
-            type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />

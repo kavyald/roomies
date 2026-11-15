@@ -299,3 +299,35 @@ export const resultLine = (p: Poll, r: PollResult): string => {
   const label = p.options.find((o) => o.id === r.winner)?.label ?? 'An option'
   return `${label} wins (${r.votes}–${r.runnerUp})`
 }
+
+/** How many closed polls House shows under the open ones (T107). */
+export const RECENT_CLOSED_POLLS = 5
+
+/** When a poll stopped taking votes: closed by hand, or its deadline passed. */
+const endedAt = (p: Poll): number =>
+  p.state.open ? (p.closesAt?.epochMs ?? 0) : p.state.closedAt.epochMs
+
+/**
+ * House's poll list (T107): open polls first (soonest deadline first, then newest), then the
+ * latest closed ones, most recently closed first, each with its result line.
+ */
+export const housePolls = (
+  polls: readonly Poll[],
+  now: Instant,
+): { poll: Poll; open: boolean; result?: string }[] => {
+  const open = polls
+    .filter((p) => isPollOpen(p, now))
+    .sort(
+      (a, b) =>
+        (a.closesAt?.epochMs ?? Infinity) - (b.closesAt?.epochMs ?? Infinity) ||
+        b.createdAt.epochMs - a.createdAt.epochMs,
+    )
+  const closed = polls
+    .filter((p) => !isPollOpen(p, now))
+    .sort((a, b) => endedAt(b) - endedAt(a))
+    .slice(0, RECENT_CLOSED_POLLS)
+  return [
+    ...open.map((poll) => ({ poll, open: true })),
+    ...closed.map((poll) => ({ poll, open: false, result: resultLine(poll, resultOf(poll)) })),
+  ]
+}

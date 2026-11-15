@@ -3,13 +3,16 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { ToastProvider } from '@/components/ui/Toast'
 import { asMember, seedHouse } from '@/lib/adapters/contracts/unit-of-work.contract'
+import { makeChangeMyRoom } from '@/lib/app/house'
 import { makeSetNotificationEnabled, makeUpdateMySettings } from '@/lib/app/me'
 import { depsForTest } from '@/lib/compose'
 import { AppClientProvider, makeQueryClient } from '@/lib/client/provider'
 import type { HouseId, UserId } from '@/lib/domain/ids'
 import type { QuietHours } from '@/lib/domain/notifications'
 import { fakeAppClient } from '@/lib/testing/app-client'
+import { sampleHouse } from '@/lib/testing/sample-house'
 import { AppearanceScreen } from './AppearanceScreen'
 import { MeScreen } from './MeScreen'
 import { NotificationsScreen } from './NotificationsScreen'
@@ -108,5 +111,41 @@ describe('NotificationsScreen (T61: one section)', () => {
     await expect.poll(() => quiet.getAttribute('aria-checked')).toBe('false')
     expect(screen.getByText('Quiet hours off')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /^Quiet / })).toBeNull()
+  })
+})
+
+describe('MeScreen (T109: everything personal is on You)', () => {
+  it('picks your room, shows housemates’ rooms as taken, and opens feedback', async () => {
+    const deps = depsForTest()
+    const s = await sampleHouse(deps.uow, deps.ids, async () => {
+      const r = await deps.auth.createUser(`p${deps.ids.count()}@example.test`)
+      return r.ok ? r.value : Promise.reject(new Error(r.error))
+    })
+    const sam = asMember(s.house.id, s.people.Sam)
+    const change = makeChangeMyRoom(deps)
+    render(
+      <AppClientProvider
+        client={fakeAppClient(deps.uow, sam, { changeMyRoom: (i) => change(sam, i) })}
+        queryClient={makeQueryClient()}
+      >
+        <ToastProvider>
+          <MeScreen houseId={s.house.id} />
+        </ToastProvider>
+      </AppClientProvider>,
+    )
+
+    const room = await screen.findByRole('radiogroup', { name: 'Your room' })
+    expect(screen.getByRole('heading', { name: 'Your room' })).toBeTruthy()
+    expect(within(room).getByRole('radio', { name: /Fire/ }).getAttribute('aria-checked')).toBe(
+      'true',
+    )
+    expect(within(room).getByRole('radio', { name: /Water/ })).toHaveProperty('disabled', true)
+
+    await userEvent.click(within(room).getByRole('radio', { name: 'Not yet' }))
+    expect(await screen.findByText('No bedroom for now.')).toBeTruthy()
+    expect(deps.uow.state.members.get(`${s.house.id}|${s.people.Sam}`)!.roomId).toBeUndefined()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Send a bug, idea or praise' }))
+    expect(await screen.findByRole('dialog', { name: 'Feedback' })).toBeTruthy()
   })
 })

@@ -318,7 +318,7 @@ export interface HouseQueries {
   items(houseId: HouseId): Promise<Item[]>
   /** The house's invites; admins only (others get none). */
   invites(houseId: HouseId): Promise<Invite[]>
-  /** The house's most recent activity row of one kind (the Home card for a weights change). */
+  /** The house's most recent activity row of one kind (the House card for a weights change). */
   latestActivity(houseId: HouseId, kind: EventKind): Promise<StoredActivityRow | undefined>
   /** The house's polls, open and closed, with their options and votes. */
   polls(houseId: HouseId): Promise<Poll[]>

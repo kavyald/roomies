@@ -1,4 +1,4 @@
-// T98: anyone in the house sets up a routine in Admin; Activity shows each change by its name.
+// T98: anyone in the house sets up a routine in House → Routines (T107); Activity shows each change by its name.
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { aRoommate, ownerOnHouseTab } from './support'
 
@@ -21,7 +21,7 @@ const opens = async (trigger: Locator, sheet: Locator) => {
 const lines = async (page: Page, houseId: string, text: string, count: number) => {
   await page.goto(`/h/${houseId}/activity`)
   await expect(page.getByText(text)).toHaveCount(count)
-  await page.goto(`/h/${houseId}/admin`)
+  await page.goto(`/h/${houseId}/house/routines`)
 }
 
 test('a member creates the first routine, assigns rooms, changes it and removes it; Activity shows each', async ({
@@ -29,7 +29,7 @@ test('a member creates the first routine, assigns rooms, changes it and removes 
 }) => {
   const owner = await ownerOnHouseTab(page)
   await aRoommate(owner, 'Sam')
-  await page.reload()
+  await page.goto(`/h/${owner.houseId}/house/routines`)
 
   // Empty to start.
   await expect(page.getByText('No routines yet. Group rooms someone looks after')).toBeVisible()

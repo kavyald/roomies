@@ -61,9 +61,9 @@ test('Needs rows swipe too, and a feeling takes two taps from a card', async ({ 
   await got.getByRole('button', { name: 'Undo' }).click()
   await expect(needs).toContainText('Olive oil')
 
-  // Home: 🙂+ then 😰 (two taps). Tapping it again takes it back.
-  await page.getByRole('link', { name: 'Home' }).click()
-  const feed = page.getByRole('list', { name: 'By priority' })
+  // Tasks: 🙂+ then 😰 (two taps). Tapping it again takes it back.
+  await page.getByRole('navigation', { name: 'Tabs' }).getByRole('link', { name: 'Tasks' }).click()
+  const feed = page.getByRole('list', { name: 'Tasks' })
   const feel = feed.getByRole('button', { name: 'Share a feeling: Bleed the radiators' })
   await feel.click() // 1
   await feed.getByRole('button', { name: 'Anxious' }).click() // 2

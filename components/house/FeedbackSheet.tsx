@@ -3,7 +3,6 @@
 import { MessageSquareHeart } from 'lucide-react'
 import { useState } from 'react'
 import { inputClass } from '@/components/auth/fields'
-import { IconButton } from '@/components/ui/IconButton'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
@@ -23,12 +22,22 @@ const PLACEHOLDER: Record<FeedbackKind, string> = {
   praise: 'What’s working for you?',
 }
 
-/** Admin's top-right icon (T91): opens the sheet that sends the owner a bug, an idea or praise. */
-export function FeedbackButton({ houseId }: { houseId: HouseId }) {
+/**
+ * "Send a bug, idea or praise" on You (T109; House's unlabelled icon before, T91): a labelled row
+ * that opens the sheet sending the owner a bug, an idea or praise.
+ */
+export function FeedbackRow({ houseId }: { houseId: HouseId }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <IconButton icon={MessageSquareHeart} label="Send feedback" onClick={() => setOpen(true)} />
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="sticker flex min-h-11 items-center gap-3 rounded-[20px] border-[1.5px] border-outline bg-card px-3.5 py-3 text-left font-bold"
+      >
+        <MessageSquareHeart aria-hidden className="size-5 text-ink-soft" />
+        <span className="flex-1">Send a bug, idea or praise</span>
+      </button>
       {open && <FeedbackSheet houseId={houseId} onClose={() => setOpen(false)} />}
     </>
   )

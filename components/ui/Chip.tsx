@@ -28,30 +28,22 @@ export function RoomChip({ name, element }: { name: string; element?: Element })
   )
 }
 
-/** Priority tier. Always carries the word; color is never the only signal (FRONTEND §3.1). */
-export function TierChip({ tier }: { tier: Tier }) {
-  const tierBase = 'rounded-full px-2.5 py-[3px] text-xs font-extrabold tracking-[.01em]'
-  switch (tier) {
-    case 'top':
-      return (
-        <span className={cn(tierBase, 'bg-top-fill text-top-ink')}>
-          <span aria-hidden>●● </span>Top
-        </span>
-      )
-    case 'high':
-      return (
-        <span
-          className={cn(
-            tierBase,
-            'bg-card text-accent-ink shadow-[inset_0_0_0_1.5px_var(--accent)]',
-          )}
-        >
-          High
-        </span>
-      )
-    case 'normal':
-      return <span className={cn(tierBase, 'bg-neutral-fill text-neutral-ink')}>Normal</span>
-    case 'low':
-      return <span className="text-xs font-extrabold text-ink-soft">Low</span>
-  }
+/**
+ * Priority tier: Urgent or Soon only (T108; Normal and Low have no chip). Always carries the word;
+ * color is never the only signal (FRONTEND §3.1).
+ */
+export function TierChip({ tier }: { tier: Extract<Tier, 'urgent' | 'soon'> }) {
+  const tierBase =
+    'whitespace-nowrap rounded-full px-2.5 py-[3px] text-xs font-extrabold tracking-[.01em]'
+  return tier === 'urgent' ? (
+    <span className={cn(tierBase, 'bg-top-fill text-top-ink')}>
+      <span aria-hidden>●● </span>Urgent
+    </span>
+  ) : (
+    <span
+      className={cn(tierBase, 'bg-card text-accent-ink shadow-[inset_0_0_0_1.5px_var(--accent)]')}
+    >
+      Soon
+    </span>
+  )
 }

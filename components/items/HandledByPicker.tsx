@@ -6,15 +6,23 @@ import { Field } from '@/components/auth/fields'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/components/ui/cn'
 import { useToast } from '@/components/ui/Toast'
-import { useAddContact, useContacts, useEditItem } from '@/lib/client/hooks'
-import type { ContactId, HouseId, RunId } from '@/lib/domain/ids'
+import {
+  useAddContact,
+  useContacts,
+  useEditItem,
+  useMembers,
+  useProfiles,
+} from '@/lib/client/hooks'
+import { useAppClient } from '@/lib/client/provider'
+import type { ContactId, HouseId, RunId, UserId } from '@/lib/domain/ids'
 import type { Task } from '@/lib/domain/items'
 import { useCardContext } from './useCardContext'
 
 /**
- * "Who's handling it?" (FRONTEND §5.4): one of us, a contact, or someone new (saved to Contacts).
- * Setting a contact hands the task to them; "One of us" takes it back. On a request or visit,
- * "handled by" follows that run (PRD §6.3), so it says so and opens the run instead.
+ * "Who's doing it?" (FRONTEND §5.4, T111): any of us, a roommate, a contact, or someone new (saved
+ * to Contacts). One field for what the data keeps as two (`assignee`, `contactId`): picking a
+ * roommate clears the contact and picking a contact clears the roommate. On a request or visit,
+ * the contact follows that run (PRD §6.3), so it says so and opens the run instead.
  */
 export function HandledByPicker({
   houseId,
@@ -28,6 +36,9 @@ export function HandledByPicker({
   onOpenRun: (id: RunId) => void
 }) {
   const contacts = useContacts(houseId)
+  const members = useMembers(houseId)
+  const profiles = useProfiles(houseId)
+  const { me } = useAppClient()
   const cardCtx = useCardContext(houseId)
   const edit = useEditItem(houseId)
   const addContact = useAddContact(houseId)
@@ -37,15 +48,27 @@ export function HandledByPicker({
   const [phone, setPhone] = useState('')
   const busy = edit.isPending || addContact.isPending
 
-  const handTo = async (contactId: ContactId | null, label: string) => {
-    if ((task.contactId ?? null) === contactId) return onDone()
-    const r = await edit.mutateAsync({ id: task.id, patch: { contactId } })
+  const nameOf = (u: string) => profiles.data?.find((p) => p.id === u)?.displayName ?? 'Roommate'
+  // Me first, then the others in the house's order.
+  const people = (members.data ?? [])
+    .filter((m) => m.status.active)
+    .sort((a, b) => Number(b.userId === me) - Number(a.userId === me))
+
+  const save = async (
+    who: { assignee: UserId | null; contactId: ContactId | null },
+    said: string,
+  ) => {
+    if ((task.assignee ?? null) === who.assignee && (task.contactId ?? null) === who.contactId)
+      return onDone()
+    const r = await edit.mutateAsync({ id: task.id, patch: who })
     if (!r.ok && r.error === 'on_a_run')
-      return toast("It's on a request or visit. Move it there to change who's handling it.")
-    if (!r.ok) return toast("Couldn't change who's handling it. Try again.")
-    toast(contactId ? `Handed to ${label}.` : 'One of us has it.')
+      return toast("It's on a request or visit. Move it there to change who's doing it.")
+    if (!r.ok) return toast("Couldn't change who's doing it. Try again.")
+    toast(said)
     onDone()
   }
+  const handTo = (contactId: ContactId, label: string) =>
+    save({ assignee: null, contactId }, `Handed to ${label}.`)
 
   const addAndHand = async () => {
     const c = await addContact.mutateAsync({ name, phone })
@@ -87,7 +110,7 @@ export function HandledByPicker({
 
   const heading = (
     <h3 className="m-0 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
-      Who&apos;s handling it?
+      Who&apos;s doing it?
     </h3>
   )
 
@@ -96,10 +119,10 @@ export function HandledByPicker({
     // "the Landlord request" (FRONTEND §3.4), or just "the visit" while runs load.
     const name = `the ${cardCtx.run(run.id)?.label ?? run.kind}`
     return (
-      <section aria-label="Who's handling it?" className="grid gap-2 rounded-2xl p-0.5">
+      <section aria-label="Who's doing it?" className="grid gap-2 rounded-2xl p-0.5">
         {heading}
         <p className="m-0 rounded-2xl bg-paper px-3.5 py-3 leading-snug">
-          It&apos;s on {name}. Move it to change who&apos;s handling it.
+          It&apos;s on {name}. Move it to change who&apos;s doing it.
         </p>
         <Button variant="secondary" block onClick={() => onOpenRun(run.id)}>
           Open {name}
@@ -109,14 +132,35 @@ export function HandledByPicker({
   }
 
   return (
-    <section aria-label="Who's handling it?" className="grid gap-2 rounded-2xl p-0.5">
+    <section aria-label="Who's doing it?" className="grid gap-2 rounded-2xl p-0.5">
       {heading}
-      <div role="radiogroup" aria-label="Handled by" className="grid gap-2">
-        {option('us', 'One of us', undefined, !task.contactId, () => handTo(null, 'One of us'))}
+      <div role="radiogroup" aria-label="Who's doing it" className="grid gap-2">
+        {option('us', 'Any of us', undefined, !task.contactId && !task.assignee, () =>
+          save({ assignee: null, contactId: null }, 'Any of us can do it now.'),
+        )}
+        {people.map((m) =>
+          option(
+            m.userId,
+            m.userId === me ? 'Me' : nameOf(m.userId),
+            undefined,
+            !task.contactId && task.assignee === m.userId,
+            () =>
+              save(
+                { assignee: m.userId, contactId: null },
+                m.userId === me ? "It's yours. Thanks! 💛" : `${nameOf(m.userId)} has it now.`,
+              ),
+          ),
+        )}
         {(contacts.data ?? [])
           .filter((c) => !c.archivedAt)
           .map((c) =>
-            option(c.id, c.name, c.phone, task.contactId === c.id, () => handTo(c.id, c.name)),
+            option(
+              c.id,
+              c.name,
+              c.phone ? `Outside help · ${c.phone}` : 'Outside help',
+              task.contactId === c.id,
+              () => handTo(c.id, c.name),
+            ),
           )}
       </div>
       {adding ? (

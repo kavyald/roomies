@@ -2,7 +2,8 @@
 
 import { Check, Pencil } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Field, inputClass } from '@/components/auth/fields'
+import { inputClass } from '@/components/auth/fields'
+import { DateField, TimeField } from '@/components/ui/DateTimeField'
 import { CATEGORY } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
 import { Button } from '@/components/ui/Button'
@@ -59,8 +60,8 @@ const NEW_VISIT = '__new_visit'
 /**
  * A run's sheet (FRONTEND §5.9): every item that's been on it, and bulk actions on a selection.
  * In a batch, tapping a row marks it done (tap again to put it back on the run), and the bulk
- * actions sit behind "Move or put back…" (T44). Requests add "Add more" and "Send request";
- * visits show their date.
+ * actions sit behind "Move some, or put them back" (T44, T111). Requests add "Add more" and
+ * "Send request"; visits show their date.
  */
 export function RunSheet({
   houseId,
@@ -130,7 +131,7 @@ function RunSheetFor({
   const addBack = useAddToRun(houseId)
   const handTo = useContactChoice(houseId, { id: 'hand-to', label: 'Hand to' })
   const [selected, setSelected] = useState<ReadonlySet<ItemId>>(new Set())
-  // A batch's rows are one-tap "done" toggles until you pick "Move or put back…".
+  // A batch's rows are one-tap "done" toggles until you pick "Move some, or put them back".
   const [selecting, setSelecting] = useState(false)
   // Rows whose tap is still being saved (shown in their new state meanwhile).
   const [saving, setSaving] = useState<ReadonlySet<ItemId>>(new Set())
@@ -229,7 +230,7 @@ function RunSheetFor({
   )
   const canNewVisit = run.kind !== 'batch' && tasksOnly
 
-  // Who's on it (and Change) is RunHeader's line, just below; Rename is the header's Pencil.
+  // Who's on it is RunHeader's line, just below; the header's Pencil edits it and the name.
   const header = [
     run.kind === 'request' && requestStage(run, now, tz),
     run.kind === 'batch' && run.when && describeWhen(run.when, now, tz),
@@ -273,9 +274,9 @@ function RunSheetFor({
         open && (
           <IconButton
             icon={Pencil}
-            label="Rename this run"
-            aria-expanded={headerPanel === 'rename'}
-            onClick={() => setHeaderPanel((p) => (p === 'rename' ? null : 'rename'))}
+            label="Edit this run"
+            aria-expanded={headerPanel === 'edit'}
+            onClick={() => setHeaderPanel((p) => (p === 'edit' ? null : 'edit'))}
           />
         )
       }
@@ -371,7 +372,7 @@ function RunSheetFor({
           disabled={saving.size > 0}
           onClick={() => setSelecting(true)}
         >
-          Move or put back…
+          Move some, or put them back
         </Button>
       )}
 
@@ -467,17 +468,15 @@ function RunSheetFor({
               )}
               {target === NEW_VISIT && (
                 <div className="grid grid-cols-2 gap-2">
-                  <Field
+                  <DateField
                     id="new-visit-date"
                     label="Date (optional)"
-                    type="date"
                     value={visitDate}
                     onChange={(e) => setVisitDate(e.target.value)}
                   />
-                  <Field
+                  <TimeField
                     id="new-visit-time"
                     label="Time (optional)"
-                    type="time"
                     disabled={!visitDate}
                     value={visitTime}
                     onChange={(e) => setVisitTime(e.target.value)}
@@ -502,7 +501,7 @@ function RunSheetFor({
                     checked={clearContact}
                     onChange={(e) => setClearContact(e.target.checked)}
                   />
-                  Change &ldquo;Handled by&rdquo; to One of us
+                  Any of us does it from now on
                 </label>
               )}
               <Button

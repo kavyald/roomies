@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { ownerOnHouseTab } from './support'
 
-test('a need for me: one tap on Me, the chip on Needs, Home and the run, and a change in Activity (T45)', async ({
+test('a need for me: one tap on Me, the chip on Needs and the run, and a change in Activity (T45)', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
@@ -25,21 +25,6 @@ test('a need for me: one tap on Me, the chip on Needs, Home and the run, and a c
   await weNeed.press('Enter')
   await expect(needs.getByRole('listitem')).toHaveCount(2)
   await expect(needs.getByRole('listitem').filter({ hasText: 'For Kavya' })).toHaveCount(1)
-
-  // Home shows the chip too (a need reaches Home with a feeling).
-  await needs
-    .getByRole('listitem')
-    .filter({ hasText: 'For Kavya' })
-    .getByRole('button', { name: /^Oat milk/ })
-    .click()
-  const sheet = page.getByRole('dialog', { name: 'Oat milk' })
-  await sheet.getByRole('button', { name: '🙂+ Share a feeling' }).click()
-  await sheet.getByRole('button', { name: 'Anxious', exact: true }).click()
-  await expect(sheet.getByRole('region', { name: 'How the house feels' })).toContainText('😰')
-  await page.keyboard.press('Escape')
-  await page.getByRole('link', { name: 'Home' }).click()
-  await expect(page.getByRole('button', { name: 'Oat milk', exact: true })).toBeVisible()
-  await expect(page.getByText('For Kavya')).toBeVisible()
 
   // And the run's rows.
   await page.goto(`/h/${owner.houseId}/needs`)

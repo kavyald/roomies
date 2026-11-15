@@ -1,12 +1,13 @@
 'use client'
 
-import { Check } from 'lucide-react'
+import { Check, Pencil } from 'lucide-react'
 import { useId, useRef, useState } from 'react'
 import { FeelingButton, FeelingTray, feelingEmojis } from '@/components/items/Feelings'
 import type { CardContext } from '@/components/items/ItemCard'
 import { choreRoomsLabel } from '@/components/items/meta'
 import { useDidIt } from '@/components/items/useDidIt'
 import { Avatar } from '@/components/ui/Avatar'
+import { Button } from '@/components/ui/Button'
 import { ChoreIcon } from '@/components/ui/ChoreIcon'
 import { cn } from '@/components/ui/cn'
 import { Sheet } from '@/components/ui/Sheet'
@@ -15,7 +16,7 @@ import { useFeelingsByItem, useItems } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import type { ItemId } from '@/lib/domain/ids'
 import type { Chore } from '@/lib/domain/items'
-import type { RoomBox, RoutineCard as Card } from '@/lib/domain/lists'
+import { hasItLine, type RoomBox, type RoutineCard as Card } from '@/lib/domain/lists'
 import { AddRoomChores } from './AddRoomChores'
 
 /**
@@ -123,9 +124,10 @@ function ChoreRow({
 }
 
 /**
- * One room's sheet (FRONTEND §5.6, T101): whoever has it → whoever's next in the header, then its
+ * One room's sheet (FRONTEND §5.6, T101): whoever has it → whoever's next, then its
  * Deep clean chores, each one tap to tick, with 🙂+ and the chore's details. Anyone may tick, so
- * the ticks show to anyone here. Below them, more chores to add (the header check adds them).
+ * the ticks show to anyone here. Below them, **Edit chores** opens more chores to add (the header
+ * check adds them, then the sheet is back on the checklist, T112).
  */
 export function RoomSheet({
   box,
@@ -140,7 +142,10 @@ export function RoomSheet({
   onClose: () => void
   onOpenItem: (id: ItemId, opts?: { note?: boolean }) => void
 }) {
+  const { me } = useAppClient()
   const items = useItems(ctx.houseId)
+  const [editing, setEditing] = useState(false)
+  const editId = useId()
   const who = (id: string) => ctx.person(id) ?? { name: 'Former roommate' }
   const holder = card.holder ? who(card.holder) : undefined
   const next = card.next && card.next !== card.holder ? who(card.next) : undefined
@@ -150,29 +155,55 @@ export function RoomSheet({
       onOpenChange={(o) => !o && onClose()}
       title={box.room.name}
       description={`Deep clean · ${card.routine.name}`}
-      actions={
-        holder && (
-          <span className="flex flex-none items-center gap-1.5 pt-0.5">
+    >
+      {holder && (
+        // Who has it, in words beside the avatars (T105): the initials alone never say a name.
+        <p className="m-0 flex items-center gap-2 text-sm leading-snug font-bold">
+          <span aria-hidden className="flex flex-none items-center gap-1">
             <Avatar name={holder.name} element={holder.element} />
             {next && (
               <>
-                <span className="sr-only">then</span>
-                <span aria-hidden className="font-bold text-ink-soft">
-                  →
-                </span>
+                <span className="text-ink-soft">→</span>
                 <Avatar name={next.name} element={next.element} />
               </>
             )}
           </span>
-        )
-      }
-    >
+          <span className="min-w-0 flex-1">
+            {hasItLine(
+              card.routine,
+              card.mine ? undefined : holder.name,
+              next && (card.next === me ? 'you' : next.name),
+            )}
+          </span>
+        </p>
+      )}
       <ul aria-label={`${box.room.name} chores`} className="m-0 grid list-none gap-0.5 p-0">
         {box.chores.map(({ chore, done }) => (
           <ChoreRow key={chore.id} ctx={ctx} chore={chore} done={done} onOpen={onOpenItem} />
         ))}
       </ul>
-      <AddRoomChores houseId={ctx.houseId} room={box.room} items={items.data ?? []} />
+      {/* Setting up chores sits behind a toggle, so the sheet opens on just the checklist (T112). */}
+      <Button
+        variant="secondary"
+        size="small"
+        aria-expanded={editing}
+        aria-controls={editId}
+        onClick={() => setEditing((e) => !e)}
+        className="justify-self-start"
+      >
+        <Pencil aria-hidden className="size-4" />
+        Edit chores
+      </Button>
+      {editing && (
+        <div id={editId}>
+          <AddRoomChores
+            houseId={ctx.houseId}
+            room={box.room}
+            items={items.data ?? []}
+            onAdded={() => setEditing(false)}
+          />
+        </div>
+      )}
     </Sheet>
   )
 }
