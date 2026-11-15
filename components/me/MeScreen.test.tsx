@@ -75,11 +75,11 @@ describe('AppearanceScreen', () => {
 })
 
 describe('NotificationsScreen (T61: one section)', () => {
-  it('shows the six categories as named switches, each with what it means', async () => {
+  it('shows the seven categories as named switches, each with what it means', async () => {
     await setup((id) => <NotificationsScreen houseId={id} />)
     const group = await screen.findByRole('group', { name: 'Tell me when' })
     const switches = within(group).getAllByRole('switch')
-    expect(switches).toHaveLength(6)
+    expect(switches).toHaveLength(7)
     const polls = within(group).getByRole('switch', { name: 'Polls' })
     const description = document.getElementById(polls.getAttribute('aria-describedby') ?? '')
     expect(description?.textContent).toMatch(/polls/i)

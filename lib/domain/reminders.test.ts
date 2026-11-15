@@ -9,7 +9,7 @@ import {
   type RunId,
   type UserId,
 } from './ids'
-import type { Chore, Item, Task } from './items'
+import type { Chore, Item, Need, Task } from './items'
 import type { Recipient } from './notifications'
 import type { Poll } from './polls'
 import type { Member, Room } from './house'
@@ -35,6 +35,7 @@ const base = (title: string) => ({
   createdAt: at('2026-09-01'),
 })
 const task = (title: string, o: Partial<Task>): Task => ({ ...base(title), category: 'task', ...o })
+const need = (title: string, o: Partial<Need>): Need => ({ ...base(title), category: 'need', ...o })
 const chore = (title: string, o: Partial<Chore>): Chore => ({
   ...base(title),
   category: 'chore',
@@ -182,6 +183,79 @@ describe('routine handovers', () => {
     expect(handovers({ routines: [routine('r1', { removedAt: NOW })] })).toEqual([])
     expect(handovers({ routines: r, members: [members[0]!] })).toEqual([])
   })
+  describe("a routine's last day (T85)", () => {
+    // Sunday 2026-10-04 ends the week Wren has (Kavya had the week before).
+    const SUNDAY = at('2026-10-04', '09:00')
+    const rooms = [room('Kitchen', 'r1', 1), room('Dining', 'r1', 2), room('Bath', 'r2', 3)]
+    const sink = (o: Partial<Chore> = {}) =>
+      chore('Sink', { rooms: ['Kitchen' as Room['id']], ...o })
+    const tub = (o: Partial<Chore> = {}) => chore('Tub', { rooms: ['Bath' as Room['id']], ...o })
+    const doneOn = (date: string) => ({ lastDone: { at: at(date), by: wren } })
+    const lastDays = (o: Partial<ReminderInput>) =>
+      remindersFor(input({ now: SUNDAY, members, rooms, routines: [routine('r1')], ...o })).filter(
+        (d) => d.dedupeKey?.startsWith('last-day:'),
+      )
+
+    it('reminds the holder, gently, when the checklist is not all ticked', () => {
+      const [d, ...rest] = lastDays({ items: [sink(doneOn('2026-09-27'))] })
+      expect(rest).toEqual([])
+      expect(d).toEqual({
+        userId: wren,
+        category: 'due',
+        title: 'Last day for the kitchen and dining this week',
+        body: 'Still time to tick off the rest, if you get a chance.',
+        url: '/h/h/chores',
+        dedupeKey: `last-day:h:2026-10-04:${wren}`,
+        expiresAt: at('2026-10-05', '00:00'),
+      })
+    })
+
+    it('says nothing when every chore is ticked, when there are none, or before the last day', () => {
+      expect(lastDays({ items: [sink(doneOn('2026-09-28'))] })).toEqual([])
+      expect(lastDays({ items: [] })).toEqual([])
+      expect(lastDays({ items: [sink({ archivedAt: NOW })] })).toEqual([])
+      expect(lastDays({ items: [sink()], now: at('2026-10-03', '09:00') })).toEqual([])
+      expect(lastDays({ items: [sink()], routines: [routine('r1', { removedAt: NOW })] })).toEqual(
+        [],
+      )
+    })
+
+    it('one message per holder, only for the routines still open; a fixed person counts too', () => {
+      const both = [routine('r1'), routine('r2', { fixedMember: sam })]
+      expect(
+        lastDays({ routines: both, items: [sink(), tub()] }).map((d) => [d.userId, d.title]),
+      ).toEqual([
+        [wren, 'Last day for the kitchen and dining this week'],
+        [sam, 'Last day for the bath this week'],
+      ])
+      const wrens = [routine('r1'), routine('r2')]
+      expect(
+        lastDays({ routines: wrens, items: [sink(doneOn('2026-10-01')), tub()] }).map(
+          (d) => d.title,
+        ),
+      ).toEqual(['Last day for the bath this week'])
+      expect(lastDays({ routines: wrens, items: [sink(), tub()] }).map((d) => d.title)).toEqual([
+        'Last day for the kitchen, dining and bath this week',
+      ])
+    })
+
+    it('drops the period words when routines ending today reset differently', () => {
+      // 2026-05-31 is a Sunday and the last day of May.
+      const [d] = lastDays({
+        now: at('2026-05-31', '09:00'),
+        routines: [
+          routine('r1', { fixedMember: wren }),
+          routine('r2', {
+            resets: 'monthly',
+            startsOn: '2026-01-01' as LocalDate,
+            fixedMember: wren,
+          }),
+        ],
+        items: [sink(), tub()],
+      })
+      expect(d!.title).toBe('Last day for the kitchen, dining and bath')
+    })
+  })
 })
 
 describe('reminders for polls and runs', () => {
@@ -205,6 +279,23 @@ describe('reminders for polls and runs', () => {
     expect(remindersFor(input({ polls: [poll('2026-09-30')] }))[0]!.url).toBe('/h/h/p/p-2026-09-30')
     const closed = { ...poll('2026-09-30'), state: { open: false as const, closedAt: NOW } }
     expect(remindersFor(input({ polls: [closed] }))).toEqual([])
+  })
+
+  it('a poll closing later today reminds whoever has not voted, until it closes (T85)', () => {
+    const today = { ...poll('2026-09-29', [wren]), closesAt: at('2026-09-29', '18:00') }
+    const drafts = remindersFor(input({ polls: [today] }))
+    expect(drafts.map((d) => [d.userId, d.title])).toEqual([
+      [kavya, 'Closing today: Which vacuum?'],
+      [sam, 'Closing today: Which vacuum?'],
+    ])
+    expect(drafts[0]!.expiresAt).toEqual(today.closesAt)
+    expect(drafts[0]!.dedupeKey).toBe(`poll-closing:p-2026-09-29:2026-09-29:${kavya}:today`)
+    // The same poll the day before: "Closing tomorrow", under a different key.
+    const before = remindersFor(input({ polls: [today], now: at('2026-09-28', '09:00') }))
+    expect(before[0]!.title).toBe('Closing tomorrow: Which vacuum?')
+    expect(before[0]!.dedupeKey).not.toBe(drafts[0]!.dedupeKey)
+    // Already closed by the deadline: nothing.
+    expect(remindersFor(input({ polls: [today], now: at('2026-09-29', '18:00') }))).toEqual([])
   })
 
   it('a poll reopened or given a new deadline is reminded about again (T55)', () => {
@@ -268,6 +359,33 @@ describe('reminders for polls and runs', () => {
   })
 })
 
+describe('reminders for needs (T85)', () => {
+  it('a need dated today reminds everyone in its own category; other days, done or deleted say nothing', () => {
+    const items: Item[] = [
+      need('Oat milk', { when: { date: '2026-09-29' as LocalDate } }),
+      need('Bread', { when: { date: '2026-09-30' as LocalDate } }),
+      need('Yesterday', { when: { date: '2026-09-28' as LocalDate } }),
+      need('No date', {}),
+      need('Got it', { when: { date: '2026-09-29' as LocalDate }, done: { at: NOW, by: sam } }),
+      need('Deleted', { when: { date: '2026-09-29' as LocalDate }, archivedAt: NOW }),
+    ]
+    const drafts = remindersFor(input({ items }))
+    expect(drafts.map((d) => [d.userId, d.category, d.title, d.body])).toEqual(
+      [kavya, wren, sam].map((u) => [
+        u,
+        'needs',
+        'Needed today: Oat milk',
+        "Today's the day for this one.",
+      ]),
+    )
+    expect(drafts[0]).toMatchObject({
+      url: '/h/h/i/Oat milk',
+      dedupeKey: `need-today:Oat milk:2026-09-29:${kavya}`,
+      expiresAt: at('2026-09-30', '00:00'),
+    })
+  })
+})
+
 describe('dedupe keys', () => {
   it('are stable across runs on the same day, and differ for day-before and day-of', () => {
     const t = task('Call', { assignee: wren, when: { date: '2026-09-30' as LocalDate } })
@@ -276,5 +394,17 @@ describe('dedupe keys', () => {
     expect(again.map((d) => d.dedupeKey)).toEqual(first.map((d) => d.dedupeKey))
     const dayOf = remindersFor(input({ items: [t], now: at('2026-09-30') }))
     expect(dayOf[0]!.dedupeKey).not.toBe(first[0]!.dedupeKey)
+  })
+})
+
+describe('expiry (T83)', () => {
+  it('a reminder about today or tomorrow expires when today ends; a handover does not', () => {
+    const midnight = at('2026-09-30', '00:00')
+    const drafts = remindersFor(
+      input({
+        items: [task('Mop', { assignee: wren, when: { date: '2026-09-29' as LocalDate } })],
+      }),
+    )
+    expect(drafts.map((d) => d.expiresAt)).toEqual([midnight])
   })
 })

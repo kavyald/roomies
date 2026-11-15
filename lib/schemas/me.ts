@@ -6,6 +6,6 @@ export const mySettingsSchema = z.object({
   quietHours: z.object({ start: time, end: time }).nullable().optional(),
 })
 export const notificationToggleSchema = z.object({
-  category: z.enum(['assigned', 'due', 'feelings', 'polls', 'runs', 'people']),
+  category: z.enum(['assigned', 'due', 'needs', 'feelings', 'polls', 'runs', 'people']),
   enabled: z.boolean(),
 })

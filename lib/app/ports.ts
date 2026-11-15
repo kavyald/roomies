@@ -161,12 +161,20 @@ export interface NotificationRepo {
    * is already in the outbox is skipped; returns how many were written.
    */
   enqueue(messages: readonly OutboxMessage[]): Promise<number>
-  /** Messages due by `now` and not sent yet, oldest first (the sender runs as the system). */
-  pending(now: Instant, limit: number): Promise<PendingMessage[]>
-  /** Done with a message: delivered (error null) or given up on, with why. */
+  /**
+   * Takes up to `limit` messages due by `now` and not sent, oldest first, that no other sender
+   * holds (or whose hold ran out), and holds them until `until` (T83). Postgres skips rows another
+   * transaction has locked, so two senders never take the same message. System only.
+   */
+  claim(now: Instant, limit: number, until: Instant): Promise<PendingMessage[]>
+  /** Done with a message: delivered (error null) or given up on, with why. Releases the claim. */
   markSent(id: number, at: Instant, error: string | null): Promise<void>
   /** No browser took it this time: try again at `at`, counting the try (T84). System only. */
   retryLater(id: number, at: Instant, attempts: number, error: string): Promise<void>
+  /** Their messages not sent and due after `now` (held by quiet hours or a retry). A member sees only their own. */
+  heldFor(userId: UserId, now: Instant): Promise<PendingMessage[]>
+  /** A held message goes at `at` instead (their quiet hours changed, T83). System only. */
+  reschedule(id: number, at: Instant): Promise<void>
 }
 
 /** Browsers that turned notifications on. */

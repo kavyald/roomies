@@ -1,17 +1,21 @@
 // Web Push use cases (ARCHITECTURE §7.4): a browser turning notifications on and off, and the job
 // that drains the outbox (every 5 minutes, and right after a change that enqueued something).
 
-import type { AppDeps } from './ports'
+import type { AppDeps, Repos } from './ports'
 import { actorUser, type Actor, type HouseActor } from '../domain/actor'
 import { asId, type HouseId, type UserId } from '../domain/ids'
 import { DEFAULT_QUIET_HOURS, sendAfter } from '../domain/notifications'
 import {
   afterAttempt,
+  CLAIM_LEASE_MS,
   newSubscription,
   pushPayload,
+  whyNotSend,
   type BrowserSubscription,
+  type PendingMessage,
   type PushOutcome,
 } from '../domain/push'
+import { plusMs } from '../domain/time'
 import { err, ok, type Result } from '../domain/result'
 
 /** Roomies itself, outside any one house (the sender works across the outbox). */
@@ -77,53 +81,80 @@ export const makeIsPushSubscriptionSaved =
 export const SEND_BATCH = 100
 
 /**
- * Sends what's due in the outbox to each person's browsers. A browser the push service says is
- * gone is dropped; a message counts as delivered if any browser took it, and one that only met
- * passing failures is tried again later (T84).
+ * Sends what's due in the outbox to each person's browsers (T83: once each, and only while still
+ * true). It claims a batch in one short transaction, which also drops messages that stopped being
+ * true while they waited (moved out, category off, a reminder whose day is over: `whyNotSend`).
+ * Then each message is pushed and marked in its own transaction, so a crash re-sends at most the one
+ * in flight; the claim runs out after `CLAIM_LEASE_MS` and frees whatever wasn't reached. A browser
+ * the push service says is gone is dropped; a message counts as delivered if any browser took it,
+ * and one that only met passing failures is tried again later (T84).
  */
 export const makeSendNotifications =
   ({ uow, clock, push }: Pick<AppDeps, 'uow' | 'clock' | 'push'>) =>
-  () =>
-    uow.run(ROOMIES, async (repos) => {
-      const now = clock.now()
-      const pending = await repos.notifications.pending(now, SEND_BATCH)
-      let delivered = 0
-      let retrying = 0
-      let dropped = 0
-      const houseTz = new Map<string, Promise<string | undefined>>()
-      const quietFor = async (userId: UserId, houseId: HouseId) => {
-        if (!houseTz.has(houseId))
-          houseTz.set(
-            houseId,
-            repos.houses.get(houseId).then((h) => h?.settings.timezone),
-          )
-        const [p, houseZone] = await Promise.all([repos.profiles.get(userId), houseTz.get(houseId)])
-        const tz = p?.timezone ?? houseZone
-        return tz ? { tz, quiet: p?.quietHours ?? DEFAULT_QUIET_HOURS } : null
+  async () => {
+    const now = clock.now()
+    const { due, skipped } = await uow.run(ROOMIES, async (repos) => {
+      const claimed = await repos.notifications.claim(now, SEND_BATCH, plusMs(now, CLAIM_LEASE_MS))
+      const off = await repos.notifications.offFor([...new Set(claimed.map((m) => m.userId))])
+      const active = new Map<string, boolean>()
+      const due: PendingMessage[] = []
+      let skipped = 0
+      for (const m of claimed) {
+        const key = `${m.houseId}|${m.userId}`
+        if (!active.has(key))
+          active.set(key, !!(await repos.members.get(m.houseId, m.userId))?.status.active)
+        const why = whyNotSend(m, now, {
+          active: active.get(key)!,
+          off: off.get(m.userId) ?? new Set(),
+        })
+        if (why) {
+          await repos.notifications.markSent(m.id, now, why)
+          skipped++
+        } else due.push(m)
       }
-      for (const m of pending) {
-        const subs = await repos.pushSubscriptions.forUsers([m.userId])
-        const outcomes: PushOutcome[] = []
-        for (const sub of subs) {
-          const outcome = await push.send(sub, pushPayload(m))
-          outcomes.push(outcome)
-          if (outcome.kind === 'sent') await repos.pushSubscriptions.markOk(sub.id, now)
-          if (outcome.kind === 'gone') {
-            await repos.pushSubscriptions.markGone(sub.id, now)
-            dropped++
-          }
+      return { due, skipped }
+    })
+    let delivered = 0
+    let retrying = 0
+    let dropped = 0
+    for (const m of due) {
+      const subs = await uow.run(ROOMIES, (r) => r.pushSubscriptions.forUsers([m.userId]))
+      const outcomes: { id: string; outcome: PushOutcome }[] = []
+      for (const sub of subs)
+        outcomes.push({ id: sub.id, outcome: await push.send(sub, pushPayload(m)) })
+      const next = afterAttempt(
+        outcomes.map((o) => o.outcome),
+        m.attempts,
+        now,
+      )
+      await uow.run(ROOMIES, async (repos) => {
+        for (const { id, outcome } of outcomes) {
+          if (outcome.kind === 'sent') await repos.pushSubscriptions.markOk(id, now)
+          if (outcome.kind === 'gone') await repos.pushSubscriptions.markGone(id, now)
         }
-        const next = afterAttempt(outcomes, m.attempts, now)
         if (next.kind === 'retry') {
-          retrying++
           // A retry waits out their quiet hours too, as the first try did (T84).
-          const q = await quietFor(m.userId, m.houseId)
+          const q = await quietFor(repos, m.userId, m.houseId)
           const at = q ? sendAfter(next.at, q.tz, q.quiet) : next.at
           await repos.notifications.retryLater(m.id, at, m.attempts + 1, next.error)
-        } else {
-          if (!next.error) delivered++
-          await repos.notifications.markSent(m.id, now, next.error)
-        }
-      }
-      return ok({ messages: pending.length, delivered, retrying, droppedSubscriptions: dropped })
+        } else await repos.notifications.markSent(m.id, now, next.error)
+      })
+      dropped += outcomes.filter((o) => o.outcome.kind === 'gone').length
+      if (next.kind === 'retry') retrying++
+      else if (!next.error) delivered++
+    }
+    return ok({
+      messages: due.length + skipped,
+      delivered,
+      retrying,
+      skipped,
+      droppedSubscriptions: dropped,
     })
+  }
+
+/** Their time zone (theirs, else the house's) and quiet hours. */
+const quietFor = async (repos: Repos, userId: UserId, houseId: HouseId) => {
+  const [p, house] = await Promise.all([repos.profiles.get(userId), repos.houses.get(houseId)])
+  const tz = p?.timezone ?? house?.settings.timezone
+  return tz ? { tz, quiet: p?.quietHours ?? DEFAULT_QUIET_HOURS } : null
+}

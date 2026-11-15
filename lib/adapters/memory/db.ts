@@ -31,7 +31,7 @@ import {
   type NotificationCategory,
   type OutboxMessage,
 } from '../../domain/notifications'
-import type { PushSubscription } from '../../domain/push'
+import type { PendingMessage, PushSubscription } from '../../domain/push'
 import type { Instant } from '../../domain/time'
 import type { Poll, PollOption } from '../../domain/polls'
 import type { Feeling } from '../../domain/feelings'
@@ -56,7 +56,13 @@ export type MemoryState = {
   costs: Cost[]
   feedback: Feedback[]
   prefs: Map<string, boolean>
-  outbox: (OutboxMessage & { id: number; sentAt?: Instant; error?: string; attempts?: number })[]
+  outbox: (OutboxMessage & {
+    id: number
+    sentAt?: Instant
+    error?: string
+    attempts?: number
+    claimedUntil?: Instant
+  })[]
   pushSubs: Map<string, PushSubscription>
   activity: StoredActivityRow[]
 }
@@ -370,18 +376,22 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         }
         return written
       },
-      // "outbox read own": members see their own messages; marking sent is the system's job.
-      pending: async (now, limit) =>
-        s.outbox
+      // Sending is the system's job (service_role); members only read their own rows.
+      claim: async (now, limit, until) => {
+        if (a.kind !== 'system') deny('notifications_outbox')
+        const free = s.outbox
           .filter((m) => !m.sentAt && m.sendAfter.epochMs <= now.epochMs)
-          .filter((m) => a.kind === 'system' || m.userId === uid(a))
+          .filter((m) => !m.claimedUntil || m.claimedUntil.epochMs <= now.epochMs)
           .slice(0, limit)
-          .map(({ sentAt: _s, error: _e, ...m }) => ({ ...m, attempts: m.attempts ?? 0 })),
+        free.forEach((m) => (m.claimedUntil = until))
+        return free.map(pendingOf)
+      },
       markSent: async (id, at, error) => {
         if (a.kind !== 'system') deny('notifications_outbox')
         const m = s.outbox.find((x) => x.id === id)
         if (m) {
           m.sentAt = at
+          delete m.claimedUntil
           if (error) m.error = error
         }
       },
@@ -390,6 +400,19 @@ const reposFor = (s: MemoryState, a: Actor): Repos => {
         const m = s.outbox.find((x) => x.id === id)
         if (!m || m.sentAt) return deny('notifications_outbox')
         Object.assign(m, { sendAfter: at, attempts, error })
+        delete m.claimedUntil
+      },
+      // "outbox read own": a member sees only their own.
+      heldFor: async (userId, now) =>
+        s.outbox
+          .filter((m) => m.userId === userId && !m.sentAt && m.sendAfter.epochMs > now.epochMs)
+          .filter((m) => a.kind === 'system' || m.userId === uid(a))
+          .map(pendingOf),
+      reschedule: async (id, at) => {
+        if (a.kind !== 'system') deny('notifications_outbox')
+        const m = s.outbox.find((x) => x.id === id)
+        if (!m || m.sentAt) return deny('notifications_outbox')
+        Object.assign(m, { sendAfter: at })
       },
     },
     pushSubscriptions: {
@@ -629,6 +652,14 @@ const checkItem = (s: MemoryState, item: Item): void => {
     if (clash) refuse('an open need with this title already exists')
   }
 }
+
+/** An outbox row as the sender sees it. */
+const pendingOf = ({
+  sentAt: _s,
+  error: _e,
+  claimedUntil: _c,
+  ...m
+}: MemoryState['outbox'][number]): PendingMessage => ({ ...m, attempts: m.attempts ?? 0 })
 
 // ---- the unit of work ---------------------------------------------------------------
 

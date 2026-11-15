@@ -8,11 +8,13 @@ import { DEFAULT_FEELING_WEIGHTS, FEELING_META, type Feeling, type FeelingKind }
 import type { HouseId, ItemId, PollId, RunId, UserId } from './ids'
 import { addDays, instantAt, localDateOf, localTimeOf, type Instant, type LocalTime } from './time'
 
-export type NotificationCategory = 'assigned' | 'due' | 'feelings' | 'polls' | 'runs' | 'people'
+export type NotificationCategory =
+  'assigned' | 'due' | 'needs' | 'feelings' | 'polls' | 'runs' | 'people'
 
 export const NOTIFICATION_CATEGORIES: readonly NotificationCategory[] = [
   'assigned',
   'due',
+  'needs',
   'feelings',
   'polls',
   'runs',
@@ -21,9 +23,10 @@ export const NOTIFICATION_CATEGORIES: readonly NotificationCategory[] = [
 
 export const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   assigned: 'Something is handed to me',
-  due: 'My tasks are coming due',
+  due: 'My tasks are coming due, or my rooms are on their last day',
+  needs: 'Something on the list is needed today',
   feelings: 'Someone feels 😰 or 😤 about a chore or something of mine, or changes the weights',
-  polls: 'New polls, new options, and polls closing',
+  polls: 'New polls, new options, and polls closing tomorrow or today',
   runs: 'Runs starting or handed to me, and runs with a date tomorrow',
   people: 'People joining or leaving',
 }
@@ -46,6 +49,11 @@ export type OutboxMessage = {
   readonly sendAfter: Instant
   /** Reminders carry one, so a job run twice doesn't send twice. */
   readonly dedupeKey?: string
+  /**
+   * Reminders are about a day: past this (the end of that day in the house's time zone), a message
+   * still held by quiet hours is dropped as 'stale' rather than pushed a day late (T83).
+   */
+  readonly expiresAt?: Instant
 }
 
 /** Someone in the house, as far as notifications go. */
@@ -77,6 +85,22 @@ export const sendAfter = (now: Instant, tz: string, quiet: QuietHours): Instant 
   const today = localDateOf(now, tz)
   const endToday = instantAt(today, quiet.end, tz)
   return endToday.epochMs > now.epochMs ? endToday : instantAt(addDays(today, 1), quiet.end, tz)
+}
+
+/**
+ * Their quiet hours changed: when a message held by the old ones should go now (T83, owner: held
+ * messages follow the new quiet hours). Null when it stays as it is. Only messages never tried are
+ * re-timed; a retry keeps its own wait.
+ */
+export const retimed = (
+  held: { readonly sendAfter: Instant; readonly attempts: number },
+  now: Instant,
+  tz: string,
+  quiet: QuietHours,
+): Instant | null => {
+  if (held.attempts > 0 || held.sendAfter.epochMs <= now.epochMs) return null
+  const at = sendAfter(now, tz, quiet)
+  return at.epochMs === held.sendAfter.epochMs ? null : at
 }
 
 /** What the events are about, looked up by whoever records them. */

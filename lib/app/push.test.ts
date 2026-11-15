@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { asMember } from '../adapters/contracts/unit-of-work.contract'
 import { depsForTest } from '../compose'
 import type { UserId } from '../domain/ids'
-import { plusMs, MS_PER_HOUR, MS_PER_MINUTE } from '../domain/time'
+import type { PushSender } from './ports'
+import { addDays, localDateOf, plusMs, MS_PER_HOUR, MS_PER_MINUTE } from '../domain/time'
 import { sampleHouse } from '../testing/sample-house'
+import { makeMoveOut } from './house'
 import { makeCreateItem, makeEditItem } from './items'
+import { makeRunReminders } from './jobs'
+import { makeSetNotificationEnabled } from './me'
 import {
   makeForgetPushSubscription,
   makeIsPushSubscriptionSaved,
@@ -52,7 +56,7 @@ describe('sending notifications', () => {
     const latch = await t.assignTo('Wren')
     expect(await t.send()).toEqual({
       ok: true,
-      value: { messages: 1, delivered: 1, retrying: 0, droppedSubscriptions: 0 },
+      value: { messages: 1, delivered: 1, retrying: 0, skipped: 0, droppedSubscriptions: 0 },
     })
     expect(t.deps.push.sent).toEqual(
       ['https://push.example/wren-phone', 'https://push.example/wren-laptop'].map((endpoint) => ({
@@ -61,7 +65,7 @@ describe('sending notifications', () => {
           title: 'For you: Fix the latch',
           body: 'Kavya asked you to take this on.',
           url: `/h/${t.s.house.id}/i/${latch.id}`,
-          tag: `assigned:/h/${t.s.house.id}/i/${latch.id}`,
+          tag: expect.stringMatching(/^roomies:\d+$/), // its own, so pushes stack (T85)
         },
       })),
     )
@@ -243,5 +247,87 @@ describe('passing push failures (T84)', () => {
     expect(t.deps.uow.state.outbox.at(-1)?.sentAt).toBeDefined()
     t.later(6 * MS_PER_HOUR)
     expect(await t.send()).toMatchObject({ value: { messages: 0 } })
+  })
+})
+
+describe('each message once, and only while it is still true (T83)', () => {
+  it('two senders running at once push a message once', async () => {
+    const t = await setup()
+    await t.subscribe('Wren', 'https://push.example/wren')
+    await t.assignTo('Wren')
+    const [a, b] = await Promise.all([t.send(), t.send()])
+    expect([a.value.messages, b.value.messages].sort()).toEqual([0, 1])
+    expect(t.deps.push.sent).toHaveLength(1)
+  })
+
+  it('a throw partway through sends nothing twice; the rest go once the claim runs out', async () => {
+    const t = await setup()
+    await t.subscribe('Wren', 'https://push.example/wren')
+    await t.subscribe('Sam', 'https://push.example/sam')
+    await t.assignTo('Wren')
+    await t.assignTo('Sam')
+    const flaky: PushSender = {
+      send: async (sub, payload) => {
+        if (sub.endpoint.endsWith('/sam')) throw new Error('function timed out')
+        return t.deps.push.send(sub, payload)
+      },
+    }
+    await expect(makeSendNotifications({ ...t.deps, push: flaky })()).rejects.toThrow()
+    expect(t.deps.push.sent.map((x) => x.endpoint)).toEqual(['https://push.example/wren'])
+    // The one left over is still claimed, so the next run leaves it alone...
+    expect(await t.send()).toMatchObject({ value: { messages: 0 } })
+    // ...until the claim runs out; the first isn't sent again.
+    t.later(10 * MS_PER_MINUTE)
+    expect(await t.send()).toMatchObject({ value: { messages: 1, delivered: 1 } })
+    expect(t.deps.push.sent.map((x) => x.endpoint)).toEqual([
+      'https://push.example/wren',
+      'https://push.example/sam',
+    ])
+  })
+
+  it('a reminder held overnight is dropped once its day is over', async () => {
+    const t = await setup()
+    await t.subscribe('Wren', 'https://push.example/wren')
+    const tz = t.s.house.settings.timezone
+    const today = localDateOf(t.deps.clock.now(), tz)
+    await makeCreateItem(t.deps)(t.as('Kavya'), {
+      category: 'task',
+      title: 'Call the plumber',
+      assignee: t.s.people.Wren,
+      when: { date: addDays(today, 1) },
+    })
+    await t.send() // the assignment itself
+    t.deps.push.sent.length = 0
+    t.later(11 * MS_PER_HOUR + 45 * MS_PER_MINUTE) // 11:45pm: held until 8am
+    await makeRunReminders(t.deps)()
+    expect(t.deps.uow.state.outbox.at(-1)).toMatchObject({ title: 'Tomorrow: Call the plumber' })
+    t.later(8 * MS_PER_HOUR + 15 * MS_PER_MINUTE)
+    expect(await t.send()).toMatchObject({ value: { messages: 1, skipped: 1, delivered: 0 } })
+    expect(t.deps.push.sent).toEqual([])
+    expect(t.deps.uow.state.outbox.at(-1)).toMatchObject({ error: 'stale' })
+  })
+
+  it('a category switched off, or a move out, while it waited means it is not pushed', async () => {
+    const t = await setup()
+    await t.subscribe('Wren', 'https://push.example/wren')
+    await t.subscribe('Sam', 'https://push.example/sam')
+    t.later(11 * MS_PER_HOUR) // 11pm: both held until 8am
+    await t.assignTo('Wren')
+    await t.assignTo('Sam')
+    await makeSetNotificationEnabled(t.deps)(t.as('Wren'), { category: 'assigned', enabled: false })
+    await makeMoveOut(t.deps)(t.as('Sam'), { userId: t.s.people.Sam })
+    t.later(9 * MS_PER_HOUR)
+    expect(await t.send()).toMatchObject({ value: { skipped: 2 } })
+    // Only Wren's "Sam moved out" goes.
+    expect(t.deps.push.sent.map((x) => (x.payload as { title: string }).title)).toEqual([
+      'Sam moved out',
+    ])
+    const errors = t.deps.uow.state.outbox
+      .filter((m) => m.category === 'assigned')
+      .map((m) => [m.userId, m.error])
+    expect(errors).toEqual([
+      [t.s.people.Wren, 'category_off'],
+      [t.s.people.Sam, 'moved_out'],
+    ])
   })
 })

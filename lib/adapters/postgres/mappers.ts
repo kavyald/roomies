@@ -4,13 +4,14 @@ import type { Selectable } from 'kysely'
 import type { StoredActivityRow } from '../../domain/events'
 import { feelingWeightsFrom, type Feeling } from '../../domain/feelings'
 import type { Contact, House, Invite, Member, Profile, Room } from '../../domain/house'
-import { asId, type UserId } from '../../domain/ids'
+import { asId, type HouseId, type UserId } from '../../domain/ids'
 import type { Chore, Done, Item, Version } from '../../domain/items'
 import type { Cost } from '../../domain/costs'
 import type { Feedback } from '../../domain/feedback'
 import type { Cents } from '../../domain/money'
 import type { Poll, PollOption } from '../../domain/polls'
-import type { PushSubscription } from '../../domain/push'
+import type { PendingMessage, PushSubscription } from '../../domain/push'
+import type { NotificationCategory } from '../../domain/notifications'
 import type { Routine } from '../../domain/routines'
 import type { Run } from '../../domain/runs'
 import {
@@ -32,6 +33,7 @@ import type {
   HouseMembersTable,
   HousesTable,
   ItemsTable,
+  NotificationsOutboxTable,
   ProfilesTable,
   PollOptionsTable,
   PollsTable,
@@ -614,4 +616,19 @@ export const pushSubToDomain = (r: Selectable<PushSubscriptionsTable>): PushSubs
   createdAt: toInstant(r.created_at),
   ...(r.last_ok_at && { lastOkAt: toInstant(r.last_ok_at) }),
   ...(r.gone_at && { goneAt: toInstant(r.gone_at) }),
+})
+
+/** An outbox row as the sender sees it. */
+export const outboxToPending = (r: Selectable<NotificationsOutboxTable>): PendingMessage => ({
+  id: Number(r.id),
+  userId: r.user_id as UserId,
+  houseId: r.house_id as HouseId,
+  category: r.category as NotificationCategory,
+  title: r.title,
+  body: r.body,
+  url: r.url,
+  sendAfter: toInstant(r.send_after),
+  ...(r.dedupe_key && { dedupeKey: r.dedupe_key }),
+  ...(r.expires_at && { expiresAt: toInstant(r.expires_at) }),
+  attempts: r.attempts,
 })

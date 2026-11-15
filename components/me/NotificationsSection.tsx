@@ -25,6 +25,7 @@ import {
 const CATEGORY_TITLE: Record<NotificationCategory, string> = {
   assigned: 'Handed to me',
   due: 'Coming due',
+  needs: 'Needed today',
   feelings: 'Feelings on my things',
   polls: 'Polls',
   runs: 'Runs',
@@ -199,7 +200,7 @@ function QuietHoursRow({
 
 /**
  * Notifications in one section (FRONTEND §5.11, PRD §11): this device's status and button, the
- * six categories, and quiet hours.
+ * seven categories, and quiet hours.
  */
 export function NotificationsSection({ houseId, quiet }: { houseId: HouseId; quiet: QuietHours }) {
   const off = useMyNotificationsOff(houseId)

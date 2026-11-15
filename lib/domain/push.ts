@@ -1,6 +1,6 @@
 // Web Push (PRD §11, ARCHITECTURE §7.4): a browser's subscription, and what a push carries. Pure.
 
-import type { OutboxMessage } from './notifications'
+import type { NotificationCategory, OutboxMessage } from './notifications'
 import type { UserId } from './ids'
 import { err, ok, type Result } from './result'
 import { MS_PER_HOUR, MS_PER_MINUTE, plusMs, type Instant } from './time'
@@ -60,9 +60,35 @@ export const newSubscription = (
   })
 }
 
-/** The JSON the service worker turns into a notification. `tag` folds repeats together. */
+/**
+ * The JSON the service worker turns into a notification. The tag is the message's own (T85, owner):
+ * two feelings on one item show as two notifications, stacked, rather than one replacing the other.
+ */
 export const pushPayload = (m: PendingMessage): string =>
-  JSON.stringify({ title: m.title, body: m.body, url: m.url, tag: `${m.category}:${m.url}` })
+  JSON.stringify({ title: m.title, body: m.body, url: m.url, tag: `roomies:${m.id}` })
+
+/** How long the sender holds the messages it claimed; past this, another run may take them (T83). */
+export const CLAIM_LEASE_MS = 10 * MS_PER_MINUTE
+
+/** Why a due message isn't pushed after all (stored as its `error`). */
+export type NotSent = 'moved_out' | 'category_off' | 'stale'
+
+/**
+ * Checked again when a message is due, since it may have waited out quiet hours (T83): its
+ * recipient still lives in the house, still wants the category, and a reminder's day isn't over.
+ */
+export const whyNotSend = (
+  m: Pick<OutboxMessage, 'category' | 'expiresAt'>,
+  now: Instant,
+  recipient: { readonly active: boolean; readonly off: ReadonlySet<NotificationCategory> },
+): NotSent | null =>
+  !recipient.active
+    ? 'moved_out'
+    : recipient.off.has(m.category)
+      ? 'category_off'
+      : m.expiresAt && m.expiresAt.epochMs <= now.epochMs
+        ? 'stale'
+        : null
 
 /** How long to wait before trying a message again, after each try where no browser worked. */
 export const RETRY_DELAYS_MS = [5 * MS_PER_MINUTE, 30 * MS_PER_MINUTE, 2 * MS_PER_HOUR] as const
