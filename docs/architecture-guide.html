@@ -775,7 +775,7 @@ const FRONT = [
  ['§8','Client components + TanStack Query','Screens are client components reading through hooks; Realtime invalidates query keys. Server rendering is mostly the shell.',['Server components for data: harder to combine with live updates and the AppClient seam.']],
  ['T19','Sheets, not pages, for items','Add and detail open as bottom sheets over the current tab (vaul). /h/[id]/i/[itemId] deep-links to a sheet over the house's first tab (House since T107).',['Nested sheets were avoided: pickers are inline inside the sheet.']],
  ['T19','Native pickers','Rooms and people are native selects (rooms grouped as Bedrooms, Bathrooms, Spaces); dates are native inputs.',['Custom pickers: more code, worse accessibility on iPhone.']],
- ['D11','Cozy via color, shape and tone','Cream paper, brown ink, a plum accent, pill buttons and a “sticker” edge instead of blurry shadows. No custom art.',['Focus Friend-style characters: parked; also its guilt mechanic.']],
+ ['D11','Cozy via color, shape and tone','Cream paper, brown ink, a plum accent, pill buttons and a “sticker” edge instead of blurry shadows. No custom art.',['Focus Friend-style characters: iceboxed; also its guilt mechanic.']],
  ['FRONTEND §3','Color means something','Four element colors say who and where; plum says how urgent. Item types get icon + label on a neutral chip. All pairs pass WCAG AA, tested in contrast.test.ts.',[]],
  ['FRONTEND §7','Kind copy, enforced','copy.test.ts walks every UI string and fails on “overdue”, “failed” or “missed”, and on “archive” or “30 days” in the item screens (items are deleted, D30). The only lateness phrase is “This one\'s been waiting a bit”.',[]],
  ['Q4','Accessibility gate','axe runs on every screen in light and dark and fails on serious issues too. Item cards are named by their title for VoiceOver.',[]],
@@ -790,7 +790,7 @@ const PROD = [
  ['D3 · D20','Polls: ties are ties','Most votes wins. A tie says “Tie” and the app does nothing automatic. Anyone can add options while it\'s open.',[]],
  ['D14 · D4','Money is optional','A cost record on an item or run, only when something was spent. The Splitwise icon copies “title — $amount” and opens the house’s Splitwise group (T89); no Splitwise API.',[]],
  ['D23 · D24','Runs keep the feed calm','Tasks on a visit leave Home unless someone has a feeling or the visit is within 3 days. No automatic “no reply” nudges, just “Sent N days ago”.',[]],
- ['D13','v1 is five things','Needs, chores, tasks, polls, runs. Bills, belongings, rotations, heads-ups, info items and email digests are parked, not dropped.',[]]
+ ['D13','v1 and v2 are five things','Needs, chores, tasks, polls, runs. Bills, belongings, heads-ups, info items and email digests are iceboxed, not dropped; rotations came in v2 as routines.',[]]
 ];
 function decisionCard(d){
   return '<details class="card"><summary><span class="sum-title">'+d[1]+'</span><span class="chip id">'+esc(d[0])+'</span><span class="sum-sub">'+d[2]+'</span></summary>'+

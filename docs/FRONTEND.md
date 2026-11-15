@@ -1,6 +1,6 @@
 # Roomies — Frontend & Visual Design Guidance
 
-**Status:** v1 scope (2026-09-28): needs, chores, tasks, polls, runs
+**Status:** v1 (M0–M7, launched) and v2 (M8): needs, chores, tasks, polls, runs
 **Companions:** [PRD.md](./PRD.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) (§8 covers frontend code structure) · [mockup v1](./archive/mockup-v1.html) (original clickable prototype, open in a browser)
 
 > Same convention: **[DECIDED]** = default we'll build with, **[OPEN]** = needs your call. §10 lists every open item.
@@ -458,6 +458,6 @@ Press: `scale(.96)` and the sticker edge collapses. Sheets are drag-to-dismiss (
 |---|---|---|
 | F1 | Bedrooms and room names | **Decided (owner):** Air/Fire/Water/Earth = bedrooms. Craft room shared. Bathrooms 1–3. Fitness space. |
 | F2 | Feeling badge on avatars? | **Decided (owner):** No. Feelings live only on items. |
-| F3 | Tappable colored-block floor plan instead of a room list? | Phase 2 |
+| F3 | Tappable colored-block floor plan instead of a room list? | Iceboxed |
 
 Decided in this revision **(owner)**: no custom art or characters, no reward loop, a color-led design.
