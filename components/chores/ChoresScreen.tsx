@@ -19,7 +19,7 @@ import {
 import { useAppClient } from '@/lib/client/provider'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId, RoomId, RoutineId } from '@/lib/domain/ids'
-import { choreBoard, holdingLine } from '@/lib/domain/lists'
+import { choreBoard, holdingLine, whoseLine } from '@/lib/domain/lists'
 import { localDateOf } from '@/lib/domain/time'
 import { AddChoresSheet } from './AddChoresSheet'
 import { QuickAddSheet } from './QuickAddSheet'
@@ -113,27 +113,46 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
             aria-label={holder ? `${card.routine.name}, ${holder.name}` : card.routine.name}
             className="grid gap-1.5"
           >
-            <div className="flex items-center gap-1.5">
-              <h2 className="m-0 flex min-w-0 flex-1 items-center gap-1.5 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
-                <ChoreIcon name={card.routine.icon} className="size-4 flex-none text-accent-ink" />
-                <span className="min-w-0 flex-1 truncate">{card.routine.name}</span>
-                {holder && <Avatar name={holder.name} element={holder.element} size={20} />}
-              </h2>
-              <button
-                type="button"
-                aria-label={`Add chores: ${card.routine.name}`}
-                onClick={() => setAddingTo(card.routine.id)}
-                className="min-h-11 flex-none px-1 text-sm font-extrabold text-accent-ink"
-              >
-                + Add
-              </button>
+            <div className="flex min-h-11 items-center gap-1.5">
+              <div className="grid min-w-0 flex-1 gap-0.5">
+                <h2 className="m-0 flex items-center gap-1.5 text-[0.8rem] font-extrabold tracking-[.06em] text-ink-soft uppercase">
+                  <ChoreIcon
+                    name={card.routine.icon}
+                    className="size-4 flex-none text-accent-ink"
+                  />
+                  <span className="min-w-0 flex-1">{card.routine.name}</span>
+                </h2>
+                {holder && (
+                  // Whose it is, in words as well as the avatar (T105).
+                  <p className="m-0 flex items-center gap-1.5 text-sm leading-tight font-bold">
+                    <span aria-hidden className="flex-none">
+                      <Avatar name={holder.name} element={holder.element} size={20} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      {whoseLine(card.routine, card.mine ? undefined : holder.name)}
+                    </span>
+                  </p>
+                )}
+              </div>
+              {/* A housemate's rooms take chores from their own sheet: + Add here reads as yours. */}
+              {(card.mine || boxes.length === 0) && (
+                <button
+                  type="button"
+                  aria-label={`Add chores: ${card.routine.name}`}
+                  onClick={() => setAddingTo(card.routine.id)}
+                  className="min-h-11 flex-none self-start px-1 text-sm font-extrabold text-accent-ink"
+                >
+                  + Add
+                </button>
+              )}
             </div>
             {boxes.length === 0 ? (
               <p className="m-0 text-sm text-ink-soft">No chores here yet.</p>
             ) : (
-              <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0">
+              // One box a row, yours and a housemate's alike: no half-width box, no broken names.
+              <ul className="m-0 grid list-none gap-2 p-0">
                 {boxes.map((box) => (
-                  <li key={box.room.id} className={card.mine ? 'col-span-2' : undefined}>
+                  <li key={box.room.id}>
                     <RoomBox
                       box={box}
                       mine={card.mine}

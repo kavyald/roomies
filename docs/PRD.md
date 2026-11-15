@@ -153,7 +153,7 @@ Two concepts only: a **room** is where chores live, and a **routine** is who's r
 - **Setting up a room's chores** **[DECIDED] (owner, T101)**: in House → Rooms, or on the Chores tab (a room's sheet, or **+ Add** on a group of rooms), a room offers every chore name already in the house (plus a few starters like Vacuum and Swiffer) as one-tap picks, several at once, with a search that ignores case. Upkeep is added on the Chores tab.
 - **Anyone can tick any chore** (helping counts): **Did it** records who and when, with Undo.
 - Chores can go on a run (e.g. a cleaning session).
-- **[DECIDED] (owner)** No numbers, no "due", and no chore balance or "who's done what" view: ticks show in your own rooms only (a room's sheet shows them to anyone, so a helper sees what's left), and people are shown as their avatar.
+- **[DECIDED] (owner)** No numbers, no "due", and no chore balance or "who's done what" view: ticks show in your own rooms only (a room's sheet shows them to anyone, so a helper sees what's left), and people are shown as their avatar with their name ("Alex's this week", T105).
 
 ### 6.3 Tasks (one-offs)
 

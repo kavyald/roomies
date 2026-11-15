@@ -237,13 +237,35 @@ export const holdingLine = (
   return `${period[0]!.toUpperCase()}${period.slice(1)} you have the ${names} · through ${through}`
 }
 
+/**
+ * Whose a group of rooms is, under its heading (T105): "Yours this week", "Alex's this month", just
+ * "Alex's" when it's always theirs. `holder` absent means yours.
+ */
+export const whoseLine = (routine: Routine, holder?: string): string => {
+  const who = holder ? `${holder}'s` : 'Yours'
+  return routine.fixedMember ? who : `${who} ${PERIOD_WORDS[routine.resets]}`
+}
+
+/**
+ * Who has a room, in its sheet (T105): "Alex has it this week, then you"; "You look after it" when
+ * it's always yours. `holder` absent means you; `next` is "you" or a name, absent when nobody else is.
+ */
+export const hasItLine = (routine: Routine, holder?: string, next?: string): string => {
+  if (routine.fixedMember) return holder ? `${holder} looks after it` : 'You look after it'
+  const now = `${holder ? `${holder} has` : 'You have'} it ${PERIOD_WORDS[routine.resets]}`
+  return next ? `${now}, then ${next}` : now
+}
+
+/** Chores in words, as a sentence starts: "Sink, stove and floor" (a housemate's room, T105). */
+export const choresLine = (chores: RoutineCard['chores']): string =>
+  listOf(chores.map((c, i) => (i === 0 ? c.chore.title : c.chore.title.toLowerCase())))
+
 /** What VoiceOver hears for your own card: "Sink and stove done"; "All done"; nothing yet. */
 export const doneLine = (chores: RoutineCard['chores']): string | undefined => {
   const done = chores.filter((c) => c.done)
   if (done.length === 0) return undefined
   if (done.length === chores.length) return 'All done'
-  const titles = done.map((c, i) => (i === 0 ? c.chore.title : c.chore.title.toLowerCase()))
-  return `${listOf(titles)} done`
+  return `${choresLine(done)} done`
 }
 
 /** "today", "yesterday", "9 days ago". */

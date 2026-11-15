@@ -109,10 +109,15 @@ describe('the Chores tab (FRONTEND §5.6, T101)', { timeout: 20_000 }, () => {
     const kitchenBox = within(mine).getByRole('region', { name: 'Kitchen, Kavya' })
     expect(within(kitchenBox).getByRole('button', { name: 'Did it: Sink' })).toBeTruthy()
     expect(within(mine).queryByRole('region', { name: /^Dining/ })).toBeNull()
-    // A housemate's room is one button with its chores' icons and no ticks.
+    // A housemate's room is one button with its chores in words and no ticks (T105).
     const garden_ = within(theirs).getByRole('button', { name: 'Garden, Wren' })
     expect(within(theirs).queryByRole('button', { name: /^Did it/ })).toBeNull()
-    expect(garden_.querySelectorAll('svg').length).toBe(1)
+    expect(garden_.textContent).toContain('Weeds')
+    expect(garden_.getAttribute('aria-describedby')).toBeTruthy()
+    // Each group says whose it is in words; + Add stays on your own.
+    expect(within(theirs).getByText("Wren's")).toBeTruthy()
+    expect(within(mine).getByText('Yours')).toBeTruthy()
+    expect(within(theirs).queryByRole('button', { name: /^Add chores/ })).toBeNull()
     expect(screen.getByText(/you have the kitchen and dining · through/)).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/routine/i)
   })
@@ -158,6 +163,7 @@ describe('the Chores tab (FRONTEND §5.6, T101)', { timeout: 20_000 }, () => {
     show()
     await userEvent.click(await screen.findByRole('button', { name: 'Garden, Wren' }))
     const sheet = await screen.findByRole('dialog', { name: 'Garden' })
+    expect(sheet.textContent).toContain('Wren looks after it')
     // The toast sits outside the open sheet; jsdom doesn't load its pointer-events-auto.
     await userEvent.click(within(sheet).getByRole('button', { name: 'Did it: Weeds' }))
     await waitFor(() => expect(lastDone(deps, 'Weeds')).toBeDefined())

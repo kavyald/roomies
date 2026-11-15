@@ -29,8 +29,11 @@ test("your rooms say what you have and tick in place, with Undo; a housemate's r
   await expect(mine).toBeVisible()
   await expect(theirs).toBeVisible()
   await expect(page.getByRole('main')).not.toContainText(/routine|due|overdue/i)
-  // A housemate's room has no ticks: just its chores' icons (PRD §6.2).
+  // A housemate's room has no ticks: its chores in words (PRD §6.2), and whose it is (T105).
   await expect(theirs.getByRole('button', { name: /^Did it/ })).toHaveCount(0)
+  await expect(theirs.getByRole('button', { name: 'Garden, Sam' })).toContainText('Weeds')
+  await expect(theirs).toContainText("Sam's this week")
+  await expect(mine).toContainText('Yours this week')
 
   const kitchen = mine.getByRole('region', { name: 'Kitchen, Kavya' })
   await kitchen.getByRole('button', { name: 'Did it: Sink' }).click()
@@ -60,7 +63,7 @@ test("your rooms say what you have and tick in place, with Undo; a housemate's r
   // A housemate's room opens its sheet, where anyone can tick and who's next shows.
   await theirs.getByRole('button', { name: 'Garden, Sam' }).click()
   const sheet = page.getByRole('dialog', { name: 'Garden' })
-  await expect(sheet.getByRole('img', { name: /^Kavya/ })).toBeVisible() // who's next
+  await expect(sheet).toContainText('Sam has it this week, then you')
   await sheet.getByRole('button', { name: 'Did it: Weeds' }).click()
   await expect(sheet.getByRole('button', { name: 'Did it: Weeds' })).toHaveAttribute(
     'aria-pressed',

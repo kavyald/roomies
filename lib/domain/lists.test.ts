@@ -9,11 +9,14 @@ import {
   choreNames,
   daysAgo,
   daysSinceDone,
+  choresLine,
   doneLine,
+  hasItLine,
   holdingLine,
   needList,
   STARTER_CHORES,
   taskList,
+  whoseLine,
 } from './lists'
 import type { Chore } from './items'
 import { instantAt, MS_PER_DAY, plusMs } from './time'
@@ -217,6 +220,29 @@ describe('chores', () => {
     expect(line(['Sink', 'Stove', 'Floor'], [])).toBeUndefined()
     expect(line(['Sink', 'Stove', 'Floor'], ['Sink', 'Stove'])).toBe('Sink and stove done')
     expect(line(['Sink'], ['Sink'])).toBe('All done')
+  })
+
+  it('says whose rooms are and who has a room in words (T105)', () => {
+    const turns = routine('r', 0, me)
+    const always = { ...turns, fixedMember: wren }
+    const monthly = { ...turns, resets: 'monthly' as const }
+    expect(whoseLine(turns)).toBe('Yours this week')
+    expect(whoseLine(monthly, 'Alex')).toBe("Alex's this month")
+    expect(whoseLine(always, 'Alex')).toBe("Alex's")
+    expect(hasItLine(turns, 'Alex', 'you')).toBe('Alex has it this week, then you')
+    expect(hasItLine(turns)).toBe('You have it this week')
+    expect(hasItLine(always, 'Alex', 'you')).toBe('Alex looks after it')
+    expect(hasItLine(always)).toBe('You look after it')
+  })
+
+  it("choresLine says a housemate's room in words (T105)", () => {
+    const line = (titles: string[]) =>
+      choresLine(titles.map((t2) => ({ chore: chore(t2), done: false })))
+    expect(line(['Clean mirror', 'Mop floor', 'Scrub toilet', 'Trash'])).toBe(
+      'Clean mirror, mop floor, scrub toilet and trash',
+    )
+    expect(line(['Weeds'])).toBe('Weeds')
+    expect(line([])).toBe('')
   })
 
   it('says how long ago plainly', () => {
