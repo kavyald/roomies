@@ -4,6 +4,7 @@ import { expect, type Page } from '@playwright/test'
 import { latestCode } from '../lib/testing/mailpit'
 import { supabaseAuthGateway } from '../lib/adapters/supabase/auth-gateway'
 import { adminClient, anonClient } from '../lib/adapters/supabase/server'
+import { cryptoTokens } from '../lib/adapters/tokens'
 import { asOwner } from '../lib/testing/db'
 import { mintJwt } from '../lib/testing/jwt'
 import { APARTMENT_ROOMS } from '../lib/domain/rooms'
@@ -58,6 +59,84 @@ export const dismissInstallGuide = async (page: Page) => {
   const guide = page.getByRole('dialog', { name: 'Add Roomies to your Home Screen' })
   await guide.getByRole('button', { name: 'Maybe later' }).click()
   await expect(guide).toBeHidden()
+}
+
+/**
+ * An installed iPhone with push available and off (T95), stubbed in an init script since
+ * Playwright can't reach a real push service. The subscription and permission are kept in
+ * sessionStorage across page loads, like a real one. `denied` is a device that blocked Roomies;
+ * `granted` one that allows it but isn't connected to anyone yet.
+ */
+export const stubInstalledIphonePush = (
+  page: Page,
+  permission: 'default' | 'denied' | 'granted' = 'default',
+) =>
+  page.addInitScript((permission) => {
+    Object.defineProperty(navigator, 'standalone', { value: true, configurable: true })
+    const KEY = 'e2e.push'
+    const endpoint =
+      sessionStorage.getItem(KEY) ??
+      'https://push.example.test/e2e-' + Math.random().toString(36).slice(2)
+    const sub = {
+      endpoint,
+      toJSON() {
+        return { endpoint: this.endpoint, keys: { p256dh: 'BKey', auth: 'auth' } }
+      },
+    }
+    const subscribed = () => sessionStorage.getItem(KEY) !== null
+    const pushManager = {
+      getSubscription: async () => (subscribed() ? sub : null),
+      subscribe: async () => (sessionStorage.setItem(KEY, endpoint), sub),
+    }
+    const reg = { pushManager }
+    // `register` too, or the app's service worker setup breaks the page.
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: {
+        getRegistration: async () => reg,
+        getRegistrations: async () => [reg],
+        register: async () => reg,
+        ready: Promise.resolve(reg),
+        controller: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      },
+      configurable: true,
+    })
+    ;(window as unknown as { PushManager: unknown }).PushManager = function PushManager() {}
+    ;(window as unknown as { Notification: unknown }).Notification = {
+      get permission() {
+        return subscribed() ? 'granted' : permission
+      },
+      requestPermission: async () => 'granted',
+    }
+  }, permission)
+
+/** An invite link to the owner's house, straight into the database (T110's join journeys). */
+export const anInviteLink = async (owner: { houseId: string; userId: string }) => {
+  const token = cryptoTokens.newToken()
+  await asOwner((db) =>
+    db.query(
+      `insert into house_invites (id, house_id, token_hash, created_by, expires_at, max_uses)
+       values ($1, $2, $3, $4, now() + interval '7 days', 4)`,
+      [randomUUID(), owner.houseId, cryptoTokens.hash(token), owner.userId],
+    ),
+  )
+  return `/join/${token}`
+}
+
+/** Joins through a link: name + email → code → a room → Join the house → onboarding (T110). */
+export const joinWith = async (page: Page, link: string, name: string, room: string) => {
+  const email = freshEmail(name.toLowerCase())
+  await page.goto(link)
+  await page.getByLabel('Your name').fill(name)
+  await page.getByLabel('Your email').fill(email)
+  await page.getByRole('button', { name: 'Send me a code' }).click()
+  await page.getByLabel('6-digit code').fill(await latestCode(email))
+  await expect(page.getByRole('heading', { name: 'Which room is yours?' })).toBeVisible()
+  await page.getByRole('radio', { name: room }).click()
+  await page.getByRole('button', { name: 'Join the house' }).click()
+  await expect(page).toHaveURL(/\/welcome$/)
+  return email
 }
 
 /** Signs in as a fresh owner, who lands on the House tab (T107). */

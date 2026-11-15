@@ -34,7 +34,7 @@
 
 **[DECIDED] PWA.** It matches "a link that roommates can access on their phone." If push reliability becomes a real problem, Expo can later reuse the same backend and most TypeScript logic.
 
-Onboarding must actively guide iOS users through **Share → Add to Home Screen**, since that's the only way push works on iOS. We detect standalone mode with `navigator.standalone` / `display-mode: standalone` and show an instruction sheet until the app is installed. Once push can work (installed, or any browser that supports it), `NotificationsPrompt` offers it once per device (`pushPromptFor` in `lib/client/install.ts`, T95). A device that already allows Roomies but isn't connected to whoever is signed in connects itself on open, with no tap (`settlePush` in `components/house/turn-on-push.ts`, PRD D42).
+Onboarding must actively guide iOS users through **Share → Add to Home Screen**, since that's the only way push works on iOS. We detect standalone mode with `navigator.standalone` / `display-mode: standalone` and show an instruction sheet until the app is installed. Joining and setup end in onboarding (`/h/[houseId]/welcome`, T110), whose notifications step fits the device (`onboardingPushStep` in `lib/client/install.ts`): the question, this guide on iPhone Safari, or the steps when blocked. Once push can work (installed, or any browser that supports it), `NotificationsPrompt` asks members who never answered, once per device (`pushPromptFor`, T95; only the question, never a blocked or unsupported sheet on open). A device that already allows Roomies but isn't connected to whoever is signed in connects itself on open, with no tap (`settlePush` in `components/house/turn-on-push.ts`, PRD D42).
 
 ---
 
@@ -857,7 +857,7 @@ app/
   page.tsx                   -- sends you to your house, or explains why not (moved out / no house yet)
   sign-in/                   -- returning users only: email → 6-digit code (codes go only to existing accounts)
   setup/[token]/             -- one-time house creation, disabled once a house exists
-  join/[token]/              -- invite: name + email → code → bedroom → join
+  join/[token]/              -- invite: name + email → code → bedroom → join → onboarding (h/[houseId]/welcome)
   h/[houseId]/
     layout.tsx               -- members only; AppClient + live updates (HouseProviders), tab bar (AppShell)
     page.tsx                 -- House, the first tab (T107): polls, Calendar, Activity, the house's setup
@@ -865,6 +865,7 @@ app/
     needs/  tasks/  chores/  calendar/  activity/  admin/ (redirects to House)
     i/[itemId]/              -- a link to an item (notifications): opens its sheet over House
     p/[pollId]/  r/[runId]/  -- links to a poll or a run (notifications): open its sheet over House, or say it isn't there
+    welcome/                 -- onboarding after join and setup (T110): welcome, then notifications; no tab bar
     me/                      -- your settings: two entries (T65), each its own page
       notifications/         -- notification categories, quiet hours, this device's push
       appearance/            -- theme (auto | light | dark)
@@ -878,7 +879,7 @@ components/
   ui/                        -- Avatar (initials + element), Button, Card, Chip, Disclosure, EmptyState, ListRow,
                                 IconButton, SegmentedControl, Sheet (vaul) + SheetSave, Swipeable, TabBar, Toast
   shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, BackToHouse, InstallGuide, NotificationsPrompt, ServiceWorker, ThemeSync, DeepLinks (OpenPoll, OpenRun)
-  auth/  setup/  join/       -- sign-in, setup and join flows
+  auth/  setup/  join/       -- sign-in, setup and join flows; onboarding/ -- the welcome and notifications steps after them (T110)
   needs/  chores/  tasks/  calendar/  activity/  house/  me/   -- one folder per screen
   items/                     -- ItemCard, ItemForm, ItemSheets, Feelings, HandledByPicker, RoomSelect, WhyHere
   polls/  runs/  costs/      -- PollSheet, NewPollSheet, RunSheet, StartRunSheet, NewRunSheet, CostForm, ItemCosts

@@ -84,6 +84,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       ['/me', 'You'],
       ['/me/notifications', 'Notifications'],
       ['/me/appearance', 'Appearance'],
+      ['/welcome', 'Welcome to The apartment 👋'], // onboarding (T110)
     ] as const) {
       await page.goto(h + path)
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible()

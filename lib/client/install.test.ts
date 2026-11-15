@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   allowSteps,
   connectsItself,
+  onboardingPushStep,
   platformOf,
   pushPromptFor,
   shouldShowInstallGuide,
@@ -38,11 +39,33 @@ describe('pushPromptFor (T95)', () => {
     ['iPhone Safari, not installed yet', 'off', at(IPHONE_SAFARI), null],
     ['iPhone Safari, needs the Home Screen', 'install_first', at(IPHONE_SAFARI), null],
     ['already on', 'on', at(DESKTOP_CHROME), null],
-    ['blocked in settings', 'blocked', at(DESKTOP_CHROME), 'blocked'],
-    ["can't push at all", 'unsupported', at(IPHONE_CHROME), 'unsupported'],
+    // T110: never a problem as the first thing someone sees; You → Notifications has the steps.
+    ['blocked in settings', 'blocked', at(DESKTOP_CHROME), null],
+    ["can't push at all", 'unsupported', at(IPHONE_CHROME), null],
     ['answered before on this device', 'off', at(DESKTOP_CHROME, false, true), null],
   ] as const)('%s → %s', (_label, state, ctx, expected) => {
     expect(pushPromptFor(state, ctx)).toBe(expected)
+  })
+})
+
+describe('onboardingPushStep (T110)', () => {
+  const at = (userAgent: string, standalone = false) => ({ userAgent, standalone })
+  it.each([
+    ['desktop, push off', 'off', at(DESKTOP_CHROME), 'ask'],
+    ['iPhone installed, push off', 'off', at(IPHONE_SAFARI, true), 'ask'],
+    ['iPhone Safari, not installed yet', 'off', at(IPHONE_SAFARI), 'add_to_home_screen'],
+    [
+      'iPhone Safari, needs the Home Screen',
+      'install_first',
+      at(IPHONE_SAFARI),
+      'add_to_home_screen',
+    ],
+    ['already on', 'on', at(DESKTOP_CHROME), 'on'],
+    ['blocked in settings', 'blocked', at(DESKTOP_CHROME), 'blocked'],
+    ['blocked on an installed iPhone', 'blocked', at(IPHONE_SAFARI, true), 'blocked'],
+    ["can't push at all", 'unsupported', at(IPHONE_CHROME), 'unsupported'],
+  ] as const)('%s → %s', (_label, state, ctx, expected) => {
+    expect(onboardingPushStep(state, ctx)).toBe(expected)
   })
 })
 

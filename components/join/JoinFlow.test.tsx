@@ -11,7 +11,8 @@ vi.mock('@/app/actions/invites', () => ({
   startJoin: vi.fn(),
   acceptJoin: vi.fn(async () => ({ ok: true, value: 'house-1' })),
 }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn() }) }))
+const replace = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace }) }))
 
 afterEach(cleanup)
 
@@ -29,5 +30,7 @@ describe('JoinFlow', () => {
     expect(join).toHaveProperty('disabled', false)
     await user.click(join)
     expect(acceptJoin).toHaveBeenCalledWith('t', { displayName: 'Wren' })
+    // Onboarding comes before the app (T110).
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith('/h/house-1/welcome'))
   })
 })

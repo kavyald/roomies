@@ -26,6 +26,14 @@ export function AppShell({ base, children }: { base: string; children: ReactNode
   // On Needs, Chores and Tasks the + goes straight to that kind's form; elsewhere there's none.
   const addKind = addKindFor(base, current)
 
+  // Onboarding (T110) comes before the app: no tabs, no +, and it asks about notifications itself.
+  if (pathname === `${base}/welcome`)
+    return (
+      <div className="mx-auto min-h-dvh max-w-[430px] px-4 pt-[max(24px,env(safe-area-inset-top))] pb-[max(24px,env(safe-area-inset-bottom))]">
+        {children}
+      </div>
+    )
+
   return (
     <div className="mx-auto min-h-dvh max-w-[430px] px-4 pt-[max(12px,env(safe-area-inset-top))] pb-[calc(160px+env(safe-area-inset-bottom))]">
       {children}

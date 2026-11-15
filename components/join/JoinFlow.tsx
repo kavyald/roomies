@@ -23,7 +23,7 @@ const say = (error: string): string =>
         already_member: "You're already in this house.",
       }[error] ?? "Couldn't reach the house. Check your connection and try again.")
 
-/** Name + email → 6-digit code → "Which room is yours?" → in (PRD §10, FRONTEND §5.12). */
+/** Name + email → 6-digit code → "Which room is yours?" → onboarding (T110) → in (PRD §10, FRONTEND §5.12). */
 export function JoinFlow({
   token,
   bedrooms,
@@ -72,7 +72,7 @@ export function JoinFlow({
     start(async () => {
       const r = await acceptJoin(token, { displayName: name, ...(roomId && { roomId }) })
       if (!r.ok) return setMessage(say(r.error))
-      router.replace(`/h/${r.value}`)
+      router.replace(`/h/${r.value}/welcome`)
     })
   }
 

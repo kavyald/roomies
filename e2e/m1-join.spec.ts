@@ -36,8 +36,19 @@ test('the owner invites, and a roommate joins with a code and picks their room',
   await expect(maya.getByRole('heading', { name: 'Which room is yours?' })).toBeVisible()
   await maya.getByRole('radio', { name: 'Fire' }).click()
   await maya.getByRole('button', { name: 'Join the house' }).click()
+
+  // Onboarding (T110): the welcome, then (iPhone Safari, not installed) the Add to Home Screen
+  // guide in place of the notifications question, then House, with no guide on top.
+  await expect(maya).toHaveURL(new RegExp(`/h/${owner.houseId}/welcome$`))
+  await expect(maya.getByRole('heading', { level: 1 })).toHaveText('Welcome to The apartment 👋')
+  await maya.getByRole('button', { name: 'Next' }).click()
+  await expect(maya.getByRole('heading', { level: 1 })).toHaveText(
+    'Add Roomies to your Home Screen',
+  )
+  await maya.getByRole('button', { name: 'Continue' }).click()
   await expect(maya).toHaveURL(new RegExp(`/h/${owner.houseId}$`))
-  await dismissInstallGuide(maya)
+  await expect(maya.getByRole('heading', { level: 1, name: 'House' })).toBeVisible()
+  await expect(maya.getByRole('dialog')).toHaveCount(0)
 
   // Maya sees the house, and herself in Fire.
   await maya.goto(`/h/${owner.houseId}/house/roommates`)
