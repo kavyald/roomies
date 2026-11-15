@@ -31,9 +31,14 @@ test('personal settings: turn a category off, keep quiet hours, and switch to da
   await expect(page.getByRole('heading', { name: 'Notifications', level: 1 })).toBeVisible()
   await expect(page.getByRole('group', { name: 'Theme' })).toHaveCount(0)
 
-  // T61: one Notifications section: this device, the six categories, quiet hours.
+  // T61: one Notifications section: this device, the seven categories, quiet hours.
   const tellMe = page.getByRole('group', { name: 'Tell me when' })
-  await expect(tellMe.getByRole('switch')).toHaveCount(6)
+  await expect(tellMe.getByRole('switch')).toHaveCount(7)
+  // T85: needs reminders have their own switch, apart from tasks coming due.
+  await expect(tellMe.getByRole('switch', { name: 'Needed today' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  )
   const polls = tellMe.getByRole('switch', { name: 'Polls' })
   await expect(polls).toHaveAttribute('aria-checked', 'true')
   await polls.click()

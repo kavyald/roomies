@@ -65,7 +65,7 @@ describe('sending notifications', () => {
           title: 'For you: Fix the latch',
           body: 'Kavya asked you to take this on.',
           url: `/h/${t.s.house.id}/i/${latch.id}`,
-          tag: `assigned:/h/${t.s.house.id}/i/${latch.id}`,
+          tag: expect.stringMatching(/^roomies:\d+$/), // its own, so pushes stack (T85)
         },
       })),
     )

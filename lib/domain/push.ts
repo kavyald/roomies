@@ -60,9 +60,12 @@ export const newSubscription = (
   })
 }
 
-/** The JSON the service worker turns into a notification. `tag` folds repeats together. */
+/**
+ * The JSON the service worker turns into a notification. The tag is the message's own (T85, owner):
+ * two feelings on one item show as two notifications, stacked, rather than one replacing the other.
+ */
 export const pushPayload = (m: PendingMessage): string =>
-  JSON.stringify({ title: m.title, body: m.body, url: m.url, tag: `${m.category}:${m.url}` })
+  JSON.stringify({ title: m.title, body: m.body, url: m.url, tag: `roomies:${m.id}` })
 
 /** How long the sender holds the messages it claimed; past this, another run may take them (T83). */
 export const CLAIM_LEASE_MS = 10 * MS_PER_MINUTE

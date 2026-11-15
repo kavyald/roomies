@@ -17,7 +17,10 @@ type Deps = Pick<AppDeps, 'uow' | 'clock' | 'ids'>
 const system = (houseId: HouseId): Actor => ({ kind: 'system', houseId })
 const EVERY_HOUSE = system(asId<'house'>('00000000-0000-0000-0000-000000000000') as HouseId)
 
-/** Due tasks, polls closing tomorrow, runs dated tomorrow and routine handovers, into the outbox. */
+/**
+ * Due tasks, needs needed today, polls closing tomorrow or today, runs dated tomorrow, and routine
+ * handovers and last days, into the outbox.
+ */
 export const makeRunReminders =
   ({ uow, clock }: Pick<Deps, 'uow' | 'clock'>) =>
   async () => {

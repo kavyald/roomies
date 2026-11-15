@@ -4,15 +4,18 @@
 
 import type { Member, Room } from './house'
 import type { Draft, Recipient } from './notifications'
-import type { Item } from './items'
+import type { Chore, Item } from './items'
 import type { Poll } from './polls'
 import { isPollOpen } from './polls'
 import {
+  choreOwner,
   listOf,
+  nextPeriodStart,
   PERIOD_WORDS,
   periodStart,
   rotationOrder,
   routineHolder,
+  routineProgress,
   type Routine,
 } from './routines'
 import { isRunOpen, type Run } from './runs'
@@ -39,6 +42,19 @@ export type ReminderInput = {
   readonly members: readonly Member[]
 }
 
+/** A routine's rooms in house order, lower case ("kitchen", "dining"); its name if it has none. */
+const roomNames = (input: ReminderInput, routine: Routine): string[] => {
+  const names = input.rooms
+    .filter((r) => r.routineId === routine.id && !r.archivedAt)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((r) => r.name.toLowerCase())
+  return names.length > 0 ? names : [routine.name.toLowerCase()]
+}
+
+/** "this week" when every routine resets alike, else nothing ("for now" for a handover). */
+const periodOf = (held: readonly Routine[]): string | null =>
+  new Set(held.map((r) => r.resets)).size === 1 ? PERIOD_WORDS[held[0]!.resets] : null
+
 /**
  * One message per person whose routines change hands today, whatever they hold: "You have the
  * kitchen and dining this week". Only routines that take turns, and only on the first day of the
@@ -52,18 +68,13 @@ const handoversFor = (input: ReminderInput, today: LocalDate, home: string): Dra
     if (periodStart(routine, today) !== today) continue
     const holder = routineHolder(routine, input.members, today)
     if (!holder) continue
-    const names = input.rooms
-      .filter((r) => r.routineId === routine.id && !r.archivedAt)
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map((r) => r.name.toLowerCase())
     byHolder.set(holder, [
       ...(byHolder.get(holder) ?? []),
-      { routine, names: names.length > 0 ? names : [routine.name.toLowerCase()] },
+      { routine, names: roomNames(input, routine) },
     ])
   }
   return [...byHolder].map(([holder, held]) => {
-    const when = new Set(held.map((h) => h.routine.resets))
-    const period = when.size === 1 ? PERIOD_WORDS[held[0]!.routine.resets] : 'for now'
+    const period = periodOf(held.map((h) => h.routine)) ?? 'for now'
     const [first, ...rest] = held.flatMap((h) => h.names)
     return {
       userId: holder as Recipient['userId'],
@@ -77,7 +88,44 @@ const handoversFor = (input: ReminderInput, today: LocalDate, home: string): Dra
 }
 
 /**
- * Day-before and day-of reminders; nothing for things already past (no nagging, FRONTEND §7). Each
+ * The last day of a routine's period (T85, owner): one message to whoever holds routines ending
+ * today, only for those whose checklist isn't all ticked, and only about the rooms, never what's
+ * left (FRONTEND §7). A routine with no chores, or every chore done, says nothing.
+ */
+const lastDaysFor = (
+  input: ReminderInput,
+  today: LocalDate,
+  home: string,
+  expiresAt: Instant,
+): Draft[] => {
+  const tomorrow = addDays(today, 1)
+  const chores = input.items.filter((i): i is Chore => i.category === 'chore' && !i.archivedAt)
+  const byHolder = new Map<string, Routine[]>()
+  for (const routine of input.routines) {
+    if (routine.removedAt || nextPeriodStart(routine, today) !== tomorrow) continue
+    const own = chores.filter((c) => choreOwner(c, input.rooms, input.routines)?.id === routine.id)
+    const progress = routineProgress(routine, own, today, input.tz)
+    if (progress.every((c) => c.done)) continue
+    const holder = routineHolder(routine, input.members, today)
+    if (!holder) continue
+    byHolder.set(holder, [...(byHolder.get(holder) ?? []), routine])
+  }
+  return [...byHolder].map(([holder, held]) => {
+    const period = periodOf(held)
+    return {
+      userId: holder as Recipient['userId'],
+      category: 'due' as const,
+      title: `Last day for the ${listOf(held.flatMap((r) => roomNames(input, r)))}${period ? ` ${period}` : ''}`,
+      body: 'Still time to tick off the rest, if you get a chance.',
+      url: `${home}/chores`,
+      dedupeKey: `last-day:${input.houseId}:${today}:${holder}`,
+      expiresAt,
+    }
+  })
+}
+
+/**
+ * Day-before and day-of reminders (tasks, needs, polls, runs, routines' first and last days); nothing for things already past (no nagging, FRONTEND §7). Each
  * expires when its day ends, so one held overnight by quiet hours isn't pushed a day late (T83);
  * a handover stays true all period, so it doesn't.
  */
@@ -109,21 +157,41 @@ export const remindersFor = (input: ReminderInput): Draft[] => {
     })
   }
 
-  // Polls closing tomorrow: everyone who hasn't voted yet.
+  // Needs with a "needed by" date: everyone, on the day (T85, owner), through their own category.
+  for (const item of input.items) {
+    if (item.category !== 'need' || item.archivedAt || item.done) continue
+    if (item.when?.date !== today) continue
+    for (const p of input.people) {
+      drafts.push({
+        userId: p.userId,
+        category: 'needs',
+        title: `Needed today: ${item.title}`,
+        body: "Today's the day for this one.",
+        url: `${home}/i/${item.id}`,
+        dedupeKey: `need-today:${item.id}:${today}:${p.userId}`,
+        expiresAt,
+      })
+    }
+  }
+
+  // Polls closing tomorrow, and later today (T85): everyone who hasn't voted yet. "Closing today"
+  // is stale once the poll closes, so one held by quiet hours past the deadline isn't sent.
   for (const poll of input.polls) {
     if (!poll.closesAt || !isPollOpen(poll, input.now)) continue
-    if (localDateOf(poll.closesAt, input.tz) !== tomorrow) continue
+    const closes = localDateOf(poll.closesAt, input.tz)
+    const when = which(closes)
+    if (!when) continue
     const voted = new Set(poll.votes.map((v) => v.user))
     for (const p of input.people) {
       if (voted.has(p.userId)) continue
       drafts.push({
         userId: p.userId,
         category: 'polls',
-        title: `Closing tomorrow: ${poll.question}`,
+        title: `${when === 'today' ? 'Closing today' : 'Closing tomorrow'}: ${poll.question}`,
         body: "Your vote isn't in yet.",
         url: `${home}/p/${poll.id}`,
-        dedupeKey: `poll-closing:${poll.id}:${tomorrow}:${p.userId}`,
-        expiresAt,
+        dedupeKey: `poll-closing:${poll.id}:${closes}:${p.userId}${when === 'today' ? ':today' : ''}`,
+        expiresAt: when === 'today' ? poll.closesAt : expiresAt,
       })
     }
   }
@@ -147,6 +215,6 @@ export const remindersFor = (input: ReminderInput): Draft[] => {
       })
     }
   }
-  drafts.push(...handoversFor(input, today, home))
+  drafts.push(...handoversFor(input, today, home), ...lastDaysFor(input, today, home, expiresAt))
   return drafts
 }

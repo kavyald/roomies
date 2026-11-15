@@ -325,9 +325,11 @@ Users see a **tier**: ●● **Urgent** (≥ 70), **Soon** (45–69), Normal (20
 | Trigger | Who | Default |
 |---|---|---|
 | Assigned to you | assignee | on |
-| Your task or chore is due (day before + day of) | assignee | on |
+| Your task is due (day before + day of) | assignee | on |
+| The last day of your routine's period, while its checklist isn't all ticked (T85): "Last day for the kitchen and dining this week" | whoever holds it | on |
+| A need's "needed by" date is today (T85): "Needed today: Oat milk", its own **Needed today** switch | everyone | on |
 | 😰 / 😤 on an item you're assigned to | assignee | on |
-| A new poll, or a poll closing tomorrow | everyone | on |
+| A new poll, or a poll closing tomorrow or later today ("Closing today", T85) | everyone who hasn't voted (closing) | on |
 | Someone started a run ("Add anything?") | everyone | on |
 | A run with a date is tomorrow (delivery, visit) | everyone | on |
 | Someone joined | everyone | on |
@@ -337,6 +339,7 @@ Users see a **tier**: ●● **Urgent** (≥ 70), **Soon** (45–69), Normal (20
 | You're the new point person on a run (D32) | that person, unless they picked themselves | on |
 | Tasks moved into a visit you're the point person for (D32) | that person, once per move, unless they moved them | on |
 
+- **Who gets reminded, and when (T85, owner 2026-11-10 and 2026-11-14):** tasks for "anyone" remind no one; runs and visits get only "Tomorrow: …", requests nothing; "today" is the house's calendar for everyone; your own actions never notify you. Each notification stacks on the device (one per message, not one per thing), and a push waits up to 24 hours for an offline phone.
 - **Web Push** only, which requires adding the app to the Home Screen on iOS. The email digest fallback comes later (§13).
 - Quiet hours per person (default 10pm–8am), with per-category toggles in personal settings. A notification held by quiet hours is checked again when they end (T83): it isn't sent if the person switched that category off or moved out meanwhile, or if it's a reminder whose day is over ("Tomorrow: …" queued late at night isn't pushed the next morning). **Changing quiet hours re-times what's already waiting (owner, 2026-11-10):** held notifications go out when the new quiet hours end, or straight away if they're turned off.
 - **Nothing from before push was on (owner, 2026-11-10):** a notification for someone with no device turned on is dropped, and turning notifications on later doesn't deliver it.
@@ -423,6 +426,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D35 | Built from the docs↔code audit: conflict detection on edits, "Handled by" follows the run, an app-wide CSP, `security_events`, undo "Did it", poll withdraw / reopen / deadline, run rename and point person, cost edit and remove, poll and run deep links, notification settings in one section (T50–T58, T61) | Owner |
 | D36 | A feedback button (bug / idea / praise) at the top right of Admin (House since T107), saved for the owner in Supabase, with the sender, house, app version and browser (§6.8, T91) | Owner |
 | D37 | Feelings on a chore count only if shared after it was last done; 😰/😤 on a chore notifies every active member, not an assignee. Reopening a need or a task is an undo, so its feelings count again (§7, §8.1, T99) | Owner |
+| D45 | Who gets reminded, and when: a need dated today reminds everyone through its own `needs` category; a poll closing later today gets "Closing today" (as well as "Closing tomorrow"); on a routine's last day its holder hears only if the checklist isn't all ticked, in gentle words; every push stacks (its own tag); TTL stays 24 h; unassigned tasks, runs on the day and requests stay silent (§11, T85) | Owner |
 | D44 | Each tab ranks by priority: Needs, Tasks and Chores' Upkeep list are ordered by score (§8.1), and every open item shows. Only **Urgent** and **Soon** get a chip (the tiers were Top / High / Normal / Low; Normal shows nothing now). A dot on a tab with something Urgent. Tasks shows visits coming up this week first and has one add button, the +; requests and visits start from its sheet or from a task. "Why is this here?" becomes **Why it's near the top**, in words, not points (T108, 2026-11-15) | Owner |
 | D43 | Four tabs, **House · Needs · Tasks · Chores**, House first and where the app opens. Home and its ranked feed are removed (the feed rule hid items from newcomers); Admin becomes House: polls, Calendar and Activity on top, then the house's setup in labelled groups, and nothing personal (sign out and delete account are on You). Runs in progress moves to Needs. The + shows on Needs, Tasks and Chores only. Supersedes the M7 tab set (§4.3, T107, 2026-11-14) | Owner |
 | D42 | Allowed means on: a device that allows Roomies connects itself to whoever is signed in when the app opens, with no Turn on tap (§11, T95) | Owner |

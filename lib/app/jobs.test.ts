@@ -83,6 +83,48 @@ describe('runReminders (fixed clock)', () => {
       ['Today: Pay the internet', instantAt(t.today, '08:00' as LocalTime, t.tz)],
     ])
   })
+
+  it('a need dated today reminds everyone with needs on; a poll closing today, who has not voted (T85)', async () => {
+    const t = await setup()
+    await makeCreateItem(t.deps)(t.as('Kavya'), {
+      category: 'need',
+      title: 'Oat milk',
+      when: { date: t.today },
+    })
+    const poll = await makeCreatePoll(t.deps)(t.as('Kavya'), {
+      question: 'House name?',
+      options: [{ label: 'The Nest' }, { label: 'Burrow' }],
+      closesAt: plusMs(TEST_NOW, 2 * MS_PER_HOUR),
+    })
+    if (!poll.ok) throw new Error(poll.error)
+    await makeVote(t.deps)(t.as('Wren'), {
+      pollId: poll.value.id,
+      optionId: poll.value.options[0]!.id,
+    })
+    await t.deps.uow.run(t.as('Jo'), (r) =>
+      r.notifications.setEnabled(t.s.people.Jo, 'needs', false),
+    )
+    t.outbox().length = 0
+    const run = makeRunReminders(t.deps)
+    await run()
+    const got = (title: string) =>
+      t
+        .outbox()
+        .filter((m) => m.title === title)
+        .map((m) => m.userId)
+        .sort()
+    const everyone = Object.values(t.s.people)
+    expect(got('Needed today: Oat milk')).toEqual(
+      everyone.filter((u) => u !== t.s.people.Jo).sort(),
+    )
+    expect(got('Closing today: House name?')).toEqual(
+      everyone.filter((u) => u !== t.s.people.Wren).sort(),
+    )
+    expect(t.outbox().find((m) => m.title === 'Closing today: House name?')!.expiresAt).toEqual(
+      poll.value.closesAt,
+    )
+    expect(await run()).toMatchObject({ value: { enqueued: 0 } })
+  })
 })
 
 describe('closeDuePolls (fixed clock)', () => {

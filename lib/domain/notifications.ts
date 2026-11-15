@@ -8,11 +8,13 @@ import { DEFAULT_FEELING_WEIGHTS, FEELING_META, type Feeling, type FeelingKind }
 import type { HouseId, ItemId, PollId, RunId, UserId } from './ids'
 import { addDays, instantAt, localDateOf, localTimeOf, type Instant, type LocalTime } from './time'
 
-export type NotificationCategory = 'assigned' | 'due' | 'feelings' | 'polls' | 'runs' | 'people'
+export type NotificationCategory =
+  'assigned' | 'due' | 'needs' | 'feelings' | 'polls' | 'runs' | 'people'
 
 export const NOTIFICATION_CATEGORIES: readonly NotificationCategory[] = [
   'assigned',
   'due',
+  'needs',
   'feelings',
   'polls',
   'runs',
@@ -21,9 +23,10 @@ export const NOTIFICATION_CATEGORIES: readonly NotificationCategory[] = [
 
 export const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   assigned: 'Something is handed to me',
-  due: 'My tasks are coming due',
+  due: 'My tasks are coming due, or my rooms are on their last day',
+  needs: 'Something on the list is needed today',
   feelings: 'Someone feels 😰 or 😤 about a chore or something of mine, or changes the weights',
-  polls: 'New polls, new options, and polls closing',
+  polls: 'New polls, new options, and polls closing tomorrow or today',
   runs: 'Runs starting or handed to me, and runs with a date tomorrow',
   people: 'People joining or leaving',
 }

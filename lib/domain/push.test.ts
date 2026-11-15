@@ -54,7 +54,7 @@ describe('push', () => {
       title: 'For you: Leak',
       body: 'Kavya asked you to take this on.',
       url: '/h/h/i/leak',
-      tag: 'assigned:/h/h/i/leak',
+      tag: 'roomies:1',
     })
   })
 

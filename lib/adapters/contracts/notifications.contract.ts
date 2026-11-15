@@ -44,6 +44,14 @@ export const notificationsContract = (
         r.notifications.offFor([admin, member]),
       )
       expect([...off.entries()].map(([u, c]) => [u, [...c]])).toEqual([[member, ['polls']]])
+      // T85: needs reminders have their own toggle, stored like any other.
+      await h.uow.run(asMember(house.id, admin), (r) =>
+        r.notifications.setEnabled(admin, 'needs', false),
+      )
+      const needsOff = await h.uow.run(asMember(house.id, member), (r) =>
+        r.notifications.offFor([admin]),
+      )
+      expect([...(needsOff.get(admin) ?? [])]).toEqual(['needs'])
       await expect(
         h.uow.run(asMember(house.id, admin), (r) =>
           r.notifications.setEnabled(member, 'people', false),
