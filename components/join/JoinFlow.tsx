@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition, type FormEvent } from 'react'
 import { verifyCode } from '@/app/actions/auth'
 import { acceptJoin, startJoin } from '@/app/actions/invites'
-import { CodeField, Field, FormMessage } from '@/components/auth/fields'
+import { CodeField, CodeLinks, Field, FormMessage } from '@/components/auth/fields'
 import { BedroomPicker } from '@/components/house/BedroomPicker'
 import { Button } from '@/components/ui/Button'
 import type { Bedroom } from '@/lib/app/invites'
@@ -38,7 +38,8 @@ export function JoinFlow({
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
-  const [roomId, setRoomId] = useState<RoomId | null>(null)
+  // undefined until you pick something: a room, or "None of these" (null).
+  const [roomId, setRoomId] = useState<RoomId | null | undefined>(undefined)
   // Decided once, not from the live value: hiding the field when `name` fills in would remove it
   // after the first letter. Arriving signed in skips the step that asks for a name.
   const [askName, setAskName] = useState(signedIn)
@@ -123,6 +124,14 @@ export function JoinFlow({
         <Button type="submit" block disabled={pending || code.length !== 6}>
           Continue
         </Button>
+        <CodeLinks
+          onDifferentEmail={() => {
+            setMessage(null)
+            setStep('account')
+          }}
+          onResend={() => sendCode()}
+          pending={pending}
+        />
       </form>
     )
   }
@@ -152,7 +161,7 @@ export function JoinFlow({
         onChange={(k) => setRoomId(k as RoomId | null)}
       />
       {message && <FormMessage>{message}</FormMessage>}
-      <Button type="submit" block disabled={pending || !name.trim()}>
+      <Button type="submit" block disabled={pending || !name.trim() || roomId === undefined}>
         Join the house
       </Button>
     </form>

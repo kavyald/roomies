@@ -50,7 +50,8 @@ test('a cost on an item is edited, then removed, and Activity follows (T57); Hou
   )
   await confirm.getByRole('button', { name: 'Remove' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Removed $200.00.' })).toBeVisible()
-  await expect(costs).not.toContainText('$200.00')
+  // With no costs left, the sheet keeps only the Add cost link (T111).
+  await expect(page.getByRole('dialog', { name: 'Vacuum' })).not.toContainText('$200.00')
   await page.keyboard.press('Escape')
 
   await page.goto(`/h/${owner.houseId}/activity`)

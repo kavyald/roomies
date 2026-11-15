@@ -13,21 +13,36 @@ import { CostRows } from './CostRows'
 import { SplitwiseMark } from './SplitwiseMark'
 import { useSplitwise } from './useSplitwise'
 
+/** The costs recorded on an item (removed ones are left out). */
+export const useItemCosts = (houseId: HouseId, itemId: Item['id']) =>
+  (useCosts(houseId).data ?? []).filter((c) => c.for && 'item' in c.for && c.for.item === itemId)
+
 /**
  * An item's Costs, always open (T104): "Costs" and the total, each cost ("$189 · Wren paid", with
- * the Splitwise icon and the Edit / Remove icons) and **Add cost**. It sits right under the item
- * sheet's main button, and on the Edit sheet too (FRONTEND §5.4).
+ * the Splitwise icon and the Edit / Remove icons) and **Add cost**. With no costs it's just the
+ * **Add cost** link (T111), which the item sheet puts low down; it's on the Edit sheet too
+ * (FRONTEND §5.4).
  */
 export function ItemCosts({ houseId, item }: { houseId: HouseId; item: Item }) {
-  const costs = useCosts(houseId)
   const add = useAddCost(houseId)
   const toast = useToast()
   const splitwise = useSplitwise(houseId)
   const form = useCostFields(houseId, 'item-cost')
   const [adding, setAdding] = useState(false)
-  const mine = (costs.data ?? []).filter((c) => c.for && 'item' in c.for && c.for.item === item.id)
+  const mine = useItemCosts(houseId, item.id)
 
   const total = sumCents(mine.map((c) => c.amount))
+  const addLink = (
+    <button
+      type="button"
+      className="flex min-h-[44px] items-center gap-1 justify-self-start text-sm font-extrabold text-accent-ink"
+      onClick={() => setAdding(true)}
+    >
+      <Receipt aria-hidden className="size-4" /> Add cost
+    </button>
+  )
+
+  if (mine.length === 0 && !adding) return addLink
 
   return (
     <section
@@ -66,13 +81,7 @@ export function ItemCosts({ houseId, item }: { houseId: HouseId; item: Item }) {
           </Button>
         </div>
       ) : (
-        <button
-          type="button"
-          className="flex min-h-11 items-center gap-1 justify-self-start text-sm font-extrabold text-accent-ink"
-          onClick={() => setAdding(true)}
-        >
-          <Receipt aria-hidden className="size-4" /> Add cost
-        </button>
+        addLink
       )}
     </section>
   )

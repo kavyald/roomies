@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition, type FormEvent } from 'react'
 import { requestCode, verifyCode } from '@/app/actions/auth'
 import { Button } from '@/components/ui/Button'
-import { CodeField, inputClass } from './fields'
+import { CodeField, CodeLinks, inputClass } from './fields'
 
 /** Returning sign-in: email → 6-digit code (ARCHITECTURE §5.1). Codes only, no links. */
 export function SignInForm() {
@@ -90,23 +90,11 @@ export function SignInForm() {
       <Button type="submit" block disabled={pending || code.length !== 6}>
         Sign in
       </Button>
-      <div className="flex justify-between gap-3 text-sm font-bold">
-        <button
-          type="button"
-          className="min-h-11 text-accent-ink underline"
-          onClick={() => setStep('email')}
-        >
-          Use a different email
-        </button>
-        <button
-          type="button"
-          className="min-h-11 text-accent-ink underline"
-          disabled={pending}
-          onClick={() => send()}
-        >
-          Send a new code
-        </button>
-      </div>
+      <CodeLinks
+        onDifferentEmail={() => setStep('email')}
+        onResend={() => send()}
+        pending={pending}
+      />
     </form>
   )
 }

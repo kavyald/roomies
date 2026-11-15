@@ -80,6 +80,10 @@ export function NewRunSheet({
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()} title="New request or visit">
+      {/* Who it's for, before anything else (T111): people outside the house. */}
+      <p className="m-0 leading-snug">
+        For someone outside the house, like the landlord, a plumber or the super.
+      </p>
       <SegmentedControl
         label="What kind"
         wide
@@ -92,8 +96,8 @@ export function NewRunSheet({
       />
       <p className="m-0 text-sm text-ink-soft">
         {mode === 'request'
-          ? 'A list to send them. You can start it empty and add to it.'
-          : "They've taken these on. The date can wait."}
+          ? "Ask someone: you haven't asked yet. Gather what to ask, then send it as one message. It can start empty."
+          : "They've agreed: they're coming to do these. Plan the visit; the date can wait."}
       </p>
       {contact.field}
       {tasks.length > 0 && (

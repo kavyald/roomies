@@ -132,7 +132,7 @@ export function PollSheet({
       <div
         role="radiogroup"
         aria-label="Options"
-        aria-describedby={open && mine ? 'poll-withdraw-hint' : undefined}
+        aria-describedby={open ? 'poll-vote-hint' : undefined}
         className="grid gap-2"
       >
         {poll.options.map((o) => {
@@ -190,9 +190,11 @@ export function PollSheet({
           )
         })}
       </div>
-      {open && mine && (
-        <p id="poll-withdraw-hint" className="m-0 text-[0.8rem] font-semibold text-ink-soft">
-          Changed your mind? Tap your pick again to take your vote back.
+      {open && (
+        <p id="poll-vote-hint" className="m-0 text-[0.8rem] font-semibold text-ink-soft">
+          {mine
+            ? 'Changed your mind? Tap your pick again to take your vote back.'
+            : 'Tap an option to vote.'}
         </p>
       )}
 
@@ -312,10 +314,10 @@ export function PollSheet({
           disabled={busy}
           onClick={async () => {
             const r = await close.mutateAsync({ pollId: poll.id })
-            if (!r.ok) toast("Couldn't close it. Try again.")
+            if (!r.ok) toast("Couldn't end the voting. Try again.")
           }}
         >
-          Close poll
+          End voting
         </Button>
       ) : (
         <Button

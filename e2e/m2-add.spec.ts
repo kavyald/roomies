@@ -12,7 +12,7 @@ test('a need, a chore, and a task can each be added with just a title in 3 taps,
     ['A task', 'Fix the window latch', 'Done'],
   ] as const) {
     await addWithThreeTaps(page, tile, title)
-    const toast = page.getByRole('status').filter({ hasText: 'Added.' })
+    const toast = page.getByRole('status').filter({ hasText: 'Added to' })
     await expect(toast).toBeVisible()
     await toast.getByRole('button', { name: 'Open' }).click()
     const detail = page.getByRole('dialog', { name: title })
@@ -26,7 +26,7 @@ test('a need, a chore, and a task can each be added with just a title in 3 taps,
 test('adding a need that is already on the list points to it', async ({ page }) => {
   await ownerOnHouseTab(page)
   await addWithThreeTaps(page, 'A need', 'Tomatoes')
-  await expect(page.getByRole('status').filter({ hasText: 'Added.' })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'Added to' })).toBeVisible()
   await addWithThreeTaps(page, 'A need', 'tomatoes')
   const toast = page.getByRole('status').filter({ hasText: "That's already on the list." })
   await expect(toast).toBeVisible()
@@ -47,45 +47,47 @@ test('a task gets its details from "More options", and the detail sheet shows th
   await sheet.getByRole('button', { name: 'Add', exact: true }).click()
   await page
     .getByRole('status')
-    .filter({ hasText: 'Added.' })
+    .filter({ hasText: 'Added to' })
     .getByRole('button', { name: 'Open' })
     .click()
   const detail = page.getByRole('dialog', { name: 'Leak under the sink' })
   await expect(detail).toContainText('Kitchen')
-  await expect(detail).toContainText('One of us')
+  await expect(detail).toContainText('Any of us')
 
   await detail.getByRole('button', { name: 'Done', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Done. 💛' })).toBeVisible()
   await expect(detail.getByRole('button', { name: 'Not done after all' })).toBeVisible()
 })
 
-test('the detail sheet shows Edit and Delete as header icons, and the extras closed', async ({
+test('the detail sheet has Edit in the header and Delete apart, at the bottom', async ({
   page,
 }) => {
   const owner = await ownerOnHouseTab(page)
   await addWithThreeTaps(page, 'A task', 'Descale the kettel')
   await page
     .getByRole('status')
-    .filter({ hasText: 'Added.' })
+    .filter({ hasText: 'Added to' })
     .getByRole('button', { name: 'Open' })
     .click()
   let detail = page.getByRole('dialog', { name: 'Descale the kettel' })
   await expect(detail.getByRole('button', { name: 'Done', exact: true })).toBeVisible()
-  // Edit and Delete are the Pencil and Trash2 icons in the header (T68), not behind a menu.
+  // Edit is the header's Pencil (T68); Delete sits apart, at the bottom of the sheet (T111).
   await expect(detail.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
   await expect(detail.getByRole('button', { name: 'More actions' })).toHaveCount(0)
+  const editBox = await detail.getByRole('button', { name: 'Edit', exact: true }).boundingBox()
+  const deleteBox = await detail.getByRole('button', { name: 'Delete', exact: true }).boundingBox()
+  expect(deleteBox!.y).toBeGreaterThan(editBox!.y + 100)
 
-  // Costs is open, right under the main button, with Add cost in view (T104).
-  const costs = detail.getByRole('region', { name: 'Costs' })
-  await expect(costs.getByRole('button', { name: 'Add cost' })).toBeVisible()
+  // With no costs, Add cost is a link low in the sheet, below the feelings (T111).
+  await expect(detail.getByRole('region', { name: 'Costs' })).toHaveCount(0)
+  const addCost = await detail.getByRole('button', { name: 'Add cost' }).boundingBox()
+  const feels = await detail.getByRole('region', { name: 'How the house feels' }).boundingBox()
+  expect(addCost!.y).toBeGreaterThan(feels!.y)
 
-  // The Edit sheet has the same Costs section under the form (T104).
+  // The Edit sheet has Add cost under the form too (T104).
   await detail.getByRole('button', { name: 'Edit', exact: true }).click()
   await expect(
-    page
-      .getByRole('dialog', { name: 'Edit task' })
-      .getByRole('region', { name: 'Costs' })
-      .getByRole('button', { name: 'Add cost' }),
+    page.getByRole('dialog', { name: 'Edit task' }).getByRole('button', { name: 'Add cost' }),
   ).toBeVisible()
   await page.getByLabel('What needs doing?').fill('Descale the kettle')
   await page.getByRole('button', { name: 'Save' }).click()

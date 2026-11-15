@@ -1,7 +1,7 @@
 'use client'
 
 import { Link2 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { Button } from '@/components/ui/Button'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { useToast } from '@/components/ui/Toast'
@@ -10,6 +10,8 @@ import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
 import { validateInvite } from '@/lib/domain/invites'
 import { localDateOf } from '@/lib/domain/time'
+
+const noSubscribe = () => () => {}
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -33,6 +35,23 @@ export function InvitesSection({ houseId }: { houseId: HouseId }) {
     })
   }
 
+  // The share sheet where the phone has one (it has Copy in it too); Copy everywhere else.
+  // False on the server, so its render and the first client render agree.
+  const canShare = useSyncExternalStore(
+    noSubscribe,
+    () => typeof navigator.share === 'function',
+    () => false,
+  )
+
+  const share = async (url: string) => {
+    try {
+      await navigator.share({ title: `Join ${house.data?.name ?? 'the house'} on Roomies`, url })
+    } catch (e) {
+      // Closing the share sheet isn't a problem; anything else falls back to copying.
+      if (!(e instanceof DOMException && e.name === 'AbortError')) await copy(url)
+    }
+  }
+
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -54,14 +73,21 @@ export function InvitesSection({ houseId }: { houseId: HouseId }) {
         <div className="grid gap-2.5 rounded-[20px] border-[1.5px] border-outline bg-card p-3.5">
           <p className="m-0 text-sm font-semibold text-ink-soft">
             Share this in the group chat. It works for {house.data?.settings.inviteTtlDays ?? 7}{' '}
-            days, for up to {link.maxUses === 1 ? '1 person' : `${link.maxUses} people`}.
+            days, for up to {link.maxUses === 1 ? '1 person' : `${link.maxUses} people`}: one for
+            each free bedroom, so a forwarded link can&apos;t fill the house.
           </p>
           <p className="m-0 rounded-xl bg-paper px-3 py-2.5 font-mono text-sm break-all select-all">
             {link.url}
           </p>
-          <Button block onClick={() => copy(link.url)}>
-            Copy link
-          </Button>
+          {canShare ? (
+            <Button block onClick={() => share(link.url)}>
+              Share link
+            </Button>
+          ) : (
+            <Button block onClick={() => copy(link.url)}>
+              Copy link
+            </Button>
+          )}
         </div>
       ) : (
         <Button block variant="secondary" disabled={create.isPending} onClick={makeLink}>

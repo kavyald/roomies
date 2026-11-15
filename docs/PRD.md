@@ -160,9 +160,9 @@ Two concepts only: a **room** is where chores live, and a **routine** is who's r
 
 - Anything done once: fix the latch, get renter's insurance, assemble the vacuum, set up for the party.
 - **Optional "Handled by":** pick a **contact** (super, landlord, provider) when someone outside the house needs to do it. The task shows "Handled by: Super," the contact's number (copy button), and appears under the *Outside help* filter.
-  - **Setting it:** when adding the task, or **any time later** from the task's detail ("Needs outside help?" / "Change"). You can pick an existing contact, **add someone new** right there (name + optional phone, saved to Contacts), or switch back to "One of us." **[DECIDED] (owner)**
+  - **Setting it:** when adding the task, or **any time later** from the task's detail, where it's one field with the assignee, **Who's doing it** (T111): any of us, a roommate, or a contact. You can pick an existing contact, **add someone new** right there (name + optional phone, saved to Contacts), or switch back to "Any of us." **I'll do it** claims an unclaimed task in one tap. **[DECIDED] (owner)**
   - Planning a visit or adding it to a contact's list also sets it.
-  - **While the task is on a request or visit, "Handled by" follows that run.** To change it, move the task (Move to…, Back to the pool…, Hand to…); "Who's handling it?" says so and opens the run.
+  - **While the task is on a request or visit, "Handled by" follows that run.** To change it, move the task (Move to…, Back to the pool…, Hand to…); "Who's doing it?" says so and opens the run.
 - **"Handled by" is who *should* handle it.** Whether they've actually taken it on is tracked by the **request** and **visit** it's on (§6.5): *on the landlord list · not sent* → *sent to landlord · 2 days ago* → *landlord visit · Thu 10:00* → *fixed*.
 - **"Add to Landlord list"** on a task with a contact puts it on that contact's unsent request (starting one if needed).
 - Tasks can have a date (shows on the calendar) and an assignee.
@@ -208,7 +208,7 @@ A run is **a batch of items handled together**. There are three kinds:
 - **Bulk by design:** one reply usually covers several tasks, so every action works on a selection.
 - **A request closes on its own** once nothing is left on it.
 - **History:** each task keeps a history of every request and visit it passed through, with the notes ("Sent to landlord by text → Moved to Landlord visit · Sending a plumber → Fixed").
-- The same actions work in batches and visits too (e.g. move an item from Wren's run to Saturday's run). In a batch they sit behind **Move or put back…**, since a tap on a row there marks it done.
+- The same actions work in batches and visits too (e.g. move an item from Wren's run to Saturday's run). In a batch they sit behind **Move some, or put them back**, since a tap on a row there marks it done.
 
 **Visits and batches**
 - **Planning a visit** directly (when they've already agreed): the **+** → *A poll or a run instead?* → **A request** → *They've agreed (visit)*. It's also created by "Move to a visit → New visit."

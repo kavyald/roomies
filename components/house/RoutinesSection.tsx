@@ -9,7 +9,6 @@ import { ChoreIcon } from '@/components/ui/ChoreIcon'
 import { ChoreIconPicker, iconFor } from '@/components/ui/ChoreIconPicker'
 import { cn } from '@/components/ui/cn'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { IconButton } from '@/components/ui/IconButton'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
@@ -299,15 +298,6 @@ function RoutineSheet({
       onOpenChange={(o) => !o && onClose()}
       title={routine ? routine.name : 'New routine'}
       {...(!routine && { description: 'Group rooms someone looks after.' })}
-      actions={
-        routine && !confirmRemove ? (
-          <IconButton
-            icon={Trash2}
-            label="Remove this routine"
-            onClick={() => setConfirmRemove(true)}
-          />
-        ) : undefined
-      }
     >
       {confirmRemove ? (
         <RemoveConfirm
@@ -374,6 +364,17 @@ function RoutineSheet({
             onChange={setPickedPerson}
           />
           <RoomTicks ctx={ctx} routine={routine} value={roomIds} onToggle={toggleRoom} />
+          {routine && (
+            // Apart from the header's Save check, at the bottom (T111).
+            <button
+              type="button"
+              className="flex min-h-[44px] items-center gap-1.5 justify-self-start text-sm font-bold text-ink-soft"
+              onClick={() => setConfirmRemove(true)}
+            >
+              <Trash2 aria-hidden className="size-4" />
+              Remove this routine
+            </button>
+          )}
           <SheetSave
             label={routine ? 'Save' : 'Add'}
             form="routine-form"

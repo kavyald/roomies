@@ -57,6 +57,37 @@ export function CodeField({
   )
 }
 
+/** Under the code field, on sign-in and joining: start over with another email, or resend. */
+export function CodeLinks({
+  onDifferentEmail,
+  onResend,
+  pending,
+}: {
+  onDifferentEmail: () => void
+  onResend: () => void
+  pending: boolean
+}) {
+  return (
+    <div className="flex justify-between gap-3 text-sm font-bold">
+      <button
+        type="button"
+        className="min-h-[44px] text-accent-ink underline"
+        onClick={onDifferentEmail}
+      >
+        Use a different email
+      </button>
+      <button
+        type="button"
+        className="min-h-[44px] text-accent-ink underline"
+        disabled={pending}
+        onClick={onResend}
+      >
+        Send a new code
+      </button>
+    </div>
+  )
+}
+
 export function FormMessage({ children }: { children: React.ReactNode }) {
   return (
     <p role="alert" className="m-0 font-bold text-ink-soft">

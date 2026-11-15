@@ -27,10 +27,31 @@ describe('JoinFlow', () => {
 
     expect(screen.getByLabelText('Your name')).toHaveProperty('value', 'Wren')
     const join = screen.getByRole('button', { name: 'Join the house' })
+    // Nothing is picked until you pick (T111): a room, or "None of these".
+    expect(join).toHaveProperty('disabled', true)
+    const none = screen.getByRole('radio', { name: 'None of these' })
+    expect(none.getAttribute('aria-checked')).toBe('false')
+    await user.click(none)
+    expect(none.getAttribute('aria-checked')).toBe('true')
     expect(join).toHaveProperty('disabled', false)
     await user.click(join)
     expect(acceptJoin).toHaveBeenCalledWith('t', { displayName: 'Wren' })
     // Onboarding comes before the app (T110).
     await vi.waitFor(() => expect(replace).toHaveBeenCalledWith('/h/house-1/welcome'))
+  })
+
+  it('offers another email or a new code on the code step, as sign-in does', async () => {
+    const user = userEvent.setup()
+    const { startJoin } = await import('@/app/actions/invites')
+    vi.mocked(startJoin).mockResolvedValue({ ok: true, value: undefined } as never)
+    render(<JoinFlow token="t" bedrooms={bedrooms} signedIn={false} />)
+    await user.type(screen.getByLabelText('Your name'), 'Wren')
+    await user.type(screen.getByLabelText('Your email'), 'wren@example.com')
+    await user.click(screen.getByRole('button', { name: 'Send me a code' }))
+
+    await user.click(await screen.findByRole('button', { name: 'Send a new code' }))
+    expect(startJoin).toHaveBeenCalledTimes(2)
+    await user.click(screen.getByRole('button', { name: 'Use a different email' }))
+    expect(screen.getByLabelText('Your email')).toHaveProperty('value', 'wren@example.com')
   })
 })

@@ -30,7 +30,7 @@ test('the header check saves a form sheet; there is no bottom Save and no X', as
   await sheet.getByLabel('What do we need?').fill('Dish soap')
   await check.click()
   await expect(sheet).toBeHidden()
-  await expect(page.getByRole('status').filter({ hasText: 'Added.' })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'Added to Needs.' })).toBeVisible()
 
   // Enter in the title still submits through the header check.
   await openAddSheet(page)

@@ -26,7 +26,8 @@ export function BedroomPicker({
   noneLabel = 'None of these',
 }: {
   options: readonly BedroomOption[]
-  value: string | null
+  /** A room's key, null for the "none" choice, or undefined while nothing is picked yet. */
+  value: string | null | undefined
   onChange: (key: string | null) => void
   noneLabel?: string
 }) {
@@ -71,10 +72,18 @@ export function BedroomPicker({
         aria-checked={value === null}
         onClick={() => onChange(null)}
         className={cn(
-          'min-h-11 rounded-2xl px-3.5 py-2 text-left font-bold text-ink-soft',
-          value === null && 'bg-neutral-fill text-neutral-ink',
+          'flex min-h-[44px] items-center gap-3 rounded-2xl px-3.5 py-2 text-left font-bold text-ink-soft',
+          value === null && 'bg-paper text-ink shadow-[inset_0_0_0_2px_var(--accent)]',
         )}
       >
+        <span
+          className={cn(
+            'grid size-8 place-items-center rounded-full',
+            value === null ? 'bg-accent text-on-accent' : 'bg-neutral-fill',
+          )}
+        >
+          {value === null ? <Check aria-hidden className="size-4" /> : null}
+        </span>
         {noneLabel}
       </button>
     </div>

@@ -93,7 +93,7 @@ test('"Which vacuum?" on a need and a standalone "House name?" both work, and 2â
 
   await openPolls.getByRole('button', { name: /^House name\?/ }).click()
   poll = page.getByRole('dialog', { name: 'House name?' })
-  await poll.getByRole('button', { name: 'Close poll' }).click()
+  await poll.getByRole('button', { name: 'End voting' }).click()
   await expect(poll.getByRole('status')).toHaveText("It's a tie. Talk it out?")
   await page.keyboard.press('Escape')
   // Closed, it stays on House under the open ones, with its result.
@@ -103,6 +103,6 @@ test('"Which vacuum?" on a need and a standalone "House name?" both work, and 2â
 
   await openPolls.getByRole('button', { name: /^Which vacuum\?/ }).click()
   poll = page.getByRole('dialog', { name: 'Which vacuum?' })
-  await poll.getByRole('button', { name: 'Close poll' }).click()
+  await poll.getByRole('button', { name: 'End voting' }).click()
   await expect(poll.getByRole('status')).toHaveText('Dyson V8 wins (1â€“0)')
 })

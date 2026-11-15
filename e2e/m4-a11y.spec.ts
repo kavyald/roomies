@@ -258,12 +258,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
     const run = page.getByRole('dialog', { name: "Kavya's run" })
     await run.getByLabel('Spent (optional)').fill('12')
     await check(page, 'run sheet (one-tap rows, Spent beside Finish)')
-    await run.getByRole('button', { name: "Change who's on it" }).click()
+    // One editor for the name and who's on it (T111).
+    await run.getByRole('button', { name: 'Edit this run' }).click()
     await expect(run.getByLabel("Who's on it?", { exact: true })).toBeVisible()
-    await check(page, 'run sheet (point person)')
-    await run.getByRole('button', { name: 'Rename this run' }).click()
     await expect(run.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
-    await check(page, 'run sheet (rename)')
+    await check(page, 'run sheet (edit)')
 
     // The poll sheet (T55): voted (the take-it-back hint), the deadline editor, and closed.
     await page.goto(h)
@@ -281,7 +280,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expect(pollSheet.getByLabel('Closes', { exact: true })).toBeVisible()
     await check(page, 'poll sheet (deadline)')
     await pollSheet.getByRole('button', { name: 'Cancel' }).click()
-    await pollSheet.getByRole('button', { name: 'Close poll' }).click()
+    await pollSheet.getByRole('button', { name: 'End voting' }).click()
     await expect(pollSheet.getByRole('button', { name: 'Reopen poll' })).toBeVisible()
     await check(page, 'poll sheet (closed)')
   })
