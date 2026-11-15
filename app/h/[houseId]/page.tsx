@@ -7,8 +7,10 @@ import type { HouseId } from '@/lib/domain/ids'
 export const metadata = { title: 'House · Roomies' }
 
 /** The House tab (T107): the first tab, and where opening the app lands. */
-export default async function HousePage({ params }: PageProps<'/h/[houseId]'>) {
+export default async function HousePage({ params, searchParams }: PageProps<'/h/[houseId]'>) {
   const { houseId } = await params
+  // An item's "How feelings raise priority" link lands here with ?priority (T108).
+  const showWeights = 'priority' in (await searchParams)
   return (
     <main>
       <ScreenHeader
@@ -20,7 +22,7 @@ export default async function HousePage({ params }: PageProps<'/h/[houseId]'>) {
           </div>
         }
       />
-      <HouseScreen houseId={houseId as HouseId} />
+      <HouseScreen houseId={houseId as HouseId} showWeights={showWeights} />
     </main>
   )
 }

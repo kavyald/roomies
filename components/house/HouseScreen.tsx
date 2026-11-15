@@ -41,7 +41,14 @@ function SetupGroup({ title, children }: { title: string; children: ReactNode })
  * The House tab (FRONTEND §5.1, T107; Admin before): polls, the feeling-weights card, Calendar and
  * Activity, then the house's setup in four labelled groups. Nothing personal: that's on You.
  */
-export function HouseScreen({ houseId }: { houseId: HouseId }) {
+export function HouseScreen({
+  houseId,
+  showWeights,
+}: {
+  houseId: HouseId
+  /** Opened from an item's "How feelings raise priority" link (`?priority`, T108). */
+  showWeights?: boolean
+}) {
   const members = useMembers(houseId)
   const contacts = useContacts(houseId)
   const routines = useRoutines(houseId)
@@ -122,7 +129,7 @@ export function HouseScreen({ houseId }: { houseId: HouseId }) {
       </SetupGroup>
 
       <SetupGroup title="Priority">
-        <FeelingWeightsRow houseId={houseId} />
+        <FeelingWeightsRow houseId={houseId} linked={showWeights} />
       </SetupGroup>
     </div>
   )

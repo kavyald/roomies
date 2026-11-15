@@ -8,17 +8,23 @@ import {
   type FeelingKind,
   type FeelingWeights,
 } from './feelings'
+import { nearDay } from './format'
 import type { UserId } from './ids'
 import type { Item, Priority } from './items'
-import { daysBetween, localDateOf, type Instant } from './time'
+import { daysBetween, localDateOf, type Instant, type LocalDate } from './time'
 
-export type Tier = 'top' | 'high' | 'normal' | 'low'
+/**
+ * What a score means (T108): Urgent (≥ 70) and Soon (45–69) get a chip on a card; Normal and Low
+ * show nothing.
+ */
+export type Tier = 'urgent' | 'soon' | 'normal' | 'low'
 
-/** One line of "Why is this here?". */
+/** One line of "Why it's near the top". */
 export type ScorePart =
   | { readonly kind: 'base'; readonly priority: Priority; readonly points: number }
   | {
       readonly kind: 'due'
+      readonly date: LocalDate
       /** Days until it's due (negative: days past). */
       readonly days: number
       readonly points: number
@@ -54,13 +60,13 @@ export const duePoints = (days: number): number =>
           : 0
 
 export const tierOf = (score: number): Tier =>
-  score >= 70 ? 'top' : score >= 45 ? 'high' : score >= 20 ? 'normal' : 'low'
+  score >= 70 ? 'urgent' : score >= 45 ? 'soon' : score >= 20 ? 'normal' : 'low'
 
 const dueOf = (item: Item, now: Instant, tz: string): ScorePart | null => {
   if (item.category === 'chore' || !item.when) return null
   const days = daysBetween(localDateOf(now, tz), item.when.date)
   const points = duePoints(days)
-  return points ? { kind: 'due', days, points } : null
+  return points ? { kind: 'due', date: item.when.date, days, points } : null
 }
 
 /**
@@ -87,32 +93,36 @@ export const scorePriority = (
   return { score, tier: tierOf(score), breakdown }
 }
 
-// ---- "Why is this here?" -------------------------------------------------------------------
+// ---- "Why it's near the top" ----------------------------------------------------------------
 
 const PRIORITY_LABEL: Record<Priority, string> = {
   low: 'Low priority',
   normal: 'Normal priority',
   high: 'High priority',
-  urgent: 'Urgent',
+  urgent: 'Urgent priority',
 }
 
-const dayCount = (n: number) => (n === 1 ? '1 day' : `${n} days`)
-
-/** The words for one part of the breakdown, without its points ("Due tomorrow", "😰 Maya"). */
+/**
+ * The words for one part of the breakdown, never its points (T108): "Normal priority", "Maya is
+ * 😰", "Due Friday", "Was due yesterday".
+ */
 export const describePart = (part: ScorePart, name: (id: UserId) => string): string => {
   switch (part.kind) {
     case 'base':
       return PRIORITY_LABEL[part.priority]
     case 'feeling':
-      return `${FEELING_META[part.feeling].emoji} ${name(part.by)}`
+      return `${name(part.by)} is ${FEELING_META[part.feeling].emoji}`
     case 'due':
-      if (part.days < 0)
-        return part.days === -1 ? 'Was due yesterday' : `Was due ${dayCount(-part.days)} ago`
       if (part.days === 0) return 'Due today'
       if (part.days === 1) return 'Due tomorrow'
-      return `Due in ${dayCount(part.days)}`
+      if (part.days === -1) return 'Was due yesterday'
+      return `${part.days < 0 ? 'Was due' : 'Due'} ${nearDay(part.date, part.days)}`
   }
 }
+
+/** The tier a card shows a chip for (T108): Urgent or Soon; Normal and Low show none. */
+export const chipTier = (tier: Tier): 'urgent' | 'soon' | undefined =>
+  tier === 'urgent' || tier === 'soon' ? tier : undefined
 
 /** "+25", "−5". */
 export const signedPoints = (n: number): string => (n < 0 ? `−${-n}` : `+${n}`)

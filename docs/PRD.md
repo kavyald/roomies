@@ -93,11 +93,11 @@ Needs, chores, and tasks are **items**. Any roommate can attach a **feeling** (e
 | Tab | Contents |
 |---|---|
 | **House** | Where the app opens. **Polls** (open ones first with how many have voted, then the latest closed ones, and **New poll**), the "feeling weights changed" card, **Calendar** ("3 this week") and **Activity**, then the house's setup in labelled groups: **People** (Roommates and the invite link for organizers; Contacts), **Chores** (Routines, Rooms), **Money** (the Splitwise group) and **Priority** (how feelings raise priority: the feeling weights). Everyone sees this tab and can change everything on it except the invite link and roommate controls, which are the organizer's. Nothing personal: that's on **You** (your avatar, top right). |
-| **Needs** | **Runs in progress** (open batches, plus visits dated in the next 7 days), then the shared list of things to buy. Needs with a feeling come first. **Start a run** from here. |
-| **Tasks** | **Requests & visits** (unsent and sent requests, planned visits) with **+ New** (start a request or plan a visit), then tasks with filters *Mine / All / Outside help* |
-| **Chores** | Who has which rooms this period, as cards, and the shared Upkeep list below |
+| **Needs** | **Runs in progress** (open batches), then the shared list of things to buy, ranked by priority (§8.1). **Start a run** from here. |
+| **Tasks** | **Coming up** (visits dated in the next 7 days), then tasks ranked by priority with filters *Mine / All / Outside help*, then the other open **Requests & visits** (unsent and sent requests, later visits). Requests and visits start from the + or from a task (T108). |
+| **Chores** | Who has which rooms this period, as cards, and the shared Upkeep list below, ranked by priority |
 
-There is no Home feed (T107, D43): each tab's list is the place for its kind, and an item's priority shows on its detail (**Why is this here?**). Calendar, Activity and You open over House with a back button to it; old Home and Admin links land on House.
+There is no Home feed (T107, D43): each tab ranks its own kind by priority (T108, D44), and an item's detail says why (**Why it's near the top**). A tab with something Urgent on it carries a dot. Calendar, Activity and You open over House with a back button to it; old Home and Admin links land on House.
 
 A floating **"+"** on Needs, Tasks and Chores opens that tab's form (a need, a task, a chore). Only the title is required. Polls start from House, runs from Needs.
 
@@ -191,7 +191,7 @@ A run is **a batch of items handled together**. There are three kinds:
 **Responsibility moves when a task moves from a request to a visit.** Before that, it's still on the house.
 
 **Requests**
-- **Starting one:** Tasks → Requests & visits → **+ New** → *Ask someone (request)* → pick a contact (or add someone new) and any tasks. It can start empty. Or tap "Add to Landlord list" on a task, or use "Hand to…" from another run.
+- **Starting one:** the **+** → *A poll or a run instead?* → **A request** (T108; Requests & visits had a + New before) → *Ask someone (request)* → pick a contact (or add someone new) and any tasks. It can start empty. Or tap "Add to Landlord list" on a task, or use "Hand to…" from another run.
 - **Gathering:** anyone can add tasks while it's unsent.
 - **Send request** builds a message (a numbered list with rooms and notes), which you copy and send by text, email, the portal, or in person. **Roomies never sends on your behalf.** "Mark as sent" records when and how.
 - **Waiting:** the request shows "Sent 2 days ago · waiting on 3." There's no automatic nudge in v1.
@@ -211,13 +211,13 @@ A run is **a batch of items handled together**. There are three kinds:
 - The same actions work in batches and visits too (e.g. move an item from Wren's run to Saturday's run). In a batch they sit behind **Move or put back…**, since a tap on a row there marks it done.
 
 **Visits and batches**
-- **Planning a visit** directly (when they've already agreed): Tasks → Requests & visits → **+ New** → *They've agreed (visit)*. It's also created by "Move to a visit → New visit."
+- **Planning a visit** directly (when they've already agreed): the **+** → *A poll or a run instead?* → **A request** → *They've agreed (visit)*. It's also created by "Move to a visit → New visit."
 - **Requests and visits hold tasks only.** Needs and chores stay in batches.
 - **Finishing:** mark things done or fixed as you go, then **Finish**. Anything left goes back to the pool with the note "Not done this time."
 - **Batches** have an optional **Spent** amount beside **Finish** ("Did you spend money?" without a separate step): an amount records one cost paid by you (who paid can be changed), and leaving it empty records none (§6.6).
 - **Fewer taps:** *Start a run* opens with every open need not already on a run checked, and in a batch tapping an item marks it done (tap again to put it back on the run). A grocery run (start, get 3 things, finish with $40) is about 6 taps.
 - While open, items show **"On Kavya's run"** or **"Sent to Landlord · 2 days ago"** so nobody doubles up. **An item can be on only one open run at a time.**
-- Runs with a date show on the calendar; open batches and visits dated in the next 7 days also show on Needs under Runs in progress.
+- Runs with a date show on the calendar; open batches also show on Needs under Runs in progress, and visits dated in the next 7 days on Tasks under Coming up (T108).
 
 ### 6.6 Money (costs)
 
@@ -268,7 +268,7 @@ The weights are editable (§8.2).
 
 ### 8.1 Formula
 
-The score is computed when it's shown (an item's **Why is this here?**), because it depends on today's date.
+The score is computed when it's shown (each tab's order and an item's **Why it's near the top**), because it depends on today's date.
 
 ```
 score = base(priority) + due_pressure(when) + Σ feeling_weight(each member's active feeling)
@@ -281,15 +281,15 @@ clamped to 0–100
 | due pressure | overdue: +35, +2/day overdue (up to +15 more) · due today: +25 · within 3 days: +15 · within 7 days: +5 · no date: 0. Chores have none. |
 | feelings | from the **feeling weights** setting (§8.2). Only **active** feelings count: on a chore, those shared after it was last done (§7) |
 
-Users see a **tier**: ●● **Top** (≥ 70), **High** (45–69), **Normal** (20–44), **Low** (< 20). Tapping it shows **"Why is this here?"**, the breakdown (e.g. "Due tomorrow +25, 😰 Maya +20").
+Users see a **tier**: ●● **Urgent** (≥ 70), **Soon** (45–69), Normal (20–44), Low (< 20). Only Urgent and Soon get a chip on a card; Normal and Low show nothing (T108). An item's **"Why it's near the top"** says what moved it, in words rather than points ("Normal priority", "Maya is 😰", "Due Friday"), and links to House → How feelings raise priority, which gives the scale ("Items start at 25 out of 100; each feeling adds this much").
 
-**No feed (T107, D43):** Home and its ranked list are gone, so there is no rule for what's in a feed. Each tab lists all of its kind; Needs puts the ones people feel about first, by their feelings' weights (§8.2).
+**Each tab ranks (T108, D44):** Home and its feed are gone (T107, D43), so each list ranks itself: Needs, Tasks and Chores' Upkeep list are ordered by score, highest first (equal scores by date, then newest). Every open item shows; nothing is left out for its score. A dot on the Needs, Tasks or Chores tab says something on it is Urgent (on Chores, in Upkeep: routine rooms aren't ranked).
 
 ### 8.2 Settings: feeling weights **[DECIDED] (owner)**
 
 - **House → Priority** ("How feelings raise priority", showing today's weights) opens **Feeling weights**: one row per feeling with its emoji, name, and a number (−20 to +40, in steps of 5), plus **Reset to defaults**.
 - **One setting for the whole house.** **Any member** can change it. **(owner)**
-- Saving changes everyone's priorities (and the order of felt needs on Needs), is logged, and shows a card on House ("Maya set 😰 Anxious to +30"). Everyone else also gets a push ("Maya set 😰 to +30", §11, D32).
+- Saving changes everyone's priorities (and the order of every tab), is logged, and shows a card on House ("Maya set 😰 Anxious to +30"). Everyone else also gets a push ("Maya set 😰 to +30", §11, D32).
 - The other parts of the formula are fixed in v1.
 
 ---
@@ -422,6 +422,7 @@ Everything below was designed and decided in earlier drafts. It's parked, not dr
 | D35 | Built from the docs↔code audit: conflict detection on edits, "Handled by" follows the run, an app-wide CSP, `security_events`, undo "Did it", poll withdraw / reopen / deadline, run rename and point person, cost edit and remove, poll and run deep links, notification settings in one section (T50–T58, T61) | Owner |
 | D36 | A feedback button (bug / idea / praise) at the top right of Admin (House since T107), saved for the owner in Supabase, with the sender, house, app version and browser (§6.8, T91) | Owner |
 | D37 | Feelings on a chore count only if shared after it was last done; 😰/😤 on a chore notifies every active member, not an assignee. Reopening a need or a task is an undo, so its feelings count again (§7, §8.1, T99) | Owner |
+| D44 | Each tab ranks by priority: Needs, Tasks and Chores' Upkeep list are ordered by score (§8.1), and every open item shows. Only **Urgent** and **Soon** get a chip (the tiers were Top / High / Normal / Low; Normal shows nothing now). A dot on a tab with something Urgent. Tasks shows visits coming up this week first and has one add button, the +; requests and visits start from its sheet or from a task. "Why is this here?" becomes **Why it's near the top**, in words, not points (T108, 2026-11-15) | Owner |
 | D43 | Four tabs, **House · Needs · Tasks · Chores**, House first and where the app opens. Home and its ranked feed are removed (the feed rule hid items from newcomers); Admin becomes House: polls, Calendar and Activity on top, then the house's setup in labelled groups, and nothing personal (sign out and delete account are on You). Runs in progress moves to Needs. The + shows on Needs, Tasks and Chores only. Supersedes the M7 tab set (§4.3, T107, 2026-11-14) | Owner |
 | D42 | Allowed means on: a device that allows Roomies connects itself to whoever is signed in when the app opens, with no Turn on tap (§11, T95) | Owner |
 | D41 | Notifications are asked about in onboarding, right after joining or setup and before the app opens (owner, T110), after a welcome that says what each tab is for. Members who never answered on a device are asked once, the first time the app opens there with push off, but only with the question: a blocked or unsupported device gets no sheet on open, so nobody's first screen is "Notifications are blocked" (T110); You → Notifications has the steps. Any answer, including closing the sheet, is remembered on the device (§11, T95) | Owner (T110); the once-per-device sheet was a build call (T95) |

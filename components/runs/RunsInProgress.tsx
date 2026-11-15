@@ -8,21 +8,17 @@ import { cn } from '@/components/ui/cn'
 import { useHouse, useItems, useRunActivity, useRuns } from '@/lib/client/hooks'
 import { useNow } from '@/lib/client/use-now'
 import { describeWhen } from '@/lib/domain/format'
-import { homeRuns } from '@/lib/domain/calendar'
+import { runsInProgress } from '@/lib/domain/calendar'
 import type { HouseId } from '@/lib/domain/ids'
 import { runLedger, runProgress, runSteps, type Run } from '@/lib/domain/runs'
-import { localDateOf } from '@/lib/domain/time'
 
 /**
  * "Runs in progress" on Needs (FRONTEND §5.5, T107; on Home before): "Wren's grocery run · 1/3 · Sat".
- * Every open batch, plus visits dated this week.
+ * Every open batch; visits coming up are on Tasks (T108).
  */
 export function RunsInProgress({ houseId, className }: { houseId: HouseId; className?: string }) {
   const runs = useRuns(houseId)
-  const house = useHouse(houseId)
-  const now = useNow()
-  if (!house.data) return null
-  const open = homeRuns(runs.data ?? [], localDateOf(now, house.data.settings.timezone))
+  const open = runsInProgress(runs.data ?? [])
   if (open.length === 0) return null
   return (
     <section aria-labelledby="runs-in-progress" className={cn('grid gap-2.5', className)}>

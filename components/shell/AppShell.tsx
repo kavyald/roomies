@@ -8,14 +8,24 @@ import { InstallGuide } from './InstallGuide'
 import { NotificationsPrompt } from './NotificationsPrompt'
 import { useItemSheets } from '@/components/items/ItemSheets'
 import { addKindFor, houseTabs } from './tabs'
+import { useUrgentTabs } from './useUrgentTabs'
+import type { HouseId } from '@/lib/domain/ids'
 
 /**
  * The signed-in frame: safe-area padding, the 4-tab bar, the + (on Needs, Tasks and Chores only,
  * T107), the install nudge and the notifications prompt.
  */
-export function AppShell({ base, children }: { base: string; children: ReactNode }) {
+export function AppShell({
+  houseId,
+  base,
+  children,
+}: {
+  houseId: HouseId
+  base: string
+  children: ReactNode
+}) {
   const pathname = usePathname()
-  const tabs = houseTabs(base)
+  const tabs = houseTabs(base, useUrgentTabs(houseId))
   const { openAdd } = useItemSheets()
   // The deepest tab whose href starts the path (House is the base itself, so Activity, Calendar
   // and You sit under it).

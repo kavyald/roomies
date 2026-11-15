@@ -1,7 +1,7 @@
 'use client'
 
 import { Minus, Plus, SlidersHorizontal } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { ListRow } from '@/components/ui/ListRow'
 import { Sheet, SheetSave } from '@/components/ui/Sheet'
@@ -14,16 +14,26 @@ import {
   type FeelingWeights,
 } from '@/lib/domain/feelings'
 import type { HouseId } from '@/lib/domain/ids'
-import { signedPoints } from '@/lib/domain/priority'
+import { BASE_POINTS, signedPoints } from '@/lib/domain/priority'
 import { stepWeight, WEIGHT_MAX, WEIGHT_MIN } from '@/lib/domain/weights'
 
 /**
  * House → Priority (PRD §8.2, T107): one row, "How feelings raise priority", showing today's
  * feeling weights; it opens the sheet. The one setting any member can change. Sits in a ListGroup.
  */
-export function FeelingWeightsRow({ houseId }: { houseId: HouseId }) {
+export function FeelingWeightsRow({ houseId, linked }: { houseId: HouseId; linked?: boolean }) {
   const house = useHouse(houseId)
-  const [open, setOpen] = useState(false)
+  // An item's "How feelings raise priority" link (`?priority`, T108) opens the sheet; the URL then
+  // goes back to plain House, so a reload doesn't open it again.
+  const [open, setOpen] = useState(!!linked)
+  const [wasLinked, setWasLinked] = useState(linked)
+  if (linked !== wasLinked) {
+    setWasLinked(linked)
+    if (linked) setOpen(true)
+  }
+  useEffect(() => {
+    if (linked) window.history.replaceState(null, '', `/h/${houseId}`)
+  }, [linked, houseId])
   if (!house.data) return null
   const weights = house.data.settings.feelingWeights
   return (
@@ -73,6 +83,9 @@ function FeelingWeightsSheet({
       title="Feeling weights"
       description="One setting for the whole house. Anyone can change it."
     >
+      <p className="m-0 text-sm font-semibold text-ink-soft">
+        Items start at {BASE_POINTS.normal} out of 100; each feeling adds this much.
+      </p>
       <ul aria-label="Feeling weights" className="m-0 grid list-none gap-1 p-0">
         {FEELING_KINDS.map((k) => {
           const { emoji, label } = FEELING_META[k]

@@ -1,6 +1,6 @@
 'use client'
 
-import { BarChart3, Copy, Pencil, ShoppingCart, Trash2 } from 'lucide-react'
+import { BarChart3, Copy, Pencil, Send, ShoppingCart, Trash2 } from 'lucide-react'
 import {
   createContext,
   useCallback,
@@ -45,6 +45,7 @@ import { ItemCosts } from '@/components/costs/ItemCosts'
 import { ItemPolls } from '@/components/polls/ItemPolls'
 import { NewPollSheet } from '@/components/polls/NewPollSheet'
 import { PollSheet } from '@/components/polls/PollSheet'
+import { NewRunSheet } from '@/components/runs/NewRunSheet'
 import { RunSheet } from '@/components/runs/RunSheet'
 import { StartRunSheet } from '@/components/runs/StartRunSheet'
 import { ItemRunPath } from '@/components/runs/ItemRunPath'
@@ -107,6 +108,8 @@ export function ItemSheetsProvider({
   const [open, setOpen] = useState<{ id: ItemId; note?: boolean } | null>(null)
   const [runId, setRunId] = useState<RunId | null>(null)
   const [starting, setStarting] = useState(false)
+  // New request or visit, from the + sheet's tile (T108: Tasks has no New button of its own).
+  const [asking, setAsking] = useState(false)
   const [pollId, setPollId] = useState<PollId | null>(null)
   const [newPoll, setNewPoll] = useState<{ about?: { id: ItemId; title: string } } | null>(null)
   const sheets = useMemo<Sheets>(
@@ -151,6 +154,20 @@ export function ItemSheetsProvider({
           onRun={() => {
             setAdding(null)
             setStarting(true)
+          }}
+          onRequest={() => {
+            setAdding(null)
+            setAsking(true)
+          }}
+        />
+      )}
+      {asking && (
+        <NewRunSheet
+          houseId={houseId}
+          onClose={() => setAsking(false)}
+          onCreated={(id) => {
+            setAsking(false)
+            setRunId(id)
           }}
         />
       )}
@@ -209,6 +226,7 @@ function AddSheet({
   onOpen,
   onPoll,
   onRun,
+  onRequest,
 }: {
   houseId: HouseId
   initialCategory?: Category
@@ -216,6 +234,7 @@ function AddSheet({
   onOpen: (id: ItemId) => void
   onPoll: () => void
   onRun: () => void
+  onRequest: () => void
 }) {
   const [category, setCategory] = useState<Category | null>(initialCategory ?? null)
   const create = useCreateItem(houseId)
@@ -242,7 +261,7 @@ function AddSheet({
 
   if (!category) {
     const tiles: {
-      key: Category | 'poll' | 'run'
+      key: Category | 'poll' | 'run' | 'request'
       label: string
       blurb: string
       icon: typeof ShoppingCart
@@ -253,6 +272,7 @@ function AddSheet({
       { key: 'task', label: 'A task', blurb: 'A one-off', icon: CATEGORY.task.icon },
       { key: 'poll', label: 'A poll', blurb: 'A question', icon: BarChart3 },
       { key: 'run', label: 'A run', blurb: 'A batch', icon: ShoppingCart },
+      { key: 'request', label: 'A request', blurb: 'Or a visit', icon: Send },
     ]
     return (
       <Sheet open onOpenChange={(o) => !o && onClose()} title="Add something">
@@ -263,7 +283,13 @@ function AddSheet({
               type="button"
               disabled={t.soon}
               onClick={() =>
-                t.key === 'poll' ? onPoll() : t.key === 'run' ? onRun() : setCategory(t.key)
+                t.key === 'poll'
+                  ? onPoll()
+                  : t.key === 'run'
+                    ? onRun()
+                    : t.key === 'request'
+                      ? onRequest()
+                      : setCategory(t.key)
               }
               className="sticker grid gap-2 rounded-[20px] bg-paper px-3.5 py-4 text-left font-extrabold shadow-[inset_0_0_0_1.5px_var(--line),0_2px_0_var(--line)] disabled:opacity-50"
             >
@@ -725,7 +751,12 @@ function ItemDetailSheet({
       />
       <DisclosureGroup>
         {isOpen(item) && (
-          <WhyHere houseId={houseId} item={item} name={(u) => nameOf(u) ?? 'Former roommate'} />
+          <WhyHere
+            houseId={houseId}
+            item={item}
+            name={(u) => nameOf(u) ?? 'Former roommate'}
+            onLeave={onClose}
+          />
         )}
         <ItemPolls houseId={houseId} item={item} />
         <ItemRunPath houseId={houseId} itemId={item.id} />

@@ -6,37 +6,43 @@ import { useItemSheets } from '@/components/items/ItemSheets'
 import { ItemCard } from '@/components/items/ItemCard'
 import { whenLabel } from '@/components/items/meta'
 import { useCardContext } from '@/components/items/useCardContext'
-import { RequestsAndVisits } from '@/components/runs/RequestsAndVisits'
-import { Button } from '@/components/ui/Button'
+import { ComingUpVisits, RequestsAndVisits } from '@/components/runs/RequestsAndVisits'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { useCelebrate, useToast } from '@/components/ui/Toast'
 import {
+  useRanking,
+  useFeelingsByItem,
   useHouse,
   useItems,
   useMarkDone,
   useReopenItem,
-  useFeelingsByItem,
 } from '@/lib/client/hooks'
 import { useAppClient } from '@/lib/client/provider'
 import { useNow } from '@/lib/client/use-now'
 import type { HouseId } from '@/lib/domain/ids'
 import { taskList, type TaskFilter } from '@/lib/domain/lists'
+import { chipTier } from '@/lib/domain/priority'
 
 const EMPTY: Record<TaskFilter, string> = {
-  all: 'No tasks right now. Add one when something needs doing.',
+  all: 'No tasks right now. Add one with the + when something needs doing.',
   mine: "Nothing's on you right now.",
   outside: 'Nothing is waiting on outside help.',
 }
 
-/** Tasks (FRONTEND §5.7): Mine / All / Outside help. Requests & visits join in T30. */
+/**
+ * Tasks (FRONTEND §5.7, T108): visits coming up this week, then Mine / All / Outside help, ranked
+ * by priority with an Urgent or Soon chip where it applies, then the other open requests and
+ * visits. The + is the one way to add (a task, or a request or visit from its tiles).
+ */
 export function TasksScreen({ houseId }: { houseId: HouseId }) {
   const { me } = useAppClient()
   const items = useItems(houseId)
   const house = useHouse(houseId)
+  const ranking = useRanking(houseId)
   const ctx = useCardContext(houseId)
   const feelingsBy = useFeelingsByItem(houseId)
-  const { openItem, openAdd } = useItemSheets()
+  const { openItem } = useItemSheets()
   const done = useMarkDone(houseId)
   const reopen = useReopenItem(houseId)
   const toast = useToast()
@@ -54,11 +60,11 @@ export function TasksScreen({ houseId }: { houseId: HouseId }) {
   if (items.isPending) return <p className="text-ink-soft">Loading…</p>
 
   const tz = house.data?.settings.timezone ?? 'UTC'
-  const tasks = taskList(items.data, filter, me)
+  const tasks = taskList(items.data, filter, me, ranking)
 
   return (
     <div className="grid gap-3">
-      <RequestsAndVisits houseId={houseId} />
+      <ComingUpVisits houseId={houseId} />
       <SegmentedControl
         label="Which tasks"
         value={filter}
@@ -70,25 +76,15 @@ export function TasksScreen({ houseId }: { houseId: HouseId }) {
         ]}
       />
       {tasks.length === 0 ? (
-        <EmptyState
-          icon={CheckCircle}
-          action={
-            filter === 'all' ? (
-              <Button size="small" onClick={() => openAdd('task')}>
-                Add a task
-              </Button>
-            ) : undefined
-          }
-        >
-          {EMPTY[filter]}
-        </EmptyState>
+        <EmptyState icon={CheckCircle}>{EMPTY[filter]}</EmptyState>
       ) : (
         <ul aria-label="Tasks" className="m-0 grid list-none gap-3 p-0">
-          {tasks.map((t) => (
+          {tasks.map(({ item: t, score }) => (
             <li key={t.id}>
               <ItemCard
                 item={t}
                 ctx={ctx}
+                tier={chipTier(score.tier)}
                 feelings={feelingsBy.get(t.id)}
                 meta={whenLabel(t, now, tz)}
                 onOpen={() => openItem(t.id)}
@@ -106,6 +102,7 @@ export function TasksScreen({ houseId }: { houseId: HouseId }) {
           ))}
         </ul>
       )}
+      <RequestsAndVisits houseId={houseId} />
     </div>
   )
 }

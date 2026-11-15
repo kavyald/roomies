@@ -345,7 +345,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
             <tr><td class="mono">/setup/[token]</td><td>One-time house creation; dead once a house exists</td></tr>
             <tr><td class="mono">/join/[token]</td><td>Name, email, code, pick your bedroom</td></tr>
             <tr><td class="mono">/h/[id]</td><td>House, the first tab (T107): Polls, Calendar, Activity, then People, Chores, Money and Priority (/admin and /house redirect here)</td></tr>
-            <tr><td class="mono">/h/[id]/needs · chores · tasks</td><td>The three item tabs; Needs also holds Runs in progress, Tasks Requests &amp; visits</td></tr>
+            <tr><td class="mono">/h/[id]/needs · chores · tasks</td><td>The three item tabs; ranked by priority (T108); Needs also holds Runs in progress, Tasks Coming up and Requests &amp; visits</td></tr>
             <tr><td class="mono">/h/[id]/house/roommates · contacts · routines</td><td>House's own pages: roommates and invites, contacts, routines</td></tr>
             <tr><td class="mono">/h/[id]/activity · calendar · me</td><td>History log, month calendar, personal settings (each with a back link to House)</td></tr>
             <tr><td class="mono">/h/[id]/i/[itemId]</td><td>Deep link that opens an item's sheet over House</td></tr>
@@ -394,7 +394,7 @@ footer{padding-top:40px;font-size:0.85rem;color:var(--ink-soft)}
       </div>
       <div class="result">
         <div><b id="c-score">40</b> <span class="soft">/ 100</span></div>
-        <span class="chip" id="c-tier">Normal</span>
+        <span class="chip" id="c-tier">Normal (no chip)</span>
       </div>
       <div class="scorebar" aria-hidden="true"><i id="c-bar" style="width:40%"></i></div>
       <p class="breakdown" id="c-break"></p>
@@ -510,7 +510,7 @@ const LAYERS = [
  { id:'domain', n:'3', title:'Domain · lib/domain', sub:'Pure TypeScript: no I/O, no Date.now(), no random ids. Returns values and Result, never throws for business rules.', mods:[
   { name:'items.ts · lists.ts', desc:'needs, chores, tasks', fns:[
     ['createItem · editItem · markDone · reopenItem · doChore · archiveItem · restoreItem','Each returns { item, events }. Category never changes (D15).'],
-    ['needList · choreBoard · taskList','Tab ordering: needs by feeling score, chores as routine cards then Upkeep, tasks by date.'],
+    ['needList · choreBoard · taskList','Tab ordering by priority score (rankItems, T108): needs and tasks ranked, chores as routine cards then a ranked Upkeep; urgentTabs puts the dots on the tabs.'],
     ['choreLateness · isChoreDue · daysSinceDone','Measured in calendar days in the house time zone.'] ]},
   { name:'priority.ts · feelings.ts · weights.ts', desc:'priority', fns:[
     ['scorePriority(item, feelings, weights, now, tz)','base + due pressure + Σ feeling weights, clamped 0–100 → { score, tier, breakdown }.'],
@@ -537,7 +537,7 @@ const LAYERS = [
     ['remindersFor · choreDueDate','Day-before and day-of reminders with dedupe keys, so reruns enqueue nothing.'],
     ['isQuiet · sendAfter · deliver · pushPayload · afterAttempt','Quiet hours hold a message until they end; a passing push failure is tried again (5 min, 30 min, 2 h).'] ]},
   { name:'calendar · invites · members · setup · time', desc:'the rest', fns:[
-    ['calendarEntries · comingUp · homeRuns · byDay · monthGrid','Built from items and runs already loaded; no separate calendar query.'],
+    ['calendarEntries · comingUp · runsInProgress · visitsComingUp · byDay · monthGrid','Built from items and runs already loaded; no separate calendar query.'],
     ['validateInvite · createInvite · acceptInvite · openBedrooms','Expired / revoked / used_up as typed errors.'],
     ['moveOut · setRole · anonymizeProfile · setupHouse · safeEqual','“Former roommate” keeps history intact.'],
     ['localDateOf · instantAt · startOfDay · calendarDaysBetween','Hand-written time zone and DST handling, tested across both DST nights.'] ]}
@@ -654,7 +654,7 @@ const FLOWS = [
   'A screen calls a hook like <code>useItems(houseId)</code>.',
   'TanStack Query asks <code>HouseQueries</code>, backed by the Supabase JS client.',
   'PostgREST runs the query as you; RLS returns only your house\'s rows.',
-  'The browser orders each list itself (<code>needList</code> by feeling weights) and scores an item with <code>scorePriority</code>, using today\'s date.'] },
+  'The browser orders each list itself (<code>needList</code>, <code>taskList</code> and Upkeep by <code>scorePriority</code>, T108) and scores an item with <code>scorePriority</code>, using today\'s date.'] },
  {id:'live', name:'See a roommate’s change', nodes:['pg','rt','sbjs','ui'], edges:['l1','rt'], steps:[
   'A roommate\'s change commits with its <code>activity_events</code> row.',
   'Realtime broadcasts the insert to members of that house (RLS applies).',
@@ -876,8 +876,8 @@ function calc(){
   $('#c-bar').style.width = score+'%';
   const t = $('#c-tier');
   t.className = 'chip'+(tier==='top'?' top':tier==='high'?' high':'');
-  t.textContent = tier==='top'?'●● Top':tier==='high'?'High':tier==='normal'?'Normal':'Low';
-  $('#c-break').textContent = 'Why is this here? '+parts.join(', ')+(raw!==score?' (clamped from '+raw+')':'')+'.';
+  t.textContent = tier==='top'?'●● Urgent':tier==='high'?'Soon':tier==='normal'?'Normal (no chip)':'Low (no chip)';
+  $('#c-break').textContent = 'Why it\'s near the top: '+parts.join(', ')+(raw!==score?' (clamped from '+raw+')':'')+'.';
   feelEl.querySelectorAll('button').forEach(b=>{ const n=counts[b.dataset.k]; b.querySelector('.c').textContent='×'+n; b.classList.toggle('has',n>0); b.setAttribute('aria-label',b.querySelector('.n').textContent+', '+n+' roommates. Tap to add one'); });
 }
 $('#c-base').addEventListener('change',calc); $('#c-due').addEventListener('change',calc);

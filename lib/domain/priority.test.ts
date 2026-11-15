@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_FEELING_WEIGHTS, type Feeling, type FeelingKind } from './feelings'
 import { asId, type HouseId, type ItemId, type UserId } from './ids'
 import type { Chore, Item, Need, Priority, Task } from './items'
-import { describePart, duePoints, scorePriority, signedPoints, tierOf } from './priority'
+import { chipTier, describePart, duePoints, scorePriority, signedPoints, tierOf } from './priority'
 import { instantAt, type LocalDate, type LocalTime } from './time'
 
 const TZ = 'America/New_York'
@@ -118,26 +118,35 @@ describe('scorePriority (PRD §8.1)', () => {
     const a = task('a', { when: { date: day(1) } })
     const s = scorePriority(a, [felt(a, 'anxious')], DEFAULT_FEELING_WEIGHTS, NOW, TZ)
     const name = (id: UserId) => (id === maya ? 'Maya' : 'Someone')
-    expect(s.breakdown.map((p) => `${describePart(p, name)} ${signedPoints(p.points)}`)).toEqual([
-      'Normal priority +25',
-      'Due tomorrow +15',
-      '😰 Maya +20',
+    expect(s.breakdown.map((p) => describePart(p, name))).toEqual([
+      'Normal priority',
+      'Due tomorrow',
+      'Maya is 😰',
     ])
-    expect(s).toMatchObject({ score: 60, tier: 'high' })
+    expect(s).toMatchObject({ score: 60, tier: 'soon' })
   })
 })
 
 describe('tiers', () => {
   it.each([
-    [100, 'top'],
-    [70, 'top'],
-    [69, 'high'],
-    [45, 'high'],
+    [100, 'urgent'],
+    [70, 'urgent'],
+    [69, 'soon'],
+    [45, 'soon'],
     [44, 'normal'],
     [20, 'normal'],
     [19, 'low'],
     [0, 'low'],
   ])('%i is %s', (n, tier) => expect(tierOf(n)).toBe(tier))
+
+  it('only Urgent and Soon get a chip (T108)', () => {
+    expect((['urgent', 'soon', 'normal', 'low'] as const).map(chipTier)).toEqual([
+      'urgent',
+      'soon',
+      undefined,
+      undefined,
+    ])
+  })
 })
 
 describe('due pressure', () => {
@@ -150,16 +159,25 @@ describe('due pressure', () => {
 
 describe('describePart', () => {
   const name = () => 'Wren'
-  const due = (days: number) => describePart({ kind: 'due', days, points: 0 }, name)
-  it('reads kindly, about the item and never the person', () => {
-    expect([due(-1), due(-3), due(0), due(1), due(5)]).toEqual([
+  const due = (days: number) =>
+    describePart({ kind: 'due', date: day(days), days, points: 0 }, name)
+  it('reads kindly, in words, about the item and never the person (T108)', () => {
+    // Today is Tuesday Sep 29.
+    expect([due(-9), due(-1), due(-3), due(0), due(1), due(3), due(10)]).toEqual([
+      'Was due Sep 20',
       'Was due yesterday',
-      'Was due 3 days ago',
+      'Was due Saturday',
       'Due today',
       'Due tomorrow',
-      'Due in 5 days',
+      'Due Friday',
+      'Due Oct 9',
     ])
-    expect(describePart({ kind: 'base', priority: 'urgent', points: 70 }, name)).toBe('Urgent')
+    expect(describePart({ kind: 'base', priority: 'urgent', points: 70 }, name)).toBe(
+      'Urgent priority',
+    )
+    expect(
+      describePart({ kind: 'feeling', by: maya, feeling: 'frustrated', points: 15 }, name),
+    ).toBe('Wren is 😤')
     expect(signedPoints(-5)).toBe('−5')
     for (const s of [due(-9)]) expect(s).not.toMatch(/overdue|failed|missed/i)
   })

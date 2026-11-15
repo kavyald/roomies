@@ -10,7 +10,7 @@ export default async function NeedsPage({ params }: PageProps<'/h/[houseId]/need
   return (
     <main>
       <ScreenHeader title="Needs" />
-      {/* Runs in progress moved here with Home (T107); T108 settles where each kind sits. */}
+      {/* Open batches at the top, where runs start (T108); visits coming up are on Tasks. */}
       <RunsInProgress houseId={houseId as HouseId} className="mb-5" />
       <NeedsScreen houseId={houseId as HouseId} />
     </main>

@@ -3,7 +3,8 @@ import {
   byDay,
   calendarEntries,
   comingUp,
-  homeRuns,
+  runsInProgress,
+  visitsComingUp,
   monthGrid,
   monthRange,
   shiftMonth,
@@ -93,7 +94,7 @@ describe('calendar', () => {
     expect(names(comingUp(items, runs, d('2026-10-14')))).toEqual(['Later'])
   })
 
-  it('homeRuns: open batches (any date) and open visits this week, dated soonest first (T81)', () => {
+  it('runsInProgress: open batches, dated soonest first; visitsComingUp: visits this week (T108)', () => {
     const more: Run[] = [
       ...runs,
       run('far visit', {
@@ -105,12 +106,12 @@ describe('calendar', () => {
       run('request', { kind: 'request', contactId: asId<'contact'>('super') as ContactId }),
       run('older', { createdAt: instant(-1) } as Partial<Run>),
     ]
-    expect(homeRuns(more, d('2026-09-30')).map((r) => r.title ?? r.id)).toEqual([
-      'visit',
+    expect(runsInProgress(more).map((r) => r.title ?? r.id)).toEqual([
       'Groceries',
       'older',
       'undated',
     ])
+    expect(visitsComingUp(more, d('2026-09-30')).map((r) => r.title ?? r.id)).toEqual(['visit'])
   })
 
   it('groups by day', () => {

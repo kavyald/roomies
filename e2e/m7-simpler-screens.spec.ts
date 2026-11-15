@@ -57,9 +57,10 @@ test('the M7 screens: tabs, House, You and Tasks, with no monthly total', async 
   expect(at('Activity')).toBeLessThan(at('Roommates'))
   expect(at('Roommates')).toBeLessThan(at('Routines'))
 
-  // Tasks with nothing open: the Requests & visits heading and its New, no empty-state block.
+  // Tasks with nothing open: no Requests & visits section (T108) and no empty-state block for it.
   await tabs.filter({ hasText: 'Tasks' }).click()
-  await expect(page.getByRole('heading', { name: 'Requests & visits' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Tasks' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Requests & visits' })).toHaveCount(0)
   await expect(page.getByText(/No requests yet/)).toHaveCount(0)
 
   // A cost still records on a run's Finish, and no screen shows a monthly total.

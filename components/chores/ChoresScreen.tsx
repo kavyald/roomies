@@ -9,7 +9,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { ChoreIcon } from '@/components/ui/ChoreIcon'
 import { EmptyState } from '@/components/ui/EmptyState'
 import {
-  useFeelings,
+  useRanking,
   useHouse,
   useItems,
   useMembers,
@@ -40,7 +40,7 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
   const rooms = useRooms(houseId)
   const members = useMembers(houseId)
   const house = useHouse(houseId)
-  const feelings = useFeelings(houseId)
+  const ranking = useRanking(houseId)
   const ctx = useCardContext(houseId)
   const { openItem } = useItemSheets()
   const now = useNow()
@@ -66,7 +66,7 @@ export function ChoresScreen({ houseId }: { houseId: HouseId }) {
     rooms: rooms.data ?? [],
     routines: routines.data,
     members: members.data ?? [],
-    feelings: feelings.data ?? [],
+    ...ranking,
     me,
     today,
     tz,

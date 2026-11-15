@@ -52,24 +52,30 @@ test('a duplicate need points to the first, Did it resets a chore, 😰 raises a
   await page.keyboard.press('Escape')
   await expect(chore).toBeHidden()
 
-  // 3. On Tasks, the latch's "Why is this here?" adds up its score; sharing 😰 raises it to High
-  // (25 + 15 + 20 = 60). Home and its ranked feed are gone (T107): the score lives on the item.
+  // 3. On Tasks, the latch's "Why it's near the top" says what moved it, in words (T108): Normal
+  // (25 + 15 = 40, no chip); sharing 😰 raises it to Soon (60).
   await page.getByRole('link', { name: 'Tasks' }).click()
   await page.getByRole('button', { name: 'Fix the latch', exact: true }).click()
   const detail = page.getByRole('dialog', { name: 'Fix the latch' })
-  const why = detail.getByRole('region', { name: 'Why is this here?' })
-  await why.getByRole('button', { name: /Why is this here\?/ }).click()
-  await expect(why).toContainText('Normal priority+25')
-  await expect(why).toContainText('😤 Sam+15')
-  await expect(why).toContainText('Score40')
+  const why = detail.getByRole('region', { name: "Why it's near the top" })
+  await why.getByRole('button', { name: /Why it's near the top/ }).click()
+  await expect(why).toContainText('Normal priority')
+  await expect(why).toContainText('Sam is 😤')
+  await expect(why).not.toContainText('+25')
+  await expect(why).not.toContainText('Soon')
   await detail.getByRole('button', { name: '🙂+ Share a feeling' }).click()
   await detail.getByRole('button', { name: 'Anxious', exact: true }).click()
   await expect(detail.getByRole('region', { name: 'How the house feels' })).toContainText(
     'You · 😰 Anxious',
   )
-  await expect(why).toContainText('Score60')
-  await expect(why).toContainText('High')
+  await expect(why).toContainText('Kavya is 😰')
+  await expect(why).toContainText('Soon')
   await page.keyboard.press('Escape')
+  await expect(
+    page
+      .getByRole('list', { name: 'Tasks' })
+      .getByRole('button', { name: 'Fix the latch', exact: true }),
+  ).toHaveAccessibleDescription(/Soon/)
 
   // 4. Turning 😰 down to −20 (House → Priority) brings it back to Normal (25 + 15 − 20 = 20).
   await page.getByRole('navigation', { name: 'Tabs' }).getByRole('link', { name: 'House' }).click()
@@ -85,7 +91,14 @@ test('a duplicate need points to the first, Did it resets a chore, 😰 raises a
   )
   await page.getByRole('link', { name: 'Tasks' }).click()
   await page.getByRole('button', { name: 'Fix the latch', exact: true }).click()
-  await why.getByRole('button', { name: /Why is this here\?/ }).click()
-  await expect(why).toContainText('Score20')
-  await expect(why).toContainText('Normal')
+  await why.getByRole('button', { name: /Why it's near the top/ }).click()
+  await expect(why).toContainText('Kavya is 😰')
+  await expect(why).not.toContainText('Soon')
+
+  // 5. Its link goes to House → How feelings raise priority, with the one-line scale.
+  await why.getByRole('link', { name: 'How feelings raise priority' }).click()
+  await expect(detail).toBeHidden()
+  await expect(page.getByRole('dialog', { name: 'Feeling weights' })).toContainText(
+    'Items start at 25 out of 100; each feeling adds this much.',
+  )
 })

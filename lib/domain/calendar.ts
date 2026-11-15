@@ -44,28 +44,27 @@ export const comingUp = (
 
 const runDate = (r: Batch | Visit) => r.when?.date
 
-/**
- * The runs in progress (T81; on Needs since T107): every open batch, plus open visits dated in the
- * coming week. Dated ones first, soonest first; then the rest, oldest first.
- */
-export const homeRuns = (runs: readonly Run[], today: LocalDate): (Batch | Visit)[] => {
-  const week = new Set(
-    comingUp([], runs, today).flatMap((e) => (e.kind === 'run' ? [e.run.id] : [])),
-  )
-  return runs
-    .filter(
-      (r): r is Batch | Visit =>
-        isRunOpen(r) && (r.kind === 'batch' || (r.kind === 'visit' && week.has(r.id))),
-    )
-    .sort((a, b) => {
-      const da = runDate(a)
-      const db = runDate(b)
-      if (da && db && da !== db) return da.localeCompare(db)
-      if (da && !db) return -1
-      if (db && !da) return 1
-      return a.createdAt.epochMs - b.createdAt.epochMs
-    })
+const soonestThenOldest = (a: Batch | Visit, b: Batch | Visit) => {
+  const da = runDate(a)
+  const db = runDate(b)
+  if (da && db && da !== db) return da.localeCompare(db)
+  if (da && !db) return -1
+  if (db && !da) return 1
+  return a.createdAt.epochMs - b.createdAt.epochMs
 }
+
+/**
+ * "Runs in progress" on Needs (T108): every open batch. Dated ones first, soonest first; then the
+ * rest, oldest first.
+ */
+export const runsInProgress = (runs: readonly Run[]): Batch[] =>
+  runs.filter((r): r is Batch => r.kind === 'batch' && isRunOpen(r)).sort(soonestThenOldest)
+
+/** "Coming up" on Tasks (T108): open visits dated in the coming week, soonest first. */
+export const visitsComingUp = (runs: readonly Run[], today: LocalDate): Visit[] =>
+  comingUp([], runs, today).flatMap((e) =>
+    e.kind === 'run' && e.run.kind === 'visit' ? [e.run] : [],
+  )
 
 /** Entries grouped by day, for the month grid's dots and the day list. */
 export const byDay = (

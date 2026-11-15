@@ -27,6 +27,16 @@ export const throughDay = (date: LocalDate, today: LocalDate): string => {
   return `${MONTHS[m - 1]} ${d}`
 }
 
+/**
+ * A day `days` from today, by name: "Friday" within a week either way, else "Nov 15" (T108's "Due
+ * Friday", "Was due Friday"). Today and tomorrow are the caller's words.
+ */
+export const nearDay = (date: LocalDate, days: number): string => {
+  if (Math.abs(days) < 7) return LONG_WEEKDAYS[dayOfWeek(date)]!
+  const [, m, d] = date.split('-').map(Number) as [number, number, number]
+  return `${MONTHS[m - 1]} ${d}`
+}
+
 /** "Just now", "5m ago", "3h ago", "Yesterday", "Mon", "Sep 3", "Sep 3, 2025". */
 export const relativeTime = (at: Instant, now: Instant, tz: string): string => {
   const ms = now.epochMs - at.epochMs

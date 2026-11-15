@@ -42,8 +42,9 @@ export const feelSide = {
 /**
  * An item as a card (FRONTEND §5.1): one line with the tier (and, where kinds mix, the category) and the
  * feelings; the title; chips (whose need it is, the room, or all of a chore's rooms, then the run it's on or who's handling it); one
- * meta line. Tapping it opens the detail sheet. Beside it, the check button does the quick action
- * and 🙂+ opens the emoji tray; swiping right and left do the same two things.
+ * meta line. Tapping it opens the detail sheet. Beside it, the check circle on the left does the
+ * quick action (T108, as on Needs) and 🙂+ on the right opens the emoji tray; swiping right and
+ * left do the same two things.
  */
 export function ItemCard({
   item,
@@ -60,8 +61,8 @@ export function ItemCard({
   ctx: CardContext
   /** The meta line: "Due Thu", "Last done 9 days ago · Wren", … */
   meta?: string
-  /** The priority tier, where a list is ranked. */
-  tier?: Tier
+  /** Urgent or Soon, where a list is ranked (T108: Normal and Low show no chip). */
+  tier?: Extract<Tier, 'urgent' | 'soon'>
   /** The feelings on this item, shown as "😤1 🙏2". */
   feelings?: readonly Feeling[]
   /** A list that mixes needs, chores and tasks says which each card is. */
@@ -102,7 +103,22 @@ export function ItemCard({
       left={{ ...feelSide, onSwipe: () => setTray(true) }}
     >
       <article className="sticker grid rounded-[20px] border-[1.5px] border-outline bg-card">
-        <div className="flex items-start gap-1 pr-1.5">
+        <div className={cn('flex items-start gap-1 pr-1.5', onCheck && 'pl-1.5')}>
+          {onCheck && (
+            <button
+              type="button"
+              aria-label={checkLabel}
+              onClick={onCheck}
+              className={cn(
+                'group mt-2.5 grid size-11 flex-none place-items-center rounded-full text-transparent',
+                'hover:text-ink-soft',
+              )}
+            >
+              <span className="grid size-7 place-items-center rounded-full bg-card shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ink)_30%,transparent)]">
+                <Check aria-hidden className="size-4" strokeWidth={3} />
+              </span>
+            </button>
+          )}
           <button
             type="button"
             onClick={onOpen}
@@ -112,7 +128,10 @@ export function ItemCard({
                 .filter(Boolean)
                 .join(' ') || undefined
             }
-            className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] gap-2 px-3.5 pt-3.5 pb-3 text-left"
+            className={cn(
+              'grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] gap-2 pt-3.5 pr-1 pb-3 text-left',
+              onCheck ? 'pl-1' : 'pl-3.5',
+            )}
           >
             {hasTop && (
               <span id={`${id}-top`} className="flex min-h-6 items-center justify-between gap-2">
@@ -152,30 +171,14 @@ export function ItemCard({
               </span>
             )}
           </button>
-          <div className="mt-1.5 flex flex-none flex-col items-center">
-            {onCheck && (
-              <button
-                type="button"
-                aria-label={checkLabel}
-                onClick={onCheck}
-                className={cn(
-                  'grid size-11 flex-none place-items-center rounded-full text-transparent',
-                  'hover:text-ink-soft',
-                )}
-              >
-                <span className="grid size-9 place-items-center rounded-full bg-card shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--ink)_30%,transparent)]">
-                  <Check aria-hidden className="size-5" strokeWidth={2.5} />
-                </span>
-              </button>
-            )}
-            <FeelingButton
-              ref={feelButton}
-              title={item.title}
-              open={tray}
-              controls={`${id}-tray`}
-              onClick={() => (tray ? closeTray() : setTray(true))}
-            />
-          </div>
+          <FeelingButton
+            ref={feelButton}
+            title={item.title}
+            open={tray}
+            controls={`${id}-tray`}
+            className="mt-1.5 flex-none"
+            onClick={() => (tray ? closeTray() : setTray(true))}
+          />
         </div>
         {tray && (
           <FeelingTray

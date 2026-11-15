@@ -82,10 +82,8 @@ function Contents() {
 
       <Section title="Chips">
         <div className="flex flex-wrap gap-1.5">
-          <TierChip tier="top" />
-          <TierChip tier="high" />
-          <TierChip tier="normal" />
-          <TierChip tier="low" />
+          <TierChip tier="urgent" />
+          <TierChip tier="soon" />
         </div>
         <div className="flex flex-wrap gap-1.5">
           <Chip icon={ShoppingBag}>Need</Chip>
@@ -127,7 +125,7 @@ function Contents() {
       <Section title="Card">
         <Card onClick={() => toast('Opened')}>
           <div className="flex min-h-6 items-center justify-between gap-2">
-            <TierChip tier="top" />
+            <TierChip tier="urgent" />
             <span className="text-[0.8rem] font-bold text-ink-soft">😤 1</span>
           </div>
           <h3 className="m-0 text-[1.0625rem] leading-tight font-bold">Leak under the sink</h3>
@@ -184,8 +182,8 @@ function Contents() {
 
       <Section title="Sections">
         <DisclosureGroup>
-          <Disclosure title="Why is this here?" summary={<TierChip tier="high" />}>
-            <p className="m-0 text-sm">Normal priority +25 · 😤 Kavya +15</p>
+          <Disclosure title="Why it's near the top" summary={<TierChip tier="soon" />}>
+            <p className="m-0 text-sm">Normal priority · Kavya is 😤</p>
           </Disclosure>
           <Disclosure title="Costs" summary="$189.00">
             <p className="m-0 text-sm">$189.00 · Wren paid</p>

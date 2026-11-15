@@ -137,10 +137,12 @@ test("a run can be renamed, handed to a roommate, and named back; a visit's poin
   await expect(page.getByRole('dialog', { name: "Sam's run" })).toBeVisible()
   await page.keyboard.press('Escape')
 
-  // A visit has a point person instead.
+  // A visit has a point person instead. It starts from the +'s "A request" tile (T108).
   await page.goto(`/h/${owner.houseId}/tasks`)
-  const section = page.getByRole('region', { name: 'Requests & visits' })
-  await section.getByRole('button', { name: 'New', exact: true }).click()
+  await page.getByRole('heading', { level: 1, name: 'Tasks' }).waitFor()
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await page.getByRole('button', { name: 'A poll or a run instead?' }).click()
+  await page.getByRole('button', { name: /^A request/ }).click()
   const newRun = page.getByRole('dialog', { name: 'New request or visit' })
   await newRun.getByRole('button', { name: "They've agreed" }).click()
   await newRun.getByLabel('Who', { exact: true }).selectOption({ label: 'Landlord' })

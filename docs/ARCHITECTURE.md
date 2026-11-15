@@ -660,8 +660,8 @@ select changes, actor_id, at from activity_events
 
 ### 7.1 Priority
 
-- **One pure function:** `scorePriority(item, feelings, weights, now, tz): { score, tier, breakdown }`. `weights` comes from `HouseSettings.feelingWeights`, and `now` is an argument. It runs in the browser (an item's **Why is this here?**, `WhyHere`) and in tests with a fixed clock.
-- **No feed** (T107, PRD D43): Home's ranked list and its in-feed rule (`homeFeed`, `isInFeed`, `isComingUp`) are removed. Needs orders felt needs by `feelingScore` with the house's weights (`needList`).
+- **One pure function:** `scorePriority(item, feelings, weights, now, tz): { score, tier, breakdown }`. `weights` comes from `HouseSettings.feelingWeights`, and `now` is an argument. It runs in the browser (each tab's order, an item's **Why it's near the top**, `WhyHere`) and in tests with a fixed clock. Tiers are `urgent` / `soon` / `normal` / `low`; `chipTier` keeps the two that get a chip (T108).
+- **No feed; each tab ranks** (T107, T108, PRD D43, D44): Home's ranked list and its in-feed rule (`homeFeed`, `isInFeed`, `isComingUp`) are removed. `rankItems(items, ranking)` orders by score (equal scores by date, then newest) and `needList`, `taskList` and `choreBoard`'s Upkeep use it; a `Ranking` is `{ feelings, weights, now, tz }` (`useRanking` in the browser). `urgentTabs` says which tabs get a dot.
 - **Never stored**, because it depends on today's date.
 
 ### 7.2 Function catalog
@@ -678,10 +678,11 @@ select changes, actor_id, at from activity_events
 | `archiveItem` / `restoreItem` | `(i, by, now, actionId) → Result<…, 'already_archived'>` / `(i, by, actionId, openNeeds) → Result<…, 'not_archived' \| 'duplicate_need'>` | "Delete" and its Undo / "Bring it back" in the app (PRD D30): a soft delete that sets `archived_at`, so activity still points at the row. Activity says "deleted" / "brought back"; no restore window |
 | `newRoomChores` / `choreKey` | `(roomId, picks: ChorePick[], items) → ChorePick[]` / `(title) → string` | House → Rooms (T101): the picks a room doesn't have yet as Deep clean chores, one per name (case and spacing aside). Each room gets its own copy of a chore. |
 | **Lists and priority** (`lists.ts`, `priority.ts`) | | |
-| `needList` / `choreBoard` / `taskList` | `(items, feelingScore?)` / `(items, { rooms, routines, members, feelings, me, today, tz })` / `(items, filter: 'mine' \| 'all' \| 'outside', me)` | The Needs, Chores and Tasks screens' order and filters; `isChoreDue`, `choreLateness`, `daysSinceDone` back them |
+| `needList` / `choreBoard` / `taskList` | `(items, ranking) → Ranked<Need>[]` / `(items, { ...ranking, rooms, routines, members, me, today })` / `(items, filter: 'mine' \| 'all' \| 'outside', me, ranking) → Ranked<Task>[]` | The Needs, Chores and Tasks screens' order (by score, T108) and filters; `rankItems` does the ranking, `daysSinceDone` backs the chores |
+| `urgentTabs` | `(items, { ...ranking, rooms, routines }) → Set<Category>` | The kinds whose tab gets a dot: something open and Urgent (chores: only Upkeep, the ones nobody's on), T108 |
 | `choreNames` | `(items) → ChorePick[]` | Every chore name in the house, most-used first, each with its most-used icon, then the `STARTER_CHORES` it doesn't have: House → Rooms' one-tap picks (T101). |
 | `whoseLine` / `hasItLine` / `choresLine` | `(routine, holder?) → string` / `(routine, holder?, next?) → string` / `(chores) → string` | Chores tab words, T105: "Alex's this month" under a routine, "Alex has it this week, then you" in a room's sheet, a housemate's room's chores in words |
-| `scorePriority` | `(i: Item, f: Feeling[], w: FeelingWeights, now, tz) → { score, tier, breakdown }` | PRD §8.1; `describePart` words the breakdown ("Why is this here?") |
+| `scorePriority` | `(i: Item, f: Feeling[], w: FeelingWeights, now, tz) → { score, tier, breakdown }` | PRD §8.1; `describePart` words the breakdown without points ("Why it's near the top", T108), `chipTier` keeps Urgent and Soon |
 | **Feelings and weights** (`feelings.ts`, `weights.ts`) | | |
 | `setFeeling` | `(current: Feeling \| null, next: { kind, note? } \| null, ctx: { itemId, by, now, actionId }) → Result<{ feeling \| null; events }, 'no_change' \| 'note_too_long'>` | The event carries `previous`; `earlierFeelings(rows)` reads them back, leaving out a version whose note was added or edited on the same feeling |
 | `isValidWeight` / `stepWeight` | `(n) → boolean` / `(n, ±1) → number` | −20…+40, steps of 5 |
@@ -734,7 +735,7 @@ select changes, actor_id, at from activity_events
 | `createContact` / `editContact` / `removeContact` | `(input, houseId, by, id, actionId)` / `(c, patch, by, actionId)` / `(c, by, now, actionId)` | Removing archives (activity rows point at contacts) |
 | `updateSettings` | `(p: Profile, patch: SettingsPatch) → Result<Profile, 'bad_time' \| 'no_change'>` | Theme and quiet hours |
 | **Calendar** (`calendar.ts`) | | |
-| `calendarEntries` / `comingUp` / `homeRuns` | `(items, runs, from, to) → CalendarEntry[]` / `(items, runs, today)` / `(runs, today) → (Batch \| Visit)[]` | Open tasks, needs with a needed-by date, and batches and visits with a date; `comingUp` is the next 7 days (House's Calendar row counts it), and `homeRuns` is Runs in progress on Needs (open batches plus visits this week; Home's before T107). `byDay`, `monthRange`, `shiftMonth`, `monthGrid` lay out the month. |
+| `calendarEntries` / `comingUp` / `runsInProgress` / `visitsComingUp` | `(items, runs, from, to) → CalendarEntry[]` / `(items, runs, today)` / `(runs) → Batch[]` / `(runs, today) → Visit[]` | Open tasks, needs with a needed-by date, and batches and visits with a date; `comingUp` is the next 7 days (House's Calendar row counts it), `runsInProgress` is Runs in progress on Needs (open batches) and `visitsComingUp` is Coming up on Tasks (open visits this week); T108 split `homeRuns`. `byDay`, `monthRange`, `shiftMonth`, `monthGrid` lay out the month. |
 | **Activity and notifications** (`events.ts`, `activity.ts`, `notifications.ts`, `reminders.ts`, `push.ts`) | | |
 | `activityRowFor` | `(e: DomainEvent, houseId, at) → ActivityRow` | Subjects become typed columns; `payload` holds extras only |
 | `activityLine` / `activityFeed` | `(rows sharing an action_id, names: ActivityNames, viewer: { isAdmin }) → FeedLine \| null` / `(rows, names, viewer) → FeedLine[]` | `names` comes from `activityNames(subjects, house)` (A24). Hidden kinds are left out, and admin-only kinds show only to admins. One line per action, newest first. `pageAtActionBoundary` keeps an action on one page. |
@@ -878,7 +879,7 @@ proxy.ts                     -- Next 16's proxy (was middleware): sets the page 
 components/
   ui/                        -- Avatar (initials + element), Button, Card, Chip, Disclosure, EmptyState, ListRow,
                                 IconButton, SegmentedControl, Sheet (vaul) + SheetSave, Swipeable, TabBar, Toast
-  shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, BackToHouse, InstallGuide, NotificationsPrompt, ServiceWorker, ThemeSync, DeepLinks (OpenPoll, OpenRun)
+  shell/                     -- AppShell, HouseProviders, ScreenHeader, MeLink, BackToHouse, InstallGuide, NotificationsPrompt, ServiceWorker, ThemeSync, DeepLinks (OpenPoll, OpenRun), useUrgentTabs (the tab dots, T108)
   auth/  setup/  join/       -- sign-in, setup and join flows; onboarding/ -- the welcome and notifications steps after them (T110)
   needs/  chores/  tasks/  calendar/  activity/  house/  me/   -- one folder per screen
   items/                     -- ItemCard, ItemForm, ItemSheets, Feelings, HandledByPicker, RoomSelect, WhyHere
@@ -965,7 +966,7 @@ iPhone UX specifics:
 |---|---|
 | iOS web push only works after Home Screen install, and people won't install | Strong onboarding nudge, email digest fallback |
 | Magic link opens outside the installed PWA | Use OTP code entry as the primary method |
-| Priority formula feels wrong | "Why is this here?" transparency, house-level presets, tune after 2 weeks of real use |
+| Priority formula feels wrong | "Why it's near the top" transparency, house-level presets, tune after 2 weeks of real use |
 | Feelings feature feels awkward or passive-aggressive (and they're always named) | Gentle copy, a "not a big deal" option, an optional note to add context, no leaderboard or chore balance |
 | Supabase free-tier pause | Cron keeps it active; upgrade if needed |
 | RLS mistake leaks data across houses | RLS-on-every-table CI check + explicit cross-house access tests |
@@ -1014,3 +1015,4 @@ iPhone UX specifics:
 | A36 | The Splitwise group is a shared house setting (T89) | `settings.splitwise_group` on `houses`, which any active member may change. The policy that let members change only the feeling weights now lets them change those or the link (renamed "houses members set shared settings", helper `only_shared_settings_changed`, by `ALTER … RENAME` so the policy keeps its oid), and a CHECK keeps the link one shape. A separate table was the alternative; one optional key didn't earn its own table, grants and contract. Each change is a `settings.splitwise_changed` activity row, filed under Money, with no notification. | Owner (2026-11-10), built in T89 |
 | A35 | Routines (T96) | Who's on a chore is derived, not stored: a routine holds an anchor (`starts_on`, `starts_with`) and the holder is arithmetic over active members, re-anchored in the join and move-out transactions. A handover is a reminder draft with a dedupe key, not an activity event, since nothing happens to the data then. The migration only adds (DEPLOYMENT D5); the strict chore checks come in a later release. |
 | A37 | No Home feed (T107, PRD D43) | The House tab replaces Home and Admin, so the domain's feed (`homeFeed`, `isInFeed`, `isComingUp`) is removed rather than kept unused; priority stays one function (`scorePriority`), shown per item. House reads its polls through `housePolls` and counts the week with `comingUp`. `/h/[houseId]` is House itself, so `whereTo` and old Home links land on it with no redirect; `/admin` and `/house` redirect there, and people notifications open `/house/roommates`. | Owner (2026-11-14), built in T107 |
+| A38 | Each tab ranks in the browser (T108, PRD D44) | `rankItems` scores every open item with `scorePriority` and sorts by score, then date, then newest; `needList`, `taskList` and `choreBoard`'s Upkeep take a `Ranking` (`{ feelings, weights, now, tz }`, `useRanking`). Tiers are `urgent` / `soon` / `normal` / `low`, and the chip takes only the first two (`chipTier`), so a Normal chip can't be drawn. `urgentTabs` gives the tab dots (Chores: Upkeep only). No stored score and no new query: ranking depends on today. | Owner (2026-11-14), built in T108 |
