@@ -25,12 +25,12 @@ import { AddRoomChores } from './AddRoomChores'
  */
 export const useTick = (ctx: CardContext) => {
   const { me } = useAppClient()
-  const { didIt, undoIt } = useDidIt(ctx.houseId)
+  const { didIt, untick } = useDidIt(ctx.houseId)
   const toast = useToast()
   return async (chore: Chore, done: boolean) => {
     if (!done) return didIt(chore.id)
     if (chore.lastDone?.by !== me) return toast('A housemate got this one. Only they can undo it.')
-    if (await undoIt(chore.id, chore.lastDone.at.epochMs)) toast('Back on the list.')
+    if (await untick(chore.id)) toast('Back on the list.')
   }
 }
 

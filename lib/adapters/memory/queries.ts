@@ -96,7 +96,8 @@ export const memoryChangeFeed = (uow: MemoryUnitOfWork, actor: Actor): ChangeFee
         .run(actor, (r) => r.houses.get(houseId))
         .then((visible) => {
           if (!visible) return
-          for (const row of rows) if (row.houseId === houseId) onChange(changeForKind(row.kind))
+          for (const row of rows)
+            if (row.houseId === houseId) onChange(changeForKind(row.kind, row.actorId))
         })
     }),
 })

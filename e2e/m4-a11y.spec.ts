@@ -98,6 +98,9 @@ for (const colorScheme of ['light', 'dark'] as const) {
       'aria-pressed',
       'true',
     )
+    // The tick shows at once (T113) and its toast follows when the server answers: wait for it,
+    // so axe doesn't catch it mid-fade here or over the room sheet.
+    await expect(page.getByRole('status').filter({ hasText: 'Did it. Thanks!' })).toBeVisible()
     await check(page, 'chores (room boxes)')
     await box.getByRole('button', { name: 'Kitchen details' }).click()
     await expect(page.getByRole('dialog', { name: 'Kitchen' })).toBeVisible()

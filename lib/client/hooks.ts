@@ -17,6 +17,14 @@ import type { NewInvite } from '../domain/invites'
 import { useAppClient } from './provider'
 import { useNow } from './use-now'
 import { keys, keysForTable } from './query-keys'
+import * as tap from './optimistic'
+import type { OptimisticCtx } from './optimistic'
+import { ownChanges } from './own-changes'
+import { inOrder, stillSaving, whenSaved } from './in-order'
+import type { Item } from '../domain/items'
+import type { Poll } from '../domain/polls'
+import { err } from '../domain/result'
+import { instant } from '../domain/time'
 
 export const useHouse = (houseId: HouseId) => {
   const { queries } = useAppClient()
@@ -82,28 +90,124 @@ export const isStale = (error: string | undefined): boolean => STALE.has(error ?
 /** What a screen says when it was behind (FRONTEND §7). */
 export const CHANGED_MEANWHILE = "Someone just changed this. Here's the latest."
 
-const useHouseCommand = <I, R extends { ok: boolean }>(
+/**
+ * What a command shows before the server answers (T113): one cached list, changed by pure
+ * functions from lib/client/optimistic.
+ */
+type Optimistic<I, V> = {
+  readonly key: HouseKey
+  /** What the tap is on. Taps on the same thing are saved one at a time, in order. */
+  readonly subject: (input: I) => string
+  /** The list to show while it saves. */
+  readonly show: (list: never, input: I, ctx: OptimisticCtx) => unknown
+  /** The list once the server has answered with what it saved. */
+  readonly land: (list: never, saved: V, input: I, ctx: OptimisticCtx) => unknown
+}
+// The list's type is the query's; each use below pairs a key with functions for that list.
+const optimistic = <D, I, V>(
+  key: HouseKey,
+  o: {
+    subject: (input: I) => string
+    show: (list: D, input: I, ctx: OptimisticCtx) => D
+    land: (list: D, saved: V, input: I, ctx: OptimisticCtx) => D
+  },
+): Optimistic<I, V> => ({ key, ...o }) as Optimistic<I, V>
+
+/** Names the optimistic commands still being saved in a house, so they can be counted. */
+const savingKey = (houseId: HouseId) => ['house', houseId, 'saving'] as const
+
+const useHouseCommand = <I, V, R extends { ok: boolean; value?: V }>(
   houseId: HouseId,
   run: (commands: ReturnType<typeof useAppClient>['commands'], input: I) => Promise<R>,
   affects: HouseKey[],
+  /**
+   * With this, the tap shows at once (T113): the list changes before the server answers, the
+   * command is over when the server has answered (not when the refetch lands), and a refusal puts
+   * the old list back. Without it, the command is pending until the refreshed data is in.
+   */
+  shows?: Optimistic<I, V>,
 ) => {
-  const { commands } = useAppClient()
+  const { commands, me } = useAppClient()
   const qc = useQueryClient()
+  const refreshed = [...affects, 'activity' as const].map((k) => keys[k](houseId))
+  const refresh = () => Promise.all(refreshed.map((queryKey) => qc.invalidateQueries({ queryKey })))
+  /** Another optimistic tap is still being saved: its answer refreshes for both. */
+  const othersSaving = () => qc.isMutating({ mutationKey: savingKey(houseId) }) > 1
+
   return useMutation({
-    mutationFn: (input: I) => run(commands, input),
-    onSuccess: (r) => {
-      // Someone saved the same thing first (§7.5): fetch the latest of everything in the house.
-      if (!r.ok && isStale((r as { error?: string }).error))
-        return qc.invalidateQueries({ queryKey: keys.house(houseId) })
-      if (!r.ok) return
-      return Promise.all(
-        [...affects, 'activity' as const].map((k) =>
-          qc.invalidateQueries({ queryKey: keys[k](houseId) }),
-        ),
-      )
+    ...(shows && { mutationKey: savingKey(houseId) }),
+    mutationFn: (input: I) => {
+      if (!shows) return run(commands, input)
+      const subject = shows.subject(input)
+      return inOrder(qc, subject, async () => {
+        // A request that never came back (offline, dropped) counts as a refusal, so the tap is
+        // put back and the screen says so, the way it does when the server says no.
+        const r = await run(commands, input).catch(() => err('unexpected') as unknown as R)
+        // What the server saved replaces what the tap showed (the real time, the new version),
+        // unless a later tap on the same thing is already showing something newer. Done here,
+        // inside the queue, so whoever waits for this save (`whenSaved`) reads the saved copy.
+        const queryKey = keys[shows.key](houseId)
+        const list = qc.getQueryData(queryKey)
+        if (r.ok && list !== undefined && stillSaving(qc, subject) === 1) {
+          const ctx: OptimisticCtx = { me, now: instant(Date.now()) }
+          qc.setQueryData(queryKey, shows.land(list as never, r.value as V, input, ctx))
+        }
+        return r
+      })
+    },
+    onMutate: async (input) => {
+      ownChanges(qc).started(refreshed)
+      if (!shows) return undefined
+      const queryKey = keys[shows.key](houseId)
+      // A fetch that started before the tap would put the old list back when it lands.
+      await qc.cancelQueries({ queryKey, exact: true })
+      const before = qc.getQueryData(queryKey)
+      if (before === undefined) return undefined
+      const ctx: OptimisticCtx = { me, now: instant(Date.now()) }
+      qc.setQueryData(queryKey, shows.show(before as never, input, ctx))
+      return { queryKey, before }
+    },
+    onError: (_e, _input, shown) => {
+      // The server never answered (offline, a dropped request): we can't know if it saved.
+      if (shown && !othersSaving()) qc.setQueryData(shown.queryKey, shown.before)
+      ownChanges(qc).settled(refreshed)
+      return refresh()
+    },
+    onSuccess: (r, _input, shown) => {
+      ownChanges(qc).settled(refreshed)
+      if (!r.ok) {
+        // Refused: back to what was there, unless a later tap has changed the list since.
+        if (shown && !othersSaving()) qc.setQueryData(shown.queryKey, shown.before)
+        // Someone saved the same thing first (§7.5): fetch the latest of everything in the house.
+        if (isStale((r as { error?: string }).error))
+          return qc.invalidateQueries({ queryKey: keys.house(houseId) })
+        if (shows && !othersSaving()) void refresh()
+        return
+      }
+      if (!shows) return refresh()
+      // A refetch for this tap could land between a later tap and its answer and show the list
+      // without that tap, so only the last one still saving refreshes.
+      if (!othersSaving()) void refresh()
     },
   })
 }
+
+const itemTap = (
+  show: (items: readonly Item[], id: ItemId, ctx: OptimisticCtx) => readonly Item[],
+) =>
+  optimistic<readonly Item[], ItemId, Item>('items', {
+    subject: (id) => id,
+    show,
+    land: tap.landItem,
+  })
+const pollTap = <I extends { pollId: string }>(
+  show: (polls: readonly Poll[], input: I, ctx: OptimisticCtx) => readonly Poll[],
+) =>
+  optimistic<readonly Poll[], I, Poll>('polls', {
+    subject: (i) => i.pollId,
+    show,
+    land: tap.landPoll,
+  })
 
 export const useItems = (houseId: HouseId) => {
   const { queries } = useAppClient()
@@ -147,9 +251,19 @@ export const useSetSplitwiseGroup = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: { link: string | null }) => c.setSplitwiseGroup(i), ['house'])
 
 export const useSetFeeling = (houseId: HouseId) =>
-  useHouseCommand(houseId, (c, i: Parameters<AppCommands['setFeeling']>[0]) => c.setFeeling(i), [
-    'feelings',
-  ])
+  useHouseCommand(
+    houseId,
+    (c, i: Parameters<AppCommands['setFeeling']>[0]) => c.setFeeling(i),
+    ['feelings'],
+    optimistic<readonly Feeling[], Parameters<AppCommands['setFeeling']>[0], Feeling | null>(
+      'feelings',
+      {
+        subject: (i) => `feeling:${i.itemId}`,
+        show: tap.setFeeling,
+        land: tap.landFeeling,
+      },
+    ),
+  )
 
 export const useRuns = (houseId: HouseId) => {
   const { queries } = useAppClient()
@@ -244,13 +358,18 @@ export const usePolls = (houseId: HouseId) => {
 export const useCreatePoll = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'createPoll'>) => c.createPoll(i), ['polls'])
 export const useVote = (houseId: HouseId) =>
-  useHouseCommand(houseId, (c, i: Cmd<'vote'>) => c.vote(i), ['polls'])
+  useHouseCommand(houseId, (c, i: Cmd<'vote'>) => c.vote(i), ['polls'], pollTap(tap.vote))
 export const useAddPollOption = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'addPollOption'>) => c.addPollOption(i), ['polls'])
 export const useClosePoll = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'closePoll'>) => c.closePoll(i), ['polls'])
 export const useWithdrawVote = (houseId: HouseId) =>
-  useHouseCommand(houseId, (c, i: Cmd<'withdrawVote'>) => c.withdrawVote(i), ['polls'])
+  useHouseCommand(
+    houseId,
+    (c, i: Cmd<'withdrawVote'>) => c.withdrawVote(i),
+    ['polls'],
+    pollTap(tap.withdrawVote),
+  )
 export const useReopenPoll = (houseId: HouseId) =>
   useHouseCommand(houseId, (c, i: Cmd<'reopenPoll'>) => c.reopenPoll(i), ['polls'])
 export const useSetPollDeadline = (houseId: HouseId) =>
@@ -263,13 +382,35 @@ export const useEditItem = (houseId: HouseId) =>
     'items',
   ])
 export const useMarkDone = (houseId: HouseId) =>
-  useHouseCommand(houseId, (c, id: ItemId) => c.markDone(id), ['items'])
+  useHouseCommand(houseId, (c, id: ItemId) => c.markDone(id), ['items'], itemTap(tap.markDone))
 export const useReopenItem = (houseId: HouseId) =>
-  useHouseCommand(houseId, (c, id: ItemId) => c.reopenItem(id), ['items'])
+  useHouseCommand(houseId, (c, id: ItemId) => c.reopenItem(id), ['items'], itemTap(tap.reopen))
 export const useDoChore = (houseId: HouseId) =>
-  useHouseCommand(houseId, (c, id: ItemId) => c.doChore(id), ['items'])
+  useHouseCommand(houseId, (c, id: ItemId) => c.doChore(id), ['items'], itemTap(tap.doChore))
 export const useUndoChore = (houseId: HouseId) =>
-  useHouseCommand(houseId, (c, i: Cmd<'undoChore'>) => c.undoChore(i), ['items'])
+  useHouseCommand(
+    houseId,
+    (c, i: Cmd<'undoChore'>) => c.undoChore(i),
+    ['items'],
+    optimistic<readonly Item[], Cmd<'undoChore'>, Item>('items', {
+      subject: (i) => i.id,
+      show: tap.undoChore,
+      land: tap.landItem,
+    }),
+  )
+
+/**
+ * When I last did a chore, as the server saved it. A tick shows at once with the browser's time,
+ * but Undo has to name the saved one, so this waits for a tick that's still being saved.
+ */
+export const useSavedLastDone = (houseId: HouseId) => {
+  const qc = useQueryClient()
+  return async (id: ItemId): Promise<number | undefined> => {
+    await whenSaved(qc, id)
+    const item = qc.getQueryData<readonly Item[]>(keys.items(houseId))?.find((i) => i.id === id)
+    return item?.category === 'chore' ? item.lastDone?.at.epochMs : undefined
+  }
+}
 
 /** House → Rooms: several Deep clean chores for a room at once (T101). */
 export const useAddRoomChores = (houseId: HouseId) =>
@@ -348,18 +489,23 @@ export const useActivity = (houseId: HouseId) => {
 
 /**
  * Refreshes the house's queries when a change lands (ours or a roommate's): whatever the changed
- * table feeds, plus the activity log (T26).
+ * table feeds, plus the activity log (T26). The echo of a change this screen just made is left
+ * out where the command refreshes the same queries itself.
  */
 export const useLiveUpdates = (houseId: HouseId) => {
-  const { changes } = useAppClient()
+  const { changes, me } = useAppClient()
   const qc = useQueryClient()
   useEffect(
     () =>
       changes.subscribe(houseId, (change) => {
-        for (const queryKey of [...keysForTable(houseId, change.table), keys.activity(houseId)])
+        const mine = change.by === me ? ownChanges(qc) : null
+        for (const queryKey of [...keysForTable(houseId, change.table), keys.activity(houseId)]) {
+          // My own change, from a command here that refreshes this itself (T113).
+          if (mine?.covers(queryKey)) continue
           void qc.invalidateQueries({ queryKey })
+        }
       }),
-    [changes, houseId, qc],
+    [changes, houseId, qc, me],
   )
 }
 

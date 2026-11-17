@@ -61,8 +61,13 @@ test('"Which vacuum?" on a need and a standalone "House name?" both work, and 2â
   await sheet.getByLabel('Option 2', { exact: true }).fill('Burrow')
   await sheet.getByRole('button', { name: 'Start poll' }).click()
   poll = page.getByRole('dialog', { name: 'House name?' })
+  await expect(poll).toBeVisible()
+  // The vote shows at once (T113), so wait for the server's answer before leaving the page: a
+  // full page load straight after the tap would drop a save that hasn't been sent yet.
+  const saved = page.waitForResponse((res) => 'next-action' in res.request().headers())
   await poll.getByRole('radio', { name: /The Nest/ }).click()
   await expect(poll).toContainText('1 of 4 voted')
+  await saved
 
   // The others vote from their phones.
   await asOwner(async (db) => {

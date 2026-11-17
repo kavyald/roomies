@@ -1,5 +1,6 @@
 // Which table an activity kind changed, so a ChangeFeed can say what to refresh (T26).
 import type { Change } from '../app/ports'
+import type { UserId } from '../domain/ids'
 
 const TABLE_BY_PREFIX: Record<string, string> = {
   item: 'items',
@@ -19,6 +20,7 @@ const TABLE_BY_PREFIX: Record<string, string> = {
 }
 
 /** "item.created" → items. A kind with no prefix here is "unknown", which refreshes everything. */
-export const changeForKind = (kind: string): Change => ({
+export const changeForKind = (kind: string, by: UserId | null = null): Change => ({
   table: TABLE_BY_PREFIX[kind.split('.')[0]!] ?? 'unknown',
+  by,
 })

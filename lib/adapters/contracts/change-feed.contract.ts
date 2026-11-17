@@ -23,7 +23,7 @@ export const changeFeedContract = (name: string, make: () => Promise<ChangeFeedH
     const stops: Unsubscribe[] = []
     afterEach(() => stops.splice(0).forEach((stop) => stop()))
 
-    it("a member hears their house's changes, as the table that changed, and not another house's", async () => {
+    it("a member hears their house's changes, as the table that changed and who did it, and not another house's", async () => {
       const h = await make()
       const mine = await seedHouse(h)
       const theirs = await seedHouse(h)
@@ -32,7 +32,11 @@ export const changeFeedContract = (name: string, make: () => Promise<ChangeFeedH
         h.feedFor(mine.member, mine.house.id).subscribe(mine.house.id, (c) => heard.push(c)),
       )
 
-      const record = (houseId: HouseId, kind: 'house.created' | 'invite.created') =>
+      const record = (
+        houseId: HouseId,
+        kind: 'house.created' | 'invite.created',
+        by: UserId | null = null,
+      ) =>
         h.uow.run(system(houseId), (r) =>
           r.events.record(
             houseId,
@@ -40,7 +44,7 @@ export const changeFeedContract = (name: string, make: () => Promise<ChangeFeedH
               {
                 kind,
                 actionId: h.ids.newId(),
-                by: null,
+                by,
                 ...(kind === 'invite.created' && { payload: {} }),
               } as DomainEvent,
             ],
@@ -53,16 +57,17 @@ export const changeFeedContract = (name: string, make: () => Promise<ChangeFeedH
         await record(mine.house.id, 'house.created')
         await sleep(i === 0 ? 0 : 250)
       }
-      expect(heard[0]).toEqual({ table: 'houses' })
+      expect(heard[0]).toEqual({ table: 'houses', by: null })
 
       // Another house's change first, then ours (a different kind, so stragglers from the loop
       // above can't be mistaken for it): only ours arrives.
       await record(theirs.house.id, 'invite.created')
-      await record(mine.house.id, 'invite.created')
+      await record(mine.house.id, 'invite.created', mine.member)
       const invites = () => heard.filter((c) => c.table === 'house_invites')
       for (let i = 0; i < 40 && invites().length === 0; i++) await sleep(100)
       await sleep(300)
-      expect(invites()).toEqual([{ table: 'house_invites' }])
+      // It says who did it, so a screen can tell its own change from a roommate's (T113).
+      expect(invites()).toEqual([{ table: 'house_invites', by: mine.member }])
     })
 
     it('stops after unsubscribing', async () => {

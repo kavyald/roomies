@@ -357,7 +357,11 @@ export type ActivityPage = {
   readonly subjects: ActivitySubjects
 }
 
-export type Change = { readonly table: string }
+export type Change = {
+  readonly table: string
+  /** Who did it; null is Roomies itself (jobs). Lets a screen tell its own change from a roommate's. */
+  readonly by: UserId | null
+}
 export type Unsubscribe = () => void
 
 export interface ChangeFeed {
