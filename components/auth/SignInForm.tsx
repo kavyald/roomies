@@ -4,10 +4,13 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition, type FormEvent } from 'react'
 import { requestCode, verifyCode } from '@/app/actions/auth'
 import { Button } from '@/components/ui/Button'
+import { useForgetHouseData } from '@/lib/client/device-cache'
 import { CodeField, CodeLinks, inputClass } from './fields'
 
 /** Returning sign-in: email → 6-digit code (ARCHITECTURE §5.1). Codes only, no links. */
 export function SignInForm() {
+  // Signed out (or the session ended): nothing from a house stays on this device (T114).
+  useForgetHouseData()
   const router = useRouter()
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')

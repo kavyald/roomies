@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
+import { forgetHouseData } from '@/lib/client/device-cache'
 import { useAppClient } from '@/lib/client/provider'
 
 /** Delete my account (PRD §10), behind a plain confirmation. */
@@ -26,6 +27,7 @@ export function DeleteAccount() {
           : "Couldn't delete your account. Try again.",
       )
     }
+    forgetHouseData()
     router.replace('/sign-in')
   }
 
