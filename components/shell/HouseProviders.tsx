@@ -68,6 +68,7 @@ import {
 import { ItemSheetsProvider } from '@/components/items/ItemSheets'
 import { browserAppClient } from '@/lib/compose.client'
 import type { HouseId, UserId } from '@/lib/domain/ids'
+import { useKeepHouseData } from '@/lib/client/device-cache'
 import { useLiveUpdates } from '@/lib/client/hooks'
 import { AppClientProvider } from '@/lib/client/provider'
 import { ThemeSync } from './ThemeSync'
@@ -78,14 +79,23 @@ function LiveUpdates({ houseId }: { houseId: HouseId }) {
   return null
 }
 
+/** Opens with the house's lists from this device, and keeps them there (T114). */
+function KeepHouseData({ houseId, me, build }: { houseId: HouseId; me: UserId; build: string }) {
+  useKeepHouseData({ userId: me, houseId, build })
+  return null
+}
+
 /** Everything under /h/[houseId] reads and writes through one AppClient for that house. */
 export function HouseProviders({
   houseId,
   me,
+  build,
   children,
 }: {
   houseId: HouseId
   me: UserId
+  /** The deployed commit ('dev' locally), so a new build never reads an older one's copy. */
+  build: string
   children: ReactNode
 }) {
   const [client] = useState(() =>
@@ -152,6 +162,7 @@ export function HouseProviders({
   return (
     <AppClientProvider client={client}>
       <LiveUpdates houseId={houseId} />
+      <KeepHouseData houseId={houseId} me={me} build={build} />
       <ThemeSync houseId={houseId} />
       <ItemSheetsProvider houseId={houseId}>{children}</ItemSheetsProvider>
     </AppClientProvider>

@@ -36,6 +36,9 @@ export function TabBar({
             <li key={href}>
               <Link
                 href={href}
+                // Fetch each tab's page ahead of the tap (T88): the pages render per request, so
+                // without this every switch waits on the server before anything changes.
+                prefetch
                 aria-current={active ? 'page' : undefined}
                 // One name, not label + an sr-only span: that read as "Tasks , something urgent".
                 aria-label={urgent ? `${label}, something urgent` : undefined}

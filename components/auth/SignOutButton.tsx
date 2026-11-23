@@ -5,12 +5,14 @@ import { useState } from 'react'
 import { signOut } from '@/app/actions/auth'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
+import { forgetHouseData } from '@/lib/client/device-cache'
 import { thisBrowsersEndpoint, unsubscribeThisBrowser } from '@/lib/client/push'
 
 /**
  * Signs out, and stops this browser getting your notifications (T84): the server forgets it with
  * the sign-out, and the browser unsubscribes only once that went through, so a failed sign-out
- * leaves notifications as they were. Leaving /h/* drops the house's cache with its providers.
+ * leaves notifications as they were. Leaving /h/* drops the house's cache with its providers, and
+ * the copy of its lists kept on this device goes too (T114).
  */
 export function SignOutButton() {
   const [busy, setBusy] = useState(false)
@@ -27,6 +29,7 @@ export function SignOutButton() {
           const endpoint = await thisBrowsersEndpoint()
           const r = await signOut(endpoint ? { endpoint } : undefined)
           if (r.ok) {
+            forgetHouseData()
             await unsubscribeThisBrowser()
             router.replace('/sign-in')
             router.refresh()

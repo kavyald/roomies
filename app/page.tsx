@@ -1,6 +1,7 @@
 import { DoorOpen } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { SignOutButton } from '@/components/auth/SignOutButton'
+import { ForgetHouseData } from '@/components/shell/ForgetHouseData'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { makeWhereTo } from '@/lib/app/session'
 import { depsForRequest } from '@/lib/compose'
@@ -22,6 +23,8 @@ export default async function Start() {
           : "You're signed in, but you're not in a house yet. Ask a roommate for an invite link."}
       </EmptyState>
       <SignOutButton />
+      {/* No house here, so no house's lists stay on this device (T114). */}
+      <ForgetHouseData />
     </main>
   )
 }

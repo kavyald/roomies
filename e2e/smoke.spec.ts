@@ -10,13 +10,11 @@
 //                            a code; the test uses a fresh one from the admin API instead)
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { adminClient } from '../lib/adapters/supabase/server'
-import { APARTMENT_ROOMS } from '../lib/domain/rooms'
+import { accountWithHouse, freshCode, PROD_REF } from './smoke-support'
 
 const env = process.env
 const READ_ONLY = env.SMOKE_READ_ONLY === '1'
-const PROD_REF = 'iqkriekufaebhvptjzhv'
 const HOUSE_NAME = 'Smoke house'
 
 test.describe('signed out', () => {
@@ -37,87 +35,6 @@ test.describe('signed out', () => {
   })
 })
 
-/** The smoke account and its house, made on first use (service role, so RLS doesn't apply). */
-const smokeHouse = async (admin: SupabaseClient, email: string) => {
-  const created = await admin.auth.admin.createUser({ email, email_confirm: true })
-  let userId = created.data.user?.id
-  if (!userId) {
-    const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 })
-    if (error) throw new Error(`listUsers: ${error.message}`)
-    userId = data.users.find((u) => u.email === email)?.id
-    if (!userId)
-      throw new Error(`Couldn't create or find the smoke account: ${created.error?.message}`)
-  }
-  const check = (what: string, error: { message: string } | null) => {
-    if (error) throw new Error(`${what}: ${error.message}`)
-  }
-  check(
-    'profile',
-    (await admin.from('profiles').upsert({ id: userId, display_name: 'Smoke' })).error,
-  )
-
-  const member = await admin
-    .from('house_members')
-    .select('house_id')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .limit(1)
-  check('membership', member.error)
-  const existing = member.data?.[0]?.house_id as string | undefined
-  if (existing) return { userId, houseId: existing }
-
-  const houseId = randomUUID()
-  check(
-    'house',
-    (
-      await admin.from('houses').insert({
-        id: houseId,
-        name: HOUSE_NAME,
-        created_by: userId,
-        settings: { timezone: 'America/New_York', feeling_weights: {}, invite_ttl_days: 7 },
-      })
-    ).error,
-  )
-  check(
-    'member',
-    (
-      await admin
-        .from('house_members')
-        .insert({ house_id: houseId, user_id: userId, role: 'admin' })
-    ).error,
-  )
-  check(
-    'rooms',
-    (
-      await admin.from('rooms').insert(
-        APARTMENT_ROOMS.map((r, i) => ({
-          id: randomUUID(),
-          house_id: houseId,
-          name: r.name,
-          floor: r.floor,
-          kind: r.kind,
-          element: r.element ?? null,
-          sort_order: i,
-        })),
-      )
-    ).error,
-  )
-  return { userId, houseId }
-}
-
-/** A sign-in code from the admin API, waiting out the per-account email interval if needed. */
-const freshCode = async (admin: SupabaseClient, email: string): Promise<string> => {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const { data, error } = await admin.auth.admin.generateLink({ type: 'magiclink', email })
-    const code = data.properties?.email_otp
-    if (!error && code) return code
-    const wait = Number(error?.message.match(/after (\d+) seconds?/)?.[1])
-    if (!wait) throw new Error(`generateLink: ${error?.message ?? 'no code'}`)
-    await new Promise((r) => setTimeout(r, (wait + 1) * 1000))
-  }
-  throw new Error('generateLink kept asking to wait')
-}
-
 test.describe('signed in', () => {
   test.skip(READ_ONLY, 'Read-only mode (prod): no account, no writes.')
 
@@ -134,7 +51,10 @@ test.describe('signed in', () => {
     if (url.includes(PROD_REF)) throw new Error('Never write to prod: set SMOKE_READ_ONLY=1.')
 
     const admin = adminClient(url, key)
-    const { houseId } = await smokeHouse(admin, email)
+    const { houseId } = await accountWithHouse(admin, email, {
+      displayName: 'Smoke',
+      houseName: HOUSE_NAME,
+    })
 
     await page.goto('/sign-in')
     await page.getByLabel('Your email').fill(email)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCelebrate, useToast } from '@/components/ui/Toast'
-import { useDoChore, useUndoChore } from '@/lib/client/hooks'
+import { useDoChore, useSavedLastDone, useUndoChore } from '@/lib/client/hooks'
 import type { HouseId, ItemId } from '@/lib/domain/ids'
 
 /**
@@ -11,6 +11,7 @@ import type { HouseId, ItemId } from '@/lib/domain/ids'
 export function useDidIt(houseId: HouseId) {
   const did = useDoChore(houseId)
   const undo = useUndoChore(houseId)
+  const savedLastDone = useSavedLastDone(houseId)
   const toast = useToast()
   const celebrate = useCelebrate()
 
@@ -26,6 +27,13 @@ export function useDidIt(houseId: HouseId) {
     return false
   }
 
+  /** Unticks a chore I ticked, even one whose tick is still being saved. */
+  const untick = async (id: ItemId): Promise<boolean> => {
+    const doneAt = await savedLastDone(id)
+    if (doneAt === undefined) return false
+    return undoIt(id, doneAt)
+  }
+
   const didIt = async (id: ItemId, thanks = 'Did it. Thanks! 💛') => {
     const r = await did.mutateAsync(id)
     const doneAt = r.ok && r.value.category === 'chore' ? r.value.lastDone?.at : undefined
@@ -37,5 +45,5 @@ export function useDidIt(houseId: HouseId) {
     })
   }
 
-  return { didIt, undoIt, isPending: did.isPending || undo.isPending }
+  return { didIt, undoIt, untick, isPending: did.isPending || undo.isPending }
 }
