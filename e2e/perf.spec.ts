@@ -163,7 +163,13 @@ const watchForContent = (page: Page, tab: Tab) =>
     { title: tab.title, shows: tab.shows },
   )
 
-type Open = { ttfb: number; lcp: number; content: number }
+type Open = {
+  ttfb: number
+  lcp: number
+  content: number
+  /** Server-Timing (T115): the proxy's in the header, the house layout's in a meta tag. */
+  server: Record<string, number>
+}
 
 /** One load of a tab's URL, timed from the start of the navigation. */
 const open = async (page: Page, url: string): Promise<Open> => {
@@ -177,10 +183,19 @@ const open = async (page: Page, url: string): Promise<Open> => {
   return page.evaluate(() => {
     const w = window as unknown as { __perf: { content: number; lcp?: number } }
     const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
+    const server: Record<string, number> = {}
+    for (const t of nav.serverTiming ?? []) server[t.name] = t.duration
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="roomies-server-timing"]')
+    for (const part of meta?.content.split(',') ?? []) {
+      const [name, ...rest] = part.trim().split(';')
+      const dur = rest.find((r) => r.startsWith('dur='))
+      if (name && dur) server[name] = Number(dur.slice(4))
+    }
     return {
       ttfb: nav.responseStart,
       lcp: w.__perf.lcp ?? w.__perf.content,
       content: w.__perf.content,
+      server,
     }
   })
 }
@@ -320,6 +335,14 @@ test('how long opening, switching tabs and tapping take', async ({ browser, base
       'repeat: content',
       again.map((o) => o.content),
     )
+    // Where the server's time went on the first open (T115).
+    for (const part of ['session', 'auth', 'membership'])
+      if (first.every((o) => part in o.server))
+        put(
+          `Server ${tab.key}`,
+          part,
+          first.map((o) => o.server[part]!),
+        )
   }
 
   // Switching tabs and tapping, in one long-lived page like the installed app.

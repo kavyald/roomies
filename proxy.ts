@@ -1,12 +1,18 @@
 // Runs before every page request (Next 16's Proxy, formerly Middleware): sets the page's
 // Content-Security-Policy with a fresh nonce, refreshes the Supabase session cookie, and sends
-// signed-out visitors away from house pages. The pages still check the session themselves, and
-// RLS guards the data either way.
+// signed-out visitors away from house pages.
+//
+// Its look at the session is optimistic (T115, ARCHITECTURE §5.4): it reads the cookie and asks
+// Supabase Auth only to refresh a token that has run out, so it's never trusted with who someone
+// is. The verified check (`getUser`, a call to Supabase Auth) is the page's or the server action's
+// own (lib/server/session), and RLS guards the data either way. A cookie that only looks signed
+// in gets as far as that check, which sends it to sign-in.
 
 import { NextResponse, type NextRequest } from 'next/server'
 import { sessionClient } from './lib/adapters/supabase/server'
 import { devToolsEnabled, publicConfig } from './lib/config'
 import { contentSecurityPolicy } from './lib/server/csp'
+import { serverTiming, timed } from './lib/server/timing'
 
 export async function proxy(request: NextRequest) {
   const { supabaseUrl, supabaseAnonKey } = publicConfig()
@@ -36,15 +42,23 @@ export async function proxy(request: NextRequest) {
       list.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
     },
   })
-  const { data } = await sb.auth.getUser()
+  // Only whether there's a session, never its user: getSession doesn't verify it.
+  const [{ data }, ms] = await timed(() => sb.auth.getSession())
+  const timing = (res: NextResponse) => {
+    res.headers.set(
+      'Server-Timing',
+      serverTiming([{ name: 'session', ms, desc: 'Proxy: session' }]),
+    )
+    return res
+  }
 
-  if (!data.user && request.nextUrl.pathname.startsWith('/h/')) {
+  if (!data.session && request.nextUrl.pathname.startsWith('/h/')) {
     const to = request.nextUrl.clone()
     to.pathname = '/sign-in'
     to.search = ''
-    return withCsp(NextResponse.redirect(to))
+    return timing(withCsp(NextResponse.redirect(to)))
   }
-  return withCsp(response)
+  return timing(withCsp(response))
 }
 
 // /monitoring is the Sentry tunnel (app/monitoring/route.ts): no page, no session.
